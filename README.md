@@ -35,6 +35,7 @@ The first product slice proves:
 5. Guest reserves a free Ticket with email and optional display name; the page shows an in-place confirmation and Ticket link.
 6. Member runs mobile-friendly Door Check-In by manual lookup or exact Ticket code.
 7. Owner runs End of Night and views the private Event Report.
+8. People can belong to multiple Workspaces and switch the active operator home from the Workspace access panel.
 
 Run locally:
 
