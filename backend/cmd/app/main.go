@@ -11,6 +11,9 @@ import (
 func main() {
 	ctx := context.Background()
 	config := app.LoadConfig()
+	if err := config.Validate(); err != nil {
+		log.Fatal(err)
+	}
 	db, err := app.OpenDB(ctx, config.DatabaseURL)
 	if err != nil {
 		log.Fatal(err)

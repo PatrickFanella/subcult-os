@@ -34,6 +34,11 @@ func TestFirstEventLifecycle(t *testing.T) {
 	}
 }
 
+func TestReadyWithDatabase(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	getJSON(t, fx.app, nil, "/api/ready", http.StatusOK)
+}
+
 func TestFirstEventLifecycleFullCapacity(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	event := createEvent(t, fx, "Night Market", 1)

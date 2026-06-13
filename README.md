@@ -71,6 +71,14 @@ If the app is already running, use the Workspace page to inspect development inv
 - Login attempts are lightly throttled per email/IP in process memory.
 - Public free ticket reservations remain guest-accessible without account login.
 
+## Production readiness checklist
+
+- Set `APP_ENV=production`.
+- Set a real `DATABASE_URL`; production startup fails without it.
+- Set a non-default `SESSION_SECRET` with at least 24 characters.
+- Set `PUBLIC_WEB_URL` to the HTTPS web origin used by browsers.
+- Use `/api/health` for process health and `/api/ready` for DB-backed readiness.
+
 ## Open Pilot
 
 This repository keeps the base Open Pilot issue template and PR template.

@@ -1,11 +1,13 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -38,6 +40,7 @@ func (a *App) routes() {
 	a.mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
+	a.mux.HandleFunc("GET /api/ready", a.handleReady)
 	a.mux.HandleFunc("POST /api/auth/signup", a.handleSignup)
 	a.mux.HandleFunc("POST /api/auth/login", a.handleLogin)
 	a.mux.HandleFunc("POST /api/auth/logout", a.handleLogout)
@@ -71,6 +74,20 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 
 func writeError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]string{"error": message})
+}
+
+func (a *App) handleReady(w http.ResponseWriter, r *http.Request) {
+	if a.db == nil {
+		writeError(w, http.StatusServiceUnavailable, "database unavailable")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	if err := a.db.Ping(ctx); err != nil {
+		writeError(w, http.StatusServiceUnavailable, "database unavailable")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ready"})
 }
 
 func (a *App) originGuard(next http.Handler) http.Handler {
