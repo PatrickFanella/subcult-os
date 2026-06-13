@@ -20,7 +20,9 @@ afterEach(() => {
 
 describe('App routes', () => {
   it('renders the workspace route by default', () => {
-    expect(renderAt('/')).toContain('Workspace');
+    const rendered = renderAt('/');
+    expect(rendered).toContain('Operator home');
+    expect(rendered).toContain('Run the room from one place');
   });
 
   it('renders the auth route', () => {
