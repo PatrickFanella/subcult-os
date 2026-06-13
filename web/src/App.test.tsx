@@ -45,7 +45,15 @@ describe('App routes', () => {
   });
 
   it('renders the event editor route', () => {
-    expect(renderAt('/events/new')).toContain('Event editor');
+    const rendered = renderAt('/events/new');
+    expect(rendered).toContain('Event editor');
+    expect(rendered).toContain('Events start inside a workspace');
+  });
+
+  it('renders the workspace-backed new event flow', () => {
+    const rendered = renderAt('/events/new?workspaceId=workspace-1');
+    expect(rendered).toContain('Publish checklist');
+    expect(rendered).toContain('Fill in details');
   });
 
   it('renders the door route', () => {
