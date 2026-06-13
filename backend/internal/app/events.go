@@ -103,8 +103,8 @@ func (a *App) handleListEvents(w http.ResponseWriter, r *http.Request) {
 	rows, err := a.db.Query(r.Context(), `
 		select e.id, e.workspace_id, e.title, e.starts_at, e.public_description, e.location_display,
 		       e.ticket_allocation, e.pricing_mode, e.ticket_price_cents, e.ticket_currency, e.status, e.public_slug,
-		       (select count(*) from tickets t where t.event_id = e.id) as reserved_count,
-		       (select count(*) from tickets t where t.event_id = e.id and t.status = 'checked_in') as checked_in_count
+		       (select count(*) from tickets t where t.event_id = e.id and t.payment_status <> 'cancelled') as reserved_count,
+		       (select count(*) from tickets t where t.event_id = e.id and t.status = 'checked_in' and t.payment_status <> 'cancelled') as checked_in_count
 		from events e
 		where e.workspace_id = $1
 		order by e.created_at desc, e.title
@@ -706,8 +706,8 @@ func (a *App) loadEventDetails(ctx context.Context, eventID string) (eventRow, e
 	err := a.db.QueryRow(ctx, `
 		select e.id, e.workspace_id, e.title, e.starts_at, e.public_description, e.location_display,
 		       e.ticket_allocation, e.pricing_mode, e.ticket_price_cents, e.ticket_currency, e.status, e.public_slug,
-		       (select count(*) from tickets t where t.event_id = e.id) as reserved_count,
-		       (select count(*) from tickets t where t.event_id = e.id and t.status = 'checked_in') as checked_in_count
+		       (select count(*) from tickets t where t.event_id = e.id and t.payment_status <> 'cancelled') as reserved_count,
+		       (select count(*) from tickets t where t.event_id = e.id and t.status = 'checked_in' and t.payment_status <> 'cancelled') as checked_in_count
 		from events e
 		where e.id = $1
 	`, eventID).Scan(&row.ID, &row.WorkspaceID, &row.Title, &row.StartsAt, &row.PublicDescription, &row.LocationDisplay, &row.TicketAllocation, &row.PricingMode, &row.TicketPriceCents, &row.TicketCurrency, &row.Status, &row.PublicSlug, &row.ReservedCount, &row.CheckedInCount)

@@ -24,13 +24,14 @@ func Greeting(name string) string {
 type App struct {
 	config        Config
 	db            *pgxpool.Pool
+	payments      paymentProvider
 	mux           *http.ServeMux
 	loginMu       sync.Mutex
 	loginAttempts map[string]loginAttempt
 }
 
 func New(config Config, db *pgxpool.Pool) *App {
-	a := &App{config: config, db: db, mux: http.NewServeMux(), loginAttempts: map[string]loginAttempt{}}
+	a := &App{config: config, db: db, payments: newStripePaymentProvider(config.StripeSecretKey), mux: http.NewServeMux(), loginAttempts: map[string]loginAttempt{}}
 	a.routes()
 	return a
 }
@@ -62,6 +63,7 @@ func (a *App) routes() {
 	a.mux.HandleFunc("GET /api/events/{eventID}/report", a.handleGetReport)
 	a.mux.HandleFunc("GET /api/public/events/{slug}", a.handlePublicEvent)
 	a.mux.HandleFunc("POST /api/public/events/{slug}/reservations", a.handleReserveTicket)
+	a.mux.HandleFunc("POST /api/public/events/{slug}/paid-reservations", a.handleCreatePaidReservation)
 	a.mux.HandleFunc("GET /api/tickets/{code}", a.handleGetTicket)
 	a.mux.HandleFunc("GET /api/events/{eventID}/door/tickets", a.handleDoorTicketSearch)
 	a.mux.HandleFunc("POST /api/events/{eventID}/door/check-ins", a.handleDoorCheckIn)

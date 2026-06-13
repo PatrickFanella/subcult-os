@@ -4,6 +4,7 @@ go 1.26
 
 require (
 	github.com/jackc/pgx/v5 v5.10.0
+	github.com/stripe/stripe-go/v85 v85.2.0
 	golang.org/x/crypto v0.53.0
 )
 

@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
@@ -79,6 +80,60 @@ func TestFirstEventLifecycleFixedPriceRequiresPaidCheckout(t *testing.T) {
 	event := createEventWithPricing(t, fx, "Night Market", 2, "fixed", 1500, "usd")
 	slug := mustString(t, publishEvent(t, fx, mustString(t, event, "id")), "publicSlug")
 	postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/reservations", map[string]any{"email": fx.email("guest"), "displayName": "Guest"}, http.StatusConflict)
+}
+
+func TestPaidReservationWithoutPaymentProviderReturns503(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEventWithPricing(t, fx, "Night Market", 2, "fixed", 1500, "usd")
+	slug := mustString(t, publishEvent(t, fx, mustString(t, event, "id")), "publicSlug")
+	postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/paid-reservations", map[string]any{"email": fx.email("guest"), "displayName": "Guest"}, http.StatusServiceUnavailable)
+}
+
+func TestPaidReservationCreatesPendingTicketAndCheckoutSession(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEventWithPricing(t, fx, "Night Market", 2, "fixed", 1500, "usd")
+	eventID := mustString(t, event, "id")
+	fake := &fakePaymentProvider{response: checkoutSessionResponse{ID: "cs_test_" + strings.ReplaceAll(eventID, "-", ""), URL: "https://checkout.example/session"}}
+	fx.app.payments = fake
+	slug := mustString(t, publishEvent(t, fx, eventID), "publicSlug")
+	email := fx.email("guest")
+	resp := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/paid-reservations", map[string]any{"email": email, "displayName": "Guest"}, http.StatusOK)
+	if mustString(t, resp.JSON, "checkoutSessionId") != fake.response.ID || mustString(t, resp.JSON, "checkoutUrl") != "https://checkout.example/session" {
+		t.Fatalf("unexpected checkout response: %#v", resp.JSON)
+	}
+
+	if fake.request.TicketID == "" || fake.request.EventID != eventID || fake.request.EventTitle != "Night Market" || fake.request.AmountCents != 1500 || fake.request.Currency != "usd" {
+		t.Fatalf("unexpected provider request: %#v", fake.request)
+	}
+	if !strings.Contains(fake.request.SuccessURL, "/tickets/") || !strings.Contains(fake.request.SuccessURL, "checkout=success") {
+		t.Fatalf("unexpected success url: %s", fake.request.SuccessURL)
+	}
+	if !strings.Contains(fake.request.CancelURL, "/e/") || !strings.Contains(fake.request.CancelURL, "checkout=cancelled") {
+		t.Fatalf("unexpected cancel url: %s", fake.request.CancelURL)
+	}
+
+	var paymentStatus, currency, sessionID, status string
+	var amountCents int
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select payment_status, amount_cents, currency, stripe_checkout_session_id, status
+		from tickets
+		where event_id = $1 and email = $2
+	`, eventID, email).Scan(&paymentStatus, &amountCents, &currency, &sessionID, &status); err != nil {
+		t.Fatal(err)
+	}
+	if paymentStatus != "pending" || amountCents != 1500 || currency != "usd" || sessionID != fake.response.ID || status != "reserved" {
+		t.Fatalf("unexpected ticket state: paymentStatus=%s amount=%d currency=%s session=%s status=%s", paymentStatus, amountCents, currency, sessionID, status)
+	}
+}
+
+func TestFreeReservationStillWorksForFreeEvent(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 2)
+	slug := mustString(t, publishEvent(t, fx, mustString(t, event, "id")), "publicSlug")
+	resp := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/reservations", map[string]any{"email": fx.email("guest"), "displayName": "Guest"}, http.StatusOK)
+	if mustString(t, resp.JSON, "status") != "reserved" {
+		t.Fatalf("unexpected reservation response: %#v", resp.JSON)
+	}
 }
 
 func TestFirstEventLifecycleFullCapacity(t *testing.T) {
@@ -305,6 +360,22 @@ func newLifecycleFixture(t *testing.T) lifecycleFixture {
 	postJSON(t, app, memberCookie, "/api/invitations/"+mustString(t, invite.JSON, "token")+"/accept", map[string]any{}, http.StatusOK)
 
 	return lifecycleFixture{app: app, ownerCookie: ownerCookie, memberCookie: memberCookie, workspaceID: workspaceID, suffix: suffix}
+}
+
+type fakePaymentProvider struct {
+	request  checkoutSessionRequest
+	response checkoutSessionResponse
+}
+
+func (f *fakePaymentProvider) CreateCheckoutSession(_ context.Context, req checkoutSessionRequest) (checkoutSessionResponse, error) {
+	f.request = req
+	if f.response.ID == "" {
+		f.response.ID = "cs_test_fake"
+	}
+	if f.response.URL == "" {
+		f.response.URL = "https://checkout.example/fake"
+	}
+	return f.response, nil
 }
 
 func createEvent(t *testing.T, fx lifecycleFixture, title string, ticketAllocation int) map[string]any {
