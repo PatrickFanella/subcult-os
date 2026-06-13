@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { api, postJSON } from '../api';
-import type { CurrentUserDTO, CurrentWorkspaceDTO, EventDTO, InvitationDTO, MemberDTO } from '../domain';
+import type { CurrentUserDTO, CurrentWorkspaceDTO, DevEmailOutboxMessageDTO, EventDTO, InvitationDTO, MemberDTO } from '../domain';
 
 type CurrentWorkspaceResponse = Omit<CurrentWorkspaceDTO, 'members' | 'invitations'> & {
   members?: MemberDTO[] | null;
@@ -31,6 +31,29 @@ function formatDateTime(value: string) {
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat([], { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
 
+function extractInviteToken(body: string) {
+  return body.match(/\/invite\/([A-Za-z0-9_-]+)/)?.[1] ?? null;
+}
+
+async function loadDevEmailOutbox() {
+  try {
+    const response = await fetch('/api/dev/email-outbox', { credentials: 'include' });
+
+    if (response.status === 401 || response.status === 404 || !response.ok) {
+      return null;
+    }
+
+    const data = await response.json().catch(() => null);
+    if (!Array.isArray(data)) {
+      return null;
+    }
+
+    return data as DevEmailOutboxMessageDTO[];
+  } catch {
+    return null;
+  }
+}
+
 export function WorkspaceView() {
   const [me, setMe] = useState<CurrentUserDTO | null>(null);
   const [workspace, setWorkspace] = useState<CurrentWorkspaceDTO | null>(null);
@@ -41,6 +64,7 @@ export function WorkspaceView() {
   const [creatingWorkspace, setCreatingWorkspace] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [sendingInvite, setSendingInvite] = useState(false);
+  const [emailOutbox, setEmailOutbox] = useState<DevEmailOutboxMessageDTO[] | null>(null);
 
   const workspaceSummaries = useMemo(() => me?.workspaces ?? [], [me]);
 
@@ -101,6 +125,28 @@ export function WorkspaceView() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadOutbox() {
+      if (!workspace) {
+        setEmailOutbox(null);
+        return;
+      }
+
+      const loaded = await loadDevEmailOutbox();
+      if (!cancelled) {
+        setEmailOutbox(loaded ? [...loaded].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5) : null);
+      }
+    }
+
+    void loadOutbox();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspace?.id]);
 
   async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -302,6 +348,44 @@ export function WorkspaceView() {
                     Create events from the workspace page or jump straight to the Door view once a ticketed event exists.
                   </p>
                 </section>
+
+                {emailOutbox && emailOutbox.length > 0 ? (
+                  <section className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
+                    <p className="text-xs uppercase tracking-[0.3em] text-fuchsia-300">Dev email outbox</p>
+                    <p className="mt-2 text-sm leading-6 text-zinc-400">Latest outbound emails from the development mailbox.</p>
+
+                    <div className="mt-4 space-y-3">
+                      {emailOutbox.map((email) => {
+                        const inviteToken = extractInviteToken(email.body);
+
+                        return (
+                          <article key={email.id} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="font-medium text-white">{email.subject}</p>
+                                <p className="mt-1 text-zinc-400">To {email.recipientEmail}</p>
+                              </div>
+                              <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">{formatDateTime(email.createdAt)}</p>
+                            </div>
+
+                            <p className="mt-3 line-clamp-3 whitespace-pre-wrap text-zinc-300">{email.body}</p>
+
+                            <div className="mt-4 flex flex-wrap gap-2 text-xs uppercase tracking-[0.25em] text-zinc-500">
+                              <span>{email.relatedType}</span>
+                              <span>{email.relatedId}</span>
+                            </div>
+
+                            {inviteToken ? (
+                              <a className="mt-4 inline-flex rounded-full bg-amber-300 px-3 py-2 text-xs font-medium text-zinc-950 transition hover:bg-amber-200" href={`/invite/${inviteToken}`}>
+                                Open invite
+                              </a>
+                            ) : null}
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ) : null}
               </aside>
             </section>
 

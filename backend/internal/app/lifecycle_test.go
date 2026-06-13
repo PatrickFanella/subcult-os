@@ -105,6 +105,40 @@ func TestFirstEventLifecyclePermissions(t *testing.T) {
 	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
 }
 
+func TestDevEmailOutbox(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	inviteEmail := fx.email("invitee")
+	postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/invitations", map[string]any{"email": inviteEmail}, http.StatusOK)
+
+	outbox := getJSON(t, fx.app, fx.ownerCookie, "/api/dev/email-outbox", http.StatusOK).JSON.([]any)
+	if len(outbox) == 0 {
+		t.Fatal("expected at least one email in outbox")
+	}
+
+	matched := false
+	for _, item := range outbox {
+		msg := mustObject(t, item)
+		if msg["recipientEmail"] == inviteEmail && strings.Contains(msg["body"].(string), "/invite/") {
+			matched = true
+			break
+		}
+	}
+	if !matched {
+		t.Fatalf("expected invitation email for %s in outbox: %#v", inviteEmail, outbox)
+	}
+}
+
+func TestDevEmailOutboxUnauthorized(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	getJSON(t, fx.app, nil, "/api/dev/email-outbox", http.StatusUnauthorized)
+}
+
+func TestDevEmailOutboxProductionHidden(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	prodApp := New(Config{AppEnv: "production", PublicWebURL: "http://public.test", SessionSecret: "test-secret"}, fx.app.db)
+	getJSON(t, prodApp, fx.ownerCookie, "/api/dev/email-outbox", http.StatusNotFound)
+}
+
 type testResponse struct {
 	Status int
 	Cookie *http.Cookie

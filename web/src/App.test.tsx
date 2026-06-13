@@ -4,9 +4,11 @@ import App from './App';
 import { normalizeCurrentWorkspace } from './views/WorkspaceView';
 
 function renderAt(pathname: string) {
+  const url = new URL(pathname, 'http://example.test');
+
   vi.stubGlobal('window', {
     history: { pushState: () => undefined },
-    location: { pathname, search: '' },
+    location: { pathname: url.pathname, search: url.search },
   });
 
   return renderToString(<App />);
@@ -25,6 +27,17 @@ describe('App routes', () => {
     const rendered = renderAt('/login');
     expect(rendered).toContain('Access');
     expect(rendered).toContain('Sign in');
+  });
+
+  it('preserves auth next links', () => {
+    const rendered = renderAt('/login?next=/invite/test-token');
+    expect(rendered).toContain('?next=%2Finvite%2Ftest-token');
+  });
+
+  it('renders the invite route', () => {
+    const rendered = renderAt('/invite/test-token');
+    expect(rendered).toContain('Invitation');
+    expect(rendered).toContain('Accept your invite');
   });
 
   it('renders the public event route', () => {

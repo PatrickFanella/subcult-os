@@ -97,3 +97,13 @@ export interface EventReportDTO {
   generatedAt: string;
   generatedByMemberEmail: string;
 }
+
+export interface DevEmailOutboxMessageDTO {
+  id: string;
+  recipientEmail: string;
+  subject: string;
+  body: string;
+  relatedType: string;
+  relatedId: string | null;
+  createdAt: string;
+}

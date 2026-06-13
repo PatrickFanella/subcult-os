@@ -1,6 +1,7 @@
 import { AuthView } from './views/AuthView';
 import { DoorView } from './views/DoorView';
 import { EventEditorView } from './views/EventEditorView';
+import { InviteView } from './views/InviteView';
 import { PublicEventView } from './views/PublicEventView';
 import { TicketView } from './views/TicketView';
 import { WorkspaceView } from './views/WorkspaceView';
@@ -38,6 +39,10 @@ export default function App() {
 
   if (pathname.startsWith('/door/')) {
     return <DoorView eventId={getSegment(pathname, 2)} />;
+  }
+
+  if (pathname.startsWith('/invite/')) {
+    return <InviteView token={getSegment(pathname, 2)} />;
   }
 
   if (pathname.startsWith('/events/')) {

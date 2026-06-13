@@ -13,8 +13,26 @@ function getMode(): Mode {
   return 'login';
 }
 
-function goHome() {
-  window.location.href = '/';
+function getNextPath() {
+  if (typeof window === 'undefined') {
+    return '/';
+  }
+
+  const next = new URLSearchParams(window.location.search).get('next');
+  if (!next || next.trim().length === 0 || !next.startsWith('/') || next.startsWith('//')) {
+    return '/';
+  }
+
+  return next;
+}
+
+function authHref(mode: Mode) {
+  const next = getNextPath();
+  return next === '/' ? `/${mode}` : `/${mode}?next=${encodeURIComponent(next)}`;
+}
+
+function goToNext() {
+  window.location.href = getNextPath();
 }
 
 export function AuthView() {
@@ -40,7 +58,7 @@ export function AuthView() {
       };
 
       await postJSON<CurrentUserDTO>(mode === 'signup' ? '/api/auth/signup' : '/api/auth/login', body);
-      goHome();
+      goToNext();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to continue');
     } finally {
@@ -68,7 +86,7 @@ export function AuthView() {
           <div className="mt-6 flex gap-2 text-sm">
             <a
               className={`rounded-full px-3 py-2 transition ${mode === 'login' ? 'bg-white text-zinc-950' : 'bg-white/5 text-zinc-300 hover:bg-white/10'}`}
-              href="/login"
+              href={authHref('login')}
               onClick={(event) => {
                 event.preventDefault();
                 setMode('login');
@@ -78,7 +96,7 @@ export function AuthView() {
             </a>
             <a
               className={`rounded-full px-3 py-2 transition ${mode === 'signup' ? 'bg-white text-zinc-950' : 'bg-white/5 text-zinc-300 hover:bg-white/10'}`}
-              href="/signup"
+              href={authHref('signup')}
               onClick={(event) => {
                 event.preventDefault();
                 setMode('signup');

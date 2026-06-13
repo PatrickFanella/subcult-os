@@ -38,6 +38,7 @@ func (a *App) routes() {
 	a.mux.HandleFunc("POST /api/auth/login", a.handleLogin)
 	a.mux.HandleFunc("POST /api/auth/logout", a.handleLogout)
 	a.mux.HandleFunc("GET /api/me", a.handleMe)
+	a.mux.HandleFunc("GET /api/dev/email-outbox", a.handleDevEmailOutbox)
 	a.mux.HandleFunc("POST /api/workspaces", a.handleCreateWorkspace)
 	a.mux.HandleFunc("GET /api/workspaces/current", a.handleCurrentWorkspace)
 	a.mux.HandleFunc("POST /api/workspaces/{workspaceID}/invitations", a.handleCreateInvitation)
