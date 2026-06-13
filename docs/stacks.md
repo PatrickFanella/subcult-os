@@ -1,17 +1,17 @@
 # Stack Recipes
 
-This base template intentionally avoids application scaffold. Use these recipes when creating stack-specific templates.
+These are the stack conventions currently used by `subcult-os` and the preferred commands for related changes.
 
 ## Go
 
-Add:
+Current layout:
 
-- `go.mod`
-- `cmd/<app>/main.go`
-- `internal/` packages
+- `backend/go.mod`
+- `backend/cmd/app/main.go`
+- `backend/internal/` packages
 - `go test ./...` as the default test command
 
-Recommended `make verify` coverage:
+Recommended backend verification coverage:
 
 ```bash
 gofmt
@@ -21,12 +21,12 @@ golangci-lint run
 
 ## Node / TypeScript
 
-Add:
+Current frontend layout:
 
-- `package.json`
-- `pnpm-lock.yaml`
-- `tsconfig.json`
-- `src/` or app-specific workspace directories
+- `web/package.json`
+- `web/pnpm-lock.yaml`
+- `web/tsconfig.json`
+- `web/src/`
 
 Recommended scripts:
 
@@ -43,7 +43,7 @@ Recommended scripts:
 
 ## React / Vite / Tailwind
 
-Add a frontend workspace such as `web/` and keep frontend commands explicit:
+Keep frontend commands explicit:
 
 ```bash
 pnpm --dir web run build
@@ -53,7 +53,7 @@ pnpm --dir web run lint
 
 ## Python
 
-Add:
+Add only if the project gains Python services:
 
 - `pyproject.toml`
 - `src/<package>/`
@@ -69,7 +69,7 @@ uv run ruff format .
 
 ## Rust
 
-Add:
+Add only if the project gains Rust services:
 
 - `Cargo.toml`
 - `src/`
@@ -85,13 +85,13 @@ cargo test --all
 
 ## Postgres
 
-This base includes an optional local Postgres compose profile:
+This project includes local Postgres through Docker Compose:
 
 ```bash
-docker compose --profile db up -d postgres
+docker compose up -d postgres
 ```
 
-Derived templates should add migrations under `migrations/` or the stack-specific convention.
+Add migrations under `migrations/` unless a future service needs a more specific convention.
 
 ## Docker
 

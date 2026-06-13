@@ -1,3 +1,5 @@
+name: ${COMPOSE_PROJECT_NAME:-subcult-os}
+
 services:
   postgres:
     image: postgres:17
@@ -18,7 +20,11 @@ services:
   api:
     build: ./backend
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-app}?sslmode=disable
+      APP_ENV: ${APP_ENV:-development}
+      API_ADDR: :8080
+      DATABASE_URL: ${DATABASE_URL:-postgres://app:change-me@postgres:5432/app?sslmode=disable}
+      SESSION_SECRET: ${SESSION_SECRET:-dev-session-secret-change-me}
+      PUBLIC_WEB_URL: ${PUBLIC_WEB_URL:-http://localhost:5173}
     depends_on:
       postgres:
         condition: service_healthy

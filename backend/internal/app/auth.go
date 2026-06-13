@@ -1,0 +1,392 @@
+package app
+
+import (
+	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"crypto/subtle"
+	"database/sql"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+)
+
+const (
+	authCookieName    = "subcult_session"
+	sessionLifetime   = 30 * 24 * time.Hour
+	passwordScheme    = "sha256"
+	sessionTokenBytes = 32
+	passwordSaltBytes = 16
+)
+
+type signupRequest struct {
+	Email       string  `json:"email"`
+	Password    string  `json:"password"`
+	DisplayName *string `json:"displayName"`
+}
+
+type loginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type personRow struct {
+	ID           string
+	Email        string
+	DisplayName  sql.NullString
+	PasswordHash string
+}
+
+type userRow struct {
+	ID          string
+	Email       string
+	DisplayName sql.NullString
+}
+
+type workspaceSummaryRow struct {
+	ID   string
+	Name string
+	Role string
+}
+
+type CurrentUserDTO struct {
+	ID          string                `json:"id"`
+	Email       string                `json:"email"`
+	DisplayName *string               `json:"displayName"`
+	Workspaces  []WorkspaceSummaryDTO `json:"workspaces"`
+}
+
+type WorkspaceSummaryDTO struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Role string `json:"role"`
+}
+
+func (a *App) handleSignup(w http.ResponseWriter, r *http.Request) {
+	if a.db == nil {
+		writeError(w, http.StatusInternalServerError, "database unavailable")
+		return
+	}
+
+	var req signupRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+
+	email := normalizeEmail(req.Email)
+	if !validSignup(email, req.Password) {
+		writeError(w, http.StatusBadRequest, "invalid email or password")
+		return
+	}
+
+	displayName := normalizeDisplayName(req.DisplayName)
+	passwordHash := hashPassword(req.Password)
+	tx, err := a.db.Begin(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not start transaction")
+		return
+	}
+	defer func() { _ = tx.Rollback(r.Context()) }()
+
+	var personID string
+	err = tx.QueryRow(r.Context(), `
+		insert into people (email, display_name, password_hash)
+		values ($1, $2, $3)
+		returning id
+	`, email, displayName, passwordHash).Scan(&personID)
+	if err != nil {
+		if isUniqueViolation(err) {
+			writeError(w, http.StatusConflict, "email already exists")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "could not create user")
+		return
+	}
+
+	token, tokenHash := newToken()
+	expiresAt := time.Now().UTC().Add(sessionLifetime)
+	_, err = tx.Exec(r.Context(), `
+		insert into sessions (person_id, token_hash, expires_at)
+		values ($1, $2, $3)
+	`, personID, tokenHash, expiresAt)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not create session")
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not save session")
+		return
+	}
+
+	http.SetCookie(w, sessionCookie(token, expiresAt, a.cookieSecure()))
+	user := CurrentUserDTO{ID: personID, Email: email, DisplayName: displayName, Workspaces: []WorkspaceSummaryDTO{}}
+	if displayName == nil {
+		user.DisplayName = nil
+	}
+	writeJSON(w, http.StatusOK, user)
+}
+
+func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
+	if a.db == nil {
+		writeError(w, http.StatusInternalServerError, "database unavailable")
+		return
+	}
+
+	var req loginRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+
+	email := normalizeEmail(req.Email)
+	if email == "" || req.Password == "" {
+		writeError(w, http.StatusBadRequest, "invalid email or password")
+		return
+	}
+
+	var person personRow
+	err := a.db.QueryRow(r.Context(), `
+		select id, email, display_name, password_hash
+		from people
+		where email = $1
+	`, email).Scan(&person.ID, &person.Email, &person.DisplayName, &person.PasswordHash)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeError(w, http.StatusUnauthorized, "invalid credentials")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "could not load user")
+		return
+	}
+	if !verifyPassword(req.Password, person.PasswordHash) {
+		writeError(w, http.StatusUnauthorized, "invalid credentials")
+		return
+	}
+
+	token, tokenHash := newToken()
+	expiresAt := time.Now().UTC().Add(sessionLifetime)
+	_, err = a.db.Exec(r.Context(), `
+		insert into sessions (person_id, token_hash, expires_at)
+		values ($1, $2, $3)
+	`, person.ID, tokenHash, expiresAt)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not create session")
+		return
+	}
+
+	http.SetCookie(w, sessionCookie(token, expiresAt, a.cookieSecure()))
+	user, err := a.loadCurrentUser(r.Context(), person.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not load current user")
+		return
+	}
+	writeJSON(w, http.StatusOK, user)
+}
+
+func (a *App) handleLogout(w http.ResponseWriter, r *http.Request) {
+	if a.db != nil {
+		if cookie, err := r.Cookie(authCookieName); err == nil && cookie.Value != "" {
+			_, _ = a.db.Exec(r.Context(), `delete from sessions where token_hash = $1`, tokenHash(cookie.Value))
+		}
+	}
+	http.SetCookie(w, expiredSessionCookie(a.cookieSecure()))
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+func (a *App) handleMe(w http.ResponseWriter, r *http.Request) {
+	personID, ok := a.requirePersonID(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	user, err := a.loadCurrentUser(r.Context(), personID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeError(w, http.StatusUnauthorized, "unauthorized")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "could not load current user")
+		return
+	}
+	writeJSON(w, http.StatusOK, user)
+}
+
+func (a *App) requirePersonID(r *http.Request) (string, bool) {
+	if a.db == nil {
+		return "", false
+	}
+	cookie, err := r.Cookie(authCookieName)
+	if err != nil || cookie.Value == "" {
+		return "", false
+	}
+	var personID string
+	err = a.db.QueryRow(r.Context(), `
+		select person_id
+		from sessions
+		where token_hash = $1
+		  and expires_at > now()
+	`, tokenHash(cookie.Value)).Scan(&personID)
+	if err != nil {
+		return "", false
+	}
+	return personID, true
+}
+
+func hashPassword(password string) string {
+	salt := make([]byte, passwordSaltBytes)
+	_, _ = rand.Read(salt)
+	return fmt.Sprintf("%s$%s$%s", passwordScheme, base64.RawURLEncoding.EncodeToString(salt), passwordSum(salt, password))
+}
+
+func verifyPassword(password, hash string) bool {
+	parts := strings.Split(hash, "$")
+	if len(parts) != 3 || parts[0] != passwordScheme {
+		return false
+	}
+	salt, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return false
+	}
+	want, err := hex.DecodeString(parts[2])
+	if err != nil {
+		return false
+	}
+	got, err := hex.DecodeString(passwordSum(salt, password))
+	if err != nil {
+		return false
+	}
+	return subtle.ConstantTimeCompare(got, want) == 1
+}
+
+func newToken() (string, string) {
+	raw := make([]byte, sessionTokenBytes)
+	_, _ = rand.Read(raw)
+	token := base64.RawURLEncoding.EncodeToString(raw)
+	return token, tokenHash(token)
+}
+
+func tokenHash(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
+}
+
+func passwordSum(salt []byte, password string) string {
+	sum := sha256.Sum256(append(append([]byte{}, salt...), []byte(password)...))
+	return hex.EncodeToString(sum[:])
+}
+
+func normalizeEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
+}
+
+func normalizeDisplayName(displayName *string) *string {
+	if displayName == nil {
+		return nil
+	}
+	v := strings.TrimSpace(*displayName)
+	if v == "" {
+		return nil
+	}
+	return &v
+}
+
+func validSignup(email, password string) bool {
+	return email != "" && strings.Contains(email, "@") && len(password) >= 8
+}
+
+func decodeJSON(r *http.Request, v any) error {
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(v); err != nil {
+		return err
+	}
+	return nil
+}
+
+func sessionCookie(token string, expiresAt time.Time, secure bool) *http.Cookie {
+	return &http.Cookie{
+		Name:     authCookieName,
+		Value:    token,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   secure,
+		Expires:  expiresAt,
+		MaxAge:   int(time.Until(expiresAt).Seconds()),
+	}
+}
+
+func expiredSessionCookie(secure bool) *http.Cookie {
+	return &http.Cookie{
+		Name:     authCookieName,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   secure,
+		Expires:  time.Unix(0, 0),
+		MaxAge:   -1,
+	}
+}
+
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
+}
+
+func (a *App) loadCurrentUser(ctx context.Context, personID string) (CurrentUserDTO, error) {
+	var person userRow
+	err := a.db.QueryRow(ctx, `
+		select id, email, display_name
+		from people
+		where id = $1
+	`, personID).Scan(&person.ID, &person.Email, &person.DisplayName)
+	if err != nil {
+		return CurrentUserDTO{}, err
+	}
+
+	user := CurrentUserDTO{ID: person.ID, Email: person.Email, Workspaces: []WorkspaceSummaryDTO{}}
+	if person.DisplayName.Valid {
+		user.DisplayName = &person.DisplayName.String
+	}
+
+	rows, err := a.db.Query(ctx, `
+		select w.id, w.name, wm.role
+		from workspace_members wm
+		join workspaces w on w.id = wm.workspace_id
+		where wm.person_id = $1
+		  and wm.removed_at is null
+		order by w.created_at, w.name
+	`, personID)
+	if err != nil {
+		return CurrentUserDTO{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var row workspaceSummaryRow
+		if err := rows.Scan(&row.ID, &row.Name, &row.Role); err != nil {
+			return CurrentUserDTO{}, err
+		}
+		user.Workspaces = append(user.Workspaces, WorkspaceSummaryDTO{ID: row.ID, Name: row.Name, Role: row.Role})
+	}
+	if err := rows.Err(); err != nil {
+		return CurrentUserDTO{}, err
+	}
+
+	return user, nil
+}
+
+func (a *App) cookieSecure() bool {
+	env := strings.ToLower(strings.TrimSpace(a.config.AppEnv))
+	return env != "development" && env != "test"
+}

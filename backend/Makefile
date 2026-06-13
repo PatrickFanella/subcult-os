@@ -1,12 +1,15 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-.PHONY: help verify fmt lint test compose-config open-pilot-check
+PROJECT_NAME := subcult-os
+BIN ?= ../bin/$(PROJECT_NAME)
+
+.PHONY: help verify fmt lint test build run clean
 
 help:
-	@awk 'BEGIN {FS = ":.*##"; printf "Commands:\n"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*##"; printf "$(PROJECT_NAME) backend commands:\n"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-verify: fmt lint test compose-config open-pilot-check ## Run all checks
+verify: fmt lint test build ## Run backend checks
 
 fmt: ## Format Go files
 	gofmt -w $$(git ls-files '*.go')
@@ -17,9 +20,12 @@ lint: ## Run Go vet
 test: ## Run Go tests
 	go test ./...
 
-compose-config: ## Validate Docker Compose if present
-	@if [ -f docker-compose.yml ]; then docker compose config --quiet; else echo 'skip compose config'; fi
+build: ## Build the subcult-os backend binary
+	mkdir -p ../bin
+	go build -o $(BIN) ./cmd/app
 
-open-pilot-check: ## Verify Open Pilot issue template exists
-	@test -f .gitea/ISSUE_TEMPLATE/open-pilot-task.yaml
-	@grep -q 'Test Command' .gitea/ISSUE_TEMPLATE/open-pilot-task.yaml
+run: build ## Run the subcult-os backend binary
+	$(BIN)
+
+clean: ## Remove backend build output
+	rm -f $(BIN)

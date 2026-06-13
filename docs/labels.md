@@ -3,7 +3,7 @@
 This template is Open Pilot-ready after labels are bootstrapped:
 
 ```bash
-open-pilot labels bootstrap OWNER/REPO
+open-pilot labels bootstrap PatrickFanella/subcult-os
 ```
 
 ## Issue lifecycle labels

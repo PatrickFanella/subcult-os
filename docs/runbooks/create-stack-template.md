@@ -4,7 +4,7 @@ Use this runbook when turning this base into a Go, Node/TypeScript, Python, Rust
 
 ## Steps
 
-1. Create a new repository from `subculture-collective/project-template`.
+1. Create a new repository from `PatrickFanella/subcult-os` or the current canonical template.
 2. Rename the project in `README.md`, `.env.example`, and docs.
 3. Add the stack scaffold and dependency files.
 4. Update `Makefile` so `make verify` runs the stack's real checks.
@@ -19,7 +19,7 @@ Use this runbook when turning this base into a Go, Node/TypeScript, Python, Rust
 7. Bootstrap Open Pilot labels:
 
    ```bash
-   open-pilot labels bootstrap OWNER/REPO
+   open-pilot labels bootstrap PatrickFanella/subcult-os
    ```
 
 8. Create a small Open Pilot smoke issue with a deterministic `Test Command`.

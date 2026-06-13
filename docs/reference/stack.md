@@ -1,11 +1,21 @@
 # Stack Reference
 
-Template: `project-template-go-vite-react-ts-postgres-docker`
+Project: `subcult-os`
 
-Full-stack template with Go backend, Vite React TypeScript Tailwind frontend, Postgres, Docker Compose, and Open Pilot conventions.
+Full-stack project with Go backend, Vite React TypeScript Tailwind frontend, Postgres, Docker Compose, and Open Pilot conventions.
 
 The canonical verification command is:
 
 ```bash
 make verify
+```
+
+Common local commands:
+
+```bash
+make quick
+make build
+make up-build
+make logs
+make down
 ```

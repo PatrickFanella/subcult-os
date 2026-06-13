@@ -2,9 +2,9 @@
 
 ## Supported scope
 
-This repository is a public base template. Security work here focuses on safe defaults, secret hygiene, and guidance for derived projects.
+This repository is a public full-stack project. Security work here focuses on safe defaults, secret hygiene, and clear project guidance.
 
-Derived repositories should add stack-specific security policy details before production use.
+Add deployment-specific security policy details before production use.
 
 ## Reporting a vulnerability
 
@@ -35,7 +35,7 @@ Use placeholders in docs and examples. Report only secret key names and presence
 
 ## Dependency and supply-chain hygiene
 
-Derived templates should:
+This project should:
 
 - commit lockfiles for application projects when the stack expects them
 - pin container base images deliberately
