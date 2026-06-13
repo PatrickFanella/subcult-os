@@ -78,6 +78,7 @@ If the app is already running, use the Workspace page to inspect development inv
 - Set a non-default `SESSION_SECRET` with at least 24 characters.
 - Set `PUBLIC_WEB_URL` to the HTTPS web origin used by browsers.
 - Use `/api/health` for process health and `/api/ready` for DB-backed readiness.
+- Review `docs/runbooks/database-migrations.md` before changing persisted schema.
 
 ## Open Pilot
 
