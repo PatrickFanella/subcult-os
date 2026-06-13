@@ -28,7 +28,16 @@ const (
 	sessionTokenBytes  = 32
 	passwordSaltBytes  = 16
 	bcryptCost         = 12
+	maxLoginFailures   = 5
+	loginFailureWindow = 5 * time.Minute
+	loginLockout       = 5 * time.Minute
 )
+
+type loginAttempt struct {
+	Failures    int
+	FirstFailed time.Time
+	LockedUntil time.Time
+}
 
 type signupRequest struct {
 	Email       string  `json:"email"`
@@ -159,6 +168,12 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid email or password")
 		return
 	}
+	loginKey := a.loginAttemptKey(r, email)
+	if retryAfter := a.loginRetryAfter(loginKey); retryAfter > 0 {
+		w.Header().Set("Retry-After", fmt.Sprintf("%.0f", retryAfter.Seconds()))
+		writeError(w, http.StatusTooManyRequests, "too many login attempts")
+		return
+	}
 
 	var person personRow
 	err := a.db.QueryRow(r.Context(), `
@@ -168,6 +183,7 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 	`, email).Scan(&person.ID, &person.Email, &person.DisplayName, &person.PasswordHash)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
+			a.recordLoginFailure(loginKey)
 			writeError(w, http.StatusUnauthorized, "invalid credentials")
 			return
 		}
@@ -176,9 +192,11 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	validPassword, upgradedHash := verifyPassword(req.Password, person.PasswordHash)
 	if !validPassword {
+		a.recordLoginFailure(loginKey)
 		writeError(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
+	a.clearLoginFailures(loginKey)
 	if upgradedHash != "" {
 		_, _ = a.db.Exec(r.Context(), `update people set password_hash = $2 where id = $1`, person.ID, upgradedHash)
 	}
@@ -413,4 +431,50 @@ func (a *App) loadCurrentUser(ctx context.Context, personID string) (CurrentUser
 func (a *App) cookieSecure() bool {
 	env := strings.ToLower(strings.TrimSpace(a.config.AppEnv))
 	return env != "development" && env != "test"
+}
+
+func (a *App) loginAttemptKey(r *http.Request, email string) string {
+	remote := strings.TrimSpace(r.Header.Get("X-Forwarded-For"))
+	if remote != "" {
+		remote = strings.TrimSpace(strings.Split(remote, ",")[0])
+	} else {
+		remote = r.RemoteAddr
+	}
+	return normalizeEmail(email) + "|" + remote
+}
+
+func (a *App) loginRetryAfter(key string) time.Duration {
+	a.loginMu.Lock()
+	defer a.loginMu.Unlock()
+	attempt := a.loginAttempts[key]
+	if attempt.LockedUntil.IsZero() {
+		return 0
+	}
+	now := time.Now().UTC()
+	if now.After(attempt.LockedUntil) {
+		delete(a.loginAttempts, key)
+		return 0
+	}
+	return time.Until(attempt.LockedUntil)
+}
+
+func (a *App) recordLoginFailure(key string) {
+	a.loginMu.Lock()
+	defer a.loginMu.Unlock()
+	now := time.Now().UTC()
+	attempt := a.loginAttempts[key]
+	if attempt.FirstFailed.IsZero() || now.Sub(attempt.FirstFailed) > loginFailureWindow {
+		attempt = loginAttempt{FirstFailed: now}
+	}
+	attempt.Failures++
+	if attempt.Failures >= maxLoginFailures {
+		attempt.LockedUntil = now.Add(loginLockout)
+	}
+	a.loginAttempts[key] = attempt
+}
+
+func (a *App) clearLoginFailures(key string) {
+	a.loginMu.Lock()
+	defer a.loginMu.Unlock()
+	delete(a.loginAttempts, key)
 }

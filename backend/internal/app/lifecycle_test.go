@@ -184,6 +184,18 @@ func TestOriginGuardRejectsCrossSiteCookieMutations(t *testing.T) {
 	postJSONWithOrigin(t, fx.app, fx.ownerCookie, "/api/workspaces", map[string]any{"name": "Allowed"}, "http://public.test", http.StatusOK)
 }
 
+func TestLoginRateLimit(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	email := fx.email("missing")
+	for range maxLoginFailures {
+		postJSON(t, fx.app, nil, "/api/auth/login", map[string]any{"email": email, "password": "wrong-password"}, http.StatusUnauthorized)
+	}
+	resp := postJSON(t, fx.app, nil, "/api/auth/login", map[string]any{"email": email, "password": "wrong-password"}, http.StatusTooManyRequests)
+	if !strings.Contains(resp.Body, "too many login attempts") {
+		t.Fatalf("expected rate-limit response, got %s", resp.Body)
+	}
+}
+
 type testResponse struct {
 	Status int
 	Cookie *http.Cookie

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -18,13 +19,15 @@ func Greeting(name string) string {
 }
 
 type App struct {
-	config Config
-	db     *pgxpool.Pool
-	mux    *http.ServeMux
+	config        Config
+	db            *pgxpool.Pool
+	mux           *http.ServeMux
+	loginMu       sync.Mutex
+	loginAttempts map[string]loginAttempt
 }
 
 func New(config Config, db *pgxpool.Pool) *App {
-	a := &App{config: config, db: db, mux: http.NewServeMux()}
+	a := &App{config: config, db: db, mux: http.NewServeMux(), loginAttempts: map[string]loginAttempt{}}
 	a.routes()
 	return a
 }
