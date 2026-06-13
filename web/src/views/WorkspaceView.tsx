@@ -39,6 +39,14 @@ function roleHint(role: string) {
   return role === 'owner' ? 'Can invite members and publish events' : 'Can help run the room';
 }
 
+function getRequestedWorkspaceId() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  return new URLSearchParams(window.location.search).get('workspaceId');
+}
+
 function formatDateTime(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat([], { dateStyle: 'medium', timeStyle: 'short' }).format(date);
@@ -237,12 +245,14 @@ export function WorkspaceView() {
   const [events, setEvents] = useState<EventDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [workspaceNotice, setWorkspaceNotice] = useState<string | null>(null);
   const [workspaceName, setWorkspaceName] = useState('');
   const [creatingWorkspace, setCreatingWorkspace] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [sendingInvite, setSendingInvite] = useState(false);
   const [inviteNotice, setInviteNotice] = useState<string | null>(null);
   const [emailOutbox, setEmailOutbox] = useState<DevEmailOutboxMessageDTO[] | null>(null);
+  const requestedWorkspaceId = useMemo(() => getRequestedWorkspaceId(), []);
 
   const workspaceSummaries = useMemo(() => me?.workspaces ?? [], [me]);
   const orderedEvents = useMemo(() => [...events].sort((left, right) => new Date(right.startsAt).getTime() - new Date(left.startsAt).getTime()), [events]);
@@ -262,9 +272,41 @@ export function WorkspaceView() {
   useEffect(() => {
     let cancelled = false;
 
+    async function loadWorkspaceEvents(nextWorkspace: CurrentWorkspaceDTO) {
+      setWorkspace(nextWorkspace);
+      const loadedEvents = await api<EventDTO[]>(`/api/workspaces/${nextWorkspace.id}/events`).catch(() => []);
+      if (!cancelled) {
+        setEvents(loadedEvents ?? []);
+      }
+    }
+
+    async function loadFallbackWorkspace(user: CurrentUserDTO) {
+      const currentWorkspace = await api<CurrentWorkspaceResponse>('/api/workspaces/current').catch(() => null);
+      if (currentWorkspace) {
+        return { workspace: normalizeCurrentWorkspace(currentWorkspace), source: 'current' as const };
+      }
+
+      const fallback = user.workspaces[0];
+      if (!fallback) {
+        return null;
+      }
+
+      return {
+        workspace: {
+          id: fallback.id,
+          name: fallback.name,
+          role: fallback.role,
+          members: [],
+          invitations: [],
+        },
+        source: 'default' as const,
+      };
+    }
+
     async function load() {
       setLoading(true);
       setError(null);
+      setWorkspaceNotice(null);
 
       try {
         const user = await api<CurrentUserDTO>('/api/me');
@@ -277,16 +319,48 @@ export function WorkspaceView() {
           return;
         }
 
+        if (requestedWorkspaceId) {
+          try {
+            const selectedWorkspace = normalizeCurrentWorkspace(await api<CurrentWorkspaceResponse>(`/api/workspaces/${requestedWorkspaceId}`));
+            if (cancelled) return;
+            await loadWorkspaceEvents(selectedWorkspace);
+            return;
+          } catch {
+            if (cancelled) return;
+
+            const fallback = await loadFallbackWorkspace(user);
+            if (cancelled) return;
+
+            if (fallback) {
+              setWorkspaceNotice(
+                fallback.source === 'current'
+                  ? 'That Workspace is not available. Showing your current Workspace instead.'
+                  : 'That Workspace is not available. Showing the first Workspace you can still access.',
+              );
+              await loadWorkspaceEvents(fallback.workspace);
+              return;
+            }
+
+            setError('That Workspace is not available, and there is no fallback Workspace to open.');
+            setWorkspace(null);
+            setEvents([]);
+            return;
+          }
+        }
+
         const currentWorkspace = await api<CurrentWorkspaceResponse>('/api/workspaces/current').catch(() => null);
         if (cancelled) return;
 
         if (currentWorkspace) {
-          setWorkspace(normalizeCurrentWorkspace(currentWorkspace));
-          const loadedEvents = await api<EventDTO[]>(`/api/workspaces/${currentWorkspace.id}/events`).catch(() => []);
-          if (cancelled) return;
-          setEvents(loadedEvents ?? []);
+          await loadWorkspaceEvents(normalizeCurrentWorkspace(currentWorkspace));
         } else {
           const fallback = user.workspaces[0];
+          if (!fallback) {
+            setWorkspace(null);
+            setEvents([]);
+            return;
+          }
+
           const fallbackWorkspace: CurrentWorkspaceDTO = {
             id: fallback.id,
             name: fallback.name,
@@ -294,10 +368,7 @@ export function WorkspaceView() {
             members: [],
             invitations: [],
           };
-          setWorkspace(fallbackWorkspace);
-          const loadedEvents = await api<EventDTO[]>(`/api/workspaces/${fallbackWorkspace.id}/events`).catch(() => []);
-          if (cancelled) return;
-          setEvents(loadedEvents);
+          await loadWorkspaceEvents(fallbackWorkspace);
         }
       } catch (caught) {
         if (!cancelled) {
@@ -423,9 +494,24 @@ export function WorkspaceView() {
         </header>
 
         {error ? <p className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error}</p> : null}
+        {workspaceNotice ? <p className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">{workspaceNotice}</p> : null}
 
         {loading ? (
-          <div className="rounded-[1.75rem] border border-white/10 bg-white/5 p-6 text-sm text-zinc-400">Loading workspace…</div>
+          <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+            <div className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6 shadow-xl shadow-black/30">
+              <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Loading workspace</p>
+              <h2 className="mt-2 text-3xl font-semibold tracking-tight text-white">Finding the right room</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">We are checking your current Workspace, loading its events, and preparing the operator dashboard.</p>
+            </div>
+
+            <aside className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
+              <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Workspace access</p>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">One person can operate multiple Workspaces. Use this switcher to jump between them.</p>
+              <div className="mt-4 space-y-2">
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-500">Loading access…</div>
+              </div>
+            </aside>
+          </section>
         ) : me && me.workspaces.length === 0 ? (
           <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
             <div className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
@@ -671,16 +757,37 @@ export function WorkspaceView() {
 
                 <section className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
                   <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Workspace access</p>
+                  <p className="mt-2 text-sm leading-6 text-zinc-400">One person can operate multiple Workspaces. Use this switcher to jump between them.</p>
                   <div className="mt-4 space-y-2 text-sm text-zinc-400">
                     {workspaceSummaries.map((summary) => (
-                      <div key={summary.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                        <span className="text-zinc-200">{summary.name}</span>
-                        <span className="text-xs uppercase tracking-[0.25em] text-zinc-500">{roleLabel(summary.role)}</span>
-                      </div>
+                      <a
+                        key={summary.id}
+                        className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 transition ${
+                          summary.id === workspace.id
+                            ? 'border-amber-300/40 bg-amber-300/10 shadow-[0_0_0_1px_rgba(252,211,77,0.12)]'
+                            : 'border-white/10 bg-white/5 hover:bg-white/10'
+                        }`}
+                        href={`/workspace?workspaceId=${summary.id}`}
+                        aria-current={summary.id === workspace.id ? 'page' : undefined}
+                      >
+                        <span className="min-w-0">
+                          <span className={`block truncate ${summary.id === workspace.id ? 'text-white' : 'text-zinc-200'}`}>{summary.name}</span>
+                          <span className="mt-1 block text-xs uppercase tracking-[0.25em] text-zinc-500">{roleLabel(summary.role)}</span>
+                        </span>
+                        <span
+                          className={`shrink-0 rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.25em] ${
+                            summary.id === workspace.id
+                              ? 'border-amber-300/40 bg-amber-300/10 text-amber-100'
+                              : 'border-white/10 bg-black/20 text-zinc-300'
+                          }`}
+                        >
+                          {summary.id === workspace.id ? 'Active' : 'Open'}
+                        </span>
+                      </a>
                     ))}
                   </div>
                   <p className="mt-4 text-xs leading-6 text-zinc-500">
-                    Create events from the workspace page or jump straight to the Door view once a ticketed event exists.
+                    The active Workspace is highlighted so you can move between rooms without losing your place.
                   </p>
                 </section>
 

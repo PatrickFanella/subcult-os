@@ -141,6 +141,20 @@ func TestDevEmailOutboxProductionHidden(t *testing.T) {
 	getJSON(t, prodApp, fx.ownerCookie, "/api/dev/email-outbox", http.StatusNotFound)
 }
 
+func TestGetSpecificWorkspace(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	second := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces", map[string]any{"name": "Second Room"}, http.StatusOK)
+	secondID := mustString(t, second.JSON, "id")
+
+	loaded := getJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+secondID, http.StatusOK).JSON
+	if mustString(t, loaded, "id") != secondID || mustString(t, loaded, "name") != "Second Room" {
+		t.Fatalf("unexpected workspace response: %#v", loaded)
+	}
+
+	otherCookie := postJSON(t, fx.app, nil, "/api/auth/signup", map[string]any{"email": fx.email("other"), "password": "secret1234", "displayName": "Other"}, http.StatusOK).Cookie
+	getJSON(t, fx.app, otherCookie, "/api/workspaces/"+secondID, http.StatusForbidden)
+}
+
 func TestSignupStoresBcryptPasswordHash(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	email := fx.email("bcrypt")

@@ -25,6 +25,12 @@ describe('App routes', () => {
     expect(rendered).toContain('Run the room from one place');
   });
 
+  it('renders the workspace route with a selected workspace', () => {
+    const rendered = renderAt('/workspace?workspaceId=workspace-1');
+    expect(rendered).toContain('Workspace access');
+    expect(rendered).toContain('One person can operate multiple Workspaces. Use this switcher to jump between them.');
+  });
+
   it('renders the auth route', () => {
     const rendered = renderAt('/login');
     expect(rendered).toContain('Operator access');

@@ -152,16 +152,7 @@ func (a *App) handleCurrentWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var workspace currentWorkspaceDTO
-	err := a.db.QueryRow(r.Context(), `
-		select w.id, w.name, wm.role
-		from workspace_members wm
-		join workspaces w on w.id = wm.workspace_id
-		where wm.person_id = $1
-		  and wm.removed_at is null
-		order by w.created_at desc, w.name
-		limit 1
-	`, personID).Scan(&workspace.ID, &workspace.Name, &workspace.Role)
+	workspace, err := a.loadCurrentWorkspace(r.Context(), personID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			writeError(w, http.StatusNotFound, "workspace not found")
@@ -171,21 +162,79 @@ func (a *App) handleCurrentWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	members, err := a.listWorkspaceMembers(r.Context(), workspace.ID)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "could not load members")
+	writeJSON(w, http.StatusOK, workspace)
+}
+
+func (a *App) handleGetWorkspace(w http.ResponseWriter, r *http.Request) {
+	if a.db == nil {
+		writeError(w, http.StatusInternalServerError, "database unavailable")
 		return
+	}
+	personID, ok := a.requirePersonID(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	workspaceID := r.PathValue("workspaceID")
+	workspace, err := a.loadWorkspace(r.Context(), personID, workspaceID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeError(w, http.StatusForbidden, "forbidden")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "could not load workspace")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, workspace)
+}
+
+func (a *App) loadCurrentWorkspace(ctx context.Context, personID string) (currentWorkspaceDTO, error) {
+	var workspace currentWorkspaceDTO
+	err := a.db.QueryRow(ctx, `
+		select w.id, w.name, wm.role
+		from workspace_members wm
+		join workspaces w on w.id = wm.workspace_id
+		where wm.person_id = $1
+		  and wm.removed_at is null
+		order by w.created_at desc, w.name
+		limit 1
+	`, personID).Scan(&workspace.ID, &workspace.Name, &workspace.Role)
+	if err != nil {
+		return currentWorkspaceDTO{}, err
+	}
+	return a.hydrateWorkspace(ctx, workspace)
+}
+
+func (a *App) loadWorkspace(ctx context.Context, personID string, workspaceID string) (currentWorkspaceDTO, error) {
+	var workspace currentWorkspaceDTO
+	err := a.db.QueryRow(ctx, `
+		select w.id, w.name, wm.role
+		from workspace_members wm
+		join workspaces w on w.id = wm.workspace_id
+		where wm.person_id = $1
+		  and wm.workspace_id = $2
+		  and wm.removed_at is null
+	`, personID, workspaceID).Scan(&workspace.ID, &workspace.Name, &workspace.Role)
+	if err != nil {
+		return currentWorkspaceDTO{}, err
+	}
+	return a.hydrateWorkspace(ctx, workspace)
+}
+
+func (a *App) hydrateWorkspace(ctx context.Context, workspace currentWorkspaceDTO) (currentWorkspaceDTO, error) {
+	members, err := a.listWorkspaceMembers(ctx, workspace.ID)
+	if err != nil {
+		return currentWorkspaceDTO{}, err
 	}
 	workspace.Members = members
 
-	invites, err := a.listWorkspaceInvitations(r.Context(), workspace.ID)
+	invites, err := a.listWorkspaceInvitations(ctx, workspace.ID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "could not load invitations")
-		return
+		return currentWorkspaceDTO{}, err
 	}
 	workspace.Invitations = invites
-
-	writeJSON(w, http.StatusOK, workspace)
+	return workspace, nil
 }
 
 func (a *App) handleCreateInvitation(w http.ResponseWriter, r *http.Request) {
