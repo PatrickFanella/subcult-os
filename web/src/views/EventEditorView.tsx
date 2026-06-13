@@ -9,6 +9,8 @@ type FormState = {
   publicDescription: string;
   locationDisplay: string;
   ticketAllocation: string;
+  pricingMode: 'free' | 'fixed';
+  ticketPriceDollars: string;
 };
 
 function isNewEvent(eventId: string) {
@@ -44,6 +46,8 @@ function emptyForm(): FormState {
     publicDescription: '',
     locationDisplay: '',
     ticketAllocation: '1',
+    pricingMode: 'free',
+    ticketPriceDollars: '0.00',
   };
 }
 
@@ -54,6 +58,8 @@ function formFromEvent(event: EventDTO): FormState {
     publicDescription: event.publicDescription,
     locationDisplay: event.locationDisplay,
     ticketAllocation: String(event.ticketAllocation),
+    pricingMode: event.pricingMode,
+    ticketPriceDollars: (event.ticketPriceCents / 100).toFixed(2),
   };
 }
 
@@ -63,8 +69,31 @@ function formsMatch(left: FormState, right: FormState) {
     left.startsAt === right.startsAt &&
     left.publicDescription === right.publicDescription &&
     left.locationDisplay === right.locationDisplay &&
-    left.ticketAllocation === right.ticketAllocation
+    left.ticketAllocation === right.ticketAllocation &&
+    left.pricingMode === right.pricingMode &&
+    left.ticketPriceDollars === right.ticketPriceDollars
   );
+}
+
+function formatCurrencyValue(value: number) {
+  return new Intl.NumberFormat([], { style: 'currency', currency: 'USD' }).format(value);
+}
+
+function priceInCents(value: string) {
+  const parsed = Number(value);
+  if (Number.isNaN(parsed)) {
+    return 0;
+  }
+
+  return Math.round(parsed * 100);
+}
+
+function pricingSummary(event: EventDTO | null) {
+  if (!event || event.pricingMode === 'free') {
+    return 'Free reservation';
+  }
+
+  return `${formatCurrencyValue(event.ticketPriceCents / 100)} USD`;
 }
 
 function formatDateTime(value: string) {
@@ -120,6 +149,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
 
   const hasWorkspace = workspaceId !== '';
   const closed = event?.status === 'end_of_night';
+  const pricingLocked = (event?.reservedCount ?? 0) > 0 || closed;
   const dirty = useMemo(() => !formsMatch(form, initialForm), [form, initialForm]);
 
   useEffect(() => {
@@ -181,12 +211,17 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   }, [creating]);
 
   async function persist() {
+    const ticketPriceCents = form.pricingMode === 'fixed' ? priceInCents(form.ticketPriceDollars) : 0;
+
     const payload = {
       title: form.title.trim(),
       startsAt: fromInputValue(form.startsAt),
       publicDescription: form.publicDescription.trim(),
       locationDisplay: form.locationDisplay.trim(),
       ticketAllocation: Number(form.ticketAllocation),
+      pricingMode: form.pricingMode,
+      ticketPriceCents,
+      ticketCurrency: 'usd',
     };
 
     if (creating) {
@@ -288,7 +323,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-fuchsia-300">Event editor</p>
               <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">{creating ? 'New event' : effective?.title ?? 'Loading event'}</h1>
-              <p className="mt-2 text-sm leading-6 text-zinc-400">Free ticket event, direct-link public page, and mobile Door check-in.</p>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">Set the public page, ticket pricing, and door flow from one mobile-friendly editor.</p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -312,7 +347,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
           <p className="mt-4 max-w-2xl text-sm leading-6 text-zinc-400">{lifecycleSummary}</p>
 
           {effective ? (
-            <div className="mt-6 grid gap-3 sm:grid-cols-4">
+            <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Lifecycle</p>
                 <p className="mt-2 text-sm font-medium text-white">{lifecycleLabel}</p>
@@ -338,6 +373,10 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                 <p className="mt-2 text-sm font-medium text-white">
                   {effective.reservedCount} / {effective.checkedInCount}
                 </p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Pricing</p>
+                <p className="mt-2 text-sm font-medium text-white">{pricingSummary(effective)}</p>
               </div>
             </div>
           ) : null}
@@ -425,6 +464,80 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                     disabled={closed}
                   />
                 </label>
+
+                <fieldset className={`rounded-[1.5rem] border p-4 ${pricingLocked ? 'border-white/10 bg-white/5 opacity-70' : 'border-white/10 bg-white/5'}`} disabled={pricingLocked}>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.3em] text-fuchsia-300">Pricing</p>
+                      <h2 className="mt-2 text-lg font-semibold text-white">Free or fixed paid tickets</h2>
+                    </div>
+                    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-zinc-300">
+                      USD only
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <label className={`cursor-pointer rounded-2xl border p-4 transition ${form.pricingMode === 'free' ? 'border-amber-300/40 bg-amber-300/10 text-white' : 'border-white/10 bg-white/5 text-zinc-300 hover:bg-white/8'}`}>
+                      <input
+                        className="sr-only"
+                        type="radio"
+                        name="pricingMode"
+                        value="free"
+                        checked={form.pricingMode === 'free'}
+                        onChange={() => setForm((current) => ({ ...current, pricingMode: 'free', ticketPriceDollars: '0.00' }))}
+                        disabled={closed || pricingLocked}
+                      />
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold">Free reservation</p>
+                          <p className="mt-1 text-sm leading-6 text-current/70">Guests reserve without paying. Keep the old no-cost flow.</p>
+                        </div>
+                        <span className="rounded-full border border-current/15 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em]">Free</span>
+                      </div>
+                    </label>
+
+                    <label className={`cursor-pointer rounded-2xl border p-4 transition ${form.pricingMode === 'fixed' ? 'border-amber-300/40 bg-amber-300/10 text-white' : 'border-white/10 bg-white/5 text-zinc-300 hover:bg-white/8'}`}>
+                      <input
+                        className="sr-only"
+                        type="radio"
+                        name="pricingMode"
+                        value="fixed"
+                        checked={form.pricingMode === 'fixed'}
+                        onChange={() => setForm((current) => ({ ...current, pricingMode: 'fixed' }))}
+                        disabled={closed || pricingLocked}
+                      />
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold">Fixed paid ticket</p>
+                          <p className="mt-1 text-sm leading-6 text-current/70">Guests pay through Stripe Checkout in USD.</p>
+                        </div>
+                        <span className="rounded-full border border-current/15 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em]">Paid</span>
+                      </div>
+                    </label>
+                  </div>
+
+                  {form.pricingMode === 'fixed' ? (
+                    <label className="mt-4 block space-y-2 text-sm">
+                      <span className="text-zinc-300">Price in USD</span>
+                      <input
+                        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-white/8 disabled:cursor-not-allowed disabled:opacity-60"
+                        type="number"
+                        min="0.5"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={form.ticketPriceDollars}
+                        onChange={(event) => setForm((current) => ({ ...current, ticketPriceDollars: event.target.value }))}
+                        required
+                        disabled={closed || pricingLocked}
+                      />
+                      <p className="text-xs leading-5 text-zinc-500">Enter dollars; we convert to cents for checkout. Minimum recommended price is $0.50.</p>
+                    </label>
+                  ) : (
+                    <p className="mt-4 text-sm leading-6 text-zinc-400">Free events keep the existing reservation flow and do not send guests to Stripe.</p>
+                  )}
+
+                  {pricingLocked ? <p className="mt-4 text-sm leading-6 text-zinc-400">Pricing is locked once tickets exist or after the event closes.</p> : null}
+                </fieldset>
 
                 {!closed ? (
                   <button className="w-full rounded-2xl bg-amber-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-amber-300/60" type="submit" disabled={saving || !dirty}>

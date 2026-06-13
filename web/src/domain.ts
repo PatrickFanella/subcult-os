@@ -63,7 +63,16 @@ export interface TicketDTO {
   displayName: string | null;
   code: string;
   status: 'reserved' | 'checked_in';
+  paymentStatus: 'free' | 'pending' | 'paid' | 'cancelled';
+  amountCents: number;
+  currency: string;
   checkedInAt: string | null;
+}
+
+export interface PaidReservationDTO {
+  ticketId: string;
+  checkoutSessionId: string;
+  checkoutUrl: string;
 }
 
 export interface TicketReservationDTO extends TicketDTO {

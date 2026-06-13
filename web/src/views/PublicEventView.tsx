@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { api, postJSON } from '../api';
-import type { PublicEventDTO, TicketReservationDTO } from '../domain';
+import type { PaidReservationDTO, PublicEventDTO, TicketReservationDTO } from '../domain';
 
 function formatDateTime(value: string) {
   const date = new Date(value);
@@ -10,6 +10,34 @@ function formatDateTime(value: string) {
 
 function chunkCode(value: string) {
   return value.match(/.{1,4}/g) ?? [value];
+}
+
+function formatCurrency(cents: number, currency: string) {
+  return new Intl.NumberFormat([], { style: 'currency', currency: currency.toUpperCase() }).format(cents / 100);
+}
+
+function pricingLabel(event: PublicEventDTO | null) {
+  if (!event || event.pricingMode === 'free') {
+    return 'Free guest reservation';
+  }
+
+  return `${formatCurrency(event.ticketPriceCents, event.ticketCurrency)} ticket`;
+}
+
+function ctaLabel(event: PublicEventDTO | null) {
+  return event?.pricingMode === 'fixed' ? 'Buy ticket' : 'Reserve free ticket';
+}
+
+function heroSummary(event: PublicEventDTO | null) {
+  if (!event) {
+    return 'Grab a free spot. Email required to send the ticket. Display name optional. No account needed.';
+  }
+
+  if (event.pricingMode === 'fixed') {
+    return `Buy a ticket for ${formatCurrency(event.ticketPriceCents, event.ticketCurrency)}. Email is required for the checkout link. Display name is optional.`;
+  }
+
+  return 'Grab a free spot. Email required to send the ticket. Display name optional. No account needed.';
 }
 
 export function PublicEventView({ slug }: { slug: string }) {
@@ -55,8 +83,8 @@ export function PublicEventView({ slug }: { slug: string }) {
     };
   }, [slug]);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function handleSubmit(formEvent: FormEvent<HTMLFormElement>) {
+    formEvent.preventDefault();
 
     const trimmedEmail = email.trim();
     const trimmedDisplayName = displayName.trim();
@@ -70,6 +98,16 @@ export function PublicEventView({ slug }: { slug: string }) {
     setError(null);
 
     try {
+      if (event?.pricingMode === 'fixed') {
+        const checkout = await postJSON<PaidReservationDTO>(`/api/public/events/${slug}/paid-reservations`, {
+          email: trimmedEmail,
+          displayName: trimmedDisplayName || undefined,
+        });
+
+        window.location.href = checkout.checkoutUrl;
+        return;
+      }
+
       const ticket = await postJSON<TicketReservationDTO>(`/api/public/events/${slug}/reservations`, {
         email: trimmedEmail,
         displayName: trimmedDisplayName || undefined,
@@ -89,22 +127,30 @@ export function PublicEventView({ slug }: { slug: string }) {
         <header className="relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6 shadow-2xl shadow-black/40 backdrop-blur">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(251,191,36,0.16),_transparent_38%),radial-gradient(circle_at_bottom_left,_rgba(217,70,239,0.14),_transparent_34%)]" />
           <div className="relative">
-            <p className="text-xs uppercase tracking-[0.35em] text-fuchsia-300">Free guest reservation</p>
+            <p className="text-xs uppercase tracking-[0.35em] text-fuchsia-300">{pricingLabel(event)}</p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-amber-200">
                 No account needed
               </span>
+              {event?.pricingMode === 'fixed' ? (
+                <span className="rounded-full border border-fuchsia-400/30 bg-fuchsia-500/10 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-fuchsia-100">
+                  Stripe Checkout
+                </span>
+              ) : null}
               <span className={`rounded-full border px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] ${event?.isFull ? 'border-rose-400/30 bg-rose-500/10 text-rose-200' : 'border-emerald-400/30 bg-emerald-500/10 text-emerald-200'}`}>
                 {event?.isFull ? 'Sold out' : `${event?.remainingTickets ?? '—'} remaining`}
               </span>
+              {event?.pricingMode === 'fixed' ? (
+                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-white">
+                  {formatCurrency(event.ticketPriceCents, event.ticketCurrency)}
+                </span>
+              ) : null}
             </div>
 
             <div className="mt-5 grid gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
               <div>
-                <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">{event?.title ?? 'Reserve your free ticket'}</h1>
-                <p className="mt-3 max-w-2xl text-sm leading-7 text-zinc-300 sm:text-base">
-                  Grab a free spot. Email required to send the ticket. Display name optional. No account needed.
-                </p>
+                <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">{event?.title ?? (event?.pricingMode === 'fixed' ? 'Buy your ticket' : 'Reserve your free ticket')}</h1>
+                <p className="mt-3 max-w-2xl text-sm leading-7 text-zinc-300 sm:text-base">{heroSummary(event)}</p>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
@@ -121,6 +167,10 @@ export function PublicEventView({ slug }: { slug: string }) {
                   <p className={`mt-2 text-sm font-medium ${event?.isFull ? 'text-rose-200' : 'text-white'}`}>
                     {event ? (event.isFull ? 'Sold out' : `${event.remainingTickets} left`) : 'Loading availability…'}
                   </p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Pricing</p>
+                  <p className="mt-2 text-sm font-medium text-white">{event ? pricingLabel(event) : 'Loading pricing…'}</p>
                 </div>
               </div>
             </div>
@@ -197,8 +247,12 @@ export function PublicEventView({ slug }: { slug: string }) {
               </section>
             ) : (
               <form className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6" onSubmit={handleSubmit}>
-                <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Reserve ticket</p>
-                <p className="mt-2 text-sm leading-6 text-zinc-400">Email is required so we can send the ticket. Display name is optional.</p>
+                <p className="text-xs uppercase tracking-[0.3em] text-amber-300">{ctaLabel(event)}</p>
+                <p className="mt-2 text-sm leading-6 text-zinc-400">
+                  {event?.pricingMode === 'fixed'
+                    ? 'Email is required for the checkout session. Display name is optional.'
+                    : 'Email is required so we can send the ticket. Display name is optional.'}
+                </p>
 
                 <label className="mt-4 block space-y-2 text-sm">
                   <span className="text-zinc-300">Email <span className="text-rose-300">required</span></span>
@@ -231,10 +285,14 @@ export function PublicEventView({ slug }: { slug: string }) {
                   type="submit"
                   disabled={reserving || event.isFull}
                 >
-                  {event.isFull ? 'Sold out' : reserving ? 'Reserving…' : 'Reserve free ticket'}
+                  {event.isFull ? 'Sold out' : reserving ? 'Reserving…' : ctaLabel(event)}
                 </button>
 
-                {event.isFull ? <p className="mt-3 text-sm text-rose-200">This event is sold out. Reservations are closed.</p> : <p className="mt-3 text-sm text-zinc-400">No account needed — just your email.</p>}
+                {event.isFull ? (
+                  <p className="mt-3 text-sm text-rose-200">This event is sold out. {event?.pricingMode === 'fixed' ? 'Paid checkout is closed.' : 'Reservations are closed.'}</p>
+                ) : (
+                  <p className="mt-3 text-sm text-zinc-400">No account needed — just your email.</p>
+                )}
               </form>
             )}
           </div>

@@ -1,7 +1,32 @@
+import * as React from 'react';
 import { renderToString } from 'react-dom/server';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
+import { EventEditorView } from './views/EventEditorView';
+import { PublicEventView } from './views/PublicEventView';
+import { TicketView } from './views/TicketView';
 import { normalizeCurrentWorkspace } from './views/WorkspaceView';
+
+vi.mock('react', async () => {
+  const actual = await vi.importActual<typeof import('react')>('react');
+
+  return {
+    ...actual,
+    useState: vi.fn((initial: unknown) => [typeof initial === 'function' ? (initial as () => unknown)() : initial, vi.fn()]),
+  };
+});
+
+const useStateMock = vi.mocked(React.useState);
+
+function makeUseStateImplementation(values: unknown[] = []) {
+  return ((initial: unknown) => {
+    if (values.length > 0) {
+      return [values.shift(), vi.fn()];
+    }
+
+    return [typeof initial === 'function' ? (initial as () => unknown)() : initial, vi.fn()];
+  }) as unknown as typeof React.useState;
+}
 
 function renderAt(pathname: string) {
   const url = new URL(pathname, 'http://example.test');
@@ -14,7 +39,26 @@ function renderAt(pathname: string) {
   return renderToString(<App />);
 }
 
+function renderWithState(pathname: string, element: React.ReactElement, stateValues: unknown[] = []) {
+  const values = [...stateValues];
+  const url = new URL(pathname, 'http://example.test');
+
+  vi.stubGlobal('window', {
+    history: { pushState: () => undefined },
+    location: { pathname: url.pathname, search: url.search },
+  });
+
+  useStateMock.mockImplementation(makeUseStateImplementation(values));
+
+  return renderToString(element);
+}
+
+beforeEach(() => {
+  useStateMock.mockImplementation(makeUseStateImplementation());
+});
+
 afterEach(() => {
+  useStateMock.mockReset();
   vi.unstubAllGlobals();
 });
 
@@ -78,6 +122,83 @@ describe('App routes', () => {
     expect(rendered).toContain('Events start inside a workspace');
   });
 
+  it('renders the event editor pricing copy', () => {
+    const rendered = renderWithState('/events/new?workspaceId=workspace-1', <EventEditorView eventId="new" />);
+    expect(rendered).toContain('Pricing');
+    expect(rendered).toContain('Free reservation');
+    expect(rendered).toContain('Fixed paid ticket');
+    expect(rendered).toContain('USD only');
+  });
+
+  it('locks event pricing after tickets exist', () => {
+    const event = {
+      id: 'event-1',
+      workspaceId: 'workspace-1',
+      title: 'Night Market',
+      startsAt: '2026-06-13T23:00:00.000Z',
+      publicDescription: 'A late set.',
+      locationDisplay: 'The Hall',
+      ticketAllocation: 100,
+      pricingMode: 'fixed',
+      ticketPriceCents: 1500,
+      ticketCurrency: 'usd',
+      reservedCount: 12,
+      checkedInCount: 0,
+      status: 'published',
+      publicSlug: 'night-market',
+      publicUrl: '/e/night-market',
+    };
+
+    const rendered = renderWithState('/events/event-1?workspaceId=workspace-1', <EventEditorView eventId="event-1" />, [event, null, {
+      title: event.title,
+      startsAt: '2026-06-13T23:00',
+      publicDescription: event.publicDescription,
+      locationDisplay: event.locationDisplay,
+      ticketAllocation: '100',
+      pricingMode: 'fixed',
+      ticketPriceDollars: '15.00',
+    }, {
+      title: event.title,
+      startsAt: '2026-06-13T23:00',
+      publicDescription: event.publicDescription,
+      locationDisplay: event.locationDisplay,
+      ticketAllocation: '100',
+      pricingMode: 'fixed',
+      ticketPriceDollars: '15.00',
+    }, false, false, false, null, null]);
+
+    expect(rendered).toContain('Pricing is locked once tickets exist or after the event closes.');
+    expect(rendered).toContain('$15.00 USD');
+  });
+
+  it('renders the public paid ticket CTA', () => {
+    const event = {
+      id: 'event-1',
+      workspaceId: 'workspace-1',
+      title: 'Night Market',
+      startsAt: '2026-06-13T23:00:00.000Z',
+      publicDescription: 'A late set.',
+      locationDisplay: 'The Hall',
+      ticketAllocation: 100,
+      pricingMode: 'fixed',
+      ticketPriceCents: 1800,
+      ticketCurrency: 'usd',
+      reservedCount: 12,
+      checkedInCount: 0,
+      status: 'published',
+      publicSlug: 'night-market',
+      publicUrl: '/e/night-market',
+      remainingTickets: 88,
+      isFull: false,
+    };
+
+    const rendered = renderWithState('/e/night-market', <PublicEventView slug="night-market" />, [event, '', '', false, false, null, null]);
+
+    expect(rendered).toContain('Buy ticket');
+    expect(rendered).toContain('$18.00');
+    expect(rendered).toContain('Stripe Checkout');
+  });
+
   it('renders the workspace-backed new event flow', () => {
     const rendered = renderAt('/events/new?workspaceId=workspace-1');
     expect(rendered).toContain('Publish checklist');
@@ -95,6 +216,82 @@ describe('App routes', () => {
     const rendered = renderAt('/tickets/ticket-123');
     expect(rendered).toContain('Show this at the door');
     expect(rendered).toContain('Your reservation lives here');
+  });
+
+  it.each([
+    [
+      'free',
+      {
+        id: 'ticket-123',
+        eventId: 'event-1',
+        email: 'guest@example.com',
+        displayName: 'Guest',
+        code: 'ABCD1234',
+        status: 'reserved',
+        paymentStatus: 'free',
+        amountCents: 0,
+        currency: 'usd',
+        checkedInAt: null,
+      },
+      'Free ticket',
+      'No payment needed',
+    ],
+    [
+      'paid',
+      {
+        id: 'ticket-123',
+        eventId: 'event-1',
+        email: 'guest@example.com',
+        displayName: 'Guest',
+        code: 'ABCD1234',
+        status: 'reserved',
+        paymentStatus: 'paid',
+        amountCents: 1800,
+        currency: 'usd',
+        checkedInAt: null,
+      },
+      'Paid ticket',
+      '$18.00',
+    ],
+    [
+      'pending',
+      {
+        id: 'ticket-123',
+        eventId: 'event-1',
+        email: 'guest@example.com',
+        displayName: 'Guest',
+        code: 'ABCD1234',
+        status: 'reserved',
+        paymentStatus: 'pending',
+        amountCents: 1800,
+        currency: 'usd',
+        checkedInAt: null,
+      },
+      'Payment pending',
+      'Checkout may still be processing',
+    ],
+    [
+      'cancelled',
+      {
+        id: 'ticket-123',
+        eventId: 'event-1',
+        email: 'guest@example.com',
+        displayName: 'Guest',
+        code: 'ABCD1234',
+        status: 'reserved',
+        paymentStatus: 'cancelled',
+        amountCents: 1800,
+        currency: 'usd',
+        checkedInAt: null,
+      },
+      'Payment cancelled',
+      'Finish checkout to activate this ticket',
+    ],
+  ])('renders the ticket payment %s banner', (_label, ticket, banner, summary) => {
+    const rendered = renderWithState('/tickets/ticket-123', <TicketView code="ticket-123" />, [ticket, false, null]);
+
+    expect(rendered).toContain(banner);
+    expect(rendered).toContain(summary);
   });
 });
 

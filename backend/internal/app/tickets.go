@@ -21,13 +21,16 @@ type publicEventDTO struct {
 }
 
 type ticketDTO struct {
-	ID          string  `json:"id"`
-	EventID     string  `json:"eventId"`
-	Email       string  `json:"email"`
-	DisplayName *string `json:"displayName"`
-	Code        string  `json:"code"`
-	Status      string  `json:"status"`
-	CheckedInAt *string `json:"checkedInAt"`
+	ID            string  `json:"id"`
+	EventID       string  `json:"eventId"`
+	Email         string  `json:"email"`
+	DisplayName   *string `json:"displayName"`
+	Code          string  `json:"code"`
+	Status        string  `json:"status"`
+	PaymentStatus string  `json:"paymentStatus"`
+	AmountCents   int     `json:"amountCents"`
+	Currency      string  `json:"currency"`
+	CheckedInAt   *string `json:"checkedInAt"`
 }
 
 type reserveTicketRequest struct {
@@ -43,6 +46,8 @@ type ticketRow struct {
 	Code          string
 	Status        string
 	PaymentStatus string
+	AmountCents   int
+	Currency      string
 	CheckedInAt   sql.NullTime
 }
 
@@ -144,8 +149,8 @@ func (a *App) handleReserveTicket(w http.ResponseWriter, r *http.Request) {
 	if err := tx.QueryRow(r.Context(), `
 		insert into tickets (event_id, email, display_name, code, status)
 		values ($1, $2, $3, $4, 'reserved')
-		returning id, event_id, email, display_name, code, status, payment_status, checked_in_at
-	`, event.ID, email, displayName, code).Scan(&ticket.ID, &ticket.EventID, &ticket.Email, &ticket.DisplayName, &ticket.Code, &ticket.Status, &ticket.PaymentStatus, &ticket.CheckedInAt); err != nil {
+		returning id, event_id, email, display_name, code, status, payment_status, amount_cents, currency, checked_in_at
+	`, event.ID, email, displayName, code).Scan(&ticket.ID, &ticket.EventID, &ticket.Email, &ticket.DisplayName, &ticket.Code, &ticket.Status, &ticket.PaymentStatus, &ticket.AmountCents, &ticket.Currency, &ticket.CheckedInAt); err != nil {
 		writeError(w, http.StatusInternalServerError, "could not create ticket")
 		return
 	}
@@ -240,8 +245,8 @@ func (a *App) handleCreatePaidReservation(w http.ResponseWriter, r *http.Request
 	if err := tx.QueryRow(r.Context(), `
 		insert into tickets (event_id, email, display_name, code, status, payment_status, amount_cents, currency)
 		values ($1, $2, $3, $4, 'reserved', 'pending', $5, $6)
-		returning id, event_id, email, display_name, code, status, payment_status, checked_in_at
-	`, event.ID, email, displayName, code, event.TicketPriceCents, event.TicketCurrency).Scan(&ticket.ID, &ticket.EventID, &ticket.Email, &ticket.DisplayName, &ticket.Code, &ticket.Status, &ticket.PaymentStatus, &ticket.CheckedInAt); err != nil {
+		returning id, event_id, email, display_name, code, status, payment_status, amount_cents, currency, checked_in_at
+	`, event.ID, email, displayName, code, event.TicketPriceCents, event.TicketCurrency).Scan(&ticket.ID, &ticket.EventID, &ticket.Email, &ticket.DisplayName, &ticket.Code, &ticket.Status, &ticket.PaymentStatus, &ticket.AmountCents, &ticket.Currency, &ticket.CheckedInAt); err != nil {
 		writeError(w, http.StatusInternalServerError, "could not create ticket")
 		return
 	}
@@ -336,7 +341,7 @@ func (a *App) handleDoorTicketSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := a.db.Query(r.Context(), `
-		select id, event_id, email, display_name, code, status, checked_in_at
+		select id, event_id, email, display_name, code, status, payment_status, amount_cents, currency, checked_in_at
 		from tickets
 		where event_id = $1
 		  and payment_status in ('free', 'paid')
@@ -356,7 +361,7 @@ func (a *App) handleDoorTicketSearch(w http.ResponseWriter, r *http.Request) {
 	tickets := make([]ticketDTO, 0)
 	for rows.Next() {
 		var ticket ticketRow
-		if err := rows.Scan(&ticket.ID, &ticket.EventID, &ticket.Email, &ticket.DisplayName, &ticket.Code, &ticket.Status, &ticket.CheckedInAt); err != nil {
+		if err := rows.Scan(&ticket.ID, &ticket.EventID, &ticket.Email, &ticket.DisplayName, &ticket.Code, &ticket.Status, &ticket.PaymentStatus, &ticket.AmountCents, &ticket.Currency, &ticket.CheckedInAt); err != nil {
 			writeError(w, http.StatusInternalServerError, "could not search tickets")
 			return
 		}
@@ -412,11 +417,11 @@ func (a *App) handleDoorCheckIn(w http.ResponseWriter, r *http.Request) {
 
 	var ticket ticketRow
 	err = tx.QueryRow(r.Context(), `
-		select id, event_id, email, display_name, code, status, payment_status, checked_in_at
+		select id, event_id, email, display_name, code, status, payment_status, amount_cents, currency, checked_in_at
 		from tickets
 		where code = $1
 		for update
-	`, code).Scan(&ticket.ID, &ticket.EventID, &ticket.Email, &ticket.DisplayName, &ticket.Code, &ticket.Status, &ticket.PaymentStatus, &ticket.CheckedInAt)
+	`, code).Scan(&ticket.ID, &ticket.EventID, &ticket.Email, &ticket.DisplayName, &ticket.Code, &ticket.Status, &ticket.PaymentStatus, &ticket.AmountCents, &ticket.Currency, &ticket.CheckedInAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			writeError(w, http.StatusNotFound, "ticket not found")
@@ -501,10 +506,10 @@ func (a *App) loadTicketByCode(ctx context.Context, code string) (ticketRow, err
 		return row, pgx.ErrNoRows
 	}
 	if err := a.db.QueryRow(ctx, `
-		select id, event_id, email, display_name, code, status, payment_status, checked_in_at
+		select id, event_id, email, display_name, code, status, payment_status, amount_cents, currency, checked_in_at
 		from tickets
 		where code = $1
-	`, code).Scan(&row.ID, &row.EventID, &row.Email, &row.DisplayName, &row.Code, &row.Status, &row.PaymentStatus, &row.CheckedInAt); err != nil {
+	`, code).Scan(&row.ID, &row.EventID, &row.Email, &row.DisplayName, &row.Code, &row.Status, &row.PaymentStatus, &row.AmountCents, &row.Currency, &row.CheckedInAt); err != nil {
 		return ticketRow{}, err
 	}
 	return row, nil
@@ -520,13 +525,16 @@ func (a *App) publicTicketURL(code string) string {
 
 func ticketDTOFromRow(row ticketRow) ticketDTO {
 	dto := ticketDTO{
-		ID:          row.ID,
-		EventID:     row.EventID,
-		Email:       row.Email,
-		Code:        row.Code,
-		Status:      row.Status,
-		DisplayName: nil,
-		CheckedInAt: nil,
+		ID:            row.ID,
+		EventID:       row.EventID,
+		Email:         row.Email,
+		Code:          row.Code,
+		Status:        row.Status,
+		PaymentStatus: row.PaymentStatus,
+		AmountCents:   row.AmountCents,
+		Currency:      row.Currency,
+		DisplayName:   nil,
+		CheckedInAt:   nil,
 	}
 	if row.DisplayName.Valid {
 		dto.DisplayName = &row.DisplayName.String
