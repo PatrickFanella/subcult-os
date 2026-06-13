@@ -5,7 +5,7 @@ PROJECT_NAME := subcult-os
 COMPOSE_PROJECT_NAME ?= $(PROJECT_NAME)
 BACKEND_BIN ?= bin/$(PROJECT_NAME)
 
-.PHONY: help deps verify quick fmt lint test test-backend test-web build build-backend build-web run-backend dev up up-build down restart logs ps compose-config db-shell clean open-pilot-check
+.PHONY: help deps verify quick fmt lint test test-backend test-web build build-backend build-web run-backend dev up up-build down reset-db restart logs ps urls smoke compose-config db-shell clean open-pilot-check
 
 help:
 	@awk 'BEGIN {FS = ":.*##"; printf "$(PROJECT_NAME) commands:\n"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -57,6 +57,10 @@ up-build: ## Rebuild and start the full subcult-os stack in the background
 down: ## Stop the subcult-os stack
 	docker compose -p $(COMPOSE_PROJECT_NAME) down
 
+reset-db: ## Stop the stack, delete local Postgres data, rebuild, and restart
+	docker compose -p $(COMPOSE_PROJECT_NAME) down -v
+	docker compose -p $(COMPOSE_PROJECT_NAME) up -d --build
+
 restart: down up ## Restart the subcult-os stack
 
 logs: ## Follow subcult-os stack logs
@@ -64,6 +68,16 @@ logs: ## Follow subcult-os stack logs
 
 ps: ## Show subcult-os stack containers
 	docker compose -p $(COMPOSE_PROJECT_NAME) ps
+
+urls: ## Print local stack URLs and published ports
+	@printf "Web:      http://localhost:%s\n" "$$(docker compose -p $(COMPOSE_PROJECT_NAME) port web 80 | awk -F: '{print $$NF}')"
+	@printf "API:      http://localhost:%s/api/health\n" "$$(docker compose -p $(COMPOSE_PROJECT_NAME) port api 8080 | awk -F: '{print $$NF}')"
+	@printf "Postgres: localhost:%s\n" "$$(docker compose -p $(COMPOSE_PROJECT_NAME) port postgres 5432 | awk -F: '{print $$NF}')"
+
+smoke: ## Check running Docker services and API/web health
+	docker compose -p $(COMPOSE_PROJECT_NAME) ps
+	docker compose -p $(COMPOSE_PROJECT_NAME) exec -T api wget -qO- http://127.0.0.1:8080/api/health
+	docker compose -p $(COMPOSE_PROJECT_NAME) exec -T web wget -qO- http://127.0.0.1/ >/dev/null
 
 compose-config: ## Validate Docker Compose config
 	docker compose -p $(COMPOSE_PROJECT_NAME) config --quiet

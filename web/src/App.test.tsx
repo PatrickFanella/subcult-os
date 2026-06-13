@@ -1,6 +1,7 @@
 import { renderToString } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
+import { normalizeCurrentWorkspace } from './views/WorkspaceView';
 
 function renderAt(pathname: string) {
   vi.stubGlobal('window', {
@@ -40,5 +41,20 @@ describe('App routes', () => {
 
   it('renders the ticket route', () => {
     expect(renderAt('/tickets/ticket-123')).toContain('Ticket');
+  });
+});
+
+describe('workspace response normalization', () => {
+  it('treats null collection fields as empty arrays', () => {
+    const workspace = normalizeCurrentWorkspace({
+      id: 'workspace-1',
+      name: 'Signal Collective',
+      role: 'owner',
+      members: null,
+      invitations: null,
+    });
+
+    expect(workspace.members).toEqual([]);
+    expect(workspace.invitations).toEqual([]);
   });
 });

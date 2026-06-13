@@ -16,8 +16,11 @@ Useful local commands:
 make help
 make quick
 make up-build
+make urls
+make smoke
 make logs
 make down
+make reset-db
 ```
 
 ## First lifecycle slice
@@ -43,6 +46,8 @@ Then open:
 - API health: http://localhost:38080/api/health
 
 The default host ports are intentionally high to avoid common local conflicts: `WEB_PORT=38079`, `API_PORT=38080`, and `POSTGRES_PORT=35432`.
+
+Use `make urls` to print the actual published ports, `make smoke` to check the running Docker stack, and `make reset-db` to delete local Postgres data and rebuild if an old volume has stale credentials.
 
 ## Open Pilot
 

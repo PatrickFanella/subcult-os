@@ -1,7 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { api, postJSON } from '../api';
-import type { CurrentUserDTO, CurrentWorkspaceDTO, EventDTO } from '../domain';
+import type { CurrentUserDTO, CurrentWorkspaceDTO, EventDTO, InvitationDTO, MemberDTO } from '../domain';
+
+type CurrentWorkspaceResponse = Omit<CurrentWorkspaceDTO, 'members' | 'invitations'> & {
+  members?: MemberDTO[] | null;
+  invitations?: InvitationDTO[] | null;
+};
+
+export function normalizeCurrentWorkspace(workspace: CurrentWorkspaceResponse): CurrentWorkspaceDTO {
+  return {
+    ...workspace,
+    members: workspace.members ?? [],
+    invitations: workspace.invitations ?? [],
+  };
+}
 
 function signOut() {
   void postJSON('/api/auth/logout', {}).finally(() => {
@@ -49,15 +62,11 @@ export function WorkspaceView() {
           return;
         }
 
-        const currentWorkspace = await api<CurrentWorkspaceDTO>('/api/workspaces/current').catch(() => null);
+        const currentWorkspace = await api<CurrentWorkspaceResponse>('/api/workspaces/current').catch(() => null);
         if (cancelled) return;
 
         if (currentWorkspace) {
-          setWorkspace({
-            ...currentWorkspace,
-            members: currentWorkspace.members ?? [],
-            invitations: currentWorkspace.invitations ?? [],
-          });
+          setWorkspace(normalizeCurrentWorkspace(currentWorkspace));
           const loadedEvents = await api<EventDTO[]>(`/api/workspaces/${currentWorkspace.id}/events`).catch(() => []);
           if (cancelled) return;
           setEvents(loadedEvents ?? []);
