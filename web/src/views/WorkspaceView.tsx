@@ -10,6 +10,7 @@ import type {
   InvitationCreatedDTO,
   InvitationDTO,
   MemberDTO,
+  WorkspaceDTO,
 } from '../domain';
 
 type CurrentWorkspaceResponse = Omit<CurrentWorkspaceDTO, 'members' | 'invitations'> & {
@@ -412,12 +413,37 @@ export function WorkspaceView() {
 
   async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const name = workspaceName.trim();
+    if (!name) {
+      setError('Enter a Workspace name before creating it.');
+      return;
+    }
+
     setCreatingWorkspace(true);
     setError(null);
 
     try {
-      await postJSON('/api/workspaces', { name: workspaceName.trim() });
-      window.location.reload();
+      const created = await postJSON<WorkspaceDTO>('/api/workspaces', { name });
+      const nextWorkspace: CurrentWorkspaceDTO = {
+        ...created,
+        members: [],
+        invitations: [],
+      };
+      setWorkspace(nextWorkspace);
+      setEvents([]);
+      setWorkspaceName('');
+      setWorkspaceNotice(`Created ${created.name}. You can invite members or start the first event now.`);
+      setMe((current) =>
+        current
+          ? {
+              ...current,
+              workspaces: [created, ...current.workspaces.filter((summary) => summary.id !== created.id)],
+            }
+          : current,
+      );
+      if (typeof window !== 'undefined') {
+        window.history.pushState({}, '', `/workspace?workspaceId=${created.id}`);
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to create workspace');
     } finally {
