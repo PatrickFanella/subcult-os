@@ -103,14 +103,14 @@ func (a *App) handleReserveTicket(w http.ResponseWriter, r *http.Request) {
 	var event eventRow
 	err = tx.QueryRow(r.Context(), `
 		select e.id, e.workspace_id, e.title, e.starts_at, e.public_description, e.location_display,
-		       e.ticket_allocation, e.status, e.public_slug,
+		       e.ticket_allocation, e.pricing_mode, e.ticket_price_cents, e.ticket_currency, e.status, e.public_slug,
 		       (select count(*) from tickets t where t.event_id = e.id) as reserved_count,
 		       (select count(*) from tickets t where t.event_id = e.id and t.status = 'checked_in') as checked_in_count
 		from events e
 		where e.public_slug = $1
 		  and e.status = 'published'
 		for update
-	`, r.PathValue("slug")).Scan(&event.ID, &event.WorkspaceID, &event.Title, &event.StartsAt, &event.PublicDescription, &event.LocationDisplay, &event.TicketAllocation, &event.Status, &event.PublicSlug, &event.ReservedCount, &event.CheckedInCount)
+	`, r.PathValue("slug")).Scan(&event.ID, &event.WorkspaceID, &event.Title, &event.StartsAt, &event.PublicDescription, &event.LocationDisplay, &event.TicketAllocation, &event.PricingMode, &event.TicketPriceCents, &event.TicketCurrency, &event.Status, &event.PublicSlug, &event.ReservedCount, &event.CheckedInCount)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			writeError(w, http.StatusNotFound, "event not found")
@@ -121,6 +121,10 @@ func (a *App) handleReserveTicket(w http.ResponseWriter, r *http.Request) {
 	}
 	if event.ReservedCount >= event.TicketAllocation {
 		writeError(w, http.StatusConflict, "event is full")
+		return
+	}
+	if event.PricingMode != "free" {
+		writeError(w, http.StatusConflict, "paid checkout is required for this event")
 		return
 	}
 
@@ -349,13 +353,13 @@ func (a *App) loadPublishedEventBySlug(ctx context.Context, slug string) (eventR
 	}
 	if err := a.db.QueryRow(ctx, `
 		select e.id, e.workspace_id, e.title, e.starts_at, e.public_description, e.location_display,
-		       e.ticket_allocation, e.status, e.public_slug,
+		       e.ticket_allocation, e.pricing_mode, e.ticket_price_cents, e.ticket_currency, e.status, e.public_slug,
 		       (select count(*) from tickets t where t.event_id = e.id) as reserved_count,
 		       (select count(*) from tickets t where t.event_id = e.id and t.status = 'checked_in') as checked_in_count
 		from events e
 		where e.public_slug = $1
 		  and e.status = 'published'
-	`, slug).Scan(&row.ID, &row.WorkspaceID, &row.Title, &row.StartsAt, &row.PublicDescription, &row.LocationDisplay, &row.TicketAllocation, &row.Status, &row.PublicSlug, &row.ReservedCount, &row.CheckedInCount); err != nil {
+	`, slug).Scan(&row.ID, &row.WorkspaceID, &row.Title, &row.StartsAt, &row.PublicDescription, &row.LocationDisplay, &row.TicketAllocation, &row.PricingMode, &row.TicketPriceCents, &row.TicketCurrency, &row.Status, &row.PublicSlug, &row.ReservedCount, &row.CheckedInCount); err != nil {
 		return eventRow{}, err
 	}
 	return row, nil

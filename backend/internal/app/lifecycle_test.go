@@ -39,6 +39,48 @@ func TestReadyWithDatabase(t *testing.T) {
 	getJSON(t, fx.app, nil, "/api/ready", http.StatusOK)
 }
 
+func TestFirstEventLifecycleFixedPriceCreate(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEventWithPricing(t, fx, "Night Market", 2, "fixed", 1500, "usd")
+	if event["pricingMode"] != "fixed" || int(event["ticketPriceCents"].(float64)) != 1500 || event["ticketCurrency"] != "usd" {
+		t.Fatalf("unexpected pricing response: %#v", event)
+	}
+}
+
+func TestFirstEventLifecycleRejectsLowFixedPrice(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/events", map[string]any{
+		"title":             "Night Market",
+		"startsAt":          "2026-07-01T20:00:00Z",
+		"publicDescription": "Free community event.",
+		"locationDisplay":   "Warehouse District",
+		"ticketAllocation":  2,
+		"pricingMode":       "fixed",
+		"ticketPriceCents":  49,
+		"ticketCurrency":    "usd",
+	}, http.StatusBadRequest)
+}
+
+func TestFirstEventLifecycleRejectsPricingChangeAfterReservation(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 1)
+	eventID := mustString(t, event, "id")
+	slug := mustString(t, publishEvent(t, fx, eventID), "publicSlug")
+	postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/reservations", map[string]any{"email": fx.email("guest"), "displayName": "Guest"}, http.StatusOK)
+	patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID, map[string]any{
+		"pricingMode":      "fixed",
+		"ticketPriceCents": 1500,
+		"ticketCurrency":   "usd",
+	}, http.StatusConflict)
+}
+
+func TestFirstEventLifecycleFixedPriceRequiresPaidCheckout(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEventWithPricing(t, fx, "Night Market", 2, "fixed", 1500, "usd")
+	slug := mustString(t, publishEvent(t, fx, mustString(t, event, "id")), "publicSlug")
+	postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/reservations", map[string]any{"email": fx.email("guest"), "displayName": "Guest"}, http.StatusConflict)
+}
+
 func TestFirstEventLifecycleFullCapacity(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	event := createEvent(t, fx, "Night Market", 1)
@@ -267,7 +309,12 @@ func newLifecycleFixture(t *testing.T) lifecycleFixture {
 
 func createEvent(t *testing.T, fx lifecycleFixture, title string, ticketAllocation int) map[string]any {
 	t.Helper()
-	resp := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/events", map[string]any{"title": title, "startsAt": "2026-07-01T20:00:00Z", "publicDescription": "Free community event.", "locationDisplay": "Warehouse District", "ticketAllocation": ticketAllocation}, http.StatusOK)
+	return createEventWithPricing(t, fx, title, ticketAllocation, "free", 0, "usd")
+}
+
+func createEventWithPricing(t *testing.T, fx lifecycleFixture, title string, ticketAllocation int, pricingMode string, ticketPriceCents int, ticketCurrency string) map[string]any {
+	t.Helper()
+	resp := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/events", map[string]any{"title": title, "startsAt": "2026-07-01T20:00:00Z", "publicDescription": "Free community event.", "locationDisplay": "Warehouse District", "ticketAllocation": ticketAllocation, "pricingMode": pricingMode, "ticketPriceCents": ticketPriceCents, "ticketCurrency": ticketCurrency}, http.StatusOK)
 	return mustObject(t, resp.JSON)
 }
 

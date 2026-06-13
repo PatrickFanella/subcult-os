@@ -41,6 +41,9 @@ export interface EventDTO {
   publicDescription: string;
   locationDisplay: string;
   ticketAllocation: number;
+  pricingMode: 'free' | 'fixed';
+  ticketPriceCents: number;
+  ticketCurrency: string;
   reservedCount: number;
   checkedInCount: number;
   status: EventStatus;

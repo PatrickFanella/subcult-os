@@ -21,6 +21,9 @@ type eventDTO struct {
 	PublicDescription string  `json:"publicDescription"`
 	LocationDisplay   string  `json:"locationDisplay"`
 	TicketAllocation  int     `json:"ticketAllocation"`
+	PricingMode       string  `json:"pricingMode"`
+	TicketPriceCents  int     `json:"ticketPriceCents"`
+	TicketCurrency    string  `json:"ticketCurrency"`
 	ReservedCount     int     `json:"reservedCount"`
 	CheckedInCount    int     `json:"checkedInCount"`
 	Status            string  `json:"status"`
@@ -50,6 +53,9 @@ type eventRow struct {
 	PublicDescription string
 	LocationDisplay   string
 	TicketAllocation  int
+	PricingMode       string
+	TicketPriceCents  int
+	TicketCurrency    string
 	Status            string
 	PublicSlug        sql.NullString
 	ReservedCount     int
@@ -67,6 +73,9 @@ type createEventRequest struct {
 	PublicDescription string `json:"publicDescription"`
 	LocationDisplay   string `json:"locationDisplay"`
 	TicketAllocation  int    `json:"ticketAllocation"`
+	PricingMode       string `json:"pricingMode"`
+	TicketPriceCents  int    `json:"ticketPriceCents"`
+	TicketCurrency    string `json:"ticketCurrency"`
 }
 
 type updateEventRequest struct {
@@ -75,6 +84,9 @@ type updateEventRequest struct {
 	PublicDescription *string `json:"publicDescription"`
 	LocationDisplay   *string `json:"locationDisplay"`
 	TicketAllocation  *int    `json:"ticketAllocation"`
+	PricingMode       *string `json:"pricingMode"`
+	TicketPriceCents  *int    `json:"ticketPriceCents"`
+	TicketCurrency    *string `json:"ticketCurrency"`
 }
 
 func (a *App) handleListEvents(w http.ResponseWriter, r *http.Request) {
@@ -90,7 +102,7 @@ func (a *App) handleListEvents(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := a.db.Query(r.Context(), `
 		select e.id, e.workspace_id, e.title, e.starts_at, e.public_description, e.location_display,
-		       e.ticket_allocation, e.status, e.public_slug,
+		       e.ticket_allocation, e.pricing_mode, e.ticket_price_cents, e.ticket_currency, e.status, e.public_slug,
 		       (select count(*) from tickets t where t.event_id = e.id) as reserved_count,
 		       (select count(*) from tickets t where t.event_id = e.id and t.status = 'checked_in') as checked_in_count
 		from events e
@@ -106,7 +118,7 @@ func (a *App) handleListEvents(w http.ResponseWriter, r *http.Request) {
 	events := make([]eventDTO, 0)
 	for rows.Next() {
 		var row eventRow
-		if err := rows.Scan(&row.ID, &row.WorkspaceID, &row.Title, &row.StartsAt, &row.PublicDescription, &row.LocationDisplay, &row.TicketAllocation, &row.Status, &row.PublicSlug, &row.ReservedCount, &row.CheckedInCount); err != nil {
+		if err := rows.Scan(&row.ID, &row.WorkspaceID, &row.Title, &row.StartsAt, &row.PublicDescription, &row.LocationDisplay, &row.TicketAllocation, &row.PricingMode, &row.TicketPriceCents, &row.TicketCurrency, &row.Status, &row.PublicSlug, &row.ReservedCount, &row.CheckedInCount); err != nil {
 			writeError(w, http.StatusInternalServerError, "could not load events")
 			return
 		}
@@ -153,6 +165,11 @@ func (a *App) handleCreateEvent(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "ticketAllocation must be non-negative")
 		return
 	}
+	pricingMode, ticketPriceCents, ticketCurrency, err := normalizeEventPricing(req.PricingMode, req.TicketPriceCents, req.TicketCurrency)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	tx, err := a.db.Begin(r.Context())
 	if err != nil {
@@ -163,10 +180,10 @@ func (a *App) handleCreateEvent(w http.ResponseWriter, r *http.Request) {
 
 	var eventID string
 	if err := tx.QueryRow(r.Context(), `
-		insert into events (workspace_id, title, starts_at, public_description, location_display, ticket_allocation, status, created_by_person_id)
-		values ($1, $2, $3, $4, $5, $6, 'draft', $7)
+		insert into events (workspace_id, title, starts_at, public_description, location_display, ticket_allocation, pricing_mode, ticket_price_cents, ticket_currency, status, created_by_person_id)
+		values ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'draft', $10)
 		returning id
-	`, workspaceID, title, startsAt, publicDescription, locationDisplay, req.TicketAllocation, actorID).Scan(&eventID); err != nil {
+	`, workspaceID, title, startsAt, publicDescription, locationDisplay, req.TicketAllocation, pricingMode, ticketPriceCents, ticketCurrency, actorID).Scan(&eventID); err != nil {
 		writeError(w, http.StatusInternalServerError, "could not create event")
 		return
 	}
@@ -178,6 +195,9 @@ func (a *App) handleCreateEvent(w http.ResponseWriter, r *http.Request) {
 		"publicDescription": publicDescription,
 		"locationDisplay":   locationDisplay,
 		"ticketAllocation":  req.TicketAllocation,
+		"pricingMode":       pricingMode,
+		"ticketPriceCents":  ticketPriceCents,
+		"ticketCurrency":    ticketCurrency,
 	}); err != nil {
 		writeError(w, http.StatusInternalServerError, "could not record audit")
 		return
@@ -187,7 +207,7 @@ func (a *App) handleCreateEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	row := eventRow{ID: eventID, WorkspaceID: workspaceID, Title: title, StartsAt: startsAt, PublicDescription: publicDescription, LocationDisplay: locationDisplay, TicketAllocation: req.TicketAllocation, Status: "draft"}
+	row := eventRow{ID: eventID, WorkspaceID: workspaceID, Title: title, StartsAt: startsAt, PublicDescription: publicDescription, LocationDisplay: locationDisplay, TicketAllocation: req.TicketAllocation, PricingMode: pricingMode, TicketPriceCents: ticketPriceCents, TicketCurrency: ticketCurrency, Status: "draft"}
 	writeJSON(w, http.StatusOK, a.eventDTOFromRow(row))
 }
 
@@ -237,7 +257,7 @@ func (a *App) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
-	if req.Title == nil && req.StartsAt == nil && req.PublicDescription == nil && req.LocationDisplay == nil && req.TicketAllocation == nil {
+	if req.Title == nil && req.StartsAt == nil && req.PublicDescription == nil && req.LocationDisplay == nil && req.TicketAllocation == nil && req.PricingMode == nil && req.TicketPriceCents == nil && req.TicketCurrency == nil {
 		writeError(w, http.StatusBadRequest, "no changes provided")
 		return
 	}
@@ -251,6 +271,9 @@ func (a *App) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 	newPublicDescription := event.PublicDescription
 	newLocationDisplay := event.LocationDisplay
 	newTicketAllocation := event.TicketAllocation
+	newPricingMode := event.PricingMode
+	newTicketPriceCents := event.TicketPriceCents
+	newTicketCurrency := event.TicketCurrency
 	changed := false
 
 	if req.Title != nil {
@@ -319,6 +342,35 @@ func (a *App) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 			changed = true
 		}
 	}
+	if req.PricingMode != nil || req.TicketPriceCents != nil || req.TicketCurrency != nil {
+		candidateMode := event.PricingMode
+		candidatePriceCents := event.TicketPriceCents
+		candidateCurrency := event.TicketCurrency
+		if req.PricingMode != nil {
+			candidateMode = *req.PricingMode
+		}
+		if req.TicketPriceCents != nil {
+			candidatePriceCents = *req.TicketPriceCents
+		}
+		if req.TicketCurrency != nil {
+			candidateCurrency = *req.TicketCurrency
+		}
+		normalizedMode, normalizedPriceCents, normalizedCurrency, pricingErr := normalizeEventPricing(candidateMode, candidatePriceCents, candidateCurrency)
+		if pricingErr != nil {
+			writeError(w, http.StatusBadRequest, pricingErr.Error())
+			return
+		}
+		if normalizedMode != event.PricingMode || normalizedPriceCents != event.TicketPriceCents || normalizedCurrency != event.TicketCurrency {
+			if event.ReservedCount > 0 {
+				writeError(w, http.StatusConflict, "pricing cannot change after tickets exist")
+				return
+			}
+			newPricingMode = normalizedMode
+			newTicketPriceCents = normalizedPriceCents
+			newTicketCurrency = normalizedCurrency
+			changed = true
+		}
+	}
 	if !changed {
 		writeError(w, http.StatusBadRequest, "no changes provided")
 		return
@@ -337,9 +389,12 @@ func (a *App) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 		    public_description = $4,
 		    location_display = $5,
 		    ticket_allocation = $6,
+		    pricing_mode = $7,
+		    ticket_price_cents = $8,
+		    ticket_currency = $9,
 		    updated_at = now()
 		where id = $1
-	`, event.ID, newTitle, newStartsAt, newPublicDescription, newLocationDisplay, newTicketAllocation); err != nil {
+	`, event.ID, newTitle, newStartsAt, newPublicDescription, newLocationDisplay, newTicketAllocation, newPricingMode, newTicketPriceCents, newTicketCurrency); err != nil {
 		writeError(w, http.StatusInternalServerError, "could not update event")
 		return
 	}
@@ -351,6 +406,9 @@ func (a *App) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 		"publicDescription": newPublicDescription,
 		"locationDisplay":   newLocationDisplay,
 		"ticketAllocation":  newTicketAllocation,
+		"pricingMode":       newPricingMode,
+		"ticketPriceCents":  newTicketPriceCents,
+		"ticketCurrency":    newTicketCurrency,
 	}); err != nil {
 		writeError(w, http.StatusInternalServerError, "could not record audit")
 		return
@@ -365,6 +423,9 @@ func (a *App) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 	event.PublicDescription = newPublicDescription
 	event.LocationDisplay = newLocationDisplay
 	event.TicketAllocation = newTicketAllocation
+	event.PricingMode = newPricingMode
+	event.TicketPriceCents = newTicketPriceCents
+	event.TicketCurrency = newTicketCurrency
 	writeJSON(w, http.StatusOK, a.eventDTOFromRow(event))
 }
 
@@ -644,12 +705,12 @@ func (a *App) loadEventDetails(ctx context.Context, eventID string) (eventRow, e
 	}
 	err := a.db.QueryRow(ctx, `
 		select e.id, e.workspace_id, e.title, e.starts_at, e.public_description, e.location_display,
-		       e.ticket_allocation, e.status, e.public_slug,
+		       e.ticket_allocation, e.pricing_mode, e.ticket_price_cents, e.ticket_currency, e.status, e.public_slug,
 		       (select count(*) from tickets t where t.event_id = e.id) as reserved_count,
 		       (select count(*) from tickets t where t.event_id = e.id and t.status = 'checked_in') as checked_in_count
 		from events e
 		where e.id = $1
-	`, eventID).Scan(&row.ID, &row.WorkspaceID, &row.Title, &row.StartsAt, &row.PublicDescription, &row.LocationDisplay, &row.TicketAllocation, &row.Status, &row.PublicSlug, &row.ReservedCount, &row.CheckedInCount)
+	`, eventID).Scan(&row.ID, &row.WorkspaceID, &row.Title, &row.StartsAt, &row.PublicDescription, &row.LocationDisplay, &row.TicketAllocation, &row.PricingMode, &row.TicketPriceCents, &row.TicketCurrency, &row.Status, &row.PublicSlug, &row.ReservedCount, &row.CheckedInCount)
 	if err != nil {
 		return eventRow{}, err
 	}
@@ -665,6 +726,9 @@ func (a *App) eventDTOFromRow(row eventRow) eventDTO {
 		PublicDescription: row.PublicDescription,
 		LocationDisplay:   row.LocationDisplay,
 		TicketAllocation:  row.TicketAllocation,
+		PricingMode:       row.PricingMode,
+		TicketPriceCents:  row.TicketPriceCents,
+		TicketCurrency:    row.TicketCurrency,
 		ReservedCount:     row.ReservedCount,
 		CheckedInCount:    row.CheckedInCount,
 		Status:            row.Status,
@@ -691,6 +755,31 @@ func (a *App) publicSlugValue(row eventRow) string {
 		return row.PublicSlug.String
 	}
 	return ""
+}
+
+func normalizeEventPricing(pricingMode string, ticketPriceCents int, ticketCurrency string) (string, int, string, error) {
+	mode := strings.ToLower(strings.TrimSpace(pricingMode))
+	currency := strings.ToLower(strings.TrimSpace(ticketCurrency))
+	if mode == "" {
+		mode = "free"
+	}
+	switch mode {
+	case "free":
+		if ticketPriceCents != 0 {
+			return "", 0, "", fmt.Errorf("ticketPriceCents must be 0 for free events")
+		}
+		return "free", 0, "usd", nil
+	case "fixed":
+		if ticketPriceCents < 50 {
+			return "", 0, "", fmt.Errorf("ticketPriceCents must be at least 50 for fixed events")
+		}
+		if currency != "usd" {
+			return "", 0, "", fmt.Errorf("ticketCurrency must be usd for fixed events")
+		}
+		return "fixed", ticketPriceCents, "usd", nil
+	default:
+		return "", 0, "", fmt.Errorf("pricingMode must be free or fixed")
+	}
 }
 
 func (a *App) loadPersonEmail(ctx context.Context, personID string) (string, error) {
