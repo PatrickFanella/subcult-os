@@ -99,3 +99,20 @@ create table if not exists email_outbox (
   related_id uuid,
   created_at timestamptz not null default now()
 );
+
+alter table events add column if not exists pricing_mode text not null default 'free' check (pricing_mode in ('free', 'fixed'));
+alter table events add column if not exists ticket_price_cents integer not null default 0 check (ticket_price_cents >= 0);
+alter table events add column if not exists ticket_currency text not null default 'usd';
+
+alter table tickets add column if not exists payment_status text not null default 'free' check (payment_status in ('free', 'pending', 'paid', 'cancelled'));
+alter table tickets add column if not exists amount_cents integer not null default 0 check (amount_cents >= 0);
+alter table tickets add column if not exists currency text not null default 'usd';
+alter table tickets add column if not exists stripe_checkout_session_id text unique;
+alter table tickets add column if not exists paid_at timestamptz;
+
+create table if not exists payment_webhook_events (
+  id text primary key,
+  provider text not null default 'stripe',
+  event_type text not null,
+  processed_at timestamptz not null default now()
+);

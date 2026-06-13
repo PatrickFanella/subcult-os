@@ -77,9 +77,20 @@ If the app is already running, use the Workspace page to inspect development inv
 - Set a real `DATABASE_URL`; production startup fails without it.
 - Set a non-default `SESSION_SECRET` with at least 24 characters.
 - Set `PUBLIC_WEB_URL` to the HTTPS web origin used by browsers.
+- Stripe paid ticketing is optional until an Event uses paid pricing; when enabled, set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`.
 - Use `/api/health` for process health and `/api/ready` for DB-backed readiness.
 - Review `docs/runbooks/database-migrations.md` before changing persisted schema.
 - Review `docs/runbooks/deployment-checklist.md` before running outside local development.
+
+## Paid ticketing local setup
+
+For local paid-ticket testing, copy the optional Stripe env vars from `.env.example`, then run Stripe CLI webhook forwarding:
+
+```bash
+stripe listen --forward-to localhost:38080/api/stripe/webhook
+```
+
+Stripe keys are not required unless you configure a paid Event.
 
 ## Open Pilot
 

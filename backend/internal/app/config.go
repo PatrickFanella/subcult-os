@@ -7,20 +7,24 @@ import (
 )
 
 type Config struct {
-	AppEnv        string
-	DatabaseURL   string
-	SessionSecret string
-	PublicWebURL  string
-	Addr          string
+	AppEnv              string
+	DatabaseURL         string
+	SessionSecret       string
+	PublicWebURL        string
+	Addr                string
+	StripeSecretKey     string
+	StripeWebhookSecret string
 }
 
 func LoadConfig() Config {
 	return Config{
-		AppEnv:        env("APP_ENV", "development"),
-		DatabaseURL:   env("DATABASE_URL", ""),
-		SessionSecret: env("SESSION_SECRET", "dev-session-secret-change-me"),
-		PublicWebURL:  env("PUBLIC_WEB_URL", "http://localhost:5173"),
-		Addr:          env("API_ADDR", ":8080"),
+		AppEnv:              env("APP_ENV", "development"),
+		DatabaseURL:         env("DATABASE_URL", ""),
+		SessionSecret:       env("SESSION_SECRET", "dev-session-secret-change-me"),
+		PublicWebURL:        env("PUBLIC_WEB_URL", "http://localhost:5173"),
+		Addr:                env("API_ADDR", ":8080"),
+		StripeSecretKey:     env("STRIPE_SECRET_KEY", ""),
+		StripeWebhookSecret: env("STRIPE_WEBHOOK_SECRET", ""),
 	}
 }
 
@@ -39,6 +43,14 @@ func (c Config) Validate() error {
 		secret := strings.TrimSpace(c.SessionSecret)
 		if secret == "" || secret == "dev-session-secret-change-me" || len(secret) < 24 {
 			problems = append(problems, "SESSION_SECRET must be a non-default value with at least 24 characters in production")
+		}
+		stripeSecretKey := strings.TrimSpace(c.StripeSecretKey)
+		stripeWebhookSecret := strings.TrimSpace(c.StripeWebhookSecret)
+		if stripeSecretKey == "" && stripeWebhookSecret != "" {
+			problems = append(problems, "STRIPE_SECRET_KEY is required when STRIPE_WEBHOOK_SECRET is set in production")
+		}
+		if stripeSecretKey != "" && stripeWebhookSecret == "" {
+			problems = append(problems, "STRIPE_WEBHOOK_SECRET is required when STRIPE_SECRET_KEY is set in production")
 		}
 	}
 	if len(problems) > 0 {

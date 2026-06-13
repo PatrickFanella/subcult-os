@@ -84,3 +84,46 @@ func TestConfigValidateAllowsSafeProduction(t *testing.T) {
 		t.Fatalf("production config should validate: %v", err)
 	}
 }
+
+func TestConfigValidateAllowsPaidTicketingDisabled(t *testing.T) {
+	config := Config{
+		AppEnv:        "production",
+		Addr:          ":8080",
+		DatabaseURL:   "postgres://app:secret@db:5432/app?sslmode=require",
+		SessionSecret: "replace-with-a-long-random-secret",
+		PublicWebURL:  "https://subcult.example",
+	}
+	if err := config.Validate(); err != nil {
+		t.Fatalf("production config without Stripe should validate when paid ticketing is disabled: %v", err)
+	}
+}
+
+func TestConfigValidateRejectsPartialStripeConfig(t *testing.T) {
+	config := Config{
+		AppEnv:          "production",
+		Addr:            ":8080",
+		DatabaseURL:     "postgres://app:secret@db:5432/app?sslmode=require",
+		SessionSecret:   "replace-with-a-long-random-secret",
+		PublicWebURL:    "https://subcult.example",
+		StripeSecretKey: "sk_test_123",
+	}
+	err := config.Validate()
+	if err == nil || !strings.Contains(err.Error(), "STRIPE_WEBHOOK_SECRET") {
+		t.Fatalf("expected webhook secret validation error, got %v", err)
+	}
+}
+
+func TestConfigValidateAllowsCompleteStripeConfig(t *testing.T) {
+	config := Config{
+		AppEnv:              "production",
+		Addr:                ":8080",
+		DatabaseURL:         "postgres://app:secret@db:5432/app?sslmode=require",
+		SessionSecret:       "replace-with-a-long-random-secret",
+		PublicWebURL:        "https://subcult.example",
+		StripeSecretKey:     "sk_test_123",
+		StripeWebhookSecret: "whsec_123",
+	}
+	if err := config.Validate(); err != nil {
+		t.Fatalf("complete Stripe config should validate: %v", err)
+	}
+}
