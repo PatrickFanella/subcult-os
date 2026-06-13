@@ -41,7 +41,11 @@ describe('App routes', () => {
   });
 
   it('renders the public event route', () => {
-    expect(renderAt('/e/night-market')).toContain('Reserve');
+    const rendered = renderAt('/e/night-market');
+    expect(rendered).toContain('Free guest reservation');
+    expect(rendered).toContain('No account needed');
+    expect(rendered).toContain('free ticket');
+    expect(rendered).toContain('Email required');
   });
 
   it('renders the event editor route', () => {
