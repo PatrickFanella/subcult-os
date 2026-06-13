@@ -17,14 +17,17 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"golang.org/x/crypto/bcrypt"
 )
 
 const (
-	authCookieName    = "subcult_session"
-	sessionLifetime   = 30 * 24 * time.Hour
-	passwordScheme    = "sha256"
-	sessionTokenBytes = 32
-	passwordSaltBytes = 16
+	authCookieName     = "subcult_session"
+	sessionLifetime    = 30 * 24 * time.Hour
+	passwordScheme     = "bcrypt"
+	legacySHA256Scheme = "sha256"
+	sessionTokenBytes  = 32
+	passwordSaltBytes  = 16
+	bcryptCost         = 12
 )
 
 type signupRequest struct {
@@ -89,7 +92,11 @@ func (a *App) handleSignup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	displayName := normalizeDisplayName(req.DisplayName)
-	passwordHash := hashPassword(req.Password)
+	passwordHash, err := hashPassword(req.Password)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not hash password")
+		return
+	}
 	tx, err := a.db.Begin(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not start transaction")
@@ -167,9 +174,13 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not load user")
 		return
 	}
-	if !verifyPassword(req.Password, person.PasswordHash) {
+	validPassword, upgradedHash := verifyPassword(req.Password, person.PasswordHash)
+	if !validPassword {
 		writeError(w, http.StatusUnauthorized, "invalid credentials")
 		return
+	}
+	if upgradedHash != "" {
+		_, _ = a.db.Exec(r.Context(), `update people set password_hash = $2 where id = $1`, person.ID, upgradedHash)
 	}
 
 	token, tokenHash := newToken()
@@ -241,30 +252,43 @@ func (a *App) requirePersonID(r *http.Request) (string, bool) {
 	return personID, true
 }
 
-func hashPassword(password string) string {
-	salt := make([]byte, passwordSaltBytes)
-	_, _ = rand.Read(salt)
-	return fmt.Sprintf("%s$%s$%s", passwordScheme, base64.RawURLEncoding.EncodeToString(salt), passwordSum(salt, password))
+func hashPassword(password string) (string, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCost)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s$%s", passwordScheme, string(hash)), nil
 }
 
-func verifyPassword(password, hash string) bool {
+func verifyPassword(password, hash string) (bool, string) {
 	parts := strings.Split(hash, "$")
-	if len(parts) != 3 || parts[0] != passwordScheme {
-		return false
+	if len(parts) >= 2 && parts[0] == passwordScheme {
+		stored := strings.TrimPrefix(hash, passwordScheme+"$")
+		return bcrypt.CompareHashAndPassword([]byte(stored), []byte(password)) == nil, ""
+	}
+	if len(parts) != 3 || parts[0] != legacySHA256Scheme {
+		return false, ""
 	}
 	salt, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
-		return false
+		return false, ""
 	}
 	want, err := hex.DecodeString(parts[2])
 	if err != nil {
-		return false
+		return false, ""
 	}
 	got, err := hex.DecodeString(passwordSum(salt, password))
 	if err != nil {
-		return false
+		return false, ""
 	}
-	return subtle.ConstantTimeCompare(got, want) == 1
+	if subtle.ConstantTimeCompare(got, want) != 1 {
+		return false, ""
+	}
+	upgraded, err := hashPassword(password)
+	if err != nil {
+		return true, ""
+	}
+	return true, upgraded
 }
 
 func newToken() (string, string) {

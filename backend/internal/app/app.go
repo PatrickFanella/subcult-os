@@ -3,6 +3,7 @@ package app
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -28,7 +29,7 @@ func New(config Config, db *pgxpool.Pool) *App {
 	return a
 }
 
-func (a *App) Handler() http.Handler { return a.mux }
+func (a *App) Handler() http.Handler { return a.originGuard(a.mux) }
 
 func (a *App) routes() {
 	a.mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
@@ -66,4 +67,47 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 
 func writeError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]string{"error": message})
+}
+
+func (a *App) originGuard(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if requestNeedsOriginCheck(r) && !a.allowedOrigin(r) {
+			writeError(w, http.StatusForbidden, "origin not allowed")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func requestNeedsOriginCheck(r *http.Request) bool {
+	if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
+		return false
+	}
+	if _, err := r.Cookie(authCookieName); err != nil {
+		return false
+	}
+	return r.Header.Get("Origin") != ""
+}
+
+func (a *App) allowedOrigin(r *http.Request) bool {
+	origin := strings.TrimSpace(r.Header.Get("Origin"))
+	if origin == "" {
+		return true
+	}
+	parsed, err := url.Parse(origin)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return false
+	}
+	if strings.EqualFold(parsed.Host, r.Host) {
+		return true
+	}
+	publicWebURL := strings.TrimSpace(a.config.PublicWebURL)
+	if publicWebURL == "" {
+		return false
+	}
+	publicParsed, err := url.Parse(publicWebURL)
+	if err != nil || publicParsed.Scheme == "" || publicParsed.Host == "" {
+		return false
+	}
+	return strings.EqualFold(parsed.Scheme, publicParsed.Scheme) && strings.EqualFold(parsed.Host, publicParsed.Host)
 }

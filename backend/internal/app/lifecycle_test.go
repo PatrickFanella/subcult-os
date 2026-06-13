@@ -2,6 +2,8 @@ package app
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -139,6 +141,49 @@ func TestDevEmailOutboxProductionHidden(t *testing.T) {
 	getJSON(t, prodApp, fx.ownerCookie, "/api/dev/email-outbox", http.StatusNotFound)
 }
 
+func TestSignupStoresBcryptPasswordHash(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	email := fx.email("bcrypt")
+	postJSON(t, fx.app, nil, "/api/auth/signup", map[string]any{"email": email, "password": "secret1234", "displayName": "Hash"}, http.StatusOK)
+
+	var storedHash string
+	if err := fx.app.db.QueryRow(t.Context(), `select password_hash from people where email = $1`, email).Scan(&storedHash); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(storedHash, passwordScheme+"$") || strings.Contains(storedHash, legacySHA256Scheme+"$") {
+		t.Fatalf("expected bcrypt password hash, got %q", storedHash)
+	}
+	valid, upgraded := verifyPassword("secret1234", storedHash)
+	if !valid || upgraded != "" {
+		t.Fatalf("expected bcrypt password to verify without upgrade, valid=%v upgraded=%q", valid, upgraded)
+	}
+}
+
+func TestLegacyPasswordHashUpgradesOnLogin(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	email := fx.email("legacy")
+	legacyHash := legacyPasswordHashForTest(t, "secret1234")
+	if _, err := fx.app.db.Exec(t.Context(), `insert into people (email, password_hash) values ($1, $2)`, email, legacyHash); err != nil {
+		t.Fatal(err)
+	}
+
+	postJSON(t, fx.app, nil, "/api/auth/login", map[string]any{"email": email, "password": "secret1234"}, http.StatusOK)
+
+	var storedHash string
+	if err := fx.app.db.QueryRow(t.Context(), `select password_hash from people where email = $1`, email).Scan(&storedHash); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(storedHash, passwordScheme+"$") {
+		t.Fatalf("expected legacy hash to upgrade to bcrypt, got %q", storedHash)
+	}
+}
+
+func TestOriginGuardRejectsCrossSiteCookieMutations(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	postJSONWithOrigin(t, fx.app, fx.ownerCookie, "/api/workspaces", map[string]any{"name": "Evil"}, "http://evil.example", http.StatusForbidden)
+	postJSONWithOrigin(t, fx.app, fx.ownerCookie, "/api/workspaces", map[string]any{"name": "Allowed"}, "http://public.test", http.StatusOK)
+}
+
 type testResponse struct {
 	Status int
 	Cookie *http.Cookie
@@ -243,6 +288,33 @@ func postJSON(t *testing.T, app *App, cookie *http.Cookie, path string, payload 
 	return doJSON(t, http.MethodPost, app, cookie, path, payload, wantStatus)
 }
 
+func postJSONWithOrigin(t *testing.T, app *App, cookie *http.Cookie, path string, payload any, origin string, wantStatus int) testResponse {
+	t.Helper()
+	var body []byte
+	if payload != nil {
+		body, _ = json.Marshal(payload)
+	}
+	req := httptest.NewRequest(http.MethodPost, path, bytes.NewReader(body))
+	req.Host = "public.test"
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", origin)
+	if cookie != nil {
+		req.AddCookie(cookie)
+	}
+	rec := httptest.NewRecorder()
+	app.Handler().ServeHTTP(rec, req)
+	if rec.Code != wantStatus {
+		t.Fatalf("POST %s origin %s got %d, want %d: %s", path, origin, rec.Code, wantStatus, rec.Body.String())
+	}
+	var decoded any
+	if strings.TrimSpace(rec.Body.String()) != "" {
+		if err := json.Unmarshal(rec.Body.Bytes(), &decoded); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return testResponse{Status: rec.Code, JSON: decoded, Body: rec.Body.String()}
+}
+
 func getJSON(t *testing.T, app *App, cookie *http.Cookie, path string, wantStatus int) testResponse {
 	t.Helper()
 	return doJSON(t, http.MethodGet, app, cookie, path, nil, wantStatus)
@@ -270,4 +342,13 @@ func mustString(t *testing.T, value any, key string) string {
 		t.Fatalf("expected %s string, got %#v", key, obj[key])
 	}
 	return v
+}
+
+func legacyPasswordHashForTest(t *testing.T, password string) string {
+	t.Helper()
+	salt := make([]byte, passwordSaltBytes)
+	if _, err := rand.Read(salt); err != nil {
+		t.Fatal(err)
+	}
+	return fmt.Sprintf("%s$%s$%s", legacySHA256Scheme, base64.RawURLEncoding.EncodeToString(salt), passwordSum(salt, password))
 }
