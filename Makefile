@@ -5,7 +5,7 @@ PROJECT_NAME := subcult-os
 COMPOSE_PROJECT_NAME ?= $(PROJECT_NAME)
 BACKEND_BIN ?= bin/$(PROJECT_NAME)
 
-.PHONY: help deps verify quick fmt lint test test-backend test-web build build-backend build-web run-backend dev up up-build down reset-db restart logs ps urls smoke alpha-qa compose-config db-shell clean open-pilot-check
+.PHONY: help deps verify quick fmt lint test test-backend test-web build build-backend build-web run-backend dev up up-build down reset-db restart logs ps urls smoke alpha-qa alpha-qa-paid compose-config db-shell clean open-pilot-check
 
 help:
 	@awk 'BEGIN {FS = ":.*##"; printf "$(PROJECT_NAME) commands:\n"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -81,6 +81,9 @@ smoke: ## Check running Docker services and API/web health
 
 alpha-qa: ## Run end-to-end alpha lifecycle QA against the running stack
 	bash scripts/alpha-qa.sh
+
+alpha-qa-paid: ## Run paid alpha lifecycle QA against the running stack
+	bash scripts/alpha-qa.sh --paid
 
 compose-config: ## Validate Docker Compose config
 	docker compose -p $(COMPOSE_PROJECT_NAME) config --quiet

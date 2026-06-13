@@ -90,7 +90,12 @@ For local paid-ticket testing, copy the optional Stripe env vars from `.env.exam
 stripe listen --forward-to localhost:38080/api/stripe/webhook
 ```
 
-Stripe keys are not required unless you configure a paid Event.
+The paid ticketing runbook is `docs/runbooks/stripe-local-testing.md`.
+
+- `make alpha-qa` stays the default free-ticket lifecycle check.
+- `make alpha-qa-paid` runs the optional paid API QA when `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` are set.
+
+Stripe keys are not required unless you configure a paid Event. Use the Stripe test card `4242 4242 4242 4242`, and treat the webhook as the source of truth for fulfillment.
 
 ## Open Pilot
 

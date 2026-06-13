@@ -1,8 +1,33 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+paid_mode=false
+while (($#)); do
+  case "$1" in
+    --paid)
+      paid_mode=true
+      ;;
+    -h|--help)
+      echo "Usage: $0 [--paid]" >&2
+      exit 0
+      ;;
+    *)
+      echo "Usage: $0 [--paid]" >&2
+      exit 1
+      ;;
+  esac
+  shift
+done
+
 project_name="${COMPOSE_PROJECT_NAME:-subcult-os}"
 api_url="${API_URL:-}"
+
+if [[ "${paid_mode}" == true ]]; then
+  if [[ -z "${STRIPE_SECRET_KEY:-}" || -z "${STRIPE_WEBHOOK_SECRET:-}" ]]; then
+    echo "Skipping paid alpha QA: set STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET to run Stripe checks."
+    exit 0
+  fi
+fi
 
 if [[ -z "${api_url}" ]]; then
   api_port="$(docker compose -p "${project_name}" port api 8080 | awk -F: '{print $NF}')"
@@ -95,4 +120,54 @@ report_json="$(curl -fsS -b "${owner_cookie}" -H 'Content-Type: application/json
   "${api_url}/api/events/${event_id}/end-of-night")"
 python -c 'import json,sys; r=json.load(sys.stdin); assert r["ticketsReserved"] == 1 and r["ticketsCheckedIn"] == 1 and r["noShows"] == 0, r; print("✓ end-of-night report counts are correct")' <<<"${report_json}"
 
-echo "Alpha QA passed."
+if [[ "${paid_mode}" != true ]]; then
+  echo "Alpha QA passed."
+  exit 0
+fi
+
+echo "Free alpha QA passed."
+echo "Running paid alpha QA..."
+
+paid_event_json="$(curl -fsS -b "${owner_cookie}" -H 'Content-Type: application/json' \
+  -d '{"title":"Alpha QA Paid Night","startsAt":"2026-07-02T20:00:00Z","publicDescription":"Paid community event.","locationDisplay":"Warehouse District","ticketAllocation":2,"pricingMode":"fixed","ticketPriceCents":1500,"ticketCurrency":"usd"}' \
+  "${api_url}/api/workspaces/${workspace_id}/events")"
+paid_event_id="$(json_get id <<<"${paid_event_json}")"
+
+paid_published_json="$(curl -fsS -b "${owner_cookie}" -H 'Content-Type: application/json' \
+  -d '{}' \
+  "${api_url}/api/events/${paid_event_id}/publish")"
+paid_slug="$(json_get publicSlug <<<"${paid_published_json}")"
+
+paid_free_status="$(curl -sS -o "${tmpdir}/paid-free.json" -w '%{http_code}' -H 'Content-Type: application/json' \
+  -d "{\"email\":\"${guest}\",\"displayName\":\"Guest\"}" \
+  "${api_url}/api/public/events/${paid_slug}/reservations")"
+if [[ "${paid_free_status}" != "409" ]]; then
+  echo "Expected free reservation on paid event to return 409, got ${paid_free_status}" >&2
+  cat "${tmpdir}/paid-free.json" >&2 || true
+  exit 1
+fi
+echo "✓ paid event rejects free reservation path"
+
+paid_reservation_body="{\"email\":\"paid-${guest}\",\"displayName\":\"Guest\"}"
+paid_reservation_status="$(curl -sS -o "${tmpdir}/paid-reservation.json" -w '%{http_code}' -H 'Content-Type: application/json' \
+  -d "${paid_reservation_body}" \
+  "${api_url}/api/public/events/${paid_slug}/paid-reservations")"
+if [[ "${paid_reservation_status}" == "503" ]]; then
+  echo "Payment provider unavailable while STRIPE_SECRET_KEY/STRIPE_WEBHOOK_SECRET are set; paid QA cannot continue." >&2
+  cat "${tmpdir}/paid-reservation.json" >&2 || true
+  exit 1
+fi
+if [[ "${paid_reservation_status}" != "200" ]]; then
+  echo "Expected paid reservation to return 200, got ${paid_reservation_status}" >&2
+  cat "${tmpdir}/paid-reservation.json" >&2 || true
+  exit 1
+fi
+
+checkout_url="$(python -c 'import json,sys; data=json.load(sys.stdin); print(data.get("checkoutUrl", ""))' < "${tmpdir}/paid-reservation.json")"
+if [[ -z "${checkout_url}" ]]; then
+  echo "Paid reservation response did not include a checkoutUrl." >&2
+  cat "${tmpdir}/paid-reservation.json" >&2 || true
+  exit 1
+fi
+echo "✓ paid reservation returns checkoutUrl"
+echo "Paid alpha QA passed."
