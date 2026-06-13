@@ -31,8 +31,8 @@ function authHref(mode: Mode) {
   return next === '/' ? `/${mode}` : `/${mode}?next=${encodeURIComponent(next)}`;
 }
 
-function goToNext() {
-  window.location.href = getNextPath();
+function goToNext(nextPath: string) {
+  window.location.href = nextPath;
 }
 
 export function AuthView() {
@@ -43,22 +43,43 @@ export function AuthView() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const nextPath = useMemo(getNextPath, []);
   const title = useMemo(() => (mode === 'signup' ? 'Create account' : 'Sign in'), [mode]);
+  const eyebrow = mode === 'signup' ? 'Join the room' : 'Operator access';
+  const description =
+    mode === 'signup'
+      ? 'Create your account, keep the invited email if you arrived from a handoff, and step into the workspace.'
+      : 'Sign in to resume the workspace. If you were sent here from an invite, use the same email that received it.';
+  const invitePrompt = nextPath.startsWith('/invite/')
+    ? 'Accepting an invitation? Sign in/sign up with the invited email.'
+    : null;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setLoading(true);
     setError(null);
+
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setError('Enter your email address.');
+      return;
+    }
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
+
+    setLoading(true);
 
     try {
       const body = {
-        email: email.trim(),
+        email: trimmedEmail,
         password,
         ...(mode === 'signup' ? { displayName: displayName.trim() || undefined } : {}),
       };
 
       await postJSON<CurrentUserDTO>(mode === 'signup' ? '/api/auth/signup' : '/api/auth/login', body);
-      goToNext();
+      goToNext(nextPath);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to continue');
     } finally {
@@ -77,11 +98,15 @@ export function AuthView() {
         </div>
 
         <div className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6 shadow-2xl shadow-black/40 backdrop-blur">
-          <p className="text-xs uppercase tracking-[0.3em] text-fuchsia-300">Access</p>
+          <p className="text-xs uppercase tracking-[0.3em] text-fuchsia-300">{eyebrow}</p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white">{title}</h1>
-          <p className="mt-2 text-sm leading-6 text-zinc-400">
-            Email/password auth for the first lifecycle slice.
-          </p>
+          <p className="mt-2 text-sm leading-6 text-zinc-400">{description}</p>
+
+          {invitePrompt ? (
+            <div className="mt-5 rounded-2xl border border-amber-400/20 bg-amber-400/[0.08] px-4 py-3 text-sm leading-6 text-amber-100">
+              {invitePrompt}
+            </div>
+          ) : null}
 
           <div className="mt-6 flex gap-2 text-sm">
             <a
@@ -106,7 +131,7 @@ export function AuthView() {
             </a>
           </div>
 
-          <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+          <form className="mt-6 space-y-4" noValidate onSubmit={handleSubmit}>
             <label className="block space-y-2 text-sm">
               <span className="text-zinc-300">Email</span>
               <input
@@ -143,7 +168,11 @@ export function AuthView() {
                 required
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
+                aria-describedby="password-rules"
               />
+              <span id="password-rules" className="block text-xs text-zinc-500">
+                8+ characters
+              </span>
             </label>
 
             {error ? <p className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error}</p> : null}

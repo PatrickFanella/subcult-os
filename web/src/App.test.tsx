@@ -27,19 +27,35 @@ describe('App routes', () => {
 
   it('renders the auth route', () => {
     const rendered = renderAt('/login');
-    expect(rendered).toContain('Access');
+    expect(rendered).toContain('Operator access');
     expect(rendered).toContain('Sign in');
+    expect(rendered).toContain('Sign in to resume the workspace');
+    expect(rendered).toContain('8+ characters');
+  });
+
+  it('renders the signup auth route', () => {
+    const rendered = renderAt('/signup');
+    expect(rendered).toContain('Join the room');
+    expect(rendered).toContain('Create account');
   });
 
   it('preserves auth next links', () => {
     const rendered = renderAt('/login?next=/invite/test-token');
     expect(rendered).toContain('?next=%2Finvite%2Ftest-token');
+    expect(rendered).toContain('Accepting an invitation? Sign in/sign up with the invited email.');
   });
 
   it('renders the invite route', () => {
     const rendered = renderAt('/invite/test-token');
     expect(rendered).toContain('Invitation');
     expect(rendered).toContain('Accept your invite');
+    expect(rendered).toContain('Checking invitation…');
+    expect(rendered).toContain('Invite token');
+    expect(rendered).toContain('test…oken');
+    expect(rendered).toContain('Next steps');
+    expect(rendered).toContain('Workspace');
+    expect(rendered).toContain('Sign in');
+    expect(rendered).toContain('Create account');
   });
 
   it('renders the public event route', () => {
