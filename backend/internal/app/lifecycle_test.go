@@ -13,6 +13,119 @@ import (
 )
 
 func TestFirstEventLifecycle(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 2)
+	eventID := mustString(t, event, "id")
+	published := publishEvent(t, fx, eventID)
+	slug := mustString(t, published, "publicSlug")
+	guestEmail := fx.email("guest")
+	ticket := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/reservations", map[string]any{"email": guestEmail, "displayName": "Guest"}, http.StatusOK)
+	checkIn := postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/door/check-ins", map[string]any{"code": mustString(t, ticket.JSON, "code")}, http.StatusOK)
+	report := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+	reportObj := mustObject(t, report.JSON)
+
+	if int(reportObj["ticketsReserved"].(float64)) != 1 || int(reportObj["ticketsCheckedIn"].(float64)) != 1 || int(reportObj["noShows"].(float64)) != 0 {
+		t.Fatalf("unexpected report counts: %#v", report.JSON)
+	}
+	if mustString(t, checkIn.JSON, "status") != "checked_in" {
+		t.Fatalf("unexpected check-in status: %#v", checkIn.JSON)
+	}
+}
+
+func TestFirstEventLifecycleFullCapacity(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 1)
+	eventID := mustString(t, event, "id")
+	slug := mustString(t, publishEvent(t, fx, eventID), "publicSlug")
+
+	firstGuest := fx.email("guest-a")
+	secondGuest := fx.email("guest-b")
+	postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/reservations", map[string]any{"email": firstGuest, "displayName": "Guest One"}, http.StatusOK)
+	postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/reservations", map[string]any{"email": secondGuest, "displayName": "Guest Two"}, http.StatusConflict)
+
+	publicEvent := getJSON(t, fx.app, nil, "/api/public/events/"+slug, http.StatusOK)
+	if int(publicEvent.JSON.(map[string]any)["reservedCount"].(float64)) != 1 || int(publicEvent.JSON.(map[string]any)["remainingTickets"].(float64)) != 0 || publicEvent.JSON.(map[string]any)["isFull"].(bool) != true {
+		t.Fatalf("event should remain full with one reservation: %#v", publicEvent.JSON)
+	}
+}
+
+func TestFirstEventLifecycleDuplicateCheckIn(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 1)
+	eventID := mustString(t, event, "id")
+	slug := mustString(t, publishEvent(t, fx, eventID), "publicSlug")
+	ticket := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/reservations", map[string]any{"email": fx.email("guest"), "displayName": "Guest"}, http.StatusOK)
+	code := mustString(t, ticket.JSON, "code")
+	firstCheckIn := postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/door/check-ins", map[string]any{"code": code}, http.StatusOK)
+	secondCheckIn := postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/door/check-ins", map[string]any{"code": code}, http.StatusOK)
+
+	first := firstCheckIn.JSON.(map[string]any)
+	second := secondCheckIn.JSON.(map[string]any)
+	if first["status"] != "checked_in" || second["status"] != "checked_in" {
+		t.Fatalf("expected checked-in ticket: first=%#v second=%#v", firstCheckIn.JSON, secondCheckIn.JSON)
+	}
+	if first["checkedInAt"] != second["checkedInAt"] {
+		t.Fatalf("expected duplicate check-in to return same checkedInAt, got %v and %v", first["checkedInAt"], second["checkedInAt"])
+	}
+}
+
+func TestFirstEventLifecycleDraftReservationsBlocked(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 1)
+	eventID := mustString(t, event, "id")
+	if event["publicSlug"] != nil {
+		t.Fatalf("draft event should not have a public slug: %#v", event["publicSlug"])
+	}
+
+	getJSON(t, fx.app, nil, "/api/public/events/"+eventID, http.StatusNotFound)
+	postJSON(t, fx.app, nil, "/api/public/events/"+eventID+"/reservations", map[string]any{"email": fx.email("guest"), "displayName": "Guest"}, http.StatusNotFound)
+}
+
+func TestFirstEventLifecyclePermissions(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 1)
+	eventID := mustString(t, event, "id")
+
+	updated := patchJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID, map[string]any{"title": "Night Market Updated"}, http.StatusOK)
+	if mustString(t, updated.JSON, "title") != "Night Market Updated" {
+		t.Fatalf("member update did not persist: %#v", updated.JSON)
+	}
+
+	postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/publish", map[string]any{}, http.StatusForbidden)
+	published := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/publish", map[string]any{}, http.StatusOK)
+	slug := mustString(t, published.JSON, "publicSlug")
+	guestTicket := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/reservations", map[string]any{"email": fx.email("guest"), "displayName": "Guest"}, http.StatusOK)
+	search := getJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/door/tickets?query=guest", http.StatusOK)
+	tickets := search.JSON.([]any)
+	if len(tickets) != 1 {
+		t.Fatalf("expected one ticket in door search, got %#v", search.JSON)
+	}
+	postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/door/check-ins", map[string]any{"code": mustString(t, guestTicket.JSON, "code")}, http.StatusOK)
+	postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusForbidden)
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+}
+
+type testResponse struct {
+	Status int
+	Cookie *http.Cookie
+	JSON   any
+	Body   string
+}
+
+type lifecycleFixture struct {
+	app          *App
+	ownerCookie  *http.Cookie
+	memberCookie *http.Cookie
+	workspaceID  string
+	suffix       string
+}
+
+func (f lifecycleFixture) email(prefix string) string {
+	return prefix + "+" + f.suffix + "@example.test"
+}
+
+func newLifecycleFixture(t *testing.T) lifecycleFixture {
+	t.Helper()
 	if os.Getenv("TEST_DATABASE_URL") == "" {
 		t.Skip("set TEST_DATABASE_URL to run lifecycle acceptance test")
 	}
@@ -22,7 +135,7 @@ func TestFirstEventLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	t.Cleanup(db.Close)
 	if err := RunMigrations(ctx, db); err != nil {
 		t.Fatal(err)
 	}
@@ -31,57 +144,96 @@ func TestFirstEventLifecycle(t *testing.T) {
 	suffix := strings.ToLower(strings.ReplaceAll(t.Name(), "/", "-")) + fmt.Sprintf("-%d", time.Now().UnixNano())
 	ownerEmail := "owner+" + suffix + "@example.test"
 	memberEmail := "member+" + suffix + "@example.test"
-	guestEmail := "guest+" + suffix + "@example.test"
 
-	ownerCookie := postJSON(t, app, nil, "/api/auth/signup", map[string]any{"email": ownerEmail, "password": "secret1234", "displayName": "Owner"}).Cookie
-	workspace := postJSON(t, app, ownerCookie, "/api/workspaces", map[string]any{"name": "Signal Collective"}).JSON
-	workspaceID := workspace["id"].(string)
+	ownerCookie := postJSON(t, app, nil, "/api/auth/signup", map[string]any{"email": ownerEmail, "password": "secret1234", "displayName": "Owner"}, http.StatusOK).Cookie
+	workspace := postJSON(t, app, ownerCookie, "/api/workspaces", map[string]any{"name": "Signal Collective"}, http.StatusOK)
+	workspaceID := mustString(t, workspace.JSON, "id")
+	invite := postJSON(t, app, ownerCookie, "/api/workspaces/"+workspaceID+"/invitations", map[string]any{"email": memberEmail}, http.StatusOK)
+	memberCookie := postJSON(t, app, nil, "/api/auth/signup", map[string]any{"email": memberEmail, "password": "secret1234", "displayName": "Door"}, http.StatusOK).Cookie
+	postJSON(t, app, memberCookie, "/api/invitations/"+mustString(t, invite.JSON, "token")+"/accept", map[string]any{}, http.StatusOK)
 
-	invite := postJSON(t, app, ownerCookie, "/api/workspaces/"+workspaceID+"/invitations", map[string]any{"email": memberEmail}).JSON
-	memberCookie := postJSON(t, app, nil, "/api/auth/signup", map[string]any{"email": memberEmail, "password": "secret1234", "displayName": "Door"}).Cookie
-	postJSON(t, app, memberCookie, "/api/invitations/"+invite["token"].(string)+"/accept", map[string]any{})
-
-	event := postJSON(t, app, ownerCookie, "/api/workspaces/"+workspaceID+"/events", map[string]any{"title": "Night Market", "startsAt": "2026-07-01T20:00:00Z", "publicDescription": "Free community event.", "locationDisplay": "Warehouse District", "ticketAllocation": 2}).JSON
-	eventID := event["id"].(string)
-	published := postJSON(t, app, ownerCookie, "/api/events/"+eventID+"/publish", map[string]any{}).JSON
-	slug := published["publicSlug"].(string)
-
-	ticket := postJSON(t, app, nil, "/api/public/events/"+slug+"/reservations", map[string]any{"email": guestEmail, "displayName": "Guest"}).JSON
-	postJSON(t, app, memberCookie, "/api/events/"+eventID+"/door/check-ins", map[string]any{"code": ticket["code"].(string)})
-	report := postJSON(t, app, ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}).JSON
-
-	if report["ticketsReserved"].(float64) != 1 || report["ticketsCheckedIn"].(float64) != 1 || report["noShows"].(float64) != 0 {
-		t.Fatalf("unexpected report counts: %#v", report)
-	}
+	return lifecycleFixture{app: app, ownerCookie: ownerCookie, memberCookie: memberCookie, workspaceID: workspaceID, suffix: suffix}
 }
 
-type testResponse struct {
-	Cookie *http.Cookie
-	JSON   map[string]any
-}
-
-func postJSON(t *testing.T, app *App, cookie *http.Cookie, path string, payload map[string]any) testResponse {
+func createEvent(t *testing.T, fx lifecycleFixture, title string, ticketAllocation int) map[string]any {
 	t.Helper()
-	body, _ := json.Marshal(payload)
-	req := httptest.NewRequest(http.MethodPost, path, bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
+	resp := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/events", map[string]any{"title": title, "startsAt": "2026-07-01T20:00:00Z", "publicDescription": "Free community event.", "locationDisplay": "Warehouse District", "ticketAllocation": ticketAllocation}, http.StatusOK)
+	return mustObject(t, resp.JSON)
+}
+
+func publishEvent(t *testing.T, fx lifecycleFixture, eventID string) map[string]any {
+	t.Helper()
+	return mustObject(t, publishEventResult(t, fx.app, fx.ownerCookie, eventID).JSON)
+}
+
+func publishEventResult(t *testing.T, app *App, cookie *http.Cookie, eventID string) testResponse {
+	t.Helper()
+	return postJSON(t, app, cookie, "/api/events/"+eventID+"/publish", map[string]any{}, http.StatusOK)
+}
+
+func doJSON(t *testing.T, method string, app *App, cookie *http.Cookie, path string, payload any, wantStatus int) testResponse {
+	t.Helper()
+	var body []byte
+	if payload != nil {
+		body, _ = json.Marshal(payload)
+	}
+	req := httptest.NewRequest(method, path, bytes.NewReader(body))
+	if payload != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
 	if cookie != nil {
 		req.AddCookie(cookie)
 	}
 	rec := httptest.NewRecorder()
 	app.Handler().ServeHTTP(rec, req)
-	if rec.Code < 200 || rec.Code >= 300 {
-		t.Fatalf("POST %s got %d: %s", path, rec.Code, rec.Body.String())
+	if rec.Code != wantStatus {
+		t.Fatalf("%s %s got %d, want %d: %s", method, path, rec.Code, wantStatus, rec.Body.String())
 	}
-	var decoded map[string]any
-	if err := json.Unmarshal(rec.Body.Bytes(), &decoded); err != nil {
-		t.Fatal(err)
+	var decoded any
+	if strings.TrimSpace(rec.Body.String()) != "" {
+		if err := json.Unmarshal(rec.Body.Bytes(), &decoded); err != nil {
+			t.Fatal(err)
+		}
 	}
 	var cookieOut *http.Cookie
 	for _, c := range rec.Result().Cookies() {
-		if c.Name == "subcult_session" {
+		if c.Name == authCookieName {
 			cookieOut = c
 		}
 	}
-	return testResponse{Cookie: cookieOut, JSON: decoded}
+	return testResponse{Status: rec.Code, Cookie: cookieOut, JSON: decoded, Body: rec.Body.String()}
+}
+
+func postJSON(t *testing.T, app *App, cookie *http.Cookie, path string, payload any, wantStatus int) testResponse {
+	t.Helper()
+	return doJSON(t, http.MethodPost, app, cookie, path, payload, wantStatus)
+}
+
+func getJSON(t *testing.T, app *App, cookie *http.Cookie, path string, wantStatus int) testResponse {
+	t.Helper()
+	return doJSON(t, http.MethodGet, app, cookie, path, nil, wantStatus)
+}
+
+func patchJSON(t *testing.T, app *App, cookie *http.Cookie, path string, payload any, wantStatus int) testResponse {
+	t.Helper()
+	return doJSON(t, http.MethodPatch, app, cookie, path, payload, wantStatus)
+}
+
+func mustObject(t *testing.T, value any) map[string]any {
+	t.Helper()
+	obj, ok := value.(map[string]any)
+	if !ok {
+		t.Fatalf("expected JSON object, got %#v", value)
+	}
+	return obj
+}
+
+func mustString(t *testing.T, value any, key string) string {
+	t.Helper()
+	obj := mustObject(t, value)
+	v, ok := obj[key].(string)
+	if !ok {
+		t.Fatalf("expected %s string, got %#v", key, obj[key])
+	}
+	return v
 }
