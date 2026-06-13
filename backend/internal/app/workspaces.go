@@ -510,7 +510,7 @@ func (a *App) listWorkspaceMembers(ctx context.Context, workspaceID string) ([]m
 	}
 	defer rows.Close()
 
-	var out []memberDTO
+	out := make([]memberDTO, 0)
 	for rows.Next() {
 		var id, email, role string
 		var displayName sql.NullString
@@ -541,7 +541,7 @@ func (a *App) listWorkspaceInvitations(ctx context.Context, workspaceID string) 
 	}
 	defer rows.Close()
 
-	var out []invitationDTO
+	out := make([]invitationDTO, 0)
 	for rows.Next() {
 		var id, email, role string
 		var acceptedAt sql.NullTime

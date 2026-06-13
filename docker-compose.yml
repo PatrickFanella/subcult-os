@@ -8,7 +8,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-app}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - target: 5432
+        published: "${POSTGRES_PORT:-35432}"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -22,19 +23,21 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-development}
       API_ADDR: :8080
-      DATABASE_URL: ${DATABASE_URL:-postgres://app:change-me@postgres:5432/app?sslmode=disable}
+      DATABASE_URL: postgres://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-app}?sslmode=disable
       SESSION_SECRET: ${SESSION_SECRET:-dev-session-secret-change-me}
-      PUBLIC_WEB_URL: ${PUBLIC_WEB_URL:-http://localhost:5173}
+      PUBLIC_WEB_URL: ${PUBLIC_WEB_URL:-}
     depends_on:
       postgres:
         condition: service_healthy
     ports:
-      - "${API_PORT:-8080}:8080"
+      - target: 8080
+        published: "${API_PORT:-38080}"
 
   web:
     build: ./web
     ports:
-      - "${WEB_PORT:-5173}:80"
+      - target: 80
+        published: "${WEB_PORT:-38079}"
 
 volumes:
   postgres-data:

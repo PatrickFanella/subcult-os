@@ -53,10 +53,14 @@ export function WorkspaceView() {
         if (cancelled) return;
 
         if (currentWorkspace) {
-          setWorkspace(currentWorkspace);
+          setWorkspace({
+            ...currentWorkspace,
+            members: currentWorkspace.members ?? [],
+            invitations: currentWorkspace.invitations ?? [],
+          });
           const loadedEvents = await api<EventDTO[]>(`/api/workspaces/${currentWorkspace.id}/events`).catch(() => []);
           if (cancelled) return;
-          setEvents(loadedEvents);
+          setEvents(loadedEvents ?? []);
         } else {
           const fallback = user.workspaces[0];
           const fallbackWorkspace: CurrentWorkspaceDTO = {

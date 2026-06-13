@@ -39,8 +39,10 @@ make up-build
 
 Then open:
 
-- Web: http://localhost:5173 (proxies `/api` to the API container)
-- API health: http://localhost:8080/api/health
+- Web: http://localhost:38079
+- API health: http://localhost:38080/api/health
+
+The default host ports are intentionally high to avoid common local conflicts: `WEB_PORT=38079`, `API_PORT=38080`, and `POSTGRES_PORT=35432`.
 
 ## Open Pilot
 
