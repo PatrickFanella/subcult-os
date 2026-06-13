@@ -18,6 +18,7 @@ make quick
 make up-build
 make urls
 make smoke
+make alpha-qa
 make logs
 make down
 make reset-db
@@ -56,6 +57,7 @@ Recommended local QA loop:
 make up-build
 make smoke
 make urls
+make alpha-qa
 make verify
 ```
 
