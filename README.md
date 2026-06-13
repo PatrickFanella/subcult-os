@@ -63,6 +63,13 @@ make verify
 
 If the app is already running, use the Workspace page to inspect development invite/ticket emails instead of connecting to Postgres directly.
 
+## Current alpha security notes
+
+- Passwords are stored with bcrypt. Legacy local SHA-256 password hashes are upgraded on successful login.
+- Cookie-authenticated mutating API requests with an `Origin` header must come from the same host or `PUBLIC_WEB_URL`.
+- Login attempts are lightly throttled per email/IP in process memory.
+- Public free ticket reservations remain guest-accessible without account login.
+
 ## Open Pilot
 
 This repository keeps the base Open Pilot issue template and PR template.
