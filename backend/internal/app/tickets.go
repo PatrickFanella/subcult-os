@@ -124,7 +124,11 @@ func (a *App) handleReserveTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	code := newTicketCode()
+	code, err := newTicketCode()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not create ticket code")
+		return
+	}
 	var ticket ticketRow
 	if err := tx.QueryRow(r.Context(), `
 		insert into tickets (event_id, email, display_name, code, status)
@@ -400,8 +404,10 @@ func ticketDTOFromRow(row ticketRow) ticketDTO {
 	return dto
 }
 
-func newTicketCode() string {
+func newTicketCode() (string, error) {
 	raw := make([]byte, 24)
-	_, _ = rand.Read(raw)
-	return base64.RawURLEncoding.EncodeToString(raw)
+	if _, err := rand.Read(raw); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(raw), nil
 }
