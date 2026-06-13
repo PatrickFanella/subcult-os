@@ -28,11 +28,12 @@ make reset-db
 The first product slice proves:
 
 1. Owner signs up and creates a Workspace.
-2. Owner invites a Member by email; development stores invitation emails in `email_outbox`.
-3. Owner creates and publishes a direct-link Public Event Page.
-4. Guest reserves a free Ticket with email and optional display name.
-5. Member runs mobile-friendly Door Check-In by manual lookup/code.
-6. Owner runs End of Night and views the private Event Report.
+2. Owner invites a Member by email; development stores invitation emails in `email_outbox` and exposes recent messages in the Workspace UI.
+3. Invitee opens `/invite/{token}`, signs up or signs in with the invited email, and accepts Workspace membership.
+4. Owner creates and publishes a direct-link Public Event Page.
+5. Guest reserves a free Ticket with email and optional display name; the page shows an in-place confirmation and Ticket link.
+6. Member runs mobile-friendly Door Check-In by manual lookup or exact Ticket code.
+7. Owner runs End of Night and views the private Event Report.
 
 Run locally:
 
@@ -48,6 +49,17 @@ Then open:
 The default host ports are intentionally high to avoid common local conflicts: `WEB_PORT=38079`, `API_PORT=38080`, and `POSTGRES_PORT=35432`.
 
 Use `make urls` to print the actual published ports, `make smoke` to check the running Docker stack, and `make reset-db` to delete local Postgres data and rebuild if an old volume has stale credentials.
+
+Recommended local QA loop:
+
+```bash
+make up-build
+make smoke
+make urls
+make verify
+```
+
+If the app is already running, use the Workspace page to inspect development invite/ticket emails instead of connecting to Postgres directly.
 
 ## Open Pilot
 
