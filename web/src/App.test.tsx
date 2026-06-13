@@ -57,11 +57,16 @@ describe('App routes', () => {
   });
 
   it('renders the door route', () => {
-    expect(renderAt('/door/event-1')).toContain('Door');
+    const rendered = renderAt('/door/event-1');
+    expect(rendered).toContain('Mobile check-in');
+    expect(rendered).toContain('Exact code works');
+    expect(rendered).toContain('Reset');
   });
 
   it('renders the ticket route', () => {
-    expect(renderAt('/tickets/ticket-123')).toContain('Ticket');
+    const rendered = renderAt('/tickets/ticket-123');
+    expect(rendered).toContain('Show this at the door');
+    expect(rendered).toContain('Your reservation lives here');
   });
 });
 
