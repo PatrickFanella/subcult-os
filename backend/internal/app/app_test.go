@@ -40,6 +40,18 @@ func TestHealthThroughMiddleware(t *testing.T) {
 	}
 }
 
+func TestStripeWebhookRejectsInvalidSignature(t *testing.T) {
+	app := New(Config{AppEnv: "test", PublicWebURL: "http://example.test", SessionSecret: "test-secret", StripeWebhookSecret: "whsec_test"}, nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/stripe/webhook", strings.NewReader(`{"id":"evt_test","type":"checkout.session.completed","data":{"object":{"id":"cs_test","object":"checkout.session","metadata":{"ticket_id":"ticket_1"}}}}`))
+	req.Header.Set("Stripe-Signature", "t=1,v1=bogus")
+	rec := httptest.NewRecorder()
+	app.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected invalid signature to return 400, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestReadyWithoutDatabase(t *testing.T) {
 	app := NewTestApp(t)
 	req := httptest.NewRequest(http.MethodGet, "/api/ready", nil)

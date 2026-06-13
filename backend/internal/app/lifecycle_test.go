@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -13,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stripe/stripe-go/v85"
 )
 
 func TestFirstEventLifecycle(t *testing.T) {
@@ -133,6 +136,182 @@ func TestFreeReservationStillWorksForFreeEvent(t *testing.T) {
 	resp := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/reservations", map[string]any{"email": fx.email("guest"), "displayName": "Guest"}, http.StatusOK)
 	if mustString(t, resp.JSON, "status") != "reserved" {
 		t.Fatalf("unexpected reservation response: %#v", resp.JSON)
+	}
+}
+
+func TestStripeWebhookFulfillmentMarksTicketPaidAndEnqueuesEmail(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEventWithPricing(t, fx, "Night Market", 2, "fixed", 1500, "usd")
+	eventID := mustString(t, event, "id")
+	ticketID, sessionID := insertPendingStripeTicket(t, fx, eventID, "guest@example.test", "Guest", testStripeSessionID(t, "cs_test_fulfillment"))
+	stripeEventID := testStripeEventID(t, "evt_fulfillment")
+
+	eventPayload := stripeCheckoutSessionEvent(t, stripe.EventTypeCheckoutSessionCompleted, stripeEventID, sessionID, ticketID, eventID, stripe.CheckoutSessionPaymentStatusPaid, 1500, "usd")
+	if err := fx.app.processStripeWebhookEvent(t.Context(), eventPayload); err != nil {
+		t.Fatal(err)
+	}
+
+	assertPaidTicketState(t, fx, ticketID, sessionID)
+	assertEmailOutboxCount(t, fx, ticketID, 1)
+	assertWebhookEventCount(t, fx, stripeEventID, 1)
+}
+
+func TestStripeWebhookFulfillmentIsIdempotentForDuplicateEventID(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEventWithPricing(t, fx, "Night Market", 2, "fixed", 1500, "usd")
+	eventID := mustString(t, event, "id")
+	ticketID, sessionID := insertPendingStripeTicket(t, fx, eventID, "guest@example.test", "Guest", testStripeSessionID(t, "cs_test_idempotent"))
+	stripeEventID := testStripeEventID(t, "evt_duplicate")
+
+	eventPayload := stripeCheckoutSessionEvent(t, stripe.EventTypeCheckoutSessionCompleted, stripeEventID, sessionID, ticketID, eventID, stripe.CheckoutSessionPaymentStatusPaid, 1500, "usd")
+	if err := fx.app.processStripeWebhookEvent(t.Context(), eventPayload); err != nil {
+		t.Fatal(err)
+	}
+	if err := fx.app.processStripeWebhookEvent(t.Context(), eventPayload); err != nil {
+		t.Fatal(err)
+	}
+
+	assertPaidTicketState(t, fx, ticketID, sessionID)
+	assertEmailOutboxCount(t, fx, ticketID, 1)
+	assertWebhookEventCount(t, fx, stripeEventID, 1)
+}
+
+func TestStripeWebhookCompletedRejectsMismatchedPaymentDetails(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEventWithPricing(t, fx, "Night Market", 2, "fixed", 1500, "usd")
+	eventID := mustString(t, event, "id")
+	cases := []struct {
+		name          string
+		paymentStatus stripe.CheckoutSessionPaymentStatus
+		amountTotal   int64
+		currency      string
+	}{
+		{name: "unpaid-status", paymentStatus: stripe.CheckoutSessionPaymentStatusUnpaid, amountTotal: 1500, currency: "usd"},
+		{name: "wrong-amount", paymentStatus: stripe.CheckoutSessionPaymentStatusPaid, amountTotal: 1600, currency: "usd"},
+		{name: "wrong-currency", paymentStatus: stripe.CheckoutSessionPaymentStatusPaid, amountTotal: 1500, currency: "eur"},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			stripeEventID := testStripeEventID(t, "evt_"+tc.name)
+			ticketID, sessionID := insertPendingStripeTicket(t, fx, eventID, "guest+"+tc.name+"@example.test", "Guest "+tc.name, testStripeSessionID(t, "cs_test_"+tc.name))
+			eventPayload := stripeCheckoutSessionEvent(t, stripe.EventTypeCheckoutSessionCompleted, stripeEventID, sessionID, ticketID, eventID, tc.paymentStatus, tc.amountTotal, tc.currency)
+			if err := fx.app.processStripeWebhookEvent(t.Context(), eventPayload); err != nil {
+				t.Fatal(err)
+			}
+
+			var paymentStatus string
+			var paidAt sql.NullTime
+			if err := fx.app.db.QueryRow(t.Context(), `select payment_status, paid_at from tickets where id = $1`, ticketID).Scan(&paymentStatus, &paidAt); err != nil {
+				t.Fatal(err)
+			}
+			if paymentStatus != "pending" || paidAt.Valid {
+				t.Fatalf("ticket should remain pending for %s: status=%s paidAt=%v", tc.name, paymentStatus, paidAt)
+			}
+			assertEmailOutboxCount(t, fx, ticketID, 0)
+			assertWebhookEventCount(t, fx, stripeEventID, 1)
+		})
+	}
+}
+
+func TestStripeWebhookWrongSessionIDDoesNotMarkTicketPaid(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEventWithPricing(t, fx, "Night Market", 2, "fixed", 1500, "usd")
+	eventID := mustString(t, event, "id")
+	ticketID, _ := insertPendingStripeTicket(t, fx, eventID, "guest@example.test", "Guest", testStripeSessionID(t, "cs_test_expected"))
+	stripeEventID := testStripeEventID(t, "evt_wrong_session")
+
+	eventPayload := stripeCheckoutSessionEvent(t, stripe.EventTypeCheckoutSessionCompleted, stripeEventID, testStripeSessionID(t, "cs_test_wrong"), ticketID, eventID, stripe.CheckoutSessionPaymentStatusPaid, 1500, "usd")
+	if err := fx.app.processStripeWebhookEvent(t.Context(), eventPayload); err != nil {
+		t.Fatal(err)
+	}
+
+	var paymentStatus string
+	var paidAt sql.NullTime
+	if err := fx.app.db.QueryRow(t.Context(), `select payment_status, paid_at from tickets where id = $1`, ticketID).Scan(&paymentStatus, &paidAt); err != nil {
+		t.Fatal(err)
+	}
+	if paymentStatus != "pending" || paidAt.Valid {
+		t.Fatalf("ticket should remain pending on session mismatch: status=%s paidAt=%v", paymentStatus, paidAt)
+	}
+	assertEmailOutboxCount(t, fx, ticketID, 0)
+	assertWebhookEventCount(t, fx, stripeEventID, 1)
+}
+
+func TestStripeWebhookExpiredCancelsPendingTicketAndReleasesCapacity(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEventWithPricing(t, fx, "Night Market", 1, "fixed", 1500, "usd")
+	eventID := mustString(t, event, "id")
+	published := publishEvent(t, fx, eventID)
+	slug := mustString(t, published, "publicSlug")
+	ticketID, sessionID := insertPendingStripeTicket(t, fx, eventID, "guest@example.test", "Guest", testStripeSessionID(t, "cs_test_expired"))
+	stripeEventID := testStripeEventID(t, "evt_expired")
+
+	publicBefore := getJSON(t, fx.app, nil, "/api/public/events/"+slug, http.StatusOK).JSON.(map[string]any)
+	if int(publicBefore["remainingTickets"].(float64)) != 0 {
+		t.Fatalf("expected pending ticket to consume capacity before expiration: %#v", publicBefore)
+	}
+
+	eventPayload := stripeCheckoutSessionEvent(t, stripe.EventTypeCheckoutSessionExpired, stripeEventID, sessionID, ticketID, eventID, stripe.CheckoutSessionPaymentStatusUnpaid, 1500, "usd")
+	if err := fx.app.processStripeWebhookEvent(t.Context(), eventPayload); err != nil {
+		t.Fatal(err)
+	}
+	if err := fx.app.processStripeWebhookEvent(t.Context(), eventPayload); err != nil {
+		t.Fatal(err)
+	}
+
+	var paymentStatus string
+	if err := fx.app.db.QueryRow(t.Context(), `select payment_status from tickets where id = $1`, ticketID).Scan(&paymentStatus); err != nil {
+		t.Fatal(err)
+	}
+	if paymentStatus != "cancelled" {
+		t.Fatalf("expected expired ticket to be cancelled, got %s", paymentStatus)
+	}
+	publicAfter := getJSON(t, fx.app, nil, "/api/public/events/"+slug, http.StatusOK).JSON.(map[string]any)
+	if int(publicAfter["remainingTickets"].(float64)) != 1 || publicAfter["isFull"].(bool) != false {
+		t.Fatalf("expected capacity to be released after expiration: %#v", publicAfter)
+	}
+	assertWebhookEventCount(t, fx, stripeEventID, 1)
+}
+
+func TestDoorTicketSearchExcludesPendingPaidTicket(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEventWithPricing(t, fx, "Night Market", 2, "fixed", 1500, "usd")
+	eventID := mustString(t, event, "id")
+	published := publishEvent(t, fx, eventID)
+	slug := mustString(t, published, "publicSlug")
+	guestEmail := fx.email("guest-search")
+	insertPendingStripeTicket(t, fx, eventID, guestEmail, "Guest Search", testStripeSessionID(t, "cs_test_search"))
+
+	search := getJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/door/tickets?query=guest", http.StatusOK)
+	if len(search.JSON.([]any)) != 0 {
+		t.Fatalf("expected pending paid ticket to be excluded from search: %#v", search.JSON)
+	}
+
+	publicEvent := getJSON(t, fx.app, nil, "/api/public/events/"+slug, http.StatusOK).JSON.(map[string]any)
+	if int(publicEvent["remainingTickets"].(float64)) != 1 {
+		t.Fatalf("expected pending ticket to count toward capacity before expiry: %#v", publicEvent)
+	}
+}
+
+func TestDoorCheckInRejectsPendingPaidTicket(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEventWithPricing(t, fx, "Night Market", 2, "fixed", 1500, "usd")
+	eventID := mustString(t, event, "id")
+	publishEvent(t, fx, eventID)
+	ticketID, _ := insertPendingStripeTicket(t, fx, eventID, fx.email("guest-checkin"), "Guest Checkin", testStripeSessionID(t, "cs_test_checkin"))
+	var code string
+	if err := fx.app.db.QueryRow(t.Context(), `select code from tickets where id = $1`, ticketID).Scan(&code); err != nil {
+		t.Fatal(err)
+	}
+	postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/door/check-ins", map[string]any{"code": code}, http.StatusConflict)
+
+	var paymentStatus string
+	if err := fx.app.db.QueryRow(t.Context(), `select payment_status from tickets where id = $1`, ticketID).Scan(&paymentStatus); err != nil {
+		t.Fatal(err)
+	}
+	if paymentStatus != "pending" {
+		t.Fatalf("expected pending ticket to remain pending after rejected check-in, got %s", paymentStatus)
 	}
 }
 
@@ -387,6 +566,100 @@ func createEventWithPricing(t *testing.T, fx lifecycleFixture, title string, tic
 	t.Helper()
 	resp := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/events", map[string]any{"title": title, "startsAt": "2026-07-01T20:00:00Z", "publicDescription": "Free community event.", "locationDisplay": "Warehouse District", "ticketAllocation": ticketAllocation, "pricingMode": pricingMode, "ticketPriceCents": ticketPriceCents, "ticketCurrency": ticketCurrency}, http.StatusOK)
 	return mustObject(t, resp.JSON)
+}
+
+func insertPendingStripeTicket(t *testing.T, fx lifecycleFixture, eventID, email, displayName, sessionID string) (string, string) {
+	t.Helper()
+	code, err := newTicketCode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ticketID string
+	if err := fx.app.db.QueryRow(t.Context(), `
+		insert into tickets (event_id, email, display_name, code, status, payment_status, amount_cents, currency, stripe_checkout_session_id)
+		values ($1, $2, $3, $4, 'reserved', 'pending', 1500, 'usd', $5)
+		returning id
+	`, eventID, email, displayName, code, sessionID).Scan(&ticketID); err != nil {
+		t.Fatal(err)
+	}
+	return ticketID, sessionID
+}
+
+func stripeCheckoutSessionEvent(t *testing.T, eventType stripe.EventType, eventID, sessionID, ticketID, eventRefID string, paymentStatus stripe.CheckoutSessionPaymentStatus, amountTotal int64, currency string) stripe.Event {
+	t.Helper()
+	sessionPayload, err := json.Marshal(map[string]any{
+		"id":             sessionID,
+		"object":         "checkout.session",
+		"payment_status": string(paymentStatus),
+		"amount_total":   amountTotal,
+		"currency":       strings.ToLower(currency),
+		"metadata": map[string]string{
+			"ticket_id": ticketID,
+			"event_id":  eventRefID,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return stripe.Event{
+		ID:   eventID,
+		Type: eventType,
+		Data: &stripe.EventData{Raw: sessionPayload},
+	}
+}
+
+func testStripeEventID(t *testing.T, prefix string) string {
+	t.Helper()
+	return testStripeID(t, prefix)
+}
+
+func testStripeSessionID(t *testing.T, prefix string) string {
+	t.Helper()
+	return testStripeID(t, prefix)
+}
+
+func testStripeID(t *testing.T, prefix string) string {
+	t.Helper()
+	suffix := strings.NewReplacer("/", "-", " ", "-").Replace(t.Name())
+	return prefix + "_" + suffix + "_" + fmt.Sprintf("%d", time.Now().UnixNano())
+}
+
+func assertPaidTicketState(t *testing.T, fx lifecycleFixture, ticketID, sessionID string) {
+	t.Helper()
+	var paymentStatus, storedSessionID string
+	var paidAt sql.NullTime
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select payment_status, coalesce(stripe_checkout_session_id, ''), paid_at
+		from tickets
+		where id = $1
+	`, ticketID).Scan(&paymentStatus, &storedSessionID, &paidAt); err != nil {
+		t.Fatal(err)
+	}
+	if paymentStatus != "paid" || storedSessionID != sessionID || !paidAt.Valid {
+		t.Fatalf("unexpected paid ticket state: status=%s session=%s paidAt=%v", paymentStatus, storedSessionID, paidAt)
+	}
+}
+
+func assertEmailOutboxCount(t *testing.T, fx lifecycleFixture, ticketID string, want int) {
+	t.Helper()
+	var got int
+	if err := fx.app.db.QueryRow(t.Context(), `select count(*) from email_outbox where related_id = $1`, ticketID).Scan(&got); err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatalf("unexpected email count for %s: got %d want %d", ticketID, got, want)
+	}
+}
+
+func assertWebhookEventCount(t *testing.T, fx lifecycleFixture, eventID string, want int) {
+	t.Helper()
+	var got int
+	if err := fx.app.db.QueryRow(t.Context(), `select count(*) from payment_webhook_events where id = $1`, eventID).Scan(&got); err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatalf("unexpected webhook event count for %s: got %d want %d", eventID, got, want)
+	}
 }
 
 func publishEvent(t *testing.T, fx lifecycleFixture, eventID string) map[string]any {

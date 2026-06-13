@@ -36,13 +36,14 @@ type reserveTicketRequest struct {
 }
 
 type ticketRow struct {
-	ID          string
-	EventID     string
-	Email       string
-	DisplayName sql.NullString
-	Code        string
-	Status      string
-	CheckedInAt sql.NullTime
+	ID            string
+	EventID       string
+	Email         string
+	DisplayName   sql.NullString
+	Code          string
+	Status        string
+	PaymentStatus string
+	CheckedInAt   sql.NullTime
 }
 
 type reservedTicketResponse struct {
@@ -143,8 +144,8 @@ func (a *App) handleReserveTicket(w http.ResponseWriter, r *http.Request) {
 	if err := tx.QueryRow(r.Context(), `
 		insert into tickets (event_id, email, display_name, code, status)
 		values ($1, $2, $3, $4, 'reserved')
-		returning id, event_id, email, display_name, code, status, checked_in_at
-	`, event.ID, email, displayName, code).Scan(&ticket.ID, &ticket.EventID, &ticket.Email, &ticket.DisplayName, &ticket.Code, &ticket.Status, &ticket.CheckedInAt); err != nil {
+		returning id, event_id, email, display_name, code, status, payment_status, checked_in_at
+	`, event.ID, email, displayName, code).Scan(&ticket.ID, &ticket.EventID, &ticket.Email, &ticket.DisplayName, &ticket.Code, &ticket.Status, &ticket.PaymentStatus, &ticket.CheckedInAt); err != nil {
 		writeError(w, http.StatusInternalServerError, "could not create ticket")
 		return
 	}
@@ -239,8 +240,8 @@ func (a *App) handleCreatePaidReservation(w http.ResponseWriter, r *http.Request
 	if err := tx.QueryRow(r.Context(), `
 		insert into tickets (event_id, email, display_name, code, status, payment_status, amount_cents, currency)
 		values ($1, $2, $3, $4, 'reserved', 'pending', $5, $6)
-		returning id, event_id, email, display_name, code, status, checked_in_at
-	`, event.ID, email, displayName, code, event.TicketPriceCents, event.TicketCurrency).Scan(&ticket.ID, &ticket.EventID, &ticket.Email, &ticket.DisplayName, &ticket.Code, &ticket.Status, &ticket.CheckedInAt); err != nil {
+		returning id, event_id, email, display_name, code, status, payment_status, checked_in_at
+	`, event.ID, email, displayName, code, event.TicketPriceCents, event.TicketCurrency).Scan(&ticket.ID, &ticket.EventID, &ticket.Email, &ticket.DisplayName, &ticket.Code, &ticket.Status, &ticket.PaymentStatus, &ticket.CheckedInAt); err != nil {
 		writeError(w, http.StatusInternalServerError, "could not create ticket")
 		return
 	}
@@ -338,6 +339,7 @@ func (a *App) handleDoorTicketSearch(w http.ResponseWriter, r *http.Request) {
 		select id, event_id, email, display_name, code, status, checked_in_at
 		from tickets
 		where event_id = $1
+		  and payment_status in ('free', 'paid')
 		  and (
 			lower(email) like '%' || $2 || '%'
 			or lower(coalesce(display_name, '')) like '%' || $2 || '%'
@@ -410,11 +412,11 @@ func (a *App) handleDoorCheckIn(w http.ResponseWriter, r *http.Request) {
 
 	var ticket ticketRow
 	err = tx.QueryRow(r.Context(), `
-		select id, event_id, email, display_name, code, status, checked_in_at
+		select id, event_id, email, display_name, code, status, payment_status, checked_in_at
 		from tickets
 		where code = $1
 		for update
-	`, code).Scan(&ticket.ID, &ticket.EventID, &ticket.Email, &ticket.DisplayName, &ticket.Code, &ticket.Status, &ticket.CheckedInAt)
+	`, code).Scan(&ticket.ID, &ticket.EventID, &ticket.Email, &ticket.DisplayName, &ticket.Code, &ticket.Status, &ticket.PaymentStatus, &ticket.CheckedInAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			writeError(w, http.StatusNotFound, "ticket not found")
@@ -425,6 +427,10 @@ func (a *App) handleDoorCheckIn(w http.ResponseWriter, r *http.Request) {
 	}
 	if ticket.EventID != event.ID {
 		writeError(w, http.StatusConflict, "ticket belongs to a different event")
+		return
+	}
+	if ticket.PaymentStatus != "free" && ticket.PaymentStatus != "paid" {
+		writeError(w, http.StatusConflict, "ticket is not eligible for check-in")
 		return
 	}
 	if ticket.Status == "checked_in" {
@@ -495,10 +501,10 @@ func (a *App) loadTicketByCode(ctx context.Context, code string) (ticketRow, err
 		return row, pgx.ErrNoRows
 	}
 	if err := a.db.QueryRow(ctx, `
-		select id, event_id, email, display_name, code, status, checked_in_at
+		select id, event_id, email, display_name, code, status, payment_status, checked_in_at
 		from tickets
 		where code = $1
-	`, code).Scan(&row.ID, &row.EventID, &row.Email, &row.DisplayName, &row.Code, &row.Status, &row.CheckedInAt); err != nil {
+	`, code).Scan(&row.ID, &row.EventID, &row.Email, &row.DisplayName, &row.Code, &row.Status, &row.PaymentStatus, &row.CheckedInAt); err != nil {
 		return ticketRow{}, err
 	}
 	return row, nil
