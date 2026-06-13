@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -34,7 +35,7 @@ func New(config Config, db *pgxpool.Pool) *App {
 	return a
 }
 
-func (a *App) Handler() http.Handler { return a.originGuard(a.mux) }
+func (a *App) Handler() http.Handler { return a.requestLogger(a.originGuard(a.mux)) }
 
 func (a *App) routes() {
 	a.mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
@@ -97,6 +98,32 @@ func (a *App) originGuard(next http.Handler) http.Handler {
 			return
 		}
 		next.ServeHTTP(w, r)
+	})
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (r *statusRecorder) WriteHeader(status int) {
+	r.status = status
+	r.ResponseWriter.WriteHeader(status)
+}
+
+func (r *statusRecorder) Write(body []byte) (int, error) {
+	if r.status == 0 {
+		r.status = http.StatusOK
+	}
+	return r.ResponseWriter.Write(body)
+}
+
+func (a *App) requestLogger(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		started := time.Now()
+		recorder := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(recorder, r)
+		log.Printf("method=%s path=%s status=%d duration=%s", r.Method, r.URL.Path, recorder.status, time.Since(started).Round(time.Millisecond))
 	})
 }
 

@@ -26,6 +26,20 @@ func TestHealth(t *testing.T) {
 	}
 }
 
+func TestHealthThroughMiddleware(t *testing.T) {
+	app := NewTestApp(t)
+	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	rec := httptest.NewRecorder()
+	app.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 through middleware, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if contentType := rec.Header().Get("Content-Type"); contentType != "application/json" {
+		t.Fatalf("expected json content type, got %q", contentType)
+	}
+}
+
 func TestReadyWithoutDatabase(t *testing.T) {
 	app := NewTestApp(t)
 	req := httptest.NewRequest(http.MethodGet, "/api/ready", nil)
