@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ApiError, api, patchJSON, postJSON } from '../api';
-import type { EventDTO, EventReportDTO, EventSettlementDTO, EventStatus } from '../domain';
+import type { EventArchiveDTO, EventDTO, EventReportDTO, EventSettlementDTO, EventStatus } from '../domain';
 
 type FormState = {
   title: string;
@@ -159,6 +159,10 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   const workspaceId = useMemo(getWorkspaceId, []);
   const [event, setEvent] = useState<EventDTO | null>(null);
   const [report, setReport] = useState<EventReportDTO | null>(null);
+  const [archive, setArchive] = useState<EventArchiveDTO | null>(null);
+  const [archiveNoteBody, setArchiveNoteBody] = useState('');
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [archiveSubmitting, setArchiveSubmitting] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [initialForm, setInitialForm] = useState<FormState>(emptyForm);
   const [loading, setLoading] = useState(!creating);
@@ -228,6 +232,48 @@ export function EventEditorView({ eventId }: { eventId: string }) {
       cancelled = true;
     };
   }, [creating, eventId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadArchive() {
+      if (creating || event?.status !== 'end_of_night' || !event) {
+        setArchive(null);
+        setArchiveNoteBody('');
+        setArchiveLoading(false);
+        return;
+      }
+
+      setArchiveLoading(true);
+      setArchiveNoteBody('');
+
+      try {
+        const loadedArchive = await api<EventArchiveDTO>(`/api/events/${event.id}/archive`);
+        if (!cancelled) {
+          setArchive(loadedArchive);
+        }
+      } catch (caught) {
+        if (cancelled) return;
+
+        if (caught instanceof ApiError && caught.status === 404) {
+          setArchive(null);
+          return;
+        }
+
+        setError(caught instanceof Error ? caught.message : 'Unable to load archive');
+      } finally {
+        if (!cancelled) {
+          setArchiveLoading(false);
+        }
+      }
+    }
+
+    void loadArchive();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [creating, event?.id, event?.status]);
 
   useEffect(() => {
     if (creating) {
@@ -392,6 +438,34 @@ export function EventEditorView({ eventId }: { eventId: string }) {
       setError(caught instanceof Error ? caught.message : 'Unable to add adjustment');
     } finally {
       setSettlementSubmitting(false);
+    }
+  }
+
+  async function handleArchiveNoteSubmit(formEvent: FormEvent<HTMLFormElement>) {
+    formEvent.preventDefault();
+    if (!event || !archive) {
+      setError('Archive is unavailable');
+      return;
+    }
+
+    const body = archiveNoteBody.trim();
+    if (!body) {
+      setError('note body is required');
+      return;
+    }
+
+    setArchiveSubmitting(true);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const updatedArchive = await postJSON<EventArchiveDTO>(`/api/events/${event.id}/archive/notes`, { body });
+      setArchive(updatedArchive);
+      setArchiveNoteBody('');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to add lesson');
+    } finally {
+      setArchiveSubmitting(false);
     }
   }
 
@@ -883,6 +957,53 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                   ) : (
                     <p className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-zinc-400">Adjustments are locked after settlement finalization.</p>
                   )}
+                </section>
+              ) : null}
+
+              {archiveLoading || archive ? (
+                <section className="rounded-[1.75rem] border border-violet-400/20 bg-zinc-950/95 p-6 shadow-2xl shadow-black/30">
+                  <p className="text-xs uppercase tracking-[0.3em] text-violet-300">Private archive</p>
+                  <h2 className="mt-2 text-2xl font-semibold text-white">Lessons learned</h2>
+
+                  {archiveLoading && !archive ? (
+                    <p className="mt-4 text-sm leading-6 text-zinc-400">Loading private archive…</p>
+                  ) : archive ? (
+                    <>
+                      <p className="mt-2 text-sm text-zinc-400">Status: private workspace memory</p>
+                      <p className="mt-3 text-sm font-medium text-zinc-200">{archive.noteCount === 1 ? '1 note' : `${archive.noteCount} notes`}</p>
+                      <p className="mt-2 text-xs uppercase tracking-[0.2em] text-zinc-500">Updated {formatDateTime(archive.updatedAt)}</p>
+
+                      <div className="mt-4 space-y-3">
+                        {archive.notes.length > 0 ? (
+                          archive.notes.map((note) => (
+                            <article key={note.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                              <p className="text-sm leading-6 text-zinc-100">{note.body}</p>
+                              <p className="mt-2 text-xs uppercase tracking-[0.2em] text-zinc-500">{formatDateTime(note.createdAt)}</p>
+                            </article>
+                          ))
+                        ) : (
+                          <p className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-400">No lessons yet.</p>
+                        )}
+                      </div>
+
+                      <form className="mt-4 space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4" onSubmit={handleArchiveNoteSubmit}>
+                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Add lesson</p>
+                        <label className="block space-y-2 text-sm">
+                          <span className="text-zinc-300">Write a note for the next closeout</span>
+                          <textarea
+                            className="min-h-28 w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-violet-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                            value={archiveNoteBody}
+                            onChange={(event) => setArchiveNoteBody(event.target.value)}
+                            placeholder="Move doors earlier."
+                            disabled={archiveSubmitting}
+                          />
+                        </label>
+                        <button className="rounded-2xl bg-violet-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:bg-violet-300/60" type="submit" disabled={archiveSubmitting}>
+                          {archiveSubmitting ? 'Saving…' : 'Add lesson'}
+                        </button>
+                      </form>
+                    </>
+                  ) : null}
                 </section>
               ) : null}
 

@@ -5,7 +5,7 @@ import App from './App';
 import { EventEditorView } from './views/EventEditorView';
 import { PublicEventView } from './views/PublicEventView';
 import { TicketView } from './views/TicketView';
-import { normalizeCurrentWorkspace } from './views/WorkspaceView';
+import { WorkspaceView, normalizeCurrentWorkspace } from './views/WorkspaceView';
 
 vi.mock('react', async () => {
   const actual = await vi.importActual<typeof import('react')>('react');
@@ -130,6 +130,47 @@ describe('App routes', () => {
     expect(rendered).toContain('USD only');
   });
 
+  it('renders the workspace archive affordance for closed events', () => {
+    const event = {
+      id: 'event-1',
+      workspaceId: 'workspace-1',
+      title: 'Night Market',
+      startsAt: '2026-06-13T23:00:00.000Z',
+      publicDescription: 'A late set.',
+      locationDisplay: 'The Hall',
+      ticketAllocation: 100,
+      pricingMode: 'fixed',
+      ticketPriceCents: 1800,
+      ticketCurrency: 'usd',
+      reservedCount: 26,
+      checkedInCount: 20,
+      status: 'end_of_night',
+      publicSlug: 'night-market',
+      publicUrl: '/e/night-market',
+    };
+
+    const rendered = renderWithState('/workspace?workspaceId=workspace-1', <WorkspaceView />, [
+      {
+        id: 'person-1',
+        email: 'owner@example.com',
+        displayName: 'Owner',
+        workspaces: [{ id: 'workspace-1', name: 'Main Room', role: 'owner' }],
+      },
+      {
+        id: 'workspace-1',
+        name: 'Main Room',
+        role: 'owner',
+        members: [],
+        invitations: [],
+      },
+      [event],
+      false,
+    ]);
+
+    expect(rendered).toContain('Archive ready after closeout');
+    expect(rendered).toContain('Open archive');
+  });
+
   it('locks event pricing after tickets exist', () => {
     const event = {
       id: 'event-1',
@@ -149,7 +190,7 @@ describe('App routes', () => {
       publicUrl: '/e/night-market',
     };
 
-    const rendered = renderWithState('/events/event-1?workspaceId=workspace-1', <EventEditorView eventId="event-1" />, [event, null, {
+    const rendered = renderWithState('/events/event-1?workspaceId=workspace-1', <EventEditorView eventId="event-1" />, [event, null, null, '', false, false, {
       title: event.title,
       startsAt: '2026-06-13T23:00',
       publicDescription: event.publicDescription,
@@ -245,6 +286,28 @@ describe('App routes', () => {
     const rendered = renderWithState('/events/event-1?workspaceId=workspace-1', <EventEditorView eventId="event-1" />, [
       event,
       report,
+      {
+        id: 'archive-1',
+        eventId: event.id,
+        reportId: 'report-1',
+        settlementId: 'settlement-1',
+        status: 'private',
+        noteCount: 1,
+        notes: [
+          {
+            id: 'note-1',
+            archiveId: 'archive-1',
+            body: 'Move doors earlier.',
+            createdByPersonId: 'person-1',
+            createdAt: '2026-06-14T03:10:00.000Z',
+          },
+        ],
+        createdAt: '2026-06-14T03:00:00.000Z',
+        updatedAt: '2026-06-14T03:10:00.000Z',
+      },
+      '',
+      false,
+      false,
       {
         title: event.title,
         startsAt: '2026-06-13T23:00',

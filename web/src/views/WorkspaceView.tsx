@@ -684,7 +684,7 @@ export function WorkspaceView() {
                         <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-zinc-300">{eventCountLabel(event)}</div>
                         <div className="mt-4 flex flex-wrap gap-2 text-sm">
                           <a className="rounded-full bg-white px-3 py-2 font-medium text-zinc-950 transition hover:bg-zinc-200" href={`/events/${event.id}`}>
-                            {event.status === 'draft' ? 'Finish draft' : event.status === 'published' ? 'View editor' : 'View report'}
+                            {event.status === 'draft' ? 'Finish draft' : event.status === 'published' ? 'View editor' : 'Open archive'}
                           </a>
                           {event.status === 'draft' ? (
                             <a className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-zinc-200 transition hover:bg-white/10" href={`/events/${event.id}`}>
@@ -707,9 +707,14 @@ export function WorkspaceView() {
                             </>
                           ) : null}
                           {event.status === 'end_of_night' ? (
-                            <a className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-zinc-200 transition hover:bg-white/10" href={`/events/new?workspaceId=${workspace.id}`}>
-                              Create next event
-                            </a>
+                            <>
+                              <span className="rounded-full border border-fuchsia-400/20 bg-fuchsia-400/10 px-3 py-2 text-[11px] uppercase tracking-[0.25em] text-fuchsia-100">
+                                Archive ready after closeout
+                              </span>
+                              <a className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-zinc-200 transition hover:bg-white/10" href={`/events/new?workspaceId=${workspace.id}`}>
+                                Create next event
+                              </a>
+                            </>
                           ) : null}
                         </div>
                       </article>
