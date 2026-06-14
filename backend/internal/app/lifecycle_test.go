@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stripe/stripe-go/v85"
 )
 
@@ -149,6 +150,85 @@ func TestWorkspaceContactsListAPI(t *testing.T) {
 	otherFx := newLifecycleFixture(t)
 	getJSON(t, fx.app, nil, "/api/workspaces/"+workspaceID+"/contacts", http.StatusForbidden)
 	getJSON(t, fx.app, otherFx.ownerCookie, "/api/workspaces/"+workspaceID+"/contacts", http.StatusForbidden)
+}
+
+func TestWorkspaceContactsMutationAPI(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	workspaceID := fx.workspaceID
+
+	created := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+workspaceID+"/contacts", map[string]any{
+		"displayName": "  Mira Door  ",
+		"email":       " MIRA@EXAMPLE.TEST ",
+		"phone":       "  +15555550123 ",
+		"notes":       "  Do not publish this note.  ",
+		"tags":        []string{" door ", "trusted", "door", ""},
+	}, http.StatusOK)
+	contact := mustObject(t, created.JSON)
+	if contact["displayName"] != "Mira Door" || contact["email"] != "mira@example.test" || contact["phone"] != "+15555550123" || contact["notes"] != "Do not publish this note." {
+		t.Fatalf("unexpected normalized contact: %#v", contact)
+	}
+	tags := contact["tags"].([]any)
+	if len(tags) != 2 || tags[0] != "door" || tags[1] != "trusted" {
+		t.Fatalf("unexpected normalized tags: %#v", contact["tags"])
+	}
+	if contact["createdAt"] == "" || contact["updatedAt"] == "" {
+		t.Fatalf("expected timestamps in created contact: %#v", contact)
+	}
+	contactID := mustString(t, created.JSON, "id")
+
+	postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+workspaceID+"/contacts", map[string]any{
+		"displayName": "Duplicate Mira",
+		"email":       "mira@example.test",
+	}, http.StatusConflict)
+
+	updated := patchJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+workspaceID+"/contacts/"+contactID, map[string]any{
+		"displayName": "Mira Lead",
+		"clearEmail":  true,
+		"clearPhone":  true,
+		"notes":       "Still private",
+		"tags":        []string{"lead"},
+	}, http.StatusOK)
+	updatedContact := mustObject(t, updated.JSON)
+	if updatedContact["displayName"] != "Mira Lead" || updatedContact["email"] != nil || updatedContact["phone"] != nil || updatedContact["notes"] != "Still private" {
+		t.Fatalf("unexpected updated contact: %#v", updatedContact)
+	}
+	updatedTags := updatedContact["tags"].([]any)
+	if len(updatedTags) != 1 || updatedTags[0] != "lead" {
+		t.Fatalf("unexpected updated tags: %#v", updatedContact["tags"])
+	}
+
+	postJSON(t, fx.app, fx.memberCookie, "/api/workspaces/"+workspaceID+"/contacts", map[string]any{"displayName": "Member"}, http.StatusForbidden)
+	patchJSON(t, fx.app, fx.memberCookie, "/api/workspaces/"+workspaceID+"/contacts/"+contactID, map[string]any{"displayName": "Member"}, http.StatusForbidden)
+	postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+workspaceID+"/contacts", map[string]any{"displayName": ""}, http.StatusBadRequest)
+	patchJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+workspaceID+"/contacts/"+contactID, map[string]any{"clearEmail": true, "email": "bad"}, http.StatusBadRequest)
+
+	createdAudit := auditMetadataForAction(t, fx.app.db, "contact.created")
+	updatedAudit := auditMetadataForAction(t, fx.app.db, "contact.updated")
+	for _, audit := range []string{createdAudit, updatedAudit} {
+		if strings.Contains(audit, "Do not publish this note") || strings.Contains(audit, "Still private") || strings.Contains(audit, "mira@example.test") || strings.Contains(audit, "+15555550123") || strings.Contains(audit, "Mira") || strings.Contains(audit, "trusted") {
+			t.Fatalf("audit metadata leaked contact details: %s", audit)
+		}
+	}
+
+	for _, action := range []string{"contact.created", "contact.updated"} {
+		var metadataText string
+		if err := fx.app.db.QueryRow(t.Context(), `
+			select metadata::text
+			from audit_entries
+			where action = $1 and subject_id = $2
+			order by created_at desc
+			limit 1
+		`, action, contactID).Scan(&metadataText); err != nil {
+			t.Fatal(err)
+		}
+		var metadata map[string]any
+		if err := json.Unmarshal([]byte(metadataText), &metadata); err != nil {
+			t.Fatal(err)
+		}
+		if len(metadata) != 2 || metadata["contactId"] != contactID || metadata["workspaceId"] != workspaceID {
+			t.Fatalf("unexpected %s audit metadata: %#v", action, metadata)
+		}
+	}
 }
 
 func TestFirstEventLifecycleArchiveAPI(t *testing.T) {
@@ -2968,4 +3048,32 @@ func legacyPasswordHashForTest(t *testing.T, password string) string {
 		t.Fatal(err)
 	}
 	return fmt.Sprintf("%s$%s$%s", legacySHA256Scheme, base64.RawURLEncoding.EncodeToString(salt), passwordSum(salt, password))
+}
+
+func auditMetadataForAction(t *testing.T, db *pgxpool.Pool, action string) string {
+	t.Helper()
+	rows, err := db.Query(t.Context(), `
+		select metadata::text
+		from audit_entries
+		where action = $1
+		order by created_at asc
+	`, action)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	var combined strings.Builder
+	for rows.Next() {
+		var metadata string
+		if err := rows.Scan(&metadata); err != nil {
+			t.Fatal(err)
+		}
+		combined.WriteString(metadata)
+		combined.WriteString("\n")
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	return combined.String()
 }

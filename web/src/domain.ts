@@ -45,6 +45,24 @@ export interface ContactDTO {
   updatedAt: string;
 }
 
+export interface CreateContactRequestDTO {
+  displayName: string;
+  email?: string;
+  phone?: string;
+  notes?: string;
+  tags?: string[];
+}
+
+export interface UpdateContactRequestDTO {
+  displayName?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  notes?: string | null;
+  tags?: string[];
+  clearEmail?: boolean;
+  clearPhone?: boolean;
+}
+
 export interface EventDTO {
   id: string;
   workspaceId: string;

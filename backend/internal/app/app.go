@@ -52,6 +52,8 @@ func (a *App) routes() {
 	a.mux.HandleFunc("GET /api/workspaces/current", a.handleCurrentWorkspace)
 	a.mux.HandleFunc("GET /api/workspaces/{workspaceID}", a.handleGetWorkspace)
 	a.mux.HandleFunc("GET /api/workspaces/{workspaceID}/contacts", a.handleListContacts)
+	a.mux.HandleFunc("POST /api/workspaces/{workspaceID}/contacts", a.handleCreateContact)
+	a.mux.HandleFunc("PATCH /api/workspaces/{workspaceID}/contacts/{contactID}", a.handleUpdateContact)
 	a.mux.HandleFunc("GET /api/workspaces/{workspaceID}/archives", a.handleListWorkspaceArchives)
 	a.mux.HandleFunc("POST /api/workspaces/{workspaceID}/invitations", a.handleCreateInvitation)
 	a.mux.HandleFunc("POST /api/invitations/{token}/accept", a.handleAcceptInvitation)
