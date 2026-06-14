@@ -6,6 +6,7 @@ import type {
   CurrentWorkspaceDTO,
   EventArchiveDTO,
   EventDTO,
+  EventTemplateDTO,
   EventParticipantDTO,
   EventReportDTO,
   EventRoleApplicationDTO,
@@ -166,6 +167,12 @@ function emptyStaffingForm(): StaffingFormState {
 
 function emptyCommitmentForm(): CommitmentFormState {
   return { title: '', description: '', dueAt: '' };
+}
+
+function sortTemplates(templates: EventTemplateDTO[]) {
+  return [...templates].sort(
+    (left, right) => left.name.localeCompare(right.name) || new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime(),
+  );
 }
 
 function sortCommitments(items: CommitmentDTO[]) {
@@ -352,6 +359,10 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   const [commitmentForm, setCommitmentForm] = useState<CommitmentFormState>(emptyCommitmentForm());
   const [commitmentSubmitting, setCommitmentSubmitting] = useState(false);
   const [commitmentActioningId, setCommitmentActioningId] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<EventTemplateDTO[] | null>(null);
+  const [templateSelectionId, setTemplateSelectionId] = useState('');
+  const [templateApplying, setTemplateApplying] = useState(false);
+  const [templateSavingFromEvent, setTemplateSavingFromEvent] = useState(false);
   const commitmentsRevisionRef = useRef(0);
 
   const hasWorkspace = workspaceId !== '';
@@ -782,6 +793,40 @@ export function EventEditorView({ eventId }: { eventId: string }) {
     };
   }, [creating, event?.id]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadTemplates() {
+      if (creating || !event || event.status !== 'draft' || currentWorkspace?.id !== event.workspaceId || currentWorkspace?.role !== 'owner') {
+        setTemplates(null);
+        setTemplateSelectionId('');
+        return;
+      }
+
+      try {
+        const loadedTemplates = await api<EventTemplateDTO[]>(`/api/workspaces/${event.workspaceId}/event-templates`);
+        if (!cancelled) {
+          const ordered = sortTemplates(loadedTemplates);
+          setTemplates(ordered);
+          setTemplateSelectionId((current) => current || ordered[0]?.id || '');
+        }
+      } catch (caught) {
+        if (!cancelled) {
+          setTemplates(null);
+          if (!(caught instanceof ApiError && caught.status === 403)) {
+            setError(caught instanceof Error ? caught.message : 'Unable to load event templates');
+          }
+        }
+      }
+    }
+
+    void loadTemplates();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [creating, currentWorkspace?.id, currentWorkspace?.role, event?.workspaceId, event?.status]);
+
   async function persist() {
     const ticketPriceCents = form.pricingMode === 'fixed' ? priceInCents(form.ticketPriceDollars) : 0;
 
@@ -1091,6 +1136,65 @@ export function EventEditorView({ eventId }: { eventId: string }) {
     }
   }
 
+  async function handleApplyTemplate(formEvent: FormEvent<HTMLFormElement>) {
+    formEvent.preventDefault();
+    if (!event || !currentWorkspace || currentWorkspace.id !== event.workspaceId || currentWorkspace.role !== 'owner' || event.status !== 'draft') {
+      return;
+    }
+
+    if (!templateSelectionId) {
+      setError('Select a template before applying it.');
+      return;
+    }
+
+    setTemplateApplying(true);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const updated = await postJSON<EventDTO>(`/api/events/${event.id}/apply-template`, { templateId: templateSelectionId });
+      const updatedForm = formFromEvent(updated);
+      setEvent(updated);
+      setForm(updatedForm);
+      setInitialForm(updatedForm);
+      setMessage('Template applied');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to apply template');
+    } finally {
+      setTemplateApplying(false);
+    }
+  }
+
+  async function handleSaveTemplateFromEvent() {
+    if (!event || !currentWorkspace || currentWorkspace.id !== event.workspaceId || currentWorkspace.role !== 'owner') {
+      return;
+    }
+
+    setTemplateSavingFromEvent(true);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const created = await postJSON<EventTemplateDTO>(`/api/workspaces/${event.workspaceId}/event-templates`, {
+        name: `${form.title.trim() || event.title} template`,
+        title: form.title.trim() || event.title,
+        publicDescription: form.publicDescription.trim(),
+        locationDisplay: form.locationDisplay.trim(),
+        ticketAllocation: Number(form.ticketAllocation),
+        pricingMode: form.pricingMode,
+        ticketPriceCents: form.pricingMode === 'fixed' ? priceInCents(form.ticketPriceDollars) : 0,
+        ticketCurrency: 'usd',
+        privateNotes: '',
+      });
+      setTemplates((current) => sortTemplates([...(current ?? []), created]));
+      setMessage(`Saved ${created.name} as a template`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to save template from event');
+    } finally {
+      setTemplateSavingFromEvent(false);
+    }
+  }
+
   async function handleSeedNextDraft() {
     if (!event || !archive) {
       setError('Archive is unavailable');
@@ -1397,6 +1501,81 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                     <li>• Check the start time, location, and ticket allocation.</li>
                     <li>• Make sure the event is saved before you open the public page.</li>
                   </ul>
+                </section>
+              ) : null}
+
+              {!creating && effective && currentWorkspace?.id === effective.workspaceId && currentWorkspace?.role === 'owner' ? (
+                <section className="rounded-[1.75rem] border border-violet-400/20 bg-zinc-950/95 p-6 shadow-2xl shadow-black/30">
+                  <p className="text-xs uppercase tracking-[0.3em] text-violet-300">Event templates</p>
+                  <h2 className="mt-2 text-2xl font-semibold text-white">Private template tools</h2>
+                  <p className="mt-2 text-sm leading-6 text-zinc-400">Template notes stay inside this private editor panel. Save the current event as a template or apply a saved one while the event is still a draft.</p>
+
+                  {effective.status === 'draft' ? (
+                    <>
+                      <form className="mt-4 space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4" onSubmit={handleApplyTemplate}>
+                        <label className="block space-y-2 text-sm">
+                          <span className="text-zinc-300">Template</span>
+                          <select
+                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-violet-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                            value={templateSelectionId}
+                            onChange={(selectEvent) => setTemplateSelectionId(selectEvent.target.value)}
+                            disabled={templateApplying}
+                          >
+                            <option value="">Select a template</option>
+                            {(templates ?? []).map((template) => (
+                              <option key={template.id} value={template.id}>
+                                {template.name} · {template.title}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <button className="rounded-2xl bg-violet-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:bg-violet-300/60" type="submit" disabled={templateApplying || !templateSelectionId}>
+                          {templateApplying ? 'Applying…' : 'Apply template'}
+                        </button>
+                      </form>
+
+                      {templates === null ? (
+                        <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-400">Loading templates…</p>
+                      ) : templates.length === 0 ? (
+                        <p className="mt-4 rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-400">No saved templates yet.</p>
+                      ) : (
+                        <div className="mt-4 space-y-3">
+                          {templates.map((template) => (
+                            <article key={template.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                              <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-semibold text-white">{template.name}</p>
+                                  <p className="mt-1 text-sm text-zinc-400">{template.title}</p>
+                                </div>
+                                <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-zinc-200">
+                                  {template.pricingMode === 'free' ? 'Free' : `${template.ticketPriceCents / 100} USD`}
+                                </span>
+                              </div>
+
+                              <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-zinc-500">
+                                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">{template.locationDisplay || 'No location set'}</span>
+                                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">{template.ticketAllocation} tickets</span>
+                              </div>
+
+                              <p className="mt-3 text-sm leading-6 text-zinc-300">
+                                <span className="text-zinc-500">Private note:</span> {template.privateNotes || 'No private note yet.'}
+                              </p>
+                            </article>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : null}
+
+                  <button
+                    className="mt-4 rounded-2xl bg-violet-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:bg-violet-300/60"
+                    type="button"
+                    onClick={() => void handleSaveTemplateFromEvent()}
+                    disabled={templateSavingFromEvent}
+                  >
+                    {templateSavingFromEvent ? 'Saving…' : 'Save as template'}
+                  </button>
                 </section>
               ) : null}
 

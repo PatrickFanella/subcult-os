@@ -479,6 +479,44 @@ describe('App routes', () => {
           updatedAt: '2026-06-13T21:00:00.000Z',
         },
       ],
+      false,
+      {
+        title: '',
+        description: '',
+        dueAt: '',
+        eventId: '',
+      },
+      [
+        {
+          id: 'template-1',
+          workspaceId: 'workspace-1',
+          name: 'Monthly Market',
+          title: 'Night Market',
+          publicDescription: 'Public copy',
+          locationDisplay: 'The Hall',
+          ticketAllocation: 40,
+          pricingMode: 'fixed',
+          ticketPriceCents: 1500,
+          ticketCurrency: 'usd',
+          privateNotes: 'Private run-of-show',
+          createdAt: '2026-06-13T19:00:00.000Z',
+          updatedAt: '2026-06-13T19:05:00.000Z',
+        },
+      ],
+      {
+        name: '',
+        title: '',
+        publicDescription: '',
+        locationDisplay: '',
+        ticketAllocation: '1',
+        pricingMode: 'free',
+        ticketPriceDollars: '0.00',
+        privateNotes: '',
+      },
+      null,
+      false,
+      null,
+      null,
     ]);
 
     expect(rendered).toContain('Contacts');
@@ -490,6 +528,12 @@ describe('App routes', () => {
     expect(rendered).toContain('Confirm projector');
     expect(rendered).toContain('Follow up with vendor');
     expect(rendered).toContain('Mark done');
+    expect(rendered).toContain('Event templates');
+    expect(rendered).toContain('Monthly Market');
+    expect(rendered).toContain('Private run-of-show');
+    expect(rendered).toContain('Add template');
+    expect(rendered).toContain('Edit');
+    expect(rendered).toContain('Delete');
     expect(rendered).toContain('Add contact');
     expect(rendered).toContain('Add commitment');
   });
@@ -566,16 +610,59 @@ describe('App routes', () => {
           updatedAt: '2026-06-13T20:15:00.000Z',
         },
       ],
+      false,
+      {
+        title: '',
+        description: '',
+        dueAt: '',
+        eventId: '',
+      },
+      [
+        {
+          id: 'template-1',
+          workspaceId: 'workspace-1',
+          name: 'Monthly Market',
+          title: 'Night Market',
+          publicDescription: 'Public copy',
+          locationDisplay: 'The Hall',
+          ticketAllocation: 40,
+          pricingMode: 'fixed',
+          ticketPriceCents: 1500,
+          ticketCurrency: 'usd',
+          privateNotes: 'Private run-of-show',
+          createdAt: '2026-06-13T19:00:00.000Z',
+          updatedAt: '2026-06-13T19:05:00.000Z',
+        },
+      ],
+      {
+        name: '',
+        title: '',
+        publicDescription: '',
+        locationDisplay: '',
+        ticketAllocation: '1',
+        pricingMode: 'free',
+        ticketPriceDollars: '0.00',
+        privateNotes: '',
+      },
+      null,
+      false,
+      null,
+      null,
     ]);
 
     expect(rendered).toContain('Contacts');
     expect(rendered).toContain('Commitments');
     expect(rendered).toContain('Mira Door');
     expect(rendered).toContain('Confirm projector');
+    expect(rendered).toContain('Event templates');
+    expect(rendered).toContain('Monthly Market');
+    expect(rendered).toContain('Private run-of-show');
     expect(rendered).not.toContain('Add contact');
     expect(rendered).not.toContain('Add commitment');
     expect(rendered).not.toContain('Edit');
     expect(rendered).not.toContain('Mark done');
+    expect(rendered).not.toContain('Add template');
+    expect(rendered).not.toContain('Delete');
   });
 
   it('shows no staffing copy on event cards without staffing items', () => {
@@ -764,6 +851,129 @@ describe('App routes', () => {
     expect(rendered).toContain('Bring a keyboard.');
     expect(rendered).toContain('Update status');
     expect(rendered).toContain('Submitted');
+    expect(rendered).not.toContain('Apply template');
+  });
+
+  it('renders template tools for draft events', () => {
+    const event = {
+      id: 'event-1',
+      workspaceId: 'workspace-1',
+      title: 'Night Market',
+      startsAt: '2026-06-13T23:00:00.000Z',
+      publicDescription: 'A late set.',
+      locationDisplay: 'The Hall',
+      ticketAllocation: 100,
+      pricingMode: 'fixed',
+      ticketPriceCents: 1800,
+      ticketCurrency: 'usd',
+      reservedCount: 12,
+      checkedInCount: 0,
+      status: 'draft',
+      publicSlug: null,
+      publicUrl: null,
+    };
+
+    const rendered = renderWithState('/events/event-1?workspaceId=workspace-1', <EventEditorView eventId="event-1" />, [
+      event,
+      null,
+      null,
+      '',
+      false,
+      false,
+      {
+        title: event.title,
+        startsAt: '2026-06-13T23:00',
+        publicDescription: event.publicDescription,
+        locationDisplay: event.locationDisplay,
+        ticketAllocation: '100',
+        pricingMode: 'fixed',
+        ticketPriceDollars: '18.00',
+      },
+      {
+        title: event.title,
+        startsAt: '2026-06-13T23:00',
+        publicDescription: event.publicDescription,
+        locationDisplay: event.locationDisplay,
+        ticketAllocation: '100',
+        pricingMode: 'fixed',
+        ticketPriceDollars: '18.00',
+      },
+      false,
+      false,
+      false,
+      null,
+      null,
+      null,
+      {
+        amountDollars: '',
+        label: '',
+        reason: '',
+      },
+      false,
+      false,
+      {
+        id: 'workspace-1',
+        name: 'Main Room',
+        role: 'owner',
+        members: [],
+        invitations: [],
+      },
+      [
+        {
+          id: 'role-1',
+          eventId: event.id,
+          name: 'Performer',
+          description: 'Play a 20-minute set.',
+          capacity: 3,
+          public: true,
+          active: true,
+          createdAt: '2026-06-13T20:00:00.000Z',
+          updatedAt: '2026-06-13T20:00:00.000Z',
+        },
+      ],
+      [
+        {
+          id: 'application-1',
+          eventId: event.id,
+          roleId: 'role-1',
+          applicantName: 'Alex',
+          applicantEmail: 'alex@example.com',
+          message: 'Bring a keyboard.',
+          status: 'submitted',
+          createdAt: '2026-06-13T21:00:00.000Z',
+          updatedAt: '2026-06-13T21:00:00.000Z',
+        },
+      ],
+      {},
+      null,
+      ...skipStates(12),
+      [
+        {
+          id: 'template-1',
+          workspaceId: 'workspace-1',
+          name: 'Monthly Market',
+          title: 'Night Market',
+          publicDescription: 'Public copy',
+          locationDisplay: 'The Hall',
+          ticketAllocation: 40,
+          pricingMode: 'fixed',
+          ticketPriceCents: 1500,
+          ticketCurrency: 'usd',
+          privateNotes: 'Private run-of-show',
+          createdAt: '2026-06-13T19:00:00.000Z',
+          updatedAt: '2026-06-13T19:05:00.000Z',
+        },
+      ],
+      'template-1',
+      false,
+      false,
+    ]);
+
+    expect(rendered).toContain('Event templates');
+    expect(rendered).toContain('Apply template');
+    expect(rendered).toContain('Save as template');
+    expect(rendered).toContain('Monthly Market');
+    expect(rendered).toContain('Private run-of-show');
   });
 
   it('renders the participant roster panel for accepted applications', () => {
@@ -1067,6 +1277,7 @@ describe('App routes', () => {
     expect(rendered).not.toContain('Clear assignee');
     expect(rendered).not.toContain('Mark completed');
     expect(rendered).not.toContain('Mark cancelled');
+    expect(rendered).not.toContain('Apply template');
   });
 
   it('renders event commitments for owners', () => {

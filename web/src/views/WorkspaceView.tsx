@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
-import { ApiError, api, patchJSON, postJSON } from '../api';
+import { ApiError, api, deleteJSON, patchJSON, postJSON } from '../api';
 import type {
   CurrentUserDTO,
   CurrentWorkspaceDTO,
   CommitmentDTO,
   DevEmailOutboxMessageDTO,
   EventDTO,
+  EventTemplateDTO,
   EventStatus,
   ContactDTO,
   InvitationCreatedDTO,
@@ -34,6 +35,17 @@ type CommitmentFormState = {
   description: string;
   dueAt: string;
   eventId: string;
+};
+
+type TemplateFormState = {
+  name: string;
+  title: string;
+  publicDescription: string;
+  locationDisplay: string;
+  ticketAllocation: string;
+  pricingMode: 'free' | 'fixed';
+  ticketPriceDollars: string;
+  privateNotes: string;
 };
 
 export function normalizeCurrentWorkspace(workspace: CurrentWorkspaceResponse): CurrentWorkspaceDTO {
@@ -109,6 +121,46 @@ function contactFormFrom(contact: ContactDTO): ContactFormState {
 
 function emptyCommitmentForm(): CommitmentFormState {
   return { title: '', description: '', dueAt: '', eventId: '' };
+}
+
+function emptyTemplateForm(): TemplateFormState {
+  return {
+    name: '',
+    title: '',
+    publicDescription: '',
+    locationDisplay: '',
+    ticketAllocation: '1',
+    pricingMode: 'free',
+    ticketPriceDollars: '0.00',
+    privateNotes: '',
+  };
+}
+
+function templateFormFrom(template: EventTemplateDTO): TemplateFormState {
+  return {
+    name: template.name,
+    title: template.title,
+    publicDescription: template.publicDescription,
+    locationDisplay: template.locationDisplay,
+    ticketAllocation: String(template.ticketAllocation),
+    pricingMode: template.pricingMode,
+    ticketPriceDollars: template.pricingMode === 'fixed' ? (template.ticketPriceCents / 100).toFixed(2) : '0.00',
+    privateNotes: template.privateNotes,
+  };
+}
+
+function sortTemplates(templates: EventTemplateDTO[]) {
+  return [...templates].sort(
+    (left, right) => left.name.localeCompare(right.name) || new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime(),
+  );
+}
+
+function templatePricingLabel(template: EventTemplateDTO) {
+  if (template.pricingMode === 'free') {
+    return 'Free reservation';
+  }
+
+  return `${new Intl.NumberFormat([], { style: 'currency', currency: template.ticketCurrency.toUpperCase() || 'USD' }).format(template.ticketPriceCents / 100)} ${template.ticketCurrency.toUpperCase() || 'USD'}`;
 }
 
 function parseTagList(value: string) {
@@ -410,6 +462,12 @@ export function WorkspaceView() {
   const [commitments, setCommitments] = useState<CommitmentDTO[] | null>(null);
   const [commitmentsDenied, setCommitmentsDenied] = useState(false);
   const [commitmentForm, setCommitmentForm] = useState<CommitmentFormState>(emptyCommitmentForm());
+  const [templates, setTemplates] = useState<EventTemplateDTO[] | null>(null);
+  const [templateForm, setTemplateForm] = useState<TemplateFormState>(emptyTemplateForm());
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+  const [templateSubmitting, setTemplateSubmitting] = useState(false);
+  const [templateDeletingId, setTemplateDeletingId] = useState<string | null>(null);
+  const [templateNotice, setTemplateNotice] = useState<string | null>(null);
   const requestedWorkspaceId = useMemo(() => getRequestedWorkspaceId(), []);
 
   function resetPrivateWorkspaceState() {
@@ -420,6 +478,12 @@ export function WorkspaceView() {
     setCommitments(null);
     setCommitmentsDenied(false);
     setCommitmentForm(emptyCommitmentForm());
+    setTemplates(null);
+    setTemplateForm(emptyTemplateForm());
+    setEditingTemplateId(null);
+    setTemplateSubmitting(false);
+    setTemplateDeletingId(null);
+    setTemplateNotice(null);
   }
 
   const workspaceSummaries = useMemo(() => me?.workspaces ?? [], [me]);
@@ -641,6 +705,42 @@ export function WorkspaceView() {
     }
 
     void loadOutbox();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspace?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadTemplates() {
+      if (!workspace) {
+        setTemplates(null);
+        setTemplateForm(emptyTemplateForm());
+        setEditingTemplateId(null);
+        setTemplateSubmitting(false);
+        setTemplateDeletingId(null);
+        setTemplateNotice(null);
+        return;
+      }
+
+      try {
+        const loadedTemplates = await api<EventTemplateDTO[]>(`/api/workspaces/${workspace.id}/event-templates`);
+        if (!cancelled) {
+          setTemplates(sortTemplates(loadedTemplates));
+        }
+      } catch (caught) {
+        if (!cancelled) {
+          setTemplates(null);
+          if (!(caught instanceof ApiError && caught.status === 403)) {
+            setError(caught instanceof Error ? caught.message : 'Unable to load event templates');
+          }
+        }
+      }
+    }
+
+    void loadTemplates();
 
     return () => {
       cancelled = true;
@@ -907,6 +1007,103 @@ export function WorkspaceView() {
       setCommitments((current) => sortCommitments([...(current ?? []).filter((commitment) => commitment.id !== updated.id), updated]));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to update commitment');
+    }
+  }
+
+  function resetTemplateEditor() {
+    setEditingTemplateId(null);
+    setTemplateForm(emptyTemplateForm());
+  }
+
+  function editTemplate(template: EventTemplateDTO) {
+    setEditingTemplateId(template.id);
+    setTemplateForm(templateFormFrom(template));
+    setTemplateNotice(null);
+  }
+
+  async function handleTemplateSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!workspace || workspace.role !== 'owner') {
+      return;
+    }
+
+    const name = templateForm.name.trim();
+    const title = templateForm.title.trim();
+    if (!name || !title) {
+      setError('Enter a template name and title before saving it.');
+      return;
+    }
+
+    const publicDescription = templateForm.publicDescription.trim();
+    const locationDisplay = templateForm.locationDisplay.trim();
+    const privateNotes = templateForm.privateNotes.trim();
+    const ticketAllocation = Number(templateForm.ticketAllocation);
+    if (!Number.isInteger(ticketAllocation) || ticketAllocation < 0) {
+      setError('Ticket allocation must be zero or greater.');
+      return;
+    }
+
+    const ticketPriceCents = templateForm.pricingMode === 'fixed' ? Math.round(Number(templateForm.ticketPriceDollars) * 100) : 0;
+    if (templateForm.pricingMode === 'fixed' && ticketPriceCents < 50) {
+      setError('Fixed templates need a ticket price of at least $0.50.');
+      return;
+    }
+
+    setTemplateSubmitting(true);
+    setError(null);
+    setTemplateNotice(null);
+
+    const payload = {
+      name,
+      title,
+      publicDescription,
+      locationDisplay,
+      ticketAllocation,
+      pricingMode: templateForm.pricingMode,
+      ticketPriceCents,
+      ticketCurrency: 'usd',
+      privateNotes,
+    };
+
+    try {
+      if (editingTemplateId) {
+        const updated = await patchJSON<EventTemplateDTO>(`/api/workspaces/${workspace.id}/event-templates/${editingTemplateId}`, payload);
+        setTemplates((current) => sortTemplates([...(current ?? []).filter((template) => template.id !== updated.id), updated]));
+        setTemplateNotice(`Updated ${updated.name}.`);
+      } else {
+        const created = await postJSON<EventTemplateDTO>(`/api/workspaces/${workspace.id}/event-templates`, payload);
+        setTemplates((current) => sortTemplates([...(current ?? []), created]));
+        setTemplateNotice(`Created ${created.name}.`);
+      }
+
+      resetTemplateEditor();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to save template');
+    } finally {
+      setTemplateSubmitting(false);
+    }
+  }
+
+  async function handleTemplateDelete(templateID: string) {
+    if (!workspace || workspace.role !== 'owner') {
+      return;
+    }
+
+    setTemplateDeletingId(templateID);
+    setError(null);
+    setTemplateNotice(null);
+
+    try {
+      await deleteJSON(`/api/workspaces/${workspace.id}/event-templates/${templateID}`);
+      setTemplates((current) => current?.filter((template) => template.id !== templateID) ?? null);
+      if (editingTemplateId === templateID) {
+        resetTemplateEditor();
+      }
+      setTemplateNotice('Template deleted.');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to delete template');
+    } finally {
+      setTemplateDeletingId((current) => (current === templateID ? null : current));
     }
   }
 
@@ -1242,6 +1439,202 @@ export function WorkspaceView() {
                     ))}
                   </div>
                 </section>
+
+                {templates !== null ? (
+                  <section className="space-y-4 rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.3em] text-violet-300">Event templates</p>
+                      <p className="mt-2 text-sm leading-6 text-zinc-400">Private planning memory for repeatable event setup.</p>
+                    </div>
+
+                    {templates.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-5 text-sm text-zinc-400">
+                        <p className="font-medium text-white">No templates yet.</p>
+                        <p className="mt-1">Save one from an event or create a new template below.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {templates.map((template) => (
+                          <article key={template.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <p className="text-lg font-medium text-white">{template.name}</p>
+                                <p className="mt-1 text-sm text-zinc-400">{template.title}</p>
+                              </div>
+
+                              {workspace.role === 'owner' ? (
+                                <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.25em]">
+                                  <button
+                                    className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-zinc-200 transition hover:bg-white/10"
+                                    type="button"
+                                    onClick={() => editTemplate(template)}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    className="rounded-full border border-rose-400/20 bg-rose-300 px-3 py-1 text-zinc-950 transition hover:bg-rose-200 disabled:cursor-not-allowed disabled:bg-rose-300/60"
+                                    type="button"
+                                    onClick={() => void handleTemplateDelete(template.id)}
+                                    disabled={templateDeletingId === template.id}
+                                  >
+                                    {templateDeletingId === template.id ? 'Deleting…' : 'Delete'}
+                                  </button>
+                                </div>
+                              ) : null}
+                            </div>
+
+                            <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-zinc-500">
+                              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">{template.locationDisplay || 'No location set'}</span>
+                              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">{templatePricingLabel(template)}</span>
+                              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">{template.ticketAllocation} tickets</span>
+                            </div>
+
+                            <p className="mt-3 text-sm leading-6 text-zinc-300">
+                              <span className="text-zinc-500">Private note:</span> {template.privateNotes || 'No private note yet.'}
+                            </p>
+
+                            {template.publicDescription ? <p className="mt-3 text-sm leading-6 text-zinc-400">{template.publicDescription}</p> : null}
+                          </article>
+                        ))}
+                      </div>
+                    )}
+
+                    {workspace.role === 'owner' ? (
+                      <form className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4" onSubmit={handleTemplateSubmit}>
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">{editingTemplateId ? 'Edit template' : 'Add template'}</p>
+                          {editingTemplateId ? (
+                            <button className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.25em] text-zinc-200 transition hover:bg-white/10" type="button" onClick={resetTemplateEditor}>
+                              Cancel
+                            </button>
+                          ) : null}
+                        </div>
+
+                        <label className="block space-y-2 text-sm">
+                          <span className="text-zinc-300">Name</span>
+                          <input
+                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-violet-300/60 focus:bg-zinc-950/80"
+                            value={templateForm.name}
+                            onChange={(event) => setTemplateForm((current) => ({ ...current, name: event.target.value }))}
+                            required
+                          />
+                        </label>
+
+                        <label className="block space-y-2 text-sm">
+                          <span className="text-zinc-300">Title</span>
+                          <input
+                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-violet-300/60 focus:bg-zinc-950/80"
+                            value={templateForm.title}
+                            onChange={(event) => setTemplateForm((current) => ({ ...current, title: event.target.value }))}
+                            required
+                          />
+                        </label>
+
+                        <label className="block space-y-2 text-sm">
+                          <span className="text-zinc-300">Location</span>
+                          <input
+                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-violet-300/60 focus:bg-zinc-950/80"
+                            value={templateForm.locationDisplay}
+                            onChange={(event) => setTemplateForm((current) => ({ ...current, locationDisplay: event.target.value }))}
+                          />
+                        </label>
+
+                        <label className="block space-y-2 text-sm">
+                          <span className="text-zinc-300">Public description</span>
+                          <textarea
+                            className="min-h-28 w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-violet-300/60 focus:bg-zinc-950/80"
+                            value={templateForm.publicDescription}
+                            onChange={(event) => setTemplateForm((current) => ({ ...current, publicDescription: event.target.value }))}
+                          />
+                        </label>
+
+                        <label className="block space-y-2 text-sm">
+                          <span className="text-zinc-300">Ticket allocation</span>
+                          <input
+                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-violet-300/60 focus:bg-zinc-950/80"
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={templateForm.ticketAllocation}
+                            onChange={(event) => setTemplateForm((current) => ({ ...current, ticketAllocation: event.target.value }))}
+                          />
+                        </label>
+
+                        <fieldset className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <p className="text-xs uppercase tracking-[0.3em] text-violet-300">Pricing</p>
+                              <h2 className="mt-2 text-lg font-semibold text-white">Free or fixed paid tickets</h2>
+                            </div>
+                            <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-zinc-300">
+                              USD only
+                            </span>
+                          </div>
+
+                          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                            <label className={`cursor-pointer rounded-2xl border p-4 transition ${templateForm.pricingMode === 'free' ? 'border-violet-300/40 bg-violet-300/10 text-white' : 'border-white/10 bg-white/5 text-zinc-300 hover:bg-white/8'}`}>
+                              <input
+                                className="sr-only"
+                                type="radio"
+                                name="templatePricingMode"
+                                value="free"
+                                checked={templateForm.pricingMode === 'free'}
+                                onChange={() => setTemplateForm((current) => ({ ...current, pricingMode: 'free', ticketPriceDollars: '0.00' }))}
+                              />
+                              <p className="text-sm font-semibold">Free reservation</p>
+                              <p className="mt-1 text-sm leading-6 text-current/70">Use this for no-cost plans.</p>
+                            </label>
+
+                            <label className={`cursor-pointer rounded-2xl border p-4 transition ${templateForm.pricingMode === 'fixed' ? 'border-violet-300/40 bg-violet-300/10 text-white' : 'border-white/10 bg-white/5 text-zinc-300 hover:bg-white/8'}`}>
+                              <input
+                                className="sr-only"
+                                type="radio"
+                                name="templatePricingMode"
+                                value="fixed"
+                                checked={templateForm.pricingMode === 'fixed'}
+                                onChange={() => setTemplateForm((current) => ({ ...current, pricingMode: 'fixed' }))}
+                              />
+                              <p className="text-sm font-semibold">Fixed paid ticket</p>
+                              <p className="mt-1 text-sm leading-6 text-current/70">Use a saved USD price for paid plans.</p>
+                            </label>
+                          </div>
+
+                          {templateForm.pricingMode === 'fixed' ? (
+                            <label className="mt-4 block space-y-2 text-sm">
+                              <span className="text-zinc-300">Price in USD</span>
+                              <input
+                                className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-violet-300/60 focus:bg-zinc-950/80"
+                                type="number"
+                                min="0.5"
+                                step="0.01"
+                                inputMode="decimal"
+                                value={templateForm.ticketPriceDollars}
+                                onChange={(event) => setTemplateForm((current) => ({ ...current, ticketPriceDollars: event.target.value }))}
+                                required
+                              />
+                            </label>
+                          ) : null}
+                        </fieldset>
+
+                        <label className="block space-y-2 text-sm">
+                          <span className="text-zinc-300">Private notes</span>
+                          <textarea
+                            className="min-h-32 w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-violet-300/60 focus:bg-zinc-950/80"
+                            value={templateForm.privateNotes}
+                            onChange={(event) => setTemplateForm((current) => ({ ...current, privateNotes: event.target.value }))}
+                            placeholder="Run-of-show notes stay private."
+                          />
+                        </label>
+
+                        <button className="rounded-2xl bg-violet-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:bg-violet-300/60" type="submit" disabled={templateSubmitting}>
+                          {templateSubmitting ? 'Saving…' : editingTemplateId ? 'Save template' : 'Add template'}
+                        </button>
+
+                        {templateNotice ? <p className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">{templateNotice}</p> : null}
+                      </form>
+                    ) : null}
+                  </section>
+                ) : null}
 
                 {contacts !== null && !contactsDenied ? (
                   <section className="space-y-4 rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
