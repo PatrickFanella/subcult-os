@@ -10,8 +10,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -311,6 +313,89 @@ func TestPublicEventDiscoveryAPI(t *testing.T) {
 		if strings.Contains(fmt.Sprintf("%#v", events), title) {
 			t.Fatalf("hidden event %q leaked in discovery: %#v", title, events)
 		}
+	}
+}
+
+func TestPublicEventDiscoverySearchAPI(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	createDiscoverEvent := func(title, description, location string) map[string]any {
+		t.Helper()
+		resp := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/events", map[string]any{
+			"title":             title,
+			"startsAt":          "2026-07-01T20:00:00Z",
+			"publicDescription": description,
+			"locationDisplay":   location,
+			"ticketAllocation":  20,
+			"pricingMode":       "free",
+			"ticketPriceCents":  0,
+			"ticketCurrency":    "usd",
+		}, http.StatusOK)
+		return mustObject(t, resp.JSON)
+	}
+
+	marketTitle := createDiscoverEvent("Market Title", "Quiet night", "Side Room")
+	publishEvent(t, fx, mustString(t, marketTitle, "id"))
+
+	marketDescription := createDiscoverEvent("Quiet Night", "Warm market sounds", "Side Room")
+	publishEvent(t, fx, mustString(t, marketDescription, "id"))
+
+	marketLocation := createDiscoverEvent("Open Stage", "Music and food", "Market Hall")
+	publishEvent(t, fx, mustString(t, marketLocation, "id"))
+
+	draft := createDiscoverEvent("Draft Market", "Draft market copy", "Draft Hall")
+	closed := createDiscoverEvent("Closed Market", "Closed market copy", "Closed Hall")
+	publishEvent(t, fx, mustString(t, closed, "id"))
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+mustString(t, closed, "id")+"/end-of-night", map[string]any{}, http.StatusOK)
+
+	percentEvent := createDiscoverEvent("50% Off Night", "Special offer", "Promo Hall")
+	publishEvent(t, fx, mustString(t, percentEvent, "id"))
+
+	underscoreEvent := createDiscoverEvent("Underscore_Club", "Special offer", "Promo Hall")
+	publishEvent(t, fx, mustString(t, underscoreEvent, "id"))
+
+	resp := getJSON(t, fx.app, nil, "/api/public/events?q="+url.QueryEscape("  MaRkEt  "), http.StatusOK)
+	events := resp.JSON.([]any)
+	if len(events) != 3 {
+		t.Fatalf("expected three discoverable market events, got %#v", events)
+	}
+	titles := make([]string, 0, len(events))
+	for _, item := range events {
+		obj := mustObject(t, item)
+		titles = append(titles, mustString(t, obj, "title"))
+		if obj["status"] != "published" {
+			t.Fatalf("expected published event only, got %#v", obj)
+		}
+	}
+	sort.Strings(titles)
+	if !reflect.DeepEqual(titles, []string{"Market Title", "Open Stage", "Quiet Night"}) {
+		t.Fatalf("unexpected market search results: %#v", titles)
+	}
+
+	missing := getJSON(t, fx.app, nil, "/api/public/events?q=missing", http.StatusOK)
+	if events, ok := missing.JSON.([]any); !ok || len(events) != 0 {
+		t.Fatalf("expected no results for missing query, got %#v", missing.JSON)
+	}
+
+	percent := getJSON(t, fx.app, nil, "/api/public/events?q="+url.QueryEscape("%"), http.StatusOK)
+	percentEvents := percent.JSON.([]any)
+	if len(percentEvents) != 1 || mustString(t, mustObject(t, percentEvents[0]), "title") != "50% Off Night" {
+		t.Fatalf("expected literal percent match only, got %#v", percent.JSON)
+	}
+
+	underscore := getJSON(t, fx.app, nil, "/api/public/events?q="+url.QueryEscape("_"), http.StatusOK)
+	underscoreEvents := underscore.JSON.([]any)
+	if len(underscoreEvents) != 1 || mustString(t, mustObject(t, underscoreEvents[0]), "title") != "Underscore_Club" {
+		t.Fatalf("expected literal underscore match only, got %#v", underscore.JSON)
+	}
+
+	longQuery := strings.Repeat("あ", 121)
+	tooLong := getJSON(t, fx.app, nil, "/api/public/events?q="+url.QueryEscape(longQuery), http.StatusBadRequest)
+	if mustString(t, tooLong.JSON, "error") != "search query is too long" {
+		t.Fatalf("unexpected long-query error: %#v", tooLong.JSON)
+	}
+
+	if body := fmt.Sprintf("%#v", resp.JSON); strings.Contains(body, mustString(t, draft, "title")) || strings.Contains(body, mustString(t, closed, "title")) {
+		t.Fatalf("hidden draft/closed events leaked into search results: %#v", resp.JSON)
 	}
 }
 

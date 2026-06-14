@@ -2,7 +2,9 @@ package app
 
 import (
 	"net/http"
+	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 type publicEventSummaryDTO struct {
@@ -27,6 +29,12 @@ func (a *App) handleListPublicEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	query := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q")))
+	if utf8.RuneCountInString(query) > 120 {
+		writeError(w, http.StatusBadRequest, "search query is too long")
+		return
+	}
+
 	rows, err := a.db.Query(r.Context(), `
 		select e.id, e.title, e.starts_at, e.public_description, e.location_display,
 		       e.ticket_allocation, e.pricing_mode, e.ticket_price_cents, e.ticket_currency,
@@ -34,9 +42,15 @@ func (a *App) handleListPublicEvents(w http.ResponseWriter, r *http.Request) {
 		       e.public_slug
 		from events e
 		where e.status = 'published' and e.public_slug is not null
+		  and (
+		    $1 = ''
+		    or position($1 in lower(e.title)) > 0
+		    or position($1 in lower(coalesce(e.public_description, ''))) > 0
+		    or position($1 in lower(coalesce(e.location_display, ''))) > 0
+		  )
 		order by e.starts_at asc, e.created_at asc
 		limit 100
-	`)
+	`, query)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not list public events")
 		return

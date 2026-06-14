@@ -98,7 +98,16 @@ describe('App routes', () => {
   it('renders the discover loading state', () => {
     const rendered = renderAt('/discover');
     expect(rendered).toContain('Discover events');
+    expect(rendered).toContain('Search published events');
+    expect(rendered).toContain('Search');
+    expect(rendered).toContain('Reset');
     expect(rendered).toContain('Loading published events…');
+  });
+
+  it('syncs the discover search query from the url', () => {
+    const rendered = renderAt('/discover?q=Market');
+    expect(rendered).toContain('Search published events');
+    expect(rendered).toContain('value="Market"');
   });
 
   it('renders discover event cards', () => {
@@ -134,6 +143,12 @@ describe('App routes', () => {
   it('renders the discover empty state', () => {
     const rendered = renderWithState('/discover', <App />, [[], false, null]);
     expect(rendered).toContain('No published events are discoverable yet.');
+  });
+
+  it('renders the discover search empty state', () => {
+    const rendered = renderWithState('/discover?q=market', <App />, [[], false, null, 'market']);
+    expect(rendered).toContain('No events matched your search.');
+    expect(rendered).toContain('Reset');
   });
 
   it('renders the discover error state', () => {
