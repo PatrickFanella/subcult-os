@@ -111,6 +111,26 @@ export interface EventReportDTO {
   generatedByMemberEmail: string;
 }
 
+export interface EventArchiveDTO {
+  id: string;
+  eventId: string;
+  reportId: string;
+  settlementId: string;
+  status: 'private';
+  noteCount: number;
+  notes: EventArchiveNoteDTO[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EventArchiveNoteDTO {
+  id: string;
+  archiveId: string;
+  body: string;
+  createdByPersonId: string;
+  createdAt: string;
+}
+
 export interface EventSettlementSummaryDTO {
   currency: string;
   grossPaidRevenueCents: number;

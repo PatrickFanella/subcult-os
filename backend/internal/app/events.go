@@ -46,6 +46,26 @@ type eventReportDTO struct {
 	GeneratedByMemberEmail string                     `json:"generatedByMemberEmail"`
 }
 
+type eventArchiveDTO struct {
+	ID           string                `json:"id"`
+	EventID      string                `json:"eventId"`
+	ReportID     string                `json:"reportId"`
+	SettlementID string                `json:"settlementId"`
+	Status       string                `json:"status"`
+	NoteCount    int                   `json:"noteCount"`
+	Notes        []eventArchiveNoteDTO `json:"notes"`
+	CreatedAt    string                `json:"createdAt"`
+	UpdatedAt    string                `json:"updatedAt"`
+}
+
+type eventArchiveNoteDTO struct {
+	ID                string `json:"id"`
+	ArchiveID         string `json:"archiveId"`
+	Body              string `json:"body"`
+	CreatedByPersonID string `json:"createdByPersonId"`
+	CreatedAt         string `json:"createdAt"`
+}
+
 type eventSettlementSummaryDTO struct {
 	Currency              string `json:"currency"`
 	GrossPaidRevenueCents int    `json:"grossPaidRevenueCents"`
@@ -870,6 +890,47 @@ func (a *App) handleGetSettlement(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, settlement)
+}
+
+func (a *App) handleGetArchive(w http.ResponseWriter, r *http.Request) {
+	if a.db == nil {
+		writeError(w, http.StatusInternalServerError, "database unavailable")
+		return
+	}
+	event, err := a.loadEventDetails(r.Context(), r.PathValue("eventID"))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "event not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "could not load event")
+		return
+	}
+	if _, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner", "member"); !ok {
+		writeError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
+	var archive eventArchiveDTO
+	var createdAt time.Time
+	var updatedAt time.Time
+	if err := a.db.QueryRow(r.Context(), `
+		select id, event_id, report_id, settlement_id, status, note_count, created_at, updated_at
+		from event_archives
+		where event_id = $1
+	`, event.ID).Scan(&archive.ID, &archive.EventID, &archive.ReportID, &archive.SettlementID, &archive.Status, &archive.NoteCount, &createdAt, &updatedAt); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "archive not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "could not load archive")
+		return
+	}
+	archive.CreatedAt = createdAt.UTC().Format(time.RFC3339Nano)
+	archive.UpdatedAt = updatedAt.UTC().Format(time.RFC3339Nano)
+	archive.Notes = make([]eventArchiveNoteDTO, 0)
+
+	writeJSON(w, http.StatusOK, archive)
 }
 
 func (a *App) handleCreateSettlementAdjustment(w http.ResponseWriter, r *http.Request) {

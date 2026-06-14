@@ -112,6 +112,39 @@ func TestFirstEventLifecycleSettlementAPI(t *testing.T) {
 	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/settlement/adjustments", map[string]any{"amountCents": 100, "label": "Late adjustment"}, http.StatusConflict)
 }
 
+func TestFirstEventLifecycleArchiveAPI(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 4)
+	eventID := mustString(t, event, "id")
+
+	getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/archive", http.StatusNotFound)
+
+	publishEvent(t, fx, eventID)
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+
+	ownerArchive := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/archive", http.StatusOK)
+	memberArchive := getJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/archive", http.StatusOK)
+	if !reflect.DeepEqual(ownerArchive.JSON, memberArchive.JSON) {
+		t.Fatalf("expected owner/member archive responses to match: owner=%#v member=%#v", ownerArchive.JSON, memberArchive.JSON)
+	}
+
+	archive := mustObject(t, ownerArchive.JSON)
+	if archive["eventId"] != eventID || archive["status"] != "private" || int(archive["noteCount"].(float64)) != 0 {
+		t.Fatalf("unexpected archive response: %#v", archive)
+	}
+	if archive["reportId"] == "" || archive["settlementId"] == "" || archive["createdAt"] == "" || archive["updatedAt"] == "" {
+		t.Fatalf("archive response missing references/timestamps: %#v", archive)
+	}
+	notes, ok := archive["notes"].([]any)
+	if !ok || len(notes) != 0 {
+		t.Fatalf("expected empty notes array, got %#v", archive["notes"])
+	}
+
+	getJSON(t, fx.app, nil, "/api/events/"+eventID+"/archive", http.StatusForbidden)
+	otherFx := newLifecycleFixture(t)
+	getJSON(t, fx.app, otherFx.memberCookie, "/api/events/"+eventID+"/archive", http.StatusForbidden)
+}
+
 func TestFirstEventLifecycleSettlementAdjustments(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	event := createEventWithPricing(t, fx, "Night Market", 4, "fixed", 1500, "usd")
