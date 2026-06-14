@@ -143,8 +143,10 @@ export interface EventSettlementDTO {
   reservedCount: number;
   adjustmentTotalCents: number;
   netTotalCents: number;
-  status: string;
+  status: 'open' | 'finalized';
   generatedAt: string;
+  finalizedAt?: string;
+  finalizedByPersonId?: string;
   adjustments: EventSettlementAdjustmentDTO[];
 }
 

@@ -169,10 +169,13 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   const [settlement, setSettlement] = useState<EventSettlementDTO | null>(null);
   const [settlementForm, setSettlementForm] = useState<SettlementAdjustmentFormState>(emptySettlementAdjustmentForm);
   const [settlementSubmitting, setSettlementSubmitting] = useState(false);
+  const [settlementFinalizing, setSettlementFinalizing] = useState(false);
 
   const hasWorkspace = workspaceId !== '';
   const closed = event?.status === 'end_of_night';
   const pricingLocked = (event?.reservedCount ?? 0) > 0 || closed;
+  const settlementFinalized = settlement?.status === 'finalized';
+  const settlementOpen = settlement?.status === 'open';
   const dirty = useMemo(() => !formsMatch(form, initialForm), [form, initialForm]);
 
   useEffect(() => {
@@ -367,7 +370,10 @@ export function EventEditorView({ eventId }: { eventId: string }) {
 
   async function handleSettlementAdjustmentSubmit(formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault();
-    if (!event || !settlement) return;
+    if (!event || !settlement || settlement.status !== 'open') {
+      setError('Settlement is locked');
+      return;
+    }
 
     setSettlementSubmitting(true);
     setMessage(null);
@@ -386,6 +392,24 @@ export function EventEditorView({ eventId }: { eventId: string }) {
       setError(caught instanceof Error ? caught.message : 'Unable to add adjustment');
     } finally {
       setSettlementSubmitting(false);
+    }
+  }
+
+  async function handleFinalizeSettlement() {
+    if (!event || !settlement || settlement.status !== 'open') return;
+
+    setSettlementFinalizing(true);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const finalizedSettlement = await postJSON<EventSettlementDTO>(`/api/events/${event.id}/settlement/finalize`, {});
+      setSettlement(finalizedSettlement);
+      setMessage('Settlement finalized');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to finalize settlement');
+    } finally {
+      setSettlementFinalizing(false);
     }
   }
 
@@ -754,7 +778,17 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                 <section className="rounded-[1.75rem] border border-cyan-400/20 bg-zinc-950/95 p-6 shadow-2xl shadow-black/30">
                   <p className="text-xs uppercase tracking-[0.3em] text-cyan-300">Settlement closeout</p>
                   <h2 className="mt-2 text-2xl font-semibold text-white">Review adjustments</h2>
-                  <p className="mt-2 text-sm text-zinc-400">Status: {settlement.status}</p>
+                  <p className="mt-2 text-sm text-zinc-400">Status: {settlementFinalized ? 'finalized (locked)' : 'open'}</p>
+
+                  {settlementFinalized ? (
+                    <div className="mt-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm text-emerald-100">
+                      <p className="font-medium">Settlement locked</p>
+                      <p className="mt-2 leading-6">
+                        Finalized{settlement.finalizedAt ? ` on ${formatDateTime(settlement.finalizedAt)}` : ''}
+                        {settlement.finalizedByPersonId ? ` by ${settlement.finalizedByPersonId}` : ''}.
+                      </p>
+                    </div>
+                  ) : null}
 
                   <div className="mt-4 grid gap-3 sm:grid-cols-3">
                     <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -792,46 +826,63 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                     )}
                   </div>
 
-                  <form className="mt-4 space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4" onSubmit={handleSettlementAdjustmentSubmit}>
-                    <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Add adjustment</p>
-                    <label className="block space-y-2 text-sm">
-                      <span className="text-zinc-300">Amount in USD</span>
-                      <input
-                        className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-cyan-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
-                        type="number"
-                        step="0.01"
-                        inputMode="decimal"
-                        value={settlementForm.amountDollars}
-                        onChange={(event) => setSettlementForm((current) => ({ ...current, amountDollars: event.target.value }))}
-                        placeholder="-2.00"
-                        required
-                        disabled={settlementSubmitting}
-                      />
-                    </label>
-                    <label className="block space-y-2 text-sm">
-                      <span className="text-zinc-300">Label</span>
-                      <input
-                        className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-cyan-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
-                        value={settlementForm.label}
-                        onChange={(event) => setSettlementForm((current) => ({ ...current, label: event.target.value }))}
-                        required
-                        disabled={settlementSubmitting}
-                      />
-                    </label>
-                    <label className="block space-y-2 text-sm">
-                      <span className="text-zinc-300">Reason</span>
-                      <textarea
-                        className="min-h-28 w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-cyan-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
-                        value={settlementForm.reason}
-                        onChange={(event) => setSettlementForm((current) => ({ ...current, reason: event.target.value }))}
-                        required
-                        disabled={settlementSubmitting}
-                      />
-                    </label>
-                    <button className="rounded-2xl bg-cyan-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:bg-cyan-300/60" type="submit" disabled={settlementSubmitting}>
-                      {settlementSubmitting ? 'Saving…' : 'Add adjustment'}
-                    </button>
-                  </form>
+                  <div className="mt-4 flex flex-wrap gap-3 text-sm">
+                    {settlementOpen ? (
+                      <button
+                        className="rounded-2xl border border-emerald-400/20 bg-emerald-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:bg-emerald-300/60"
+                        type="button"
+                        onClick={handleFinalizeSettlement}
+                        disabled={settlementFinalizing}
+                      >
+                        {settlementFinalizing ? 'Finalizing…' : 'Finalize settlement'}
+                      </button>
+                    ) : null}
+                  </div>
+
+                  {settlementOpen ? (
+                    <form className="mt-4 space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4" onSubmit={handleSettlementAdjustmentSubmit}>
+                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Add adjustment</p>
+                      <label className="block space-y-2 text-sm">
+                        <span className="text-zinc-300">Amount in USD</span>
+                        <input
+                          className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-cyan-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                          type="number"
+                          step="0.01"
+                          inputMode="decimal"
+                          value={settlementForm.amountDollars}
+                          onChange={(event) => setSettlementForm((current) => ({ ...current, amountDollars: event.target.value }))}
+                          placeholder="-2.00"
+                          required
+                          disabled={settlementSubmitting}
+                        />
+                      </label>
+                      <label className="block space-y-2 text-sm">
+                        <span className="text-zinc-300">Label</span>
+                        <input
+                          className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-cyan-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                          value={settlementForm.label}
+                          onChange={(event) => setSettlementForm((current) => ({ ...current, label: event.target.value }))}
+                          required
+                          disabled={settlementSubmitting}
+                        />
+                      </label>
+                      <label className="block space-y-2 text-sm">
+                        <span className="text-zinc-300">Reason</span>
+                        <textarea
+                          className="min-h-28 w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-cyan-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                          value={settlementForm.reason}
+                          onChange={(event) => setSettlementForm((current) => ({ ...current, reason: event.target.value }))}
+                          required
+                          disabled={settlementSubmitting}
+                        />
+                      </label>
+                      <button className="rounded-2xl bg-cyan-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:bg-cyan-300/60" type="submit" disabled={settlementSubmitting}>
+                        {settlementSubmitting ? 'Saving…' : 'Add adjustment'}
+                      </button>
+                    </form>
+                  ) : (
+                    <p className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-zinc-400">Adjustments are locked after settlement finalization.</p>
+                  )}
                 </section>
               ) : null}
 

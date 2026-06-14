@@ -90,6 +90,26 @@ func TestFirstEventLifecycleSettlementAPI(t *testing.T) {
 	otherFx := newLifecycleFixture(t)
 	getJSON(t, fx.app, otherFx.memberCookie, "/api/events/"+eventID+"/settlement", http.StatusForbidden)
 	postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/settlement/adjustments", map[string]any{"amountCents": 100, "label": "Member"}, http.StatusForbidden)
+	postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/settlement/finalize", map[string]any{}, http.StatusForbidden)
+
+	firstFinalize := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/settlement/finalize", map[string]any{}, http.StatusOK)
+	firstFinalized := mustObject(t, firstFinalize.JSON)
+	if firstFinalized["status"] != "finalized" {
+		t.Fatalf("expected finalized settlement status, got %#v", firstFinalize.JSON)
+	}
+	if finalizedAt, ok := firstFinalized["finalizedAt"].(string); !ok || finalizedAt == "" {
+		t.Fatalf("expected finalizedAt timestamp, got %#v", firstFinalized["finalizedAt"])
+	}
+	if firstFinalized["finalizedByPersonId"] != ownerPersonID(t, fx) {
+		t.Fatalf("expected finalizedByPersonId to match owner, got %#v", firstFinalized["finalizedByPersonId"])
+	}
+
+	secondFinalize := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/settlement/finalize", map[string]any{}, http.StatusOK)
+	if !reflect.DeepEqual(firstFinalize.JSON, secondFinalize.JSON) {
+		t.Fatalf("expected finalize to be idempotent: first=%#v second=%#v", firstFinalize.JSON, secondFinalize.JSON)
+	}
+
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/settlement/adjustments", map[string]any{"amountCents": 100, "label": "Late adjustment"}, http.StatusConflict)
 }
 
 func TestFirstEventLifecycleSettlementAdjustments(t *testing.T) {

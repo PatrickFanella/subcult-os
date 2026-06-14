@@ -86,6 +86,8 @@ type eventSettlementDTO struct {
 	NetTotalCents         int                            `json:"netTotalCents"`
 	Status                string                         `json:"status"`
 	GeneratedAt           string                         `json:"generatedAt"`
+	FinalizedAt           *string                        `json:"finalizedAt,omitempty"`
+	FinalizedByPersonID   *string                        `json:"finalizedByPersonId,omitempty"`
 	Adjustments           []eventSettlementAdjustmentDTO `json:"adjustments"`
 }
 
@@ -101,6 +103,8 @@ type eventSettlementRow struct {
 	ReservedCount         int
 	Status                string
 	GeneratedAt           time.Time
+	FinalizedAt           sql.NullTime
+	FinalizedByPersonID   sql.NullString
 }
 
 type eventSettlementAdjustmentRow struct {
@@ -871,26 +875,6 @@ func (a *App) handleCreateSettlementAdjustment(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	var settlementRow eventSettlementRow
-	if err := a.db.QueryRow(r.Context(), `
-		select id, event_id, currency, gross_paid_revenue_cents, paid_ticket_count,
-		       pending_ticket_count, cancelled_ticket_count, free_ticket_count, reserved_count,
-		       status, generated_at
-		from event_settlements
-		where event_id = $1
-	`, event.ID).Scan(&settlementRow.ID, &settlementRow.EventID, &settlementRow.Currency, &settlementRow.GrossPaidRevenueCents, &settlementRow.PaidTicketCount, &settlementRow.PendingTicketCount, &settlementRow.CancelledTicketCount, &settlementRow.FreeTicketCount, &settlementRow.ReservedCount, &settlementRow.Status, &settlementRow.GeneratedAt); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			writeError(w, http.StatusNotFound, "settlement not found")
-			return
-		}
-		writeError(w, http.StatusInternalServerError, "could not load settlement")
-		return
-	}
-	if settlementRow.Status != "open" {
-		writeError(w, http.StatusConflict, "settlement is not open")
-		return
-	}
-
 	var req createSettlementAdjustmentRequest
 	if err := decodeJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json")
@@ -913,6 +897,27 @@ func (a *App) handleCreateSettlementAdjustment(w http.ResponseWriter, r *http.Re
 		return
 	}
 	defer func() { _ = tx.Rollback(r.Context()) }()
+
+	var settlementRow eventSettlementRow
+	if err := tx.QueryRow(r.Context(), `
+		select id, event_id, currency, gross_paid_revenue_cents, paid_ticket_count,
+		       pending_ticket_count, cancelled_ticket_count, free_ticket_count, reserved_count,
+		       status, generated_at, finalized_at, finalized_by_person_id
+		from event_settlements
+		where event_id = $1
+		for update
+	`, event.ID).Scan(&settlementRow.ID, &settlementRow.EventID, &settlementRow.Currency, &settlementRow.GrossPaidRevenueCents, &settlementRow.PaidTicketCount, &settlementRow.PendingTicketCount, &settlementRow.CancelledTicketCount, &settlementRow.FreeTicketCount, &settlementRow.ReservedCount, &settlementRow.Status, &settlementRow.GeneratedAt, &settlementRow.FinalizedAt, &settlementRow.FinalizedByPersonID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "settlement not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "could not load settlement")
+		return
+	}
+	if settlementRow.Status != "open" {
+		writeError(w, http.StatusConflict, "settlement is not open")
+		return
+	}
 
 	var adjustmentID string
 	if err := tx.QueryRow(r.Context(), `
@@ -948,15 +953,95 @@ func (a *App) handleCreateSettlementAdjustment(w http.ResponseWriter, r *http.Re
 	writeJSON(w, http.StatusOK, settlement)
 }
 
+func (a *App) handleFinalizeSettlement(w http.ResponseWriter, r *http.Request) {
+	if a.db == nil {
+		writeError(w, http.StatusInternalServerError, "database unavailable")
+		return
+	}
+	event, err := a.loadEventDetails(r.Context(), r.PathValue("eventID"))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "event not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "could not load event")
+		return
+	}
+	actorID, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner")
+	if !ok {
+		writeError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
+	tx, err := a.db.Begin(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not start transaction")
+		return
+	}
+	defer func() { _ = tx.Rollback(r.Context()) }()
+
+	var settlementRow eventSettlementRow
+	if err := tx.QueryRow(r.Context(), `
+		select id, event_id, currency, gross_paid_revenue_cents, paid_ticket_count,
+		       pending_ticket_count, cancelled_ticket_count, free_ticket_count, reserved_count,
+		       status, generated_at, finalized_at, finalized_by_person_id
+		from event_settlements
+		where event_id = $1
+		for update
+	`, event.ID).Scan(&settlementRow.ID, &settlementRow.EventID, &settlementRow.Currency, &settlementRow.GrossPaidRevenueCents, &settlementRow.PaidTicketCount, &settlementRow.PendingTicketCount, &settlementRow.CancelledTicketCount, &settlementRow.FreeTicketCount, &settlementRow.ReservedCount, &settlementRow.Status, &settlementRow.GeneratedAt, &settlementRow.FinalizedAt, &settlementRow.FinalizedByPersonID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "settlement not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "could not load settlement")
+		return
+	}
+
+	if settlementRow.Status != "open" && settlementRow.Status != "finalized" {
+		writeError(w, http.StatusConflict, "settlement is not open")
+		return
+	}
+
+	if settlementRow.Status == "open" {
+		if _, err := tx.Exec(r.Context(), `
+			update event_settlements
+			set status = 'finalized', finalized_at = now(), finalized_by_person_id = $2, updated_at = now()
+			where id = $1
+		`, settlementRow.ID, actorID); err != nil {
+			writeError(w, http.StatusInternalServerError, "could not finalize settlement")
+			return
+		}
+		settledTxCtx := context.WithValue(r.Context(), txContextKey{}, tx)
+		if err := a.audit(settledTxCtx, actorID, "settlement.finalized", "event_settlement", settlementRow.ID, map[string]any{
+			"eventId": event.ID,
+		}); err != nil {
+			writeError(w, http.StatusInternalServerError, "could not record audit")
+			return
+		}
+	}
+
+	if err := tx.Commit(r.Context()); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not save settlement")
+		return
+	}
+
+	settlement, err := a.loadSettlementDTO(r.Context(), event.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not load settlement")
+		return
+	}
+	writeJSON(w, http.StatusOK, settlement)
+}
+
 func (a *App) loadSettlementDTO(ctx context.Context, eventID string) (eventSettlementDTO, error) {
 	var row eventSettlementRow
 	if err := a.db.QueryRow(ctx, `
 		select id, event_id, currency, gross_paid_revenue_cents, paid_ticket_count,
 		       pending_ticket_count, cancelled_ticket_count, free_ticket_count, reserved_count,
-		       status, generated_at
+		       status, generated_at, finalized_at, finalized_by_person_id
 		from event_settlements
 		where event_id = $1
-	`, eventID).Scan(&row.ID, &row.EventID, &row.Currency, &row.GrossPaidRevenueCents, &row.PaidTicketCount, &row.PendingTicketCount, &row.CancelledTicketCount, &row.FreeTicketCount, &row.ReservedCount, &row.Status, &row.GeneratedAt); err != nil {
+	`, eventID).Scan(&row.ID, &row.EventID, &row.Currency, &row.GrossPaidRevenueCents, &row.PaidTicketCount, &row.PendingTicketCount, &row.CancelledTicketCount, &row.FreeTicketCount, &row.ReservedCount, &row.Status, &row.GeneratedAt, &row.FinalizedAt, &row.FinalizedByPersonID); err != nil {
 		return eventSettlementDTO{}, err
 	}
 
@@ -1007,8 +1092,26 @@ func (a *App) loadSettlementDTO(ctx context.Context, eventID string) (eventSettl
 		NetTotalCents:         row.GrossPaidRevenueCents + int(adjustmentTotalCents),
 		Status:                row.Status,
 		GeneratedAt:           row.GeneratedAt.UTC().Format(time.RFC3339Nano),
+		FinalizedAt:           nullableTimeString(row.FinalizedAt),
+		FinalizedByPersonID:   nullableString(row.FinalizedByPersonID),
 		Adjustments:           adjustments,
 	}, nil
+}
+
+func nullableTimeString(value sql.NullTime) *string {
+	if !value.Valid {
+		return nil
+	}
+	formatted := value.Time.UTC().Format(time.RFC3339Nano)
+	return &formatted
+}
+
+func nullableString(value sql.NullString) *string {
+	if !value.Valid {
+		return nil
+	}
+	formatted := value.String
+	return &formatted
 }
 
 func (a *App) loadEventDetails(ctx context.Context, eventID string) (eventRow, error) {

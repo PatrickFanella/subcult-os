@@ -225,8 +225,10 @@ describe('App routes', () => {
       reservedCount: 24,
       adjustmentTotalCents: -250,
       netTotalCents: 2750,
-      status: 'open',
+      status: 'finalized',
       generatedAt: '2026-06-14T03:00:00.000Z',
+      finalizedAt: '2026-06-14T03:30:00.000Z',
+      finalizedByPersonId: 'owner-1',
       adjustments: [
         {
           id: 'adjustment-1',
@@ -294,6 +296,9 @@ describe('App routes', () => {
     expect(rendered).toContain('-$2.50 USD');
     expect(rendered).toContain('Net total');
     expect(rendered).toContain('$27.50 USD');
+    expect(rendered).toContain('finalized (locked)');
+    expect(rendered).toContain('Adjustments are locked after settlement finalization.');
+    expect(rendered).not.toContain('Finalize settlement');
     expect(rendered).toContain('Cash drawer');
     expect(rendered).toContain('Counted short at closeout');
   });

@@ -93,6 +93,8 @@ create table if not exists event_settlements (
   status text not null default 'open',
   generated_at timestamptz not null default now(),
   generated_by_person_id uuid not null references people(id),
+  finalized_at timestamptz,
+  finalized_by_person_id uuid references people(id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -136,6 +138,9 @@ alter table tickets add column if not exists amount_cents integer not null defau
 alter table tickets add column if not exists currency text not null default 'usd';
 alter table tickets add column if not exists stripe_checkout_session_id text unique;
 alter table tickets add column if not exists paid_at timestamptz;
+
+alter table event_settlements add column if not exists finalized_at timestamptz;
+alter table event_settlements add column if not exists finalized_by_person_id uuid references people(id);
 
 create table if not exists payment_webhook_events (
   id text primary key,
