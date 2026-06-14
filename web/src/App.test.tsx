@@ -182,6 +182,7 @@ describe('App routes', () => {
     ]);
 
     expect(rendered).toContain('Workspace archive');
+    expect(rendered).toContain('Use lessons to seed the next draft.');
     expect(rendered).toContain('Search archives');
     expect(rendered).toContain('Search titles, locations, or notes');
     expect(rendered).toContain('Search');
@@ -481,6 +482,8 @@ describe('App routes', () => {
     expect(rendered).toContain('Settlement');
     expect(rendered).toContain('settlement-1');
     expect(rendered).toContain('Back to workspace archive');
+    expect(rendered).toContain('Private notes stay in the archive. The next draft starts clean.');
+    expect(rendered).toContain('Use these notes while planning the next event.');
     expect(rendered).toContain('Seed next draft');
   });
 
@@ -563,6 +566,7 @@ describe('App routes', () => {
 
     expect(rendered).toContain('Open seeded draft');
     expect(rendered).not.toContain('Seed next draft');
+    expect(rendered).toContain('Capture one lesson before seeding the next draft.');
     expect(rendered).toContain('/workspace?workspaceId=workspace-1');
   });
 

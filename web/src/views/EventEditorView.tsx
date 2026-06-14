@@ -1021,6 +1021,14 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                   ) : archive ? (
                     <>
                       <p className="mt-2 text-sm text-zinc-400">Status: private workspace memory</p>
+                      <p className="mt-2 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-zinc-300">
+                        Private notes stay in the archive. The next draft starts clean.
+                      </p>
+                      <p className="mt-3 rounded-2xl border border-violet-400/20 bg-violet-400/10 p-4 text-sm leading-6 text-violet-50">
+                        {archive.noteCount === 0
+                          ? 'Capture one lesson before seeding the next draft.'
+                          : 'Use these notes while planning the next event.'}
+                      </p>
                       <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-zinc-500">
                         <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Created {formatDateTime(archive.createdAt)}</span>
                         <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Updated {formatDateTime(archive.updatedAt)}</span>

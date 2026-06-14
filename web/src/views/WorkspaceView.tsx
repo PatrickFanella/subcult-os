@@ -115,6 +115,26 @@ function eventCountLabel(event: EventDTO) {
   return `Reserved ${event.reservedCount} / Checked in ${event.checkedInCount}`;
 }
 
+function archiveLearningLoopCopy(archives: WorkspaceArchiveSummaryDTO[]) {
+  const hasArchives = archives.length > 0;
+  const hasNotes = archives.some((archive) => archive.noteCount > 0);
+  const hasSeededDraft = archives.some((archive) => Boolean(archive.seededEventId));
+
+  if (!hasArchives) {
+    return 'Closed events will become private workspace memory here.';
+  }
+
+  if (!hasNotes) {
+    return 'Open an archive and capture the first lesson.';
+  }
+
+  if (!hasSeededDraft) {
+    return 'Use lessons to seed the next draft.';
+  }
+
+  return 'Review the seeded draft before publishing.';
+}
+
 type OperatorAction = {
   label: string;
   href: string;
@@ -277,6 +297,10 @@ export function WorkspaceView() {
   );
   const normalizedArchiveQuery = archiveQuery.trim();
   const archiveByEventId = useMemo(() => new Map(archives.map((archive) => [archive.eventId, archive] as const)), [archives]);
+  const archiveLearningLoop = useMemo(
+    () => (normalizedArchiveQuery ? 'Search results are filtered. Reset to see the full workspace learning loop.' : archiveLearningLoopCopy(orderedArchives)),
+    [normalizedArchiveQuery, orderedArchives],
+  );
   const statusCounts = useMemo(
     () =>
       orderedEvents.reduce(
@@ -853,7 +877,10 @@ export function WorkspaceView() {
 
                 <section className="space-y-3 rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
                   <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Workspace archive</p>
-                  <p className="text-sm leading-6 text-zinc-400">Closed events become private workspace memory here.</p>
+                  <div className="rounded-2xl border border-violet-400/20 bg-violet-400/10 p-4 text-sm leading-6 text-violet-50">
+                    <p className="text-[11px] uppercase tracking-[0.25em] text-violet-100/80">Operator learning loop</p>
+                    <p className="mt-2">{archiveLearningLoop}</p>
+                  </div>
 
                   <form className="flex flex-wrap items-end gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4" onSubmit={handleArchiveSearch}>
                     <label className="min-w-0 flex-1 space-y-2 text-sm">
