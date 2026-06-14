@@ -445,6 +445,105 @@ func TestEventRoleApplicationReviewAPI(t *testing.T) {
 	}
 }
 
+func TestEventParticipantRosterAPI(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 4)
+	eventID := mustString(t, event, "id")
+	published := publishEvent(t, fx, eventID)
+	slug := mustString(t, published, "publicSlug")
+
+	performer := postJSON(t, fx.app, fx.ownerCookie, `/api/events/`+eventID+`/roles`, map[string]any{"name": "Performer", "description": "Play a 20-minute set.", "capacity": 3, "public": true}, http.StatusOK)
+	performerRoleID := mustString(t, performer.JSON, "id")
+	backstage := postJSON(t, fx.app, fx.ownerCookie, `/api/events/`+eventID+`/roles`, map[string]any{"name": "Backstage", "description": "Private notes.", "capacity": 1, "public": false}, http.StatusOK)
+	backstageRoleID := mustString(t, backstage.JSON, "id")
+	support := postJSON(t, fx.app, fx.ownerCookie, `/api/events/`+eventID+`/roles`, map[string]any{"name": "Support", "description": "Runner.", "capacity": 1, "public": false}, http.StatusOK)
+	supportRoleID := mustString(t, support.JSON, "id")
+
+	backstageApplications := []struct {
+		name   string
+		email  string
+		status string
+	}{
+		{name: "Alex", email: "alex@example.com", status: "accepted"},
+		{name: "Blair", email: "blair@example.com", status: "confirmed"},
+	}
+	for _, draft := range backstageApplications {
+		created := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": backstageRoleID, "applicantName": draft.name, "applicantEmail": draft.email, "message": draft.name + " message"}, http.StatusOK)
+		applicationID := mustString(t, created.JSON, "id")
+		if _, err := fx.app.db.Exec(t.Context(), `
+			update event_role_applications
+			set status = $2, updated_at = now()
+			where id = $1
+		`, applicationID, draft.status); err != nil {
+			t.Fatal(err)
+		}
+	}
+	performerParticipant := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": performerRoleID, "applicantName": "Casey", "applicantEmail": "casey@example.com", "message": "Casey message"}, http.StatusOK)
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update event_role_applications
+		set status = 'accepted', updated_at = now()
+		where id = $1
+	`, mustString(t, performerParticipant.JSON, "id")); err != nil {
+		t.Fatal(err)
+	}
+
+	otherStatusApplications := []struct {
+		name   string
+		email  string
+		status string
+	}{
+		{name: "Drew", email: "drew@example.com", status: "rejected"},
+		{name: "Evan", email: "evan@example.com", status: "waitlisted"},
+	}
+	for _, draft := range otherStatusApplications {
+		created := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": supportRoleID, "applicantName": draft.name, "applicantEmail": draft.email, "message": draft.name + " message"}, http.StatusOK)
+		if _, err := fx.app.db.Exec(t.Context(), `
+			update event_role_applications
+			set status = $2, updated_at = now()
+			where id = $1
+		`, mustString(t, created.JSON, "id"), draft.status); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	participantList := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/participants", http.StatusOK)
+	memberList := getJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/participants", http.StatusOK)
+	if !reflect.DeepEqual(participantList.JSON, memberList.JSON) {
+		t.Fatalf("expected owner/member participant rosters to match: owner=%#v member=%#v", participantList.JSON, memberList.JSON)
+	}
+
+	participants := participantList.JSON.([]any)
+	if len(participants) != 3 {
+		t.Fatalf("expected three participants, got %#v", participantList.JSON)
+	}
+
+	first := mustObject(t, participants[0])
+	second := mustObject(t, participants[1])
+	third := mustObject(t, participants[2])
+	if first["roleName"] != "Backstage" || second["roleName"] != "Backstage" || third["roleName"] != "Performer" {
+		t.Fatalf("expected rosters grouped by role name, got %#v", participantList.JSON)
+	}
+	if first["applicantName"] != "Alex" || second["applicantName"] != "Blair" || third["applicantName"] != "Casey" {
+		t.Fatalf("expected applicants ordered by name within role, got %#v", participantList.JSON)
+	}
+	if first["status"] != "accepted" || second["status"] != "confirmed" || third["status"] != "accepted" {
+		t.Fatalf("unexpected participant statuses: %#v", participantList.JSON)
+	}
+	for _, participant := range participants {
+		entry := mustObject(t, participant)
+		if entry["applicationId"] == "" || entry["roleId"] == "" || entry["roleName"] == "" || entry["applicantName"] == "" || entry["applicantEmail"] == "" || entry["status"] == "" || entry["updatedAt"] == "" {
+			t.Fatalf("participant roster missing required fields: %#v", entry)
+		}
+		if _, ok := entry["message"]; ok {
+			t.Fatalf("participant roster must not expose private message text: %#v", entry)
+		}
+	}
+
+	getJSON(t, fx.app, nil, "/api/events/"+eventID+"/participants", http.StatusForbidden)
+	otherFx := newLifecycleFixture(t)
+	getJSON(t, fx.app, otherFx.memberCookie, "/api/events/"+eventID+"/participants", http.StatusForbidden)
+}
+
 func TestWorkspaceArchiveIndexAPI(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	firstEvent := createEvent(t, fx, "Night Market", 4)

@@ -417,6 +417,107 @@ describe('App routes', () => {
     expect(rendered).toContain('Submitted');
   });
 
+  it('renders the participant roster panel for accepted applications', () => {
+    const event = {
+      id: 'event-1',
+      workspaceId: 'workspace-1',
+      title: 'Night Market',
+      startsAt: '2026-06-13T23:00:00.000Z',
+      publicDescription: 'A late set.',
+      locationDisplay: 'The Hall',
+      ticketAllocation: 100,
+      pricingMode: 'fixed',
+      ticketPriceCents: 1800,
+      ticketCurrency: 'usd',
+      reservedCount: 12,
+      checkedInCount: 0,
+      status: 'published',
+      publicSlug: 'night-market',
+      publicUrl: '/e/night-market',
+    };
+
+    const rendered = renderWithState('/events/event-1?workspaceId=workspace-1', <EventEditorView eventId="event-1" />, [
+      event,
+      null,
+      null,
+      '',
+      false,
+      false,
+      {
+        title: event.title,
+        startsAt: '2026-06-13T23:00',
+        publicDescription: event.publicDescription,
+        locationDisplay: event.locationDisplay,
+        ticketAllocation: '100',
+        pricingMode: 'fixed',
+        ticketPriceDollars: '18.00',
+      },
+      {
+        title: event.title,
+        startsAt: '2026-06-13T23:00',
+        publicDescription: event.publicDescription,
+        locationDisplay: event.locationDisplay,
+        ticketAllocation: '100',
+        pricingMode: 'fixed',
+        ticketPriceDollars: '18.00',
+      },
+      false,
+      false,
+      false,
+      null,
+      null,
+      null,
+      {
+        amountDollars: '',
+        label: '',
+        reason: '',
+      },
+      false,
+      false,
+      {
+        id: 'workspace-1',
+        name: 'Main Room',
+        role: 'owner',
+        members: [],
+        invitations: [],
+      },
+      [
+        {
+          id: 'role-1',
+          eventId: event.id,
+          name: 'Performer',
+          description: 'Play a 20-minute set.',
+          capacity: 3,
+          public: true,
+          active: true,
+          createdAt: '2026-06-13T20:00:00.000Z',
+          updatedAt: '2026-06-13T20:00:00.000Z',
+        },
+      ],
+      null,
+      {},
+      null,
+      [
+        {
+          applicationId: 'application-1',
+          roleId: 'role-1',
+          roleName: 'Performer',
+          applicantName: 'Alex',
+          applicantEmail: 'alex@example.com',
+          status: 'confirmed',
+          updatedAt: '2026-06-13T22:00:00.000Z',
+        },
+      ],
+    ]);
+
+    expect(rendered).toContain('Participant roster');
+    expect(rendered).toContain('Accepted participants');
+    expect(rendered).toContain('Performer');
+    expect(rendered).toContain('Alex');
+    expect(rendered).toContain('confirmed');
+    expect(rendered).not.toContain('Bring a keyboard.');
+  });
+
   it('renders the end-of-night settlement summary report panel', () => {
     const event = {
       id: 'event-1',

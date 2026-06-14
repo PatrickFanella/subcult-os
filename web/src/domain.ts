@@ -82,6 +82,16 @@ export interface EventRoleApplicationDTO {
   updatedAt: string;
 }
 
+export interface EventParticipantDTO {
+  applicationId: string;
+  roleId: string;
+  roleName: string;
+  applicantName: string;
+  applicantEmail: string;
+  status: 'accepted' | 'confirmed';
+  updatedAt: string;
+}
+
 export interface TicketDTO {
   id: string;
   eventId: string;

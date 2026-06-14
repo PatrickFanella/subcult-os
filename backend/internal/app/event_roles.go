@@ -58,6 +58,16 @@ type eventRoleApplicationDTO struct {
 	UpdatedAt          string  `json:"updatedAt"`
 }
 
+type eventParticipantDTO struct {
+	ApplicationID  string `json:"applicationId"`
+	RoleID         string `json:"roleId"`
+	RoleName       string `json:"roleName"`
+	ApplicantName  string `json:"applicantName"`
+	ApplicantEmail string `json:"applicantEmail"`
+	Status         string `json:"status"`
+	UpdatedAt      string `json:"updatedAt"`
+}
+
 type eventRoleApplicationRow struct {
 	ID                 string
 	EventID            string
@@ -226,6 +236,33 @@ func (a *App) handleListEventRoleApplications(w http.ResponseWriter, r *http.Req
 		return
 	}
 	writeJSON(w, http.StatusOK, eventRoleApplicationDTOsFromRows(applications))
+}
+
+func (a *App) handleListEventParticipants(w http.ResponseWriter, r *http.Request) {
+	if a.db == nil {
+		writeError(w, http.StatusInternalServerError, "database unavailable")
+		return
+	}
+	event, err := a.loadEventDetails(r.Context(), r.PathValue("eventID"))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "event not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "could not load event")
+		return
+	}
+	if _, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner", "member"); !ok {
+		writeError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
+	participants, err := a.loadEventParticipants(r.Context(), event.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not load participants")
+		return
+	}
+	writeJSON(w, http.StatusOK, eventParticipantDTOsFromRows(participants))
 }
 
 func (a *App) handleReviewEventRoleApplication(w http.ResponseWriter, r *http.Request) {
@@ -518,6 +555,34 @@ func (a *App) loadEventRoleApplications(ctx context.Context, eventID string) ([]
 	return applications, nil
 }
 
+func (a *App) loadEventParticipants(ctx context.Context, eventID string) ([]eventParticipantRow, error) {
+	rows, err := a.db.Query(ctx, `
+		select a.id, a.event_id, a.role_id, r.name, a.applicant_name, a.applicant_email, a.status, a.updated_at
+		from event_role_applications a
+		join event_roles r on r.id = a.role_id and r.event_id = a.event_id
+		where a.event_id = $1
+		  and a.status in ('accepted', 'confirmed')
+		order by r.name asc, a.applicant_name asc, a.updated_at asc, a.id asc
+	`, eventID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	participants := make([]eventParticipantRow, 0)
+	for rows.Next() {
+		var participant eventParticipantRow
+		if err := rows.Scan(&participant.ApplicationID, &participant.EventID, &participant.RoleID, &participant.RoleName, &participant.ApplicantName, &participant.ApplicantEmail, &participant.Status, &participant.UpdatedAt); err != nil {
+			return nil, err
+		}
+		participants = append(participants, participant)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return participants, nil
+}
+
 func eventRoleDTOFromRow(row eventRoleRow) eventRoleDTO {
 	return eventRoleDTO{
 		ID:          row.ID,
@@ -562,6 +627,37 @@ func eventRoleApplicationDTOsFromRows(rows []eventRoleApplicationRow) []eventRol
 		applications = append(applications, eventRoleApplicationDTOFromRow(row))
 	}
 	return applications
+}
+
+type eventParticipantRow struct {
+	ApplicationID  string
+	EventID        string
+	RoleID         string
+	RoleName       string
+	ApplicantName  string
+	ApplicantEmail string
+	Status         string
+	UpdatedAt      time.Time
+}
+
+func eventParticipantDTOFromRow(row eventParticipantRow) eventParticipantDTO {
+	return eventParticipantDTO{
+		ApplicationID:  row.ApplicationID,
+		RoleID:         row.RoleID,
+		RoleName:       row.RoleName,
+		ApplicantName:  row.ApplicantName,
+		ApplicantEmail: row.ApplicantEmail,
+		Status:         row.Status,
+		UpdatedAt:      row.UpdatedAt.UTC().Format(time.RFC3339Nano),
+	}
+}
+
+func eventParticipantDTOsFromRows(rows []eventParticipantRow) []eventParticipantDTO {
+	participants := make([]eventParticipantDTO, 0, len(rows))
+	for _, row := range rows {
+		participants = append(participants, eventParticipantDTOFromRow(row))
+	}
+	return participants
 }
 
 func isCapacityConsumingApplicationStatus(status string) bool {

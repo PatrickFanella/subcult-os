@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ApiError, api, patchJSON, postJSON } from '../api';
-import type { CurrentWorkspaceDTO, EventArchiveDTO, EventDTO, EventReportDTO, EventRoleApplicationDTO, EventRoleDTO, EventSettlementDTO, EventStatus } from '../domain';
+import type { CurrentWorkspaceDTO, EventArchiveDTO, EventDTO, EventParticipantDTO, EventReportDTO, EventRoleApplicationDTO, EventRoleDTO, EventSettlementDTO, EventStatus } from '../domain';
 
 type FormState = {
   title: string;
@@ -189,6 +189,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   const [applications, setApplications] = useState<EventRoleApplicationDTO[] | null>(null);
   const [applicationReviewDrafts, setApplicationReviewDrafts] = useState<Record<string, EventRoleApplicationDTO['status']>>({});
   const [reviewingApplicationId, setReviewingApplicationId] = useState<string | null>(null);
+  const [participants, setParticipants] = useState<EventParticipantDTO[] | null>(null);
 
   const hasWorkspace = workspaceId !== '';
   const closed = event?.status === 'end_of_night';
@@ -198,6 +199,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   const canManageArchive = event?.status === 'end_of_night' && currentWorkspace?.role === 'owner' && currentWorkspace?.id === event?.workspaceId;
   const canReviewApplications = currentWorkspace?.role === 'owner' && currentWorkspace?.id === event?.workspaceId;
   const applicationsReady = roles !== null && applications !== null;
+  const participantsReady = participants !== null;
   const roleNameById = useMemo(() => new Map<string, string>((roles ?? []).map((role) => [role.id, role.name] as [string, string])), [roles]);
   const dirty = useMemo(() => !formsMatch(form, initialForm), [form, initialForm]);
 
@@ -369,6 +371,36 @@ export function EventEditorView({ eventId }: { eventId: string }) {
     }
 
     void loadRoleApplications();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [creating, event?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadParticipants() {
+      if (creating || !event) {
+        setParticipants(null);
+        return;
+      }
+
+      setParticipants(null);
+
+      try {
+        const loadedParticipants = await api<EventParticipantDTO[]>(`/api/events/${event.id}/participants`);
+        if (!cancelled) {
+          setParticipants(loadedParticipants);
+        }
+      } catch (caught) {
+        if (!cancelled) {
+          setError(caught instanceof Error ? caught.message : 'Unable to load participant roster');
+        }
+      }
+    }
+
+    void loadParticipants();
 
     return () => {
       cancelled = true;
@@ -1164,6 +1196,39 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                     </div>
                   ) : (
                     <p className="mt-4 rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-400">No applications yet.</p>
+                  )}
+                </section>
+              ) : null}
+
+              {participantsReady && event ? (
+                <section className="rounded-[1.75rem] border border-cyan-400/20 bg-zinc-950/95 p-6 shadow-2xl shadow-black/30">
+                  <p className="text-xs uppercase tracking-[0.3em] text-cyan-300">Participant roster</p>
+                  <h2 className="mt-2 text-2xl font-semibold text-white">Accepted participants</h2>
+                  <p className="mt-2 text-sm leading-6 text-zinc-400">Accepted and confirmed applications stay visible here for the private operator team.</p>
+
+                  {participants && participants.length > 0 ? (
+                    <div className="mt-4 space-y-3">
+                      {participants.map((participant) => (
+                        <article key={participant.applicationId} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-white">{participant.applicantName}</p>
+                              <p className="mt-1 text-sm text-zinc-400">{participant.applicantEmail}</p>
+                            </div>
+                            <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-zinc-200">
+                              {participant.status}
+                            </span>
+                          </div>
+
+                          <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-zinc-500">
+                            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Role {participant.roleName}</span>
+                            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Updated {formatDateTime(participant.updatedAt)}</span>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-4 rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-400">No accepted participants yet.</p>
                   )}
                 </section>
               ) : null}
