@@ -43,6 +43,23 @@ create table if not exists workspace_invitations (
   created_at timestamptz not null default now()
 );
 
+create table if not exists contacts (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references workspaces(id) on delete cascade,
+  display_name text not null,
+  email text,
+  phone text,
+  notes text not null default '',
+  tags text[] not null default '{}',
+  created_by_person_id uuid not null references people(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (trim(display_name) <> '')
+);
+
+create index if not exists contacts_workspace_name_idx on contacts (workspace_id, lower(display_name));
+create unique index if not exists contacts_workspace_email_idx on contacts (workspace_id, lower(email)) where email is not null and email <> '';
+
 create table if not exists events (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references workspaces(id) on delete cascade,

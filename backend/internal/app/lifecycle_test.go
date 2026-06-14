@@ -114,6 +114,43 @@ func TestFirstEventLifecycleSettlementAPI(t *testing.T) {
 	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/settlement/adjustments", map[string]any{"amountCents": 100, "label": "Late adjustment"}, http.StatusConflict)
 }
 
+func TestWorkspaceContactsListAPI(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	workspaceID := fx.workspaceID
+
+	empty := getJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+workspaceID+"/contacts", http.StatusOK)
+	if got := empty.JSON.([]any); len(got) != 0 {
+		t.Fatalf("expected empty contacts, got %#v", got)
+	}
+
+	var contactID string
+	if err := fx.app.db.QueryRow(t.Context(), `
+		insert into contacts (workspace_id, display_name, email, phone, notes, tags, created_by_person_id)
+		values ($1, 'Mira Door', 'mira@example.test', '+15555550123', 'Prefers late load-in', array['door','trusted'], $2)
+		returning id
+	`, workspaceID, ownerPersonID(t, fx)).Scan(&contactID); err != nil {
+		t.Fatal(err)
+	}
+
+	resp := getJSON(t, fx.app, fx.memberCookie, "/api/workspaces/"+workspaceID+"/contacts", http.StatusOK)
+	contacts := resp.JSON.([]any)
+	if len(contacts) != 1 {
+		t.Fatalf("expected one contact, got %#v", contacts)
+	}
+	contact := mustObject(t, contacts[0])
+	if contact["id"] != contactID || contact["displayName"] != "Mira Door" || contact["email"] != "mira@example.test" || contact["notes"] != "Prefers late load-in" {
+		t.Fatalf("unexpected contact: %#v", contact)
+	}
+	tags := contact["tags"].([]any)
+	if len(tags) != 2 || tags[0] != "door" || tags[1] != "trusted" {
+		t.Fatalf("unexpected tags: %#v", tags)
+	}
+
+	otherFx := newLifecycleFixture(t)
+	getJSON(t, fx.app, nil, "/api/workspaces/"+workspaceID+"/contacts", http.StatusForbidden)
+	getJSON(t, fx.app, otherFx.ownerCookie, "/api/workspaces/"+workspaceID+"/contacts", http.StatusForbidden)
+}
+
 func TestFirstEventLifecycleArchiveAPI(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	event := createEvent(t, fx, "Night Market", 4)

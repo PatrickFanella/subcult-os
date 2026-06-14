@@ -33,6 +33,18 @@ export interface MemberDTO {
   role: WorkspaceRole;
 }
 
+export interface ContactDTO {
+  id: string;
+  workspaceId: string;
+  displayName: string;
+  email?: string;
+  phone?: string;
+  notes: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface EventDTO {
   id: string;
   workspaceId: string;
