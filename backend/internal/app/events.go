@@ -32,17 +32,28 @@ type eventDTO struct {
 }
 
 type eventReportDTO struct {
-	ID                     string `json:"id"`
-	EventID                string `json:"eventId"`
-	Title                  string `json:"title"`
-	StartsAt               string `json:"startsAt"`
-	PublicURL              string `json:"publicUrl"`
-	TicketAllocation       int    `json:"ticketAllocation"`
-	TicketsReserved        int    `json:"ticketsReserved"`
-	TicketsCheckedIn       int    `json:"ticketsCheckedIn"`
-	NoShows                int    `json:"noShows"`
-	GeneratedAt            string `json:"generatedAt"`
-	GeneratedByMemberEmail string `json:"generatedByMemberEmail"`
+	ID                     string                     `json:"id"`
+	EventID                string                     `json:"eventId"`
+	Title                  string                     `json:"title"`
+	StartsAt               string                     `json:"startsAt"`
+	PublicURL              string                     `json:"publicUrl"`
+	TicketAllocation       int                        `json:"ticketAllocation"`
+	TicketsReserved        int                        `json:"ticketsReserved"`
+	TicketsCheckedIn       int                        `json:"ticketsCheckedIn"`
+	NoShows                int                        `json:"noShows"`
+	SettlementSummary      *eventSettlementSummaryDTO `json:"settlementSummary,omitempty"`
+	GeneratedAt            string                     `json:"generatedAt"`
+	GeneratedByMemberEmail string                     `json:"generatedByMemberEmail"`
+}
+
+type eventSettlementSummaryDTO struct {
+	Currency              string `json:"currency"`
+	GrossPaidRevenueCents int    `json:"grossPaidRevenueCents"`
+	PaidTicketCount       int    `json:"paidTicketCount"`
+	PendingTicketCount    int    `json:"pendingTicketCount"`
+	CancelledTicketCount  int    `json:"cancelledTicketCount"`
+	FreeTicketCount       int    `json:"freeTicketCount"`
+	ReservedCount         int    `json:"reservedCount"`
 }
 
 type eventRow struct {
@@ -529,6 +540,16 @@ func (a *App) handleEndOfNight(w http.ResponseWriter, r *http.Request) {
 	}
 	defer func() { _ = tx.Rollback(r.Context()) }()
 
+	if err := tx.QueryRow(r.Context(), `
+		select status
+		from events
+		where id = $1
+		for update
+	`, event.ID).Scan(&event.Status); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not lock event")
+		return
+	}
+
 	var existingSnapshot []byte
 	var existingReportID string
 	var existingGeneratedAt time.Time
@@ -554,11 +575,8 @@ func (a *App) handleEndOfNight(w http.ResponseWriter, r *http.Request) {
 			}
 			txCtx := context.WithValue(r.Context(), txContextKey{}, tx)
 			if err := a.audit(txCtx, actorID, "event.end_of_night", "event", event.ID, map[string]any{
-				"workspaceId":      event.WorkspaceID,
-				"reportId":         existingReportID,
-				"ticketsReserved":  event.ReservedCount,
-				"ticketsCheckedIn": event.CheckedInCount,
-				"noShows":          event.ReservedCount - event.CheckedInCount,
+				"workspaceId": event.WorkspaceID,
+				"reportId":    existingReportID,
 			}); err != nil {
 				writeError(w, http.StatusInternalServerError, "could not record audit")
 				return
@@ -590,16 +608,51 @@ func (a *App) handleEndOfNight(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	generatedAt := time.Now().UTC()
+	var grossPaidRevenueCents int64
+	var paidTicketCount int64
+	var pendingTicketCount int64
+	var cancelledTicketCount int64
+	var freeTicketCount int64
+	var reservedCount int64
+	var checkedInCount int64
+	if err := tx.QueryRow(r.Context(), `
+		select
+			coalesce(sum(case when payment_status = 'paid' then amount_cents else 0 end), 0),
+			count(*) filter (where payment_status = 'paid'),
+			count(*) filter (where payment_status = 'pending'),
+			count(*) filter (where payment_status = 'cancelled'),
+			count(*) filter (where payment_status = 'free'),
+			count(*) filter (where payment_status <> 'cancelled'),
+			count(*) filter (where status = 'checked_in' and payment_status <> 'cancelled')
+		from tickets
+		where event_id = $1
+	`, event.ID).Scan(&grossPaidRevenueCents, &paidTicketCount, &pendingTicketCount, &cancelledTicketCount, &freeTicketCount, &reservedCount, &checkedInCount); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not load report summary")
+		return
+	}
+	if pendingTicketCount > 0 {
+		writeError(w, http.StatusConflict, "pending paid tickets must settle or expire before end of night")
+		return
+	}
 	report := eventReportDTO{
-		ID:                     "",
-		EventID:                event.ID,
-		Title:                  event.Title,
-		StartsAt:               event.StartsAt.UTC().Format(time.RFC3339Nano),
-		PublicURL:              a.publicEventURL(a.publicSlugValue(event)),
-		TicketAllocation:       event.TicketAllocation,
-		TicketsReserved:        event.ReservedCount,
-		TicketsCheckedIn:       event.CheckedInCount,
-		NoShows:                event.ReservedCount - event.CheckedInCount,
+		ID:               "",
+		EventID:          event.ID,
+		Title:            event.Title,
+		StartsAt:         event.StartsAt.UTC().Format(time.RFC3339Nano),
+		PublicURL:        a.publicEventURL(a.publicSlugValue(event)),
+		TicketAllocation: event.TicketAllocation,
+		TicketsReserved:  int(reservedCount),
+		TicketsCheckedIn: int(checkedInCount),
+		NoShows:          int(reservedCount - checkedInCount),
+		SettlementSummary: &eventSettlementSummaryDTO{
+			Currency:              event.TicketCurrency,
+			GrossPaidRevenueCents: int(grossPaidRevenueCents),
+			PaidTicketCount:       int(paidTicketCount),
+			PendingTicketCount:    int(pendingTicketCount),
+			CancelledTicketCount:  int(cancelledTicketCount),
+			FreeTicketCount:       int(freeTicketCount),
+			ReservedCount:         int(reservedCount),
+		},
 		GeneratedAt:            generatedAt.Format(time.RFC3339Nano),
 		GeneratedByMemberEmail: actorEmail,
 	}

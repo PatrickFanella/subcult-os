@@ -75,8 +75,9 @@ function formsMatch(left: FormState, right: FormState) {
   );
 }
 
-function formatCurrencyValue(value: number) {
-  return new Intl.NumberFormat([], { style: 'currency', currency: 'USD' }).format(value);
+function formatMoney(cents: number, currency: string) {
+  const normalizedCurrency = currency.trim().toUpperCase() || 'USD';
+  return `${new Intl.NumberFormat([], { style: 'currency', currency: normalizedCurrency }).format(cents / 100)} ${normalizedCurrency}`;
 }
 
 function priceInCents(value: string) {
@@ -93,7 +94,7 @@ function pricingSummary(event: EventDTO | null) {
     return 'Free reservation';
   }
 
-  return `${formatCurrencyValue(event.ticketPriceCents / 100)} USD`;
+  return formatMoney(event.ticketPriceCents, event.ticketCurrency);
 }
 
 function formatDateTime(value: string) {
@@ -621,6 +622,39 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                       <p className="mt-2 text-lg font-semibold text-white">{report.ticketAllocation}</p>
                     </div>
                   </div>
+                  {report.settlementSummary?.currency ? (
+                    <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Settlement summary</p>
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Gross paid revenue</p>
+                          <p className="mt-2 text-lg font-semibold text-white">
+                            {formatMoney(report.settlementSummary.grossPaidRevenueCents, report.settlementSummary.currency)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Paid tickets</p>
+                          <p className="mt-2 text-lg font-semibold text-white">{report.settlementSummary.paidTicketCount}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Pending tickets</p>
+                          <p className="mt-2 text-lg font-semibold text-white">{report.settlementSummary.pendingTicketCount}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Cancelled tickets</p>
+                          <p className="mt-2 text-lg font-semibold text-white">{report.settlementSummary.cancelledTicketCount}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Free tickets</p>
+                          <p className="mt-2 text-lg font-semibold text-white">{report.settlementSummary.freeTicketCount}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Reserved total</p>
+                          <p className="mt-2 text-lg font-semibold text-white">{report.settlementSummary.reservedCount}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                   <div className="mt-4 flex flex-wrap gap-3 text-sm">
                     <a className="rounded-2xl bg-white px-4 py-3 font-medium text-zinc-950 transition hover:bg-zinc-200" href={report.publicUrl}>
                       Public page

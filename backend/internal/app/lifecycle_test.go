@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -35,6 +36,93 @@ func TestFirstEventLifecycle(t *testing.T) {
 	}
 	if mustString(t, checkIn.JSON, "status") != "checked_in" {
 		t.Fatalf("unexpected check-in status: %#v", checkIn.JSON)
+	}
+}
+
+func TestFirstEventLifecycleFreeReportSettlementSummary(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 4)
+	eventID := mustString(t, event, "id")
+	publishEvent(t, fx, eventID)
+	insertTicketWithPaymentStatus(t, fx, eventID, fx.email("free"), "Free Guest", "free", 0, "usd")
+	insertTicketWithPaymentStatus(t, fx, eventID, fx.email("cancelled"), "Cancelled Guest", "cancelled", 1500, "usd")
+
+	report := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+	reportObj := mustObject(t, report.JSON)
+	summary := mustObject(t, reportObj["settlementSummary"])
+
+	if summary["currency"] != "usd" || int(summary["grossPaidRevenueCents"].(float64)) != 0 || int(summary["paidTicketCount"].(float64)) != 0 || int(summary["pendingTicketCount"].(float64)) != 0 || int(summary["cancelledTicketCount"].(float64)) != 1 || int(summary["freeTicketCount"].(float64)) != 1 || int(summary["reservedCount"].(float64)) != 1 {
+		t.Fatalf("unexpected settlement summary: %#v", summary)
+	}
+}
+
+func TestFirstEventLifecycleEndOfNightRejectsPendingPaidTickets(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEventWithPricing(t, fx, "Night Market", 2, "fixed", 1500, "usd")
+	eventID := mustString(t, event, "id")
+	publishEvent(t, fx, eventID)
+	insertTicketWithPaymentStatus(t, fx, eventID, fx.email("pending"), "Pending Guest", "pending", 1500, "usd")
+
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusConflict)
+}
+
+func TestFirstEventLifecyclePaidReportSettlementSummaryIsIdempotent(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEventWithPricing(t, fx, "Night Market", 6, "fixed", 1500, "usd")
+	eventID := mustString(t, event, "id")
+	publishEvent(t, fx, eventID)
+	insertTicketWithPaymentStatus(t, fx, eventID, fx.email("paid-a"), "Paid A", "paid", 1500, "usd")
+	insertTicketWithPaymentStatus(t, fx, eventID, fx.email("paid-b"), "Paid B", "paid", 1500, "usd")
+	insertTicketWithPaymentStatus(t, fx, eventID, fx.email("cancelled"), "Cancelled Guest", "cancelled", 1500, "usd")
+	insertTicketWithPaymentStatus(t, fx, eventID, fx.email("free"), "Free Guest", "free", 0, "usd")
+
+	first := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+	firstSummary := mustObject(t, mustObject(t, first.JSON)["settlementSummary"])
+	if firstSummary["currency"] != "usd" || int(firstSummary["grossPaidRevenueCents"].(float64)) != 3000 || int(firstSummary["paidTicketCount"].(float64)) != 2 || int(firstSummary["pendingTicketCount"].(float64)) != 0 || int(firstSummary["cancelledTicketCount"].(float64)) != 1 || int(firstSummary["freeTicketCount"].(float64)) != 1 || int(firstSummary["reservedCount"].(float64)) != 3 {
+		t.Fatalf("unexpected paid settlement summary: %#v", firstSummary)
+	}
+
+	insertTicketWithPaymentStatus(t, fx, eventID, fx.email("late-paid"), "Late Paid", "paid", 9999, "usd")
+	second := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+	if !reflect.DeepEqual(first.JSON, second.JSON) {
+		t.Fatalf("expected end-of-night report to be idempotent: first=%#v second=%#v", first.JSON, second.JSON)
+	}
+}
+
+func TestFirstEventLifecycleOldReportSnapshotOmitsSettlementSummary(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 2)
+	eventID := mustString(t, event, "id")
+	published := publishEvent(t, fx, eventID)
+	ownerID := ownerPersonID(t, fx)
+	oldSnapshot := map[string]any{
+		"id":                     "legacy-report",
+		"eventId":                eventID,
+		"title":                  "Night Market",
+		"startsAt":               event["startsAt"],
+		"publicUrl":              published["publicUrl"],
+		"ticketAllocation":       2,
+		"ticketsReserved":        0,
+		"ticketsCheckedIn":       0,
+		"noShows":                0,
+		"generatedAt":            time.Now().UTC().Format(time.RFC3339Nano),
+		"generatedByMemberEmail": fx.email("owner"),
+	}
+	payload, err := json.Marshal(oldSnapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fx.app.db.Exec(t.Context(), `
+		insert into event_reports (event_id, generated_by_person_id, snapshot)
+		values ($1, $2, $3)
+	`, eventID, ownerID, payload); err != nil {
+		t.Fatal(err)
+	}
+
+	report := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+	reportObj := mustObject(t, report.JSON)
+	if _, ok := reportObj["settlementSummary"]; ok {
+		t.Fatalf("legacy snapshot should not synthesize settlement summary: %#v", reportObj)
 	}
 }
 
@@ -271,6 +359,32 @@ func TestStripeWebhookExpiredCancelsPendingTicketAndReleasesCapacity(t *testing.
 	if int(publicAfter["remainingTickets"].(float64)) != 1 || publicAfter["isFull"].(bool) != false {
 		t.Fatalf("expected capacity to be released after expiration: %#v", publicAfter)
 	}
+	assertWebhookEventCount(t, fx, stripeEventID, 1)
+}
+
+func TestStripeWebhookCompletedDoesNotFulfillAfterEndOfNight(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEventWithPricing(t, fx, "Night Market", 2, "fixed", 1500, "usd")
+	eventID := mustString(t, event, "id")
+	publishEvent(t, fx, eventID)
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+	ticketID, sessionID := insertPendingStripeTicket(t, fx, eventID, "guest@example.test", "Guest", testStripeSessionID(t, "cs_test_after_close"))
+	stripeEventID := testStripeEventID(t, "evt_after_close")
+
+	eventPayload := stripeCheckoutSessionEvent(t, stripe.EventTypeCheckoutSessionCompleted, stripeEventID, sessionID, ticketID, eventID, stripe.CheckoutSessionPaymentStatusPaid, 1500, "usd")
+	if err := fx.app.processStripeWebhookEvent(t.Context(), eventPayload); err != nil {
+		t.Fatal(err)
+	}
+
+	var paymentStatus string
+	var paidAt sql.NullTime
+	if err := fx.app.db.QueryRow(t.Context(), `select payment_status, paid_at from tickets where id = $1`, ticketID).Scan(&paymentStatus, &paidAt); err != nil {
+		t.Fatal(err)
+	}
+	if paymentStatus != "pending" || paidAt.Valid {
+		t.Fatalf("ticket should remain pending after close: status=%s paidAt=%v", paymentStatus, paidAt)
+	}
+	assertEmailOutboxCount(t, fx, ticketID, 0)
 	assertWebhookEventCount(t, fx, stripeEventID, 1)
 }
 
@@ -583,6 +697,37 @@ func insertPendingStripeTicket(t *testing.T, fx lifecycleFixture, eventID, email
 		t.Fatal(err)
 	}
 	return ticketID, sessionID
+}
+
+func insertTicketWithPaymentStatus(t *testing.T, fx lifecycleFixture, eventID, email, displayName, paymentStatus string, amountCents int, currency string) string {
+	t.Helper()
+	code, err := newTicketCode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ticketID string
+	if err := fx.app.db.QueryRow(t.Context(), `
+		insert into tickets (event_id, email, display_name, code, status, payment_status, amount_cents, currency)
+		values ($1, $2, $3, $4, 'reserved', $5, $6, $7)
+		returning id
+	`, eventID, email, displayName, code, paymentStatus, amountCents, currency).Scan(&ticketID); err != nil {
+		t.Fatal(err)
+	}
+	return ticketID
+}
+
+func ownerPersonID(t *testing.T, fx lifecycleFixture) string {
+	t.Helper()
+	var personID string
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select person_id
+		from workspace_members
+		where workspace_id = $1 and role = 'owner'
+		limit 1
+	`, fx.workspaceID).Scan(&personID); err != nil {
+		t.Fatal(err)
+	}
+	return personID
 }
 
 func stripeCheckoutSessionEvent(t *testing.T, eventType stripe.EventType, eventID, sessionID, ticketID, eventRefID string, paymentStatus stripe.CheckoutSessionPaymentStatus, amountTotal int64, currency string) stripe.Event {

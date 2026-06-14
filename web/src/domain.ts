@@ -106,8 +106,19 @@ export interface EventReportDTO {
   ticketsReserved: number;
   ticketsCheckedIn: number;
   noShows: number;
+  settlementSummary?: EventSettlementSummaryDTO;
   generatedAt: string;
   generatedByMemberEmail: string;
+}
+
+export interface EventSettlementSummaryDTO {
+  currency: string;
+  grossPaidRevenueCents: number;
+  paidTicketCount: number;
+  pendingTicketCount: number;
+  cancelledTicketCount: number;
+  freeTicketCount: number;
+  reservedCount: number;
 }
 
 export interface DevEmailOutboxMessageDTO {

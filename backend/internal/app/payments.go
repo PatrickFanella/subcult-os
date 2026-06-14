@@ -44,6 +44,7 @@ type webhookTicketRow struct {
 	EventTitle              string
 	PaymentStatus           string
 	StripeCheckoutSessionID string
+	EventStatus             string
 }
 
 type stripePaymentProvider struct {
@@ -191,12 +192,12 @@ func (a *App) fulfillCheckoutSessionCompleted(ctx context.Context, tx pgx.Tx, ev
 
 	var ticket webhookTicketRow
 	err := tx.QueryRow(ctx, `
-		select t.id, t.email, t.code, t.amount_cents, t.currency, e.title, t.payment_status, coalesce(t.stripe_checkout_session_id, '')
+		select t.id, t.email, t.code, t.amount_cents, t.currency, e.title, t.payment_status, coalesce(t.stripe_checkout_session_id, ''), e.status
 		from tickets t
 		join events e on e.id = t.event_id
 		where t.id = $1
 		for update
-	`, ticketID).Scan(&ticket.ID, &ticket.Email, &ticket.Code, &ticket.AmountCents, &ticket.Currency, &ticket.EventTitle, &ticket.PaymentStatus, &ticket.StripeCheckoutSessionID)
+	`, ticketID).Scan(&ticket.ID, &ticket.Email, &ticket.Code, &ticket.AmountCents, &ticket.Currency, &ticket.EventTitle, &ticket.PaymentStatus, &ticket.StripeCheckoutSessionID, &ticket.EventStatus)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
@@ -204,6 +205,9 @@ func (a *App) fulfillCheckoutSessionCompleted(ctx context.Context, tx pgx.Tx, ev
 		return err
 	}
 	if ticket.StripeCheckoutSessionID != session.ID || ticket.PaymentStatus != "pending" {
+		return nil
+	}
+	if ticket.EventStatus == "end_of_night" {
 		return nil
 	}
 	if string(session.PaymentStatus) != string(stripe.CheckoutSessionPaymentStatusPaid) {

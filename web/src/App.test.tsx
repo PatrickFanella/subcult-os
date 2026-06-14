@@ -171,6 +171,90 @@ describe('App routes', () => {
     expect(rendered).toContain('$15.00 USD');
   });
 
+  it('renders the end-of-night settlement summary report panel', () => {
+    const event = {
+      id: 'event-1',
+      workspaceId: 'workspace-1',
+      title: 'Night Market',
+      startsAt: '2026-06-13T23:00:00.000Z',
+      publicDescription: 'A late set.',
+      locationDisplay: 'The Hall',
+      ticketAllocation: 100,
+      pricingMode: 'fixed',
+      ticketPriceCents: 1800,
+      ticketCurrency: 'usd',
+      reservedCount: 26,
+      checkedInCount: 20,
+      status: 'end_of_night',
+      publicSlug: 'night-market',
+      publicUrl: '/e/night-market',
+    };
+
+    const report = {
+      id: 'report-1',
+      eventId: event.id,
+      title: 'End of night report',
+      startsAt: event.startsAt,
+      publicUrl: event.publicUrl,
+      ticketAllocation: event.ticketAllocation,
+      ticketsReserved: 26,
+      ticketsCheckedIn: 20,
+      noShows: 6,
+      settlementSummary: {
+        currency: 'usd',
+        grossPaidRevenueCents: 3000,
+        paidTicketCount: 12,
+        pendingTicketCount: 3,
+        cancelledTicketCount: 4,
+        freeTicketCount: 5,
+        reservedCount: 24,
+      },
+      generatedAt: '2026-06-14T03:00:00.000Z',
+      generatedByMemberEmail: 'operator@example.com',
+    };
+
+    const rendered = renderWithState('/events/event-1?workspaceId=workspace-1', <EventEditorView eventId="event-1" />, [
+      event,
+      report,
+      {
+        title: event.title,
+        startsAt: '2026-06-13T23:00',
+        publicDescription: event.publicDescription,
+        locationDisplay: event.locationDisplay,
+        ticketAllocation: '100',
+        pricingMode: 'fixed',
+        ticketPriceDollars: '18.00',
+      },
+      {
+        title: event.title,
+        startsAt: '2026-06-13T23:00',
+        publicDescription: event.publicDescription,
+        locationDisplay: event.locationDisplay,
+        ticketAllocation: '100',
+        pricingMode: 'fixed',
+        ticketPriceDollars: '18.00',
+      },
+      false,
+      false,
+      false,
+      null,
+      null,
+    ]);
+
+    expect(rendered).toContain('Settlement summary');
+    expect(rendered).toContain('$30.00 USD');
+    expect(rendered).toContain('Paid tickets');
+    expect(rendered).toContain('12');
+    expect(rendered).toContain('Pending tickets');
+    expect(rendered).toContain('3');
+    expect(rendered).toContain('Cancelled tickets');
+    expect(rendered).toContain('4');
+    expect(rendered).toContain('Free tickets');
+    expect(rendered).toContain('5');
+    expect(rendered).toContain('Reserved total');
+    expect(rendered).toContain('24');
+  });
+
   it('renders the public paid ticket CTA', () => {
     const event = {
       id: 'event-1',

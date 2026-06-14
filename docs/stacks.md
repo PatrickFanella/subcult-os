@@ -91,7 +91,13 @@ This project includes local Postgres through Docker Compose:
 docker compose up -d postgres
 ```
 
-Add migrations under `migrations/` unless a future service needs a more specific convention.
+`subcult-os` currently uses one embedded idempotent schema file at
+`backend/internal/app/schema.sql`, wired through `backend/internal/app/db.go`.
+See `docs/runbooks/database-migrations.md` for the current migration runbook.
+
+While the app is in alpha, additive schema edits in `schema.sql` are acceptable.
+Destructive changes, backfills, long-running rewrites, or production databases
+that need reversible deploys require a real ordered migration tool first.
 
 ## Docker
 
