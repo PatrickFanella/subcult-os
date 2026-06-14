@@ -46,6 +46,7 @@ Use `/api/ready` for load balancer or orchestrator readiness checks when availab
 - Notification activity is operator-only; public discovery and public event pages never expose notification data.
 - `email_outbox` rows contain recipient email addresses and email bodies, so treat outbox content as private workspace data.
 - Contacts/commitments may contain sensitive free text; review logs, notification templates, and public routes before production launch.
+- Review template private notes and copied event fields before production; templates must not copy applications, staffing notes, contacts, commitments, settlement, or archive notes.
 - Before enabling production delivery, review the mail provider for privacy, transport security, retention, and deliverability behavior.
 
 ## Database safety

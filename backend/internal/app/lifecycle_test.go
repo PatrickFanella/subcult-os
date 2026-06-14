@@ -767,6 +767,15 @@ func TestPrivateMemoryBoundaries(t *testing.T) {
 
 	contactNotes := "Prefers late load-in"
 	commitmentDescription := "Private vendor detail"
+	templatePrivateNotes := "Template private notes should stay workspace-only"
+	template := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/event-templates", map[string]any{
+		"name":         "Monthly Market",
+		"title":        "Night Market",
+		"privateNotes": templatePrivateNotes,
+	}, http.StatusOK)
+	if mustObject(t, template.JSON)["privateNotes"] != templatePrivateNotes {
+		t.Fatalf("expected template route to expose private notes: %#v", template.JSON)
+	}
 
 	contact := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/contacts", map[string]any{
 		"displayName": "Mira Door",
@@ -809,7 +818,7 @@ func TestPrivateMemoryBoundaries(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	responses := map[string]string{
+	publicResponses := map[string]string{
 		"public discovery": getJSON(t, fx.app, nil, "/api/public/events", http.StatusOK).Body,
 		"public event":     getJSON(t, fx.app, nil, "/api/public/events/"+slug, http.StatusOK).Body,
 		"ticket lookup":    getJSON(t, fx.app, nil, "/api/tickets/"+ticketCode, http.StatusOK).Body,
@@ -818,13 +827,37 @@ func TestPrivateMemoryBoundaries(t *testing.T) {
 		"archive summary":  getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/archive", http.StatusOK).Body,
 		"notifications":    getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/notifications", http.StatusOK).Body,
 	}
-
-	for label, body := range responses {
-		for _, forbidden := range []string{contactID, "Mira Door", "mira@example.test", "+15555550123", contactNotes, "Confirm projector", commitmentDescription} {
+	for label, body := range publicResponses {
+		for _, forbidden := range []string{contactID, "Mira Door", "mira@example.test", "+15555550123", contactNotes, "Confirm projector", commitmentDescription, templatePrivateNotes} {
 			if strings.Contains(body, forbidden) {
 				t.Fatalf("%s leaked %q: %s", label, forbidden, body)
 			}
 		}
+	}
+
+	contactsBody := getJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/contacts", http.StatusOK).Body
+	for _, want := range []string{contactID, "Mira Door", "mira@example.test", "+15555550123", contactNotes} {
+		if !strings.Contains(contactsBody, want) {
+			t.Fatalf("contacts route missing %q: %s", want, contactsBody)
+		}
+	}
+	if strings.Contains(contactsBody, templatePrivateNotes) {
+		t.Fatalf("contacts route leaked template private notes: %s", contactsBody)
+	}
+
+	commitmentsBody := getJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments", http.StatusOK).Body
+	for _, want := range []string{"Confirm projector", commitmentDescription} {
+		if !strings.Contains(commitmentsBody, want) {
+			t.Fatalf("commitments route missing %q: %s", want, commitmentsBody)
+		}
+	}
+	if strings.Contains(commitmentsBody, templatePrivateNotes) {
+		t.Fatalf("commitments route leaked template private notes: %s", commitmentsBody)
+	}
+
+	templateList := getJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/event-templates", http.StatusOK).Body
+	if !strings.Contains(templateList, templatePrivateNotes) {
+		t.Fatalf("template route should expose private notes: %s", templateList)
 	}
 }
 

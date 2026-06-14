@@ -18,6 +18,7 @@ vi.mock('react', async () => {
 
 const useStateMock = vi.mocked(React.useState);
 const SKIP = Symbol('skip-state');
+const TEMPLATE_PRIVATE_NOTES = 'Template private notes should stay workspace-only';
 
 function skipStates(count: number) {
   return Array.from({ length: count }, () => SKIP);
@@ -498,7 +499,7 @@ describe('App routes', () => {
           pricingMode: 'fixed',
           ticketPriceCents: 1500,
           ticketCurrency: 'usd',
-          privateNotes: 'Private run-of-show',
+          privateNotes: TEMPLATE_PRIVATE_NOTES,
           createdAt: '2026-06-13T19:00:00.000Z',
           updatedAt: '2026-06-13T19:05:00.000Z',
         },
@@ -530,7 +531,7 @@ describe('App routes', () => {
     expect(rendered).toContain('Mark done');
     expect(rendered).toContain('Event templates');
     expect(rendered).toContain('Monthly Market');
-    expect(rendered).toContain('Private run-of-show');
+    expect(rendered).toContain(TEMPLATE_PRIVATE_NOTES);
     expect(rendered).toContain('Add template');
     expect(rendered).toContain('Edit');
     expect(rendered).toContain('Delete');
@@ -629,7 +630,7 @@ describe('App routes', () => {
           pricingMode: 'fixed',
           ticketPriceCents: 1500,
           ticketCurrency: 'usd',
-          privateNotes: 'Private run-of-show',
+          privateNotes: TEMPLATE_PRIVATE_NOTES,
           createdAt: '2026-06-13T19:00:00.000Z',
           updatedAt: '2026-06-13T19:05:00.000Z',
         },
@@ -656,7 +657,7 @@ describe('App routes', () => {
     expect(rendered).toContain('Confirm projector');
     expect(rendered).toContain('Event templates');
     expect(rendered).toContain('Monthly Market');
-    expect(rendered).toContain('Private run-of-show');
+    expect(rendered).toContain(TEMPLATE_PRIVATE_NOTES);
     expect(rendered).not.toContain('Add contact');
     expect(rendered).not.toContain('Add commitment');
     expect(rendered).not.toContain('Edit');
@@ -959,7 +960,7 @@ describe('App routes', () => {
           pricingMode: 'fixed',
           ticketPriceCents: 1500,
           ticketCurrency: 'usd',
-          privateNotes: 'Private run-of-show',
+          privateNotes: TEMPLATE_PRIVATE_NOTES,
           createdAt: '2026-06-13T19:00:00.000Z',
           updatedAt: '2026-06-13T19:05:00.000Z',
         },
@@ -973,7 +974,7 @@ describe('App routes', () => {
     expect(rendered).toContain('Apply template');
     expect(rendered).toContain('Save as template');
     expect(rendered).toContain('Monthly Market');
-    expect(rendered).toContain('Private run-of-show');
+    expect(rendered).toContain(TEMPLATE_PRIVATE_NOTES);
   });
 
   it('renders the participant roster panel for accepted applications', () => {
