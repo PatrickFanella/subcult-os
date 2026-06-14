@@ -474,7 +474,96 @@ describe('App routes', () => {
     expect(rendered).not.toContain('Finalize settlement');
     expect(rendered).toContain('Cash drawer');
     expect(rendered).toContain('Counted short at closeout');
+    expect(rendered).toContain('Created');
+    expect(rendered).toContain('Updated');
+    expect(rendered).toContain('Report');
+    expect(rendered).toContain('report-1');
+    expect(rendered).toContain('Settlement');
+    expect(rendered).toContain('settlement-1');
+    expect(rendered).toContain('Back to workspace archive');
     expect(rendered).toContain('Seed next draft');
+  });
+
+  it('shows seeded draft links in the event archive panel', () => {
+    const event = {
+      id: 'event-1',
+      workspaceId: 'workspace-1',
+      title: 'Night Market',
+      startsAt: '2026-06-13T23:00:00.000Z',
+      publicDescription: 'A late set.',
+      locationDisplay: 'The Hall',
+      ticketAllocation: 100,
+      pricingMode: 'fixed',
+      ticketPriceCents: 1800,
+      ticketCurrency: 'usd',
+      reservedCount: 26,
+      checkedInCount: 20,
+      status: 'end_of_night',
+      publicSlug: 'night-market',
+      publicUrl: '/e/night-market',
+    };
+
+    const rendered = renderWithState('/events/event-1?workspaceId=workspace-1', <EventEditorView eventId="event-1" />, [
+      event,
+      null,
+      {
+        id: 'archive-1',
+        eventId: event.id,
+        reportId: 'report-1',
+        settlementId: 'settlement-1',
+        seededEventId: 'event-2',
+        status: 'private',
+        noteCount: 0,
+        notes: [],
+        createdAt: '2026-06-14T03:00:00.000Z',
+        updatedAt: '2026-06-14T03:00:00.000Z',
+      },
+      '',
+      false,
+      false,
+      {
+        title: event.title,
+        startsAt: '2026-06-13T23:00',
+        publicDescription: event.publicDescription,
+        locationDisplay: event.locationDisplay,
+        ticketAllocation: '100',
+        pricingMode: 'fixed',
+        ticketPriceDollars: '18.00',
+      },
+      {
+        title: event.title,
+        startsAt: '2026-06-13T23:00',
+        publicDescription: event.publicDescription,
+        locationDisplay: event.locationDisplay,
+        ticketAllocation: '100',
+        pricingMode: 'fixed',
+        ticketPriceDollars: '18.00',
+      },
+      false,
+      false,
+      false,
+      null,
+      null,
+      null,
+      {
+        amountDollars: '',
+        label: '',
+        reason: '',
+      },
+      false,
+      false,
+      {
+        id: 'workspace-1',
+        name: 'Main Room',
+        role: 'owner',
+        members: [],
+        invitations: [],
+      },
+    ]);
+
+    expect(rendered).toContain('Open seeded draft');
+    expect(rendered).not.toContain('Seed next draft');
+    expect(rendered).toContain('/workspace?workspaceId=workspace-1');
   });
 
   it('hides archive actions for non-owners', () => {

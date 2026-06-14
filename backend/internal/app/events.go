@@ -47,15 +47,16 @@ type eventReportDTO struct {
 }
 
 type eventArchiveDTO struct {
-	ID           string                `json:"id"`
-	EventID      string                `json:"eventId"`
-	ReportID     string                `json:"reportId"`
-	SettlementID string                `json:"settlementId"`
-	Status       string                `json:"status"`
-	NoteCount    int                   `json:"noteCount"`
-	Notes        []eventArchiveNoteDTO `json:"notes"`
-	CreatedAt    string                `json:"createdAt"`
-	UpdatedAt    string                `json:"updatedAt"`
+	ID            string                `json:"id"`
+	EventID       string                `json:"eventId"`
+	ReportID      string                `json:"reportId"`
+	SettlementID  string                `json:"settlementId"`
+	SeededEventID *string               `json:"seededEventId,omitempty"`
+	Status        string                `json:"status"`
+	NoteCount     int                   `json:"noteCount"`
+	Notes         []eventArchiveNoteDTO `json:"notes"`
+	CreatedAt     string                `json:"createdAt"`
+	UpdatedAt     string                `json:"updatedAt"`
 }
 
 type eventArchiveNoteDTO struct {
@@ -1423,15 +1424,17 @@ func (a *App) loadSettlementDTO(ctx context.Context, eventID string) (eventSettl
 
 func (a *App) loadArchiveDTO(ctx context.Context, eventID string) (eventArchiveDTO, error) {
 	var archive eventArchiveDTO
+	var seededEventID sql.NullString
 	var createdAt time.Time
 	var updatedAt time.Time
 	if err := a.db.QueryRow(ctx, `
-		select id, event_id, report_id, settlement_id, status, note_count, created_at, updated_at
+		select id, event_id, report_id, settlement_id, seeded_event_id, status, note_count, created_at, updated_at
 		from event_archives
 		where event_id = $1
-	`, eventID).Scan(&archive.ID, &archive.EventID, &archive.ReportID, &archive.SettlementID, &archive.Status, &archive.NoteCount, &createdAt, &updatedAt); err != nil {
+	`, eventID).Scan(&archive.ID, &archive.EventID, &archive.ReportID, &archive.SettlementID, &seededEventID, &archive.Status, &archive.NoteCount, &createdAt, &updatedAt); err != nil {
 		return eventArchiveDTO{}, err
 	}
+	archive.SeededEventID = nullableString(seededEventID)
 
 	rows, err := a.db.Query(ctx, `
 		select id, archive_id, body, created_by_person_id, created_at

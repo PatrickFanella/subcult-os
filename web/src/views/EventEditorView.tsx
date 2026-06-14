@@ -511,6 +511,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
 
     try {
       const seeded = await postJSON<EventDTO>(`/api/events/${event.id}/archive/seed-draft`, {});
+      setArchive((current) => (current ? { ...current, seededEventId: seeded.id } : current));
       setMessage(`Seeded next draft: ${seeded.title}`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to seed next draft');
@@ -1020,8 +1021,13 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                   ) : archive ? (
                     <>
                       <p className="mt-2 text-sm text-zinc-400">Status: private workspace memory</p>
+                      <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-zinc-500">
+                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Created {formatDateTime(archive.createdAt)}</span>
+                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Updated {formatDateTime(archive.updatedAt)}</span>
+                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Report {archive.reportId}</span>
+                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Settlement {archive.settlementId}</span>
+                      </div>
                       <p className="mt-3 text-sm font-medium text-zinc-200">{archive.noteCount === 1 ? '1 note' : `${archive.noteCount} notes`}</p>
-                      <p className="mt-2 text-xs uppercase tracking-[0.2em] text-zinc-500">Updated {formatDateTime(archive.updatedAt)}</p>
 
                       <div className="mt-4 space-y-3">
                         {archive.notes.length > 0 ? (
@@ -1039,11 +1045,22 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                       {canManageArchive ? (
                         <>
                           <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
-                            <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Next draft</p>
-                            <p className="mt-2 text-sm leading-6 text-zinc-400">Seed a fresh draft in this workspace from the public planning fields preserved in the archive.</p>
-                            <button className="mt-3 rounded-2xl border border-violet-400/30 bg-violet-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:bg-violet-300/60" type="button" onClick={handleSeedNextDraft} disabled={actioning}>
-                              {actioning ? 'Seeding…' : 'Seed next draft'}
-                            </button>
+                            <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Workspace archive</p>
+                            <p className="mt-2 text-sm leading-6 text-zinc-400">Review closed-event notes, then jump back to the workspace archive or continue with the next draft.</p>
+                            <div className="mt-3 flex flex-wrap gap-3 text-sm">
+                              <a className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-medium text-zinc-100 transition hover:bg-white/10" href={`/workspace?workspaceId=${event.workspaceId}`}>
+                                Back to workspace archive
+                              </a>
+                              {archive.seededEventId ? (
+                                <a className="rounded-2xl border border-violet-400/30 bg-violet-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-violet-200" href={`/events/${archive.seededEventId}?workspaceId=${event.workspaceId}`}>
+                                  Open seeded draft
+                                </a>
+                              ) : (
+                                <button className="rounded-2xl border border-violet-400/30 bg-violet-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:bg-violet-300/60" type="button" onClick={handleSeedNextDraft} disabled={actioning}>
+                                  {actioning ? 'Seeding…' : 'Seed next draft'}
+                                </button>
+                              )}
+                            </div>
                           </div>
 
                           <form className="mt-4 space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4" onSubmit={handleArchiveNoteSubmit}>

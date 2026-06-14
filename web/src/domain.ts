@@ -116,6 +116,7 @@ export interface EventArchiveDTO {
   eventId: string;
   reportId: string;
   settlementId: string;
+  seededEventId?: string;
   status: 'private';
   noteCount: number;
   notes: EventArchiveNoteDTO[];

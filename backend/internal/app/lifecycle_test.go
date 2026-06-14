@@ -287,6 +287,10 @@ func TestFirstEventLifecycleArchiveSeedsDraftWithoutPrivateData(t *testing.T) {
 	if draft["publicSlug"] != nil || draft["publicUrl"] != nil {
 		t.Fatalf("seeded draft must not have public URLs: %#v", draft)
 	}
+	archive := mustObject(t, getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/archive", http.StatusOK).JSON)
+	if archive["seededEventId"] != draftID {
+		t.Fatalf("expected archive detail to expose seeded draft id, got %#v", archive["seededEventId"])
+	}
 
 	seededAgain := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/archive/seed-draft", map[string]any{}, http.StatusOK)
 	if mustString(t, seededAgain.JSON, "id") != draftID {
