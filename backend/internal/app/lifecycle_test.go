@@ -145,6 +145,52 @@ func TestFirstEventLifecycleArchiveAPI(t *testing.T) {
 	getJSON(t, fx.app, otherFx.memberCookie, "/api/events/"+eventID+"/archive", http.StatusForbidden)
 }
 
+func TestWorkspaceArchiveIndexAPI(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	firstEvent := createEvent(t, fx, "Night Market", 4)
+	firstEventID := mustString(t, firstEvent, "id")
+	publishEvent(t, fx, firstEventID)
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+firstEventID+"/end-of-night", map[string]any{}, http.StatusOK)
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+firstEventID+"/archive/notes", map[string]any{"body": "Move doors earlier."}, http.StatusOK)
+
+	secondEvent := createEvent(t, fx, "Late Market", 4)
+	secondEventID := mustString(t, secondEvent, "id")
+	publishEvent(t, fx, secondEventID)
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+secondEventID+"/end-of-night", map[string]any{}, http.StatusOK)
+
+	seeded := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+firstEventID+"/archive/seed-draft", map[string]any{}, http.StatusOK)
+	seededEventID := mustString(t, seeded.JSON, "id")
+
+	resp := getJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/archives", http.StatusOK)
+	archives, ok := resp.JSON.([]any)
+	if !ok || len(archives) != 2 {
+		t.Fatalf("expected two archive summaries, got %#v", resp.JSON)
+	}
+
+	latest := mustObject(t, archives[0])
+	older := mustObject(t, archives[1])
+	if latest["eventId"] != secondEventID || latest["title"] != "Late Market" || int(latest["noteCount"].(float64)) != 0 {
+		t.Fatalf("unexpected latest archive summary: %#v", latest)
+	}
+	if latest["seededEventId"] != nil {
+		t.Fatalf("did not expect seededEventId on latest archive: %#v", latest)
+	}
+	if latest["id"] == "" || latest["reportId"] == "" || latest["settlementId"] == "" || latest["locationDisplay"] == "" || latest["createdAt"] == "" || latest["updatedAt"] == "" {
+		t.Fatalf("latest archive summary missing required fields: %#v", latest)
+	}
+	if older["eventId"] != firstEventID || older["title"] != "Night Market" || int(older["noteCount"].(float64)) != 1 {
+		t.Fatalf("unexpected older archive summary: %#v", older)
+	}
+	if older["seededEventId"] != seededEventID {
+		t.Fatalf("expected seeded draft id in archive summary, got %#v", older["seededEventId"])
+	}
+
+	getJSON(t, fx.app, fx.memberCookie, "/api/workspaces/"+fx.workspaceID+"/archives", http.StatusOK)
+	getJSON(t, fx.app, nil, "/api/workspaces/"+fx.workspaceID+"/archives", http.StatusForbidden)
+	other := newLifecycleFixture(t)
+	getJSON(t, fx.app, other.memberCookie, "/api/workspaces/"+fx.workspaceID+"/archives", http.StatusForbidden)
+}
+
 func TestFirstEventLifecycleArchiveNotes(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	event := createEvent(t, fx, "Night Market", 4)

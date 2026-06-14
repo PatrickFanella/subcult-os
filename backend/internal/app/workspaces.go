@@ -41,6 +41,20 @@ type currentWorkspaceDTO struct {
 	Invitations []invitationDTO `json:"invitations"`
 }
 
+type workspaceArchiveSummaryDTO struct {
+	ID              string  `json:"id"`
+	EventID         string  `json:"eventId"`
+	Title           string  `json:"title"`
+	StartsAt        string  `json:"startsAt"`
+	LocationDisplay string  `json:"locationDisplay"`
+	NoteCount       int     `json:"noteCount"`
+	ReportID        string  `json:"reportId"`
+	SettlementID    string  `json:"settlementId"`
+	SeededEventID   *string `json:"seededEventId,omitempty"`
+	CreatedAt       string  `json:"createdAt"`
+	UpdatedAt       string  `json:"updatedAt"`
+}
+
 type createWorkspaceRequest struct {
 	Name string `json:"name"`
 }
@@ -189,6 +203,27 @@ func (a *App) handleGetWorkspace(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, workspace)
 }
 
+func (a *App) handleListWorkspaceArchives(w http.ResponseWriter, r *http.Request) {
+	if a.db == nil {
+		writeError(w, http.StatusInternalServerError, "database unavailable")
+		return
+	}
+	workspaceID := r.PathValue("workspaceID")
+	_, _, ok := a.requireWorkspaceRole(r, workspaceID, "owner", "member")
+	if !ok {
+		writeError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
+	archives, err := a.listWorkspaceArchives(r.Context(), workspaceID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not load archives")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, archives)
+}
+
 func (a *App) loadCurrentWorkspace(ctx context.Context, personID string) (currentWorkspaceDTO, error) {
 	var workspace currentWorkspaceDTO
 	err := a.db.QueryRow(ctx, `
@@ -235,6 +270,43 @@ func (a *App) hydrateWorkspace(ctx context.Context, workspace currentWorkspaceDT
 	}
 	workspace.Invitations = invites
 	return workspace, nil
+}
+
+func (a *App) listWorkspaceArchives(ctx context.Context, workspaceID string) ([]workspaceArchiveSummaryDTO, error) {
+	rows, err := a.db.Query(ctx, `
+		select ea.id, ea.event_id, e.title, e.starts_at, e.location_display, ea.note_count,
+		       ea.report_id, ea.settlement_id, ea.seeded_event_id, ea.created_at, ea.updated_at
+		from event_archives ea
+		join events e on e.id = ea.event_id
+		where e.workspace_id = $1
+		order by e.starts_at desc, ea.created_at desc
+		limit 100
+	`, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	archives := make([]workspaceArchiveSummaryDTO, 0)
+	for rows.Next() {
+		var archive workspaceArchiveSummaryDTO
+		var startsAt time.Time
+		var seededEventID sql.NullString
+		var createdAt time.Time
+		var updatedAt time.Time
+		if err := rows.Scan(&archive.ID, &archive.EventID, &archive.Title, &startsAt, &archive.LocationDisplay, &archive.NoteCount, &archive.ReportID, &archive.SettlementID, &seededEventID, &createdAt, &updatedAt); err != nil {
+			return nil, err
+		}
+		archive.StartsAt = startsAt.UTC().Format(time.RFC3339Nano)
+		archive.SeededEventID = nullableString(seededEventID)
+		archive.CreatedAt = createdAt.UTC().Format(time.RFC3339Nano)
+		archive.UpdatedAt = updatedAt.UTC().Format(time.RFC3339Nano)
+		archives = append(archives, archive)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return archives, nil
 }
 
 func (a *App) handleCreateInvitation(w http.ResponseWriter, r *http.Request) {

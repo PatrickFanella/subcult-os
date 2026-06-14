@@ -123,6 +123,20 @@ export interface EventArchiveDTO {
   updatedAt: string;
 }
 
+export interface WorkspaceArchiveSummaryDTO {
+  id: string;
+  eventId: string;
+  title: string;
+  startsAt: string;
+  locationDisplay: string;
+  noteCount: number;
+  reportId: string;
+  settlementId: string;
+  seededEventId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface EventArchiveNoteDTO {
   id: string;
   archiveId: string;
