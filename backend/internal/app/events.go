@@ -14,21 +14,25 @@ import (
 )
 
 type eventDTO struct {
-	ID                string  `json:"id"`
-	WorkspaceID       string  `json:"workspaceId"`
-	Title             string  `json:"title"`
-	StartsAt          string  `json:"startsAt"`
-	PublicDescription string  `json:"publicDescription"`
-	LocationDisplay   string  `json:"locationDisplay"`
-	TicketAllocation  int     `json:"ticketAllocation"`
-	PricingMode       string  `json:"pricingMode"`
-	TicketPriceCents  int     `json:"ticketPriceCents"`
-	TicketCurrency    string  `json:"ticketCurrency"`
-	ReservedCount     int     `json:"reservedCount"`
-	CheckedInCount    int     `json:"checkedInCount"`
-	Status            string  `json:"status"`
-	PublicSlug        *string `json:"publicSlug"`
-	PublicURL         *string `json:"publicUrl"`
+	ID                     string  `json:"id"`
+	WorkspaceID            string  `json:"workspaceId"`
+	Title                  string  `json:"title"`
+	StartsAt               string  `json:"startsAt"`
+	PublicDescription      string  `json:"publicDescription"`
+	LocationDisplay        string  `json:"locationDisplay"`
+	TicketAllocation       int     `json:"ticketAllocation"`
+	PricingMode            string  `json:"pricingMode"`
+	TicketPriceCents       int     `json:"ticketPriceCents"`
+	TicketCurrency         string  `json:"ticketCurrency"`
+	ReservedCount          int     `json:"reservedCount"`
+	CheckedInCount         int     `json:"checkedInCount"`
+	StaffingOpenCount      int     `json:"staffingOpenCount"`
+	StaffingAssignedCount  int     `json:"staffingAssignedCount"`
+	StaffingCompletedCount int     `json:"staffingCompletedCount"`
+	StaffingCancelledCount int     `json:"staffingCancelledCount"`
+	Status                 string  `json:"status"`
+	PublicSlug             *string `json:"publicSlug"`
+	PublicURL              *string `json:"publicUrl"`
 }
 
 type eventReportDTO struct {
@@ -47,17 +51,18 @@ type eventReportDTO struct {
 }
 
 type eventArchiveDTO struct {
-	ID            string                       `json:"id"`
-	EventID       string                       `json:"eventId"`
-	ReportID      string                       `json:"reportId"`
-	SettlementID  string                       `json:"settlementId"`
-	SeededEventID *string                      `json:"seededEventId,omitempty"`
-	Status        string                       `json:"status"`
-	NoteCount     int                          `json:"noteCount"`
-	Participants  []eventArchiveParticipantDTO `json:"participants"`
-	Notes         []eventArchiveNoteDTO        `json:"notes"`
-	CreatedAt     string                       `json:"createdAt"`
-	UpdatedAt     string                       `json:"updatedAt"`
+	ID            string                        `json:"id"`
+	EventID       string                        `json:"eventId"`
+	ReportID      string                        `json:"reportId"`
+	SettlementID  string                        `json:"settlementId"`
+	SeededEventID *string                       `json:"seededEventId,omitempty"`
+	Status        string                        `json:"status"`
+	NoteCount     int                           `json:"noteCount"`
+	Participants  []eventArchiveParticipantDTO  `json:"participants"`
+	StaffingItems []eventArchiveStaffingItemDTO `json:"staffingItems"`
+	Notes         []eventArchiveNoteDTO         `json:"notes"`
+	CreatedAt     string                        `json:"createdAt"`
+	UpdatedAt     string                        `json:"updatedAt"`
 }
 
 type eventArchiveParticipantDTO struct {
@@ -68,6 +73,17 @@ type eventArchiveParticipantDTO struct {
 	ParticipantName     string `json:"participantName"`
 	Status              string `json:"status"`
 	CreatedAt           string `json:"createdAt"`
+}
+
+type eventArchiveStaffingItemDTO struct {
+	ID                   string  `json:"id"`
+	ArchiveID            string  `json:"archiveId"`
+	SourceStaffingItemID string  `json:"sourceStaffingItemId"`
+	Title                string  `json:"title"`
+	Kind                 string  `json:"kind"`
+	Status               string  `json:"status"`
+	AssigneeName         *string `json:"assigneeName,omitempty"`
+	CreatedAt            string  `json:"createdAt"`
 }
 
 type eventArchiveNoteDTO struct {
@@ -176,6 +192,32 @@ func (a *App) snapshotArchiveParticipants(ctx context.Context, tx pgx.Tx, eventI
 	return err
 }
 
+func (a *App) snapshotArchiveStaffingItems(ctx context.Context, tx pgx.Tx, eventID, archiveID string) error {
+	if archiveID == "" {
+		return nil
+	}
+	_, err := tx.Exec(ctx, `
+		insert into event_archive_staffing_items (
+			archive_id, source_staffing_item_id, title, kind, status, assignee_name
+		)
+		select $1, esi.id, esi.title, esi.kind, esi.status,
+		       coalesce(nullif(trim(p.display_name), ''), p.email, era.applicant_name)
+		from event_staffing_items esi
+		left join people p on p.id = esi.assigned_person_id
+		left join event_role_applications era on era.id = esi.assigned_application_id
+		where esi.event_id = $2
+		  and esi.status <> 'cancelled'
+		order by case esi.status
+			when 'open' then 0
+			when 'assigned' then 1
+			when 'completed' then 2
+			else 3
+		end, esi.title asc, esi.id asc
+		on conflict (archive_id, source_staffing_item_id) do nothing
+	`, archiveID, eventID)
+	return err
+}
+
 type eventSettlementRow struct {
 	ID                    string
 	EventID               string
@@ -203,25 +245,29 @@ type eventSettlementAdjustmentRow struct {
 }
 
 type eventRow struct {
-	ID                string
-	WorkspaceID       string
-	Title             string
-	StartsAt          time.Time
-	PublicDescription string
-	LocationDisplay   string
-	TicketAllocation  int
-	PricingMode       string
-	TicketPriceCents  int
-	TicketCurrency    string
-	Status            string
-	PublicSlug        sql.NullString
-	ReservedCount     int
-	CheckedInCount    int
-	CreatedByPersonID string
-	GeneratedAt       sql.NullTime
-	GeneratedByEmail  sql.NullString
-	ReportID          sql.NullString
-	Snapshot          []byte
+	ID                     string
+	WorkspaceID            string
+	Title                  string
+	StartsAt               time.Time
+	PublicDescription      string
+	LocationDisplay        string
+	TicketAllocation       int
+	PricingMode            string
+	TicketPriceCents       int
+	TicketCurrency         string
+	Status                 string
+	PublicSlug             sql.NullString
+	ReservedCount          int
+	CheckedInCount         int
+	StaffingOpenCount      int
+	StaffingAssignedCount  int
+	StaffingCompletedCount int
+	StaffingCancelledCount int
+	CreatedByPersonID      string
+	GeneratedAt            sql.NullTime
+	GeneratedByEmail       sql.NullString
+	ReportID               sql.NullString
+	Snapshot               []byte
 }
 
 type createEventRequest struct {
@@ -261,8 +307,21 @@ func (a *App) handleListEvents(w http.ResponseWriter, r *http.Request) {
 		select e.id, e.workspace_id, e.title, e.starts_at, e.public_description, e.location_display,
 		       e.ticket_allocation, e.pricing_mode, e.ticket_price_cents, e.ticket_currency, e.status, e.public_slug,
 		       (select count(*) from tickets t where t.event_id = e.id and t.payment_status <> 'cancelled') as reserved_count,
-		       (select count(*) from tickets t where t.event_id = e.id and t.status = 'checked_in' and t.payment_status <> 'cancelled') as checked_in_count
+		       (select count(*) from tickets t where t.event_id = e.id and t.status = 'checked_in' and t.payment_status <> 'cancelled') as checked_in_count,
+		       coalesce(staffing.staffing_open_count, 0) as staffing_open_count,
+		       coalesce(staffing.staffing_assigned_count, 0) as staffing_assigned_count,
+		       coalesce(staffing.staffing_completed_count, 0) as staffing_completed_count,
+		       coalesce(staffing.staffing_cancelled_count, 0) as staffing_cancelled_count
 		from events e
+		left join (
+			select event_id,
+			       count(*) filter (where status = 'open') as staffing_open_count,
+			       count(*) filter (where status = 'assigned') as staffing_assigned_count,
+			       count(*) filter (where status = 'completed') as staffing_completed_count,
+			       count(*) filter (where status = 'cancelled') as staffing_cancelled_count
+			from event_staffing_items
+			group by event_id
+		) staffing on staffing.event_id = e.id
 		where e.workspace_id = $1
 		order by e.created_at desc, e.title
 	`, workspaceID)
@@ -275,7 +334,7 @@ func (a *App) handleListEvents(w http.ResponseWriter, r *http.Request) {
 	events := make([]eventDTO, 0)
 	for rows.Next() {
 		var row eventRow
-		if err := rows.Scan(&row.ID, &row.WorkspaceID, &row.Title, &row.StartsAt, &row.PublicDescription, &row.LocationDisplay, &row.TicketAllocation, &row.PricingMode, &row.TicketPriceCents, &row.TicketCurrency, &row.Status, &row.PublicSlug, &row.ReservedCount, &row.CheckedInCount); err != nil {
+		if err := rows.Scan(&row.ID, &row.WorkspaceID, &row.Title, &row.StartsAt, &row.PublicDescription, &row.LocationDisplay, &row.TicketAllocation, &row.PricingMode, &row.TicketPriceCents, &row.TicketCurrency, &row.Status, &row.PublicSlug, &row.ReservedCount, &row.CheckedInCount, &row.StaffingOpenCount, &row.StaffingAssignedCount, &row.StaffingCompletedCount, &row.StaffingCancelledCount); err != nil {
 			writeError(w, http.StatusInternalServerError, "could not load events")
 			return
 		}
@@ -738,6 +797,10 @@ func (a *App) handleEndOfNight(w http.ResponseWriter, r *http.Request) {
 				writeError(w, http.StatusInternalServerError, "could not create archive participants")
 				return
 			}
+			if err := a.snapshotArchiveStaffingItems(r.Context(), tx, event.ID, archiveID); err != nil {
+				writeError(w, http.StatusInternalServerError, "could not create archive staffing")
+				return
+			}
 		}
 		if err := tx.Commit(r.Context()); err != nil {
 			writeError(w, http.StatusInternalServerError, "could not save report")
@@ -860,6 +923,10 @@ func (a *App) handleEndOfNight(w http.ResponseWriter, r *http.Request) {
 	if created {
 		if err := a.snapshotArchiveParticipants(r.Context(), tx, event.ID, archiveID); err != nil {
 			writeError(w, http.StatusInternalServerError, "could not create archive participants")
+			return
+		}
+		if err := a.snapshotArchiveStaffingItems(r.Context(), tx, event.ID, archiveID); err != nil {
+			writeError(w, http.StatusInternalServerError, "could not create archive staffing")
 			return
 		}
 	}
@@ -1515,6 +1582,38 @@ func (a *App) loadArchiveDTO(ctx context.Context, eventID string) (eventArchiveD
 		return eventArchiveDTO{}, err
 	}
 
+	staffingRows, err := a.db.Query(ctx, `
+		select id, archive_id, source_staffing_item_id, title, kind, status, assignee_name, created_at
+		from event_archive_staffing_items
+		where archive_id = $1
+		order by case status
+			when 'open' then 0
+			when 'assigned' then 1
+			when 'completed' then 2
+			else 3
+		end, title asc, source_staffing_item_id asc, id asc
+	`, archive.ID)
+	if err != nil {
+		return eventArchiveDTO{}, err
+	}
+	defer staffingRows.Close()
+
+	staffingItems := make([]eventArchiveStaffingItemDTO, 0)
+	for staffingRows.Next() {
+		var item eventArchiveStaffingItemDTO
+		var assigneeName sql.NullString
+		var createdAt time.Time
+		if err := staffingRows.Scan(&item.ID, &item.ArchiveID, &item.SourceStaffingItemID, &item.Title, &item.Kind, &item.Status, &assigneeName, &createdAt); err != nil {
+			return eventArchiveDTO{}, err
+		}
+		item.AssigneeName = nullableString(assigneeName)
+		item.CreatedAt = createdAt.UTC().Format(time.RFC3339Nano)
+		staffingItems = append(staffingItems, item)
+	}
+	if err := staffingRows.Err(); err != nil {
+		return eventArchiveDTO{}, err
+	}
+
 	rows, err := a.db.Query(ctx, `
 		select id, archive_id, body, created_by_person_id, created_at
 		from event_archive_notes
@@ -1543,6 +1642,7 @@ func (a *App) loadArchiveDTO(ctx context.Context, eventID string) (eventArchiveD
 	archive.CreatedAt = createdAt.UTC().Format(time.RFC3339Nano)
 	archive.UpdatedAt = updatedAt.UTC().Format(time.RFC3339Nano)
 	archive.Participants = participants
+	archive.StaffingItems = staffingItems
 	archive.Notes = notes
 	return archive, nil
 }
@@ -1579,24 +1679,36 @@ func (a *App) loadEventDetails(ctx context.Context, eventID string) (eventRow, e
 	if err != nil {
 		return eventRow{}, err
 	}
+	counts, err := a.loadEventStaffingCounts(ctx, row.ID)
+	if err != nil {
+		return eventRow{}, err
+	}
+	row.StaffingOpenCount = counts.Open
+	row.StaffingAssignedCount = counts.Assigned
+	row.StaffingCompletedCount = counts.Completed
+	row.StaffingCancelledCount = counts.Cancelled
 	return row, nil
 }
 
 func (a *App) eventDTOFromRow(row eventRow) eventDTO {
 	dto := eventDTO{
-		ID:                row.ID,
-		WorkspaceID:       row.WorkspaceID,
-		Title:             row.Title,
-		StartsAt:          row.StartsAt.UTC().Format(time.RFC3339Nano),
-		PublicDescription: row.PublicDescription,
-		LocationDisplay:   row.LocationDisplay,
-		TicketAllocation:  row.TicketAllocation,
-		PricingMode:       row.PricingMode,
-		TicketPriceCents:  row.TicketPriceCents,
-		TicketCurrency:    row.TicketCurrency,
-		ReservedCount:     row.ReservedCount,
-		CheckedInCount:    row.CheckedInCount,
-		Status:            row.Status,
+		ID:                     row.ID,
+		WorkspaceID:            row.WorkspaceID,
+		Title:                  row.Title,
+		StartsAt:               row.StartsAt.UTC().Format(time.RFC3339Nano),
+		PublicDescription:      row.PublicDescription,
+		LocationDisplay:        row.LocationDisplay,
+		TicketAllocation:       row.TicketAllocation,
+		PricingMode:            row.PricingMode,
+		TicketPriceCents:       row.TicketPriceCents,
+		TicketCurrency:         row.TicketCurrency,
+		ReservedCount:          row.ReservedCount,
+		CheckedInCount:         row.CheckedInCount,
+		StaffingOpenCount:      row.StaffingOpenCount,
+		StaffingAssignedCount:  row.StaffingAssignedCount,
+		StaffingCompletedCount: row.StaffingCompletedCount,
+		StaffingCancelledCount: row.StaffingCancelledCount,
+		Status:                 row.Status,
 	}
 	if row.PublicSlug.Valid {
 		slug := row.PublicSlug.String
@@ -1605,6 +1717,29 @@ func (a *App) eventDTOFromRow(row eventRow) eventDTO {
 		dto.PublicURL = &url
 	}
 	return dto
+}
+
+type eventStaffingCounts struct {
+	Open      int
+	Assigned  int
+	Completed int
+	Cancelled int
+}
+
+func (a *App) loadEventStaffingCounts(ctx context.Context, eventID string) (eventStaffingCounts, error) {
+	var counts eventStaffingCounts
+	if err := a.db.QueryRow(ctx, `
+		select
+			count(*) filter (where status = 'open'),
+			count(*) filter (where status = 'assigned'),
+			count(*) filter (where status = 'completed'),
+			count(*) filter (where status = 'cancelled')
+		from event_staffing_items
+		where event_id = $1
+	`, eventID).Scan(&counts.Open, &counts.Assigned, &counts.Completed, &counts.Cancelled); err != nil {
+		return eventStaffingCounts{}, err
+	}
+	return counts, nil
 }
 
 func (a *App) publicEventURL(slug string) string {

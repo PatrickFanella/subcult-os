@@ -144,6 +144,10 @@ describe('App routes', () => {
       ticketCurrency: 'usd',
       reservedCount: 26,
       checkedInCount: 20,
+      staffingOpenCount: 1,
+      staffingAssignedCount: 0,
+      staffingCompletedCount: 0,
+      staffingCancelledCount: 0,
       status: 'end_of_night',
       publicSlug: 'night-market',
       publicUrl: '/e/night-market',
@@ -192,6 +196,7 @@ describe('App routes', () => {
     expect(rendered).toContain('Open archive');
     expect(rendered).toContain('Seed next draft');
     expect(rendered).toContain('No seeded draft yet');
+    expect(rendered).toContain('Unresolved staffing remains before closeout.');
   });
 
   it('renders empty archive search copy', () => {
@@ -232,6 +237,10 @@ describe('App routes', () => {
       ticketCurrency: 'usd',
       reservedCount: 26,
       checkedInCount: 20,
+      staffingOpenCount: 0,
+      staffingAssignedCount: 0,
+      staffingCompletedCount: 1,
+      staffingCancelledCount: 0,
       status: 'end_of_night',
       publicSlug: 'night-market',
       publicUrl: '/e/night-market',
@@ -272,6 +281,52 @@ describe('App routes', () => {
 
     expect(rendered).toContain('Open seeded draft');
     expect(rendered).not.toContain('Seed next draft');
+    expect(rendered).toContain('All staffing complete.');
+  });
+
+  it('shows no staffing copy on event cards without staffing items', () => {
+    const event = {
+      id: 'event-1',
+      workspaceId: 'workspace-1',
+      title: 'Night Market',
+      startsAt: '2026-06-13T23:00:00.000Z',
+      publicDescription: 'A late set.',
+      locationDisplay: 'The Hall',
+      ticketAllocation: 100,
+      pricingMode: 'fixed',
+      ticketPriceCents: 1800,
+      ticketCurrency: 'usd',
+      reservedCount: 26,
+      checkedInCount: 20,
+      staffingOpenCount: 0,
+      staffingAssignedCount: 0,
+      staffingCompletedCount: 0,
+      staffingCancelledCount: 0,
+      status: 'published',
+      publicSlug: 'night-market',
+      publicUrl: '/e/night-market',
+    };
+
+    const rendered = renderWithState('/workspace?workspaceId=workspace-1', <WorkspaceView />, [
+      {
+        id: 'person-1',
+        email: 'owner@example.com',
+        displayName: 'Owner',
+        workspaces: [{ id: 'workspace-1', name: 'Main Room', role: 'owner' }],
+      },
+      {
+        id: 'workspace-1',
+        name: 'Main Room',
+        role: 'owner',
+        members: [],
+        invitations: [],
+      },
+      [event],
+      [],
+      false,
+    ]);
+
+    expect(rendered).toContain('No staffing items yet.');
   });
 
   it('locks event pricing after tickets exist', () => {
@@ -802,6 +857,18 @@ describe('App routes', () => {
         status: 'private',
         noteCount: 1,
         participants: [],
+        staffingItems: [
+          {
+            id: 'staffing-1',
+            archiveId: 'archive-1',
+            sourceStaffingItemId: 'source-staffing-1',
+            title: 'Door shift',
+            kind: 'shift',
+            status: 'open',
+            assigneeName: 'Morgan',
+            createdAt: '2026-06-14T03:05:00.000Z',
+          },
+        ],
         notes: [
           {
             id: 'note-1',
@@ -887,6 +954,9 @@ describe('App routes', () => {
     expect(rendered).toContain('report-1');
     expect(rendered).toContain('Settlement');
     expect(rendered).toContain('settlement-1');
+    expect(rendered).toContain('Staffing memory');
+    expect(rendered).toContain('Door shift');
+    expect(rendered).toContain('Unresolved staffing should inform next draft planning.');
     expect(rendered).toContain('Back to workspace archive');
     expect(rendered).toContain('Private notes stay in the archive. The next draft starts clean.');
     expect(rendered).toContain('Use these notes while planning the next event.');
@@ -924,6 +994,7 @@ describe('App routes', () => {
         status: 'private',
         noteCount: 0,
         participants: [],
+        staffingItems: [],
         notes: [],
         createdAt: '2026-06-14T03:00:00.000Z',
         updatedAt: '2026-06-14T03:00:00.000Z',
@@ -1007,6 +1078,7 @@ describe('App routes', () => {
         status: 'private',
         noteCount: 0,
         participants: [],
+        staffingItems: [],
         notes: [],
         createdAt: '2026-06-14T03:00:00.000Z',
         updatedAt: '2026-06-14T03:00:00.000Z',
@@ -1108,6 +1180,7 @@ describe('App routes', () => {
             createdAt: '2026-06-14T03:06:00.000Z',
           },
         ],
+        staffingItems: [],
         notes: [],
         createdAt: '2026-06-14T03:00:00.000Z',
         updatedAt: '2026-06-14T03:10:00.000Z',

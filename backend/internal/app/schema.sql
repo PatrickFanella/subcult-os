@@ -173,6 +173,18 @@ create table if not exists event_archive_participants (
   unique (archive_id, source_application_id)
 );
 
+create table if not exists event_archive_staffing_items (
+  id uuid primary key default gen_random_uuid(),
+  archive_id uuid not null references event_archives(id) on delete cascade,
+  source_staffing_item_id uuid not null,
+  title text not null,
+  kind text not null check (kind in ('task', 'shift')),
+  status text not null check (status in ('open', 'assigned', 'completed', 'cancelled')),
+  assignee_name text,
+  created_at timestamptz not null default now(),
+  unique (archive_id, source_staffing_item_id)
+);
+
 create table if not exists event_archive_notes (
   id uuid primary key default gen_random_uuid(),
   archive_id uuid not null references event_archives(id) on delete cascade,

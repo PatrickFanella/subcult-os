@@ -450,6 +450,65 @@ func TestEventStaffingCreateAPI(t *testing.T) {
 	}
 }
 
+func TestEventStaffingCreateAPIClosedEventWaitsForLock(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 4)
+	eventID := mustString(t, event, "id")
+	publishEvent(t, fx, eventID)
+
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	tx, err := fx.app.db.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = tx.Rollback(context.Background()) })
+	if _, err := tx.Exec(ctx, `
+		update events
+		set status = 'end_of_night', updated_at = now()
+		where id = $1
+	`, eventID); err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan testResponse, 1)
+	go func() {
+		body, _ := json.Marshal(map[string]any{"title": "After close", "kind": "task"})
+		req := httptest.NewRequest(http.MethodPost, "/api/events/"+eventID+"/staffing", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(fx.ownerCookie)
+		rec := httptest.NewRecorder()
+		fx.app.Handler().ServeHTTP(rec, req)
+		var decoded any
+		if strings.TrimSpace(rec.Body.String()) != "" {
+			if err := json.Unmarshal(rec.Body.Bytes(), &decoded); err != nil {
+				done <- testResponse{Status: rec.Code, Body: rec.Body.String()}
+				return
+			}
+		}
+		done <- testResponse{Status: rec.Code, JSON: decoded, Body: rec.Body.String()}
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+	select {
+	case resp := <-done:
+		t.Fatalf("staffing create finished before lock release: %#v", resp)
+	default:
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	resp := <-done
+	if resp.Status != http.StatusConflict {
+		t.Fatalf("expected closed staffing create to conflict after lock release, got %#v", resp)
+	}
+	if got := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/staffing", http.StatusOK).JSON.([]any); len(got) != 0 {
+		t.Fatalf("expected no staffing items to be created, got %#v", got)
+	}
+}
+
 func TestEventStaffingUpdateAPI(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	event := createEvent(t, fx, "Night Market", 4)
@@ -675,6 +734,113 @@ func TestArchiveCapturesDuplicateParticipantNamesFromDistinctApplications(t *tes
 			t.Fatalf("expected distinct source applications, got duplicate source id %s", sourceID)
 		}
 		seenSourceIDs[sourceID] = struct{}{}
+	}
+}
+
+func TestArchiveCapturesStaffingMemoryOnceAndKeepsSnapshotImmutable(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 4)
+	eventID := mustString(t, event, "id")
+	ownerID := ownerPersonID(t, fx)
+	publishEvent(t, fx, eventID)
+
+	first := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/staffing", map[string]any{
+		"title": "Door shift",
+		"kind":  "shift",
+		"notes": "Open with the side entrance.",
+	}, http.StatusOK)
+	second := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/staffing", map[string]any{
+		"title": "Door shift",
+		"kind":  "task",
+		"notes": "Close the side entrance at end of night.",
+	}, http.StatusOK)
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update event_staffing_items
+		set status = 'assigned', assigned_person_id = $2, updated_at = now()
+		where id = $1
+	`, mustString(t, second.JSON, "id"), ownerID); err != nil {
+		t.Fatal(err)
+	}
+
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+	archiveBefore := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/archive", http.StatusOK)
+	archiveObj := mustObject(t, archiveBefore.JSON)
+	staffingItems, ok := archiveObj["staffingItems"].([]any)
+	if !ok || len(staffingItems) != 2 {
+		t.Fatalf("expected two archived staffing items, got %#v", archiveBefore.JSON)
+	}
+	seenSourceIDs := map[string]struct{}{}
+	for _, item := range staffingItems {
+		entry := mustObject(t, item)
+		if entry["title"] != "Door shift" {
+			t.Fatalf("unexpected staffing snapshot item: %#v", entry)
+		}
+		if _, ok := entry["notes"]; ok {
+			t.Fatalf("archive staffing memory must not expose notes: %#v", entry)
+		}
+		sourceID := mustString(t, entry, "sourceStaffingItemId")
+		if _, exists := seenSourceIDs[sourceID]; exists {
+			t.Fatalf("expected distinct source staffing items, got duplicate source id %s", sourceID)
+		}
+		seenSourceIDs[sourceID] = struct{}{}
+	}
+
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update event_staffing_items
+		set title = 'Changed after closeout', notes = 'mutated source row', updated_at = now()
+		where id = $1
+	`, mustString(t, first.JSON, "id")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fx.app.db.Exec(t.Context(), `
+		insert into event_staffing_items (
+			event_id, title, kind, notes, status, created_by_person_id
+		)
+		values ($1, 'Late addition', 'task', 'Should not appear in archive', 'open', $2)
+	`, eventID, ownerID); err != nil {
+		t.Fatal(err)
+	}
+
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+	archiveAfter := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/archive", http.StatusOK)
+	if !reflect.DeepEqual(archiveBefore.JSON, archiveAfter.JSON) {
+		t.Fatalf("expected archive staffing snapshot to remain immutable after retry: before=%#v after=%#v", archiveBefore.JSON, archiveAfter.JSON)
+	}
+}
+
+func TestWorkspaceEventListIncludesStaffingCounts(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 4)
+	eventID := mustString(t, event, "id")
+	ownerID := ownerPersonID(t, fx)
+
+	if _, err := fx.app.db.Exec(t.Context(), `
+		insert into event_staffing_items (
+			event_id, title, kind, notes, status, created_by_person_id, assigned_person_id, completed_at, completed_by_person_id
+		)
+		values
+			($1, 'Open task', 'task', '', 'open', $2, null, null, null),
+			($1, 'Assigned shift', 'shift', '', 'assigned', $2, $2, null, null),
+			($1, 'Completed task', 'task', '', 'completed', $2, null, '2026-07-01T22:30:00Z', $2),
+			($1, 'Cancelled shift', 'shift', '', 'cancelled', $2, null, null, null)
+	`, eventID, ownerID); err != nil {
+		t.Fatal(err)
+	}
+
+	resp := getJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/events", http.StatusOK)
+	events := resp.JSON.([]any)
+	if len(events) != 1 {
+		t.Fatalf("expected one event in workspace list, got %#v", resp.JSON)
+	}
+	listed := mustObject(t, events[0])
+	if listed["staffingOpenCount"] != float64(1) || listed["staffingAssignedCount"] != float64(1) || listed["staffingCompletedCount"] != float64(1) || listed["staffingCancelledCount"] != float64(1) {
+		t.Fatalf("unexpected workspace staffing counts: %#v", listed)
+	}
+
+	detail := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID, http.StatusOK)
+	detailObj := mustObject(t, detail.JSON)
+	if detailObj["staffingOpenCount"] != listed["staffingOpenCount"] || detailObj["staffingAssignedCount"] != listed["staffingAssignedCount"] || detailObj["staffingCompletedCount"] != listed["staffingCompletedCount"] || detailObj["staffingCancelledCount"] != listed["staffingCancelledCount"] {
+		t.Fatalf("expected event detail staffing counts to match list counts: list=%#v detail=%#v", listed, detailObj)
 	}
 }
 

@@ -136,18 +136,47 @@ func (a *App) handleCreateEventStaffing(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusInternalServerError, "database unavailable")
 		return
 	}
-	event, err := a.loadEventDetails(r.Context(), r.PathValue("eventID"))
+
+	tx, err := a.db.Begin(r.Context())
 	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not start transaction")
+		return
+	}
+	defer func() { _ = tx.Rollback(r.Context()) }()
+
+	actorID, ok := a.requirePersonID(r)
+	if !ok {
+		writeError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
+	var lockedEventID, workspaceID, eventStatus string
+	if err := tx.QueryRow(r.Context(), `
+		select id, workspace_id, status
+		from events
+		where id = $1
+		for update
+	`, r.PathValue("eventID")).Scan(&lockedEventID, &workspaceID, &eventStatus); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			writeError(w, http.StatusNotFound, "event not found")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "could not load event")
+		writeError(w, http.StatusInternalServerError, "could not lock event")
 		return
 	}
-	actorID, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner")
-	if !ok {
+	var membershipRole string
+	if err := tx.QueryRow(r.Context(), `
+		select role
+		from workspace_members
+		where workspace_id = $1
+		  and person_id = $2
+		  and removed_at is null
+	`, workspaceID, actorID).Scan(&membershipRole); err != nil || membershipRole != "owner" {
 		writeError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+	if eventStatus == "end_of_night" {
+		writeError(w, http.StatusConflict, "event is closed")
 		return
 	}
 
@@ -187,17 +216,6 @@ func (a *App) handleCreateEventStaffing(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusBadRequest, "endsAt must be greater than or equal to startsAt")
 		return
 	}
-	if event.Status == "end_of_night" {
-		writeError(w, http.StatusConflict, "event is closed")
-		return
-	}
-
-	tx, err := a.db.Begin(r.Context())
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "could not start transaction")
-		return
-	}
-	defer func() { _ = tx.Rollback(r.Context()) }()
 
 	var startsAtArg any
 	if startsAt != nil {
@@ -218,7 +236,7 @@ func (a *App) handleCreateEventStaffing(w http.ResponseWriter, r *http.Request) 
 		          assigned_person_id, assigned_application_id,
 		          null as assignee_name,
 		          status, created_at, updated_at, completed_at, completed_by_person_id
-	`, event.ID, title, kind, notes, startsAtArg, endsAtArg, actorID).Scan(
+	`, lockedEventID, title, kind, notes, startsAtArg, endsAtArg, actorID).Scan(
 		&row.ID, &row.EventID, &row.Title, &row.Kind, &row.Notes, &row.StartsAt, &row.EndsAt,
 		&row.AssignedPersonID, &row.AssignedApplicationID, &row.AssigneeName, &row.Status, &row.CreatedAt, &row.UpdatedAt, &row.CompletedAt, &row.CompletedByPersonID,
 	); err != nil {

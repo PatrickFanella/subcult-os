@@ -46,6 +46,10 @@ export interface EventDTO {
   ticketCurrency: string;
   reservedCount: number;
   checkedInCount: number;
+  staffingOpenCount: number;
+  staffingAssignedCount: number;
+  staffingCompletedCount: number;
+  staffingCancelledCount: number;
   status: EventStatus;
   publicSlug: string | null;
   publicUrl: string | null;
@@ -195,6 +199,7 @@ export interface EventArchiveDTO {
   status: 'private';
   noteCount: number;
   participants: EventArchiveParticipantDTO[];
+  staffingItems: EventArchiveStaffingItemDTO[];
   notes: EventArchiveNoteDTO[];
   createdAt: string;
   updatedAt: string;
@@ -207,6 +212,17 @@ export interface EventArchiveParticipantDTO {
   roleName: string;
   participantName: string;
   status: 'accepted' | 'confirmed';
+  createdAt: string;
+}
+
+export interface EventArchiveStaffingItemDTO {
+  id: string;
+  archiveId: string;
+  sourceStaffingItemId: string;
+  title: string;
+  kind: 'task' | 'shift';
+  status: 'open' | 'assigned' | 'completed' | 'cancelled';
+  assigneeName?: string | null;
   createdAt: string;
 }
 

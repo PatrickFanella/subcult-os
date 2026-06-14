@@ -115,6 +115,21 @@ function eventCountLabel(event: EventDTO) {
   return `Reserved ${event.reservedCount} / Checked in ${event.checkedInCount}`;
 }
 
+function staffingStatusCopy(event: EventDTO) {
+  const staffingTotal = event.staffingOpenCount + event.staffingAssignedCount + event.staffingCompletedCount + event.staffingCancelledCount;
+  const unresolvedCount = event.staffingOpenCount + event.staffingAssignedCount;
+
+  if (staffingTotal === 0) {
+    return 'No staffing items yet.';
+  }
+
+  if (unresolvedCount > 0) {
+    return 'Unresolved staffing remains before closeout.';
+  }
+
+  return 'All staffing complete.';
+}
+
 function archiveLearningLoopCopy(archives: WorkspaceArchiveSummaryDTO[]) {
   const hasArchives = archives.length > 0;
   const hasNotes = archives.some((archive) => archive.noteCount > 0);
@@ -820,6 +835,7 @@ export function WorkspaceView() {
                         </div>
                         <p className="mt-3 text-sm font-medium text-zinc-200">{eventStatusSummary(event.status)}</p>
                         <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-zinc-300">{eventCountLabel(event)}</div>
+                        {event.status !== 'draft' ? <p className="mt-3 text-sm leading-6 text-zinc-400">{staffingStatusCopy(event)}</p> : null}
                         <div className="mt-4 flex flex-wrap gap-2 text-sm">
                           <a className="rounded-full bg-white px-3 py-2 font-medium text-zinc-950 transition hover:bg-zinc-200" href={`/events/${event.id}`}>
                             {event.status === 'draft' ? 'Finish draft' : event.status === 'published' ? 'View editor' : 'Open archive'}
