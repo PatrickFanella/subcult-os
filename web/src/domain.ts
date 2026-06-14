@@ -66,11 +66,13 @@ export interface PublicEventSummaryDTO {
   startsAt: string;
   publicDescription: string;
   locationDisplay: string;
+  workspaceName: string;
   pricingMode: 'free' | 'fixed';
   ticketPriceCents: number;
   ticketCurrency: string;
   remainingTickets: number;
   isFull: boolean;
+  applicationsOpen: boolean;
   status: 'published';
   publicSlug: string;
   publicUrl: string;

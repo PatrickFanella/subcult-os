@@ -13,11 +13,13 @@ type publicEventSummaryDTO struct {
 	StartsAt          string `json:"startsAt"`
 	PublicDescription string `json:"publicDescription"`
 	LocationDisplay   string `json:"locationDisplay"`
+	WorkspaceName     string `json:"workspaceName"`
 	PricingMode       string `json:"pricingMode"`
 	TicketPriceCents  int    `json:"ticketPriceCents"`
 	TicketCurrency    string `json:"ticketCurrency"`
 	RemainingTickets  int    `json:"remainingTickets"`
 	IsFull            bool   `json:"isFull"`
+	ApplicationsOpen  bool   `json:"applicationsOpen"`
 	Status            string `json:"status"`
 	PublicSlug        string `json:"publicSlug"`
 	PublicURL         string `json:"publicUrl"`
@@ -36,11 +38,17 @@ func (a *App) handleListPublicEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := a.db.Query(r.Context(), `
-		select e.id, e.title, e.starts_at, e.public_description, e.location_display,
+		select e.id, e.title, e.starts_at, e.public_description, e.location_display, w.name,
 		       e.ticket_allocation, e.pricing_mode, e.ticket_price_cents, e.ticket_currency,
 		       (select count(*) from tickets t where t.event_id = e.id and t.payment_status <> 'cancelled') as reserved_count,
+		       exists (
+		         select 1
+		         from event_roles er
+		         where er.event_id = e.id and er.public = true and er.active = true
+		       ) as applications_open,
 		       e.public_slug
 		from events e
+		join workspaces w on w.id = e.workspace_id
 		where e.status = 'published' and e.public_slug is not null
 		  and (
 		    $1 = ''
@@ -60,11 +68,12 @@ func (a *App) handleListPublicEvents(w http.ResponseWriter, r *http.Request) {
 	events := make([]publicEventSummaryDTO, 0)
 	for rows.Next() {
 		var row struct {
-			ID, Title, PublicDescription, LocationDisplay, PricingMode, TicketCurrency, PublicSlug string
-			StartsAt                                                                               time.Time
-			TicketAllocation, TicketPriceCents, ReservedCount                                      int
+			ID, Title, PublicDescription, LocationDisplay, WorkspaceName, PricingMode, TicketCurrency, PublicSlug string
+			StartsAt                                                                                              time.Time
+			TicketAllocation, TicketPriceCents, ReservedCount                                                     int
+			ApplicationsOpen                                                                                      bool
 		}
-		if err := rows.Scan(&row.ID, &row.Title, &row.StartsAt, &row.PublicDescription, &row.LocationDisplay, &row.TicketAllocation, &row.PricingMode, &row.TicketPriceCents, &row.TicketCurrency, &row.ReservedCount, &row.PublicSlug); err != nil {
+		if err := rows.Scan(&row.ID, &row.Title, &row.StartsAt, &row.PublicDescription, &row.LocationDisplay, &row.WorkspaceName, &row.TicketAllocation, &row.PricingMode, &row.TicketPriceCents, &row.TicketCurrency, &row.ReservedCount, &row.ApplicationsOpen, &row.PublicSlug); err != nil {
 			writeError(w, http.StatusInternalServerError, "could not read public event")
 			return
 		}
@@ -80,11 +89,13 @@ func (a *App) handleListPublicEvents(w http.ResponseWriter, r *http.Request) {
 			StartsAt:          row.StartsAt.UTC().Format(time.RFC3339Nano),
 			PublicDescription: row.PublicDescription,
 			LocationDisplay:   row.LocationDisplay,
+			WorkspaceName:     row.WorkspaceName,
 			PricingMode:       row.PricingMode,
 			TicketPriceCents:  row.TicketPriceCents,
 			TicketCurrency:    row.TicketCurrency,
 			RemainingTickets:  remaining,
 			IsFull:            remaining == 0,
+			ApplicationsOpen:  row.ApplicationsOpen,
 			Status:            "published",
 			PublicSlug:        row.PublicSlug,
 			PublicURL:         a.publicEventURL(row.PublicSlug),

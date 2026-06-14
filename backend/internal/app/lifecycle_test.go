@@ -274,15 +274,20 @@ func TestPublicEventDiscoveryAPI(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	draft := createEvent(t, fx, "Draft Night", 20)
 	published := createEventWithPricing(t, fx, "Published Market", 40, "fixed", 1500, "usd")
+	privateApplications := createEvent(t, fx, "Members Night", 30)
 	closed := createEvent(t, fx, "Closed Night", 30)
 
 	publishedID := mustString(t, published, "id")
+	privateApplicationsID := mustString(t, privateApplications, "id")
 	closedID := mustString(t, closed, "id")
 	publishedAfterPublish := publishEvent(t, fx, publishedID)
+	publishEvent(t, fx, privateApplicationsID)
 	publishEvent(t, fx, closedID)
 	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+closedID+"/end-of-night", map[string]any{}, http.StatusOK)
 
 	publishedSlug := mustString(t, publishedAfterPublish, "publicSlug")
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+publishedID+"/roles", map[string]any{"name": "Performer", "description": "Play a 20-minute set.", "capacity": 3, "public": true}, http.StatusOK)
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+privateApplicationsID+"/roles", map[string]any{"name": "Backstage", "description": "Private notes.", "capacity": 1, "public": false}, http.StatusOK)
 	postJSON(t, fx.app, nil, "/api/public/events/"+publishedSlug+"/reservations", map[string]any{
 		"name":  "Ada",
 		"email": "ada@example.com",
@@ -290,22 +295,39 @@ func TestPublicEventDiscoveryAPI(t *testing.T) {
 
 	resp := getJSON(t, fx.app, nil, "/api/public/events", http.StatusOK)
 	events := resp.JSON.([]any)
-	if len(events) != 1 {
-		t.Fatalf("expected one discoverable event, got %#v", events)
+	if len(events) != 2 {
+		t.Fatalf("expected two discoverable events, got %#v", events)
 	}
 
-	event := mustObject(t, events[0])
-	if event["title"] != "Published Market" || event["status"] != "published" || event["publicUrl"] == nil {
-		t.Fatalf("unexpected public event summary: %#v", event)
+	byTitle := map[string]map[string]any{}
+	for _, item := range events {
+		event := mustObject(t, item)
+		byTitle[mustString(t, event, "title")] = event
 	}
-	if event["workspaceId"] != nil || event["ticketAllocation"] != nil || event["reservedCount"] != nil || event["checkedInCount"] != nil || event["staffingOpenCount"] != nil || event["staffingAssignedCount"] != nil || event["staffingCompletedCount"] != nil || event["staffingCancelledCount"] != nil || event["settlementSummary"] != nil || event["archive"] != nil {
-		t.Fatalf("discovery leaked private fields: %#v", event)
+
+	publishedEvent := byTitle["Published Market"]
+	if publishedEvent["status"] != "published" || publishedEvent["publicUrl"] == nil {
+		t.Fatalf("unexpected public event summary: %#v", publishedEvent)
 	}
-	if int(event["remainingTickets"].(float64)) != 39 || event["isFull"].(bool) {
-		t.Fatalf("unexpected availability: %#v", event)
+	if publishedEvent["workspaceName"] != "Signal Collective" || publishedEvent["applicationsOpen"] != true {
+		t.Fatalf("unexpected trust context: %#v", publishedEvent)
 	}
-	if !strings.HasPrefix(event["publicUrl"].(string), "http://example.test/e/") {
-		t.Fatalf("unexpected public url: %#v", event["publicUrl"])
+	if publishedEvent["workspaceId"] != nil || publishedEvent["ticketAllocation"] != nil || publishedEvent["reservedCount"] != nil || publishedEvent["checkedInCount"] != nil || publishedEvent["staffingOpenCount"] != nil || publishedEvent["staffingAssignedCount"] != nil || publishedEvent["staffingCompletedCount"] != nil || publishedEvent["staffingCancelledCount"] != nil || publishedEvent["settlementSummary"] != nil || publishedEvent["archive"] != nil {
+		t.Fatalf("discovery leaked private fields: %#v", publishedEvent)
+	}
+	if int(publishedEvent["remainingTickets"].(float64)) != 39 || publishedEvent["isFull"].(bool) {
+		t.Fatalf("unexpected availability: %#v", publishedEvent)
+	}
+	if !strings.HasPrefix(publishedEvent["publicUrl"].(string), "http://example.test/e/") {
+		t.Fatalf("unexpected public url: %#v", publishedEvent["publicUrl"])
+	}
+
+	privateEvent := byTitle["Members Night"]
+	if privateEvent["workspaceName"] != "Signal Collective" || privateEvent["applicationsOpen"] != false {
+		t.Fatalf("unexpected private-event trust context: %#v", privateEvent)
+	}
+	if privateEvent["workspaceId"] != nil || privateEvent["ticketAllocation"] != nil || privateEvent["reservedCount"] != nil || privateEvent["checkedInCount"] != nil || privateEvent["staffingOpenCount"] != nil || privateEvent["staffingAssignedCount"] != nil || privateEvent["staffingCompletedCount"] != nil || privateEvent["staffingCancelledCount"] != nil {
+		t.Fatalf("discovery leaked private fields: %#v", privateEvent)
 	}
 
 	titles := []string{mustString(t, draft, "title"), "Closed Night"}

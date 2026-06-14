@@ -13,11 +13,15 @@ function formatCurrency(cents: number, currency: string) {
 }
 
 function pricingLabel(event: PublicEventSummaryDTO) {
-  return event.pricingMode === 'free' ? 'Free' : `${formatCurrency(event.ticketPriceCents, event.ticketCurrency)} ticket`;
+  return event.pricingMode === 'free' ? 'Free' : formatCurrency(event.ticketPriceCents, event.ticketCurrency);
 }
 
 function remainingLabel(event: PublicEventSummaryDTO) {
-  return event.isFull ? 'Sold out' : `${event.remainingTickets} remaining`;
+  if (event.isFull) {
+    return 'Sold out';
+  }
+
+  return event.remainingTickets === 1 ? '1 ticket left' : `${event.remainingTickets} tickets left`;
 }
 
 function getRequestedSearchQuery() {
@@ -154,6 +158,10 @@ export function DiscoverView() {
 
                 <div className="mt-4 grid gap-3 text-sm text-zinc-300">
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Hosted by</p>
+                    <p className="mt-2 font-medium text-white">{event.workspaceName}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                     <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Date</p>
                     <p className="mt-2 font-medium text-white">{formatDateTime(event.startsAt)}</p>
                   </div>
@@ -173,6 +181,12 @@ export function DiscoverView() {
                     <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Remaining tickets</p>
                     <p className={`mt-2 font-medium ${event.isFull ? 'text-rose-200' : 'text-white'}`}>{event.remainingTickets}</p>
                   </div>
+                  {event.applicationsOpen ? (
+                    <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-emerald-200">Applications</p>
+                      <p className="mt-2 font-medium text-white">Applications open</p>
+                    </div>
+                  ) : null}
                 </div>
 
                 <a

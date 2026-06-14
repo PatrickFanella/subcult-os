@@ -119,14 +119,33 @@ describe('App routes', () => {
           startsAt: '2026-06-14T23:00:00.000Z',
           publicDescription: 'Late set with food and music.',
           locationDisplay: 'The Hall',
+          workspaceName: 'Signal Collective',
           pricingMode: 'fixed',
           ticketPriceCents: 1800,
           ticketCurrency: 'usd',
           remainingTickets: 12,
           isFull: false,
+          applicationsOpen: true,
           status: 'published',
           publicSlug: 'night-market',
           publicUrl: '/e/night-market',
+        },
+        {
+          id: 'event-2',
+          title: 'Community Jam',
+          startsAt: '2026-06-15T01:00:00.000Z',
+          publicDescription: 'Free late-night hang.',
+          locationDisplay: 'The Loft',
+          workspaceName: 'Signal Collective',
+          pricingMode: 'free',
+          ticketPriceCents: 0,
+          ticketCurrency: 'usd',
+          remainingTickets: 0,
+          isFull: true,
+          applicationsOpen: false,
+          status: 'published',
+          publicSlug: 'community-jam',
+          publicUrl: '/e/community-jam',
         },
       ],
       false,
@@ -135,6 +154,14 @@ describe('App routes', () => {
 
     expect(rendered).toContain('Discover events');
     expect(rendered).toContain('Night Market');
+    expect(rendered).toContain('Hosted by');
+    expect(rendered).toContain('Signal Collective');
+    expect(rendered).toContain('$18.00');
+    expect(rendered).toContain('12 tickets left');
+    expect(rendered).toContain('Applications open');
+    expect(rendered).toContain('Community Jam');
+    expect(rendered).toContain('Free');
+    expect(rendered).toContain('Sold out');
     expect(rendered).toContain('The Hall');
     expect(rendered).toContain('View event');
     expect(rendered).toContain('2026');
