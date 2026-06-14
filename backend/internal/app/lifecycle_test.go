@@ -361,6 +361,82 @@ func TestEventTemplatesMutationAPI(t *testing.T) {
 	}
 }
 
+func TestEventTemplateApplyToDraftAPI(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	tmpl := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/event-templates", map[string]any{
+		"name":              "Monthly Market",
+		"title":             "Template Title",
+		"publicDescription": "Template public copy",
+		"locationDisplay":   "Template Hall",
+		"ticketAllocation":  55,
+		"pricingMode":       "fixed",
+		"ticketPriceCents":  1500,
+		"ticketCurrency":    "usd",
+		"privateNotes":      "Do not copy publicly",
+	}, http.StatusOK)
+	templateID := mustString(t, tmpl.JSON, "id")
+
+	draft := createEvent(t, fx, "Old Title", 5)
+	eventID := mustString(t, draft, "id")
+	applied := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/apply-template", map[string]any{"templateId": templateID}, http.StatusOK)
+	event := mustObject(t, applied.JSON)
+	if event["title"] != "Template Title" || event["publicDescription"] != "Template public copy" || event["locationDisplay"] != "Template Hall" || int(event["ticketAllocation"].(float64)) != 55 || event["pricingMode"] != "fixed" || int(event["ticketPriceCents"].(float64)) != 1500 {
+		t.Fatalf("template was not applied to draft: %#v", event)
+	}
+	if raw, _ := json.Marshal(event); strings.Contains(string(raw), "Do not copy publicly") {
+		t.Fatalf("private template notes leaked into event DTO: %s", raw)
+	}
+
+	reapplied := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/apply-template", map[string]any{"templateId": templateID}, http.StatusOK)
+	if mustObject(t, reapplied.JSON)["title"] != "Template Title" {
+		t.Fatalf("repeat apply changed event unexpectedly: %#v", reapplied.JSON)
+	}
+
+	var applyMetadataText string
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select metadata::text
+		from audit_entries
+		where action = $1 and subject_id = $2
+		order by created_at desc
+		limit 1
+	`, "event_template.applied", eventID).Scan(&applyMetadataText); err != nil {
+		t.Fatal(err)
+	}
+	var applyMetadata map[string]any
+	if err := json.Unmarshal([]byte(applyMetadataText), &applyMetadata); err != nil {
+		t.Fatal(err)
+	}
+	if len(applyMetadata) != 3 || applyMetadata["templateId"] != templateID || applyMetadata["eventId"] != eventID || applyMetadata["workspaceId"] != fx.workspaceID {
+		t.Fatalf("unexpected apply audit metadata: %#v", applyMetadata)
+	}
+	if strings.Contains(applyMetadataText, "Do not copy publicly") || strings.Contains(applyMetadataText, "Template public copy") {
+		t.Fatalf("apply audit leaked private content: %s", applyMetadataText)
+	}
+
+	memberDraft := createEvent(t, fx, "Member Draft", 5)
+	memberEventID := mustString(t, memberDraft, "id")
+	postJSON(t, fx.app, fx.memberCookie, "/api/events/"+memberEventID+"/apply-template", map[string]any{"templateId": templateID}, http.StatusForbidden)
+
+	otherFx := newLifecycleFixture(t)
+	otherTemplate := postJSON(t, otherFx.app, otherFx.ownerCookie, "/api/workspaces/"+otherFx.workspaceID+"/event-templates", map[string]any{"name": "Other", "title": "Other"}, http.StatusOK)
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+memberEventID+"/apply-template", map[string]any{"templateId": mustString(t, otherTemplate.JSON, "id")}, http.StatusNotFound)
+
+	published := publishEvent(t, fx, eventID)
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+mustString(t, published, "id")+"/apply-template", map[string]any{"templateId": templateID}, http.StatusConflict)
+
+	reservedDraft := createEvent(t, fx, "Reserved Draft", 5)
+	reservedEventID := mustString(t, reservedDraft, "id")
+	insertTicketWithPaymentStatus(t, fx, reservedEventID, fx.email("ticket"), "Reserved Buyer", "pending", 1500, "usd")
+	pricingConflict := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+reservedEventID+"/apply-template", map[string]any{"templateId": mustString(t, postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/event-templates", map[string]any{"name": "Fixed Pricing", "title": "Fixed Pricing", "pricingMode": "fixed", "ticketPriceCents": 2000, "ticketCurrency": "usd", "ticketAllocation": 10}, http.StatusOK).JSON, "id")}, http.StatusConflict)
+	if pricingConflict.Status != http.StatusConflict {
+		t.Fatalf("expected pricing conflict, got %d", pricingConflict.Status)
+	}
+	allocationConflict := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+reservedEventID+"/apply-template", map[string]any{"templateId": mustString(t, postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/event-templates", map[string]any{"name": "Low Allocation", "title": "Low Allocation", "pricingMode": "free", "ticketPriceCents": 0, "ticketAllocation": 0}, http.StatusOK).JSON, "id")}, http.StatusConflict)
+	if allocationConflict.Status != http.StatusConflict {
+		t.Fatalf("expected allocation conflict, got %d", allocationConflict.Status)
+	}
+}
+
 func TestCommitmentsAPI(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	event := createEvent(t, fx, "Benefit Show", 20)

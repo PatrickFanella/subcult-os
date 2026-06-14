@@ -68,6 +68,10 @@ type updateEventTemplateRequest struct {
 	PrivateNotes      *string `json:"privateNotes"`
 }
 
+type applyEventTemplateRequest struct {
+	TemplateID string `json:"templateId"`
+}
+
 func (a *App) handleListEventTemplates(w http.ResponseWriter, r *http.Request) {
 	if a.db == nil {
 		writeError(w, http.StatusInternalServerError, "database unavailable")
@@ -454,6 +458,119 @@ func (a *App) handleDeleteEventTemplate(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (a *App) handleApplyEventTemplate(w http.ResponseWriter, r *http.Request) {
+	if a.db == nil {
+		writeError(w, http.StatusInternalServerError, "database unavailable")
+		return
+	}
+	var req applyEventTemplateRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	templateID := strings.TrimSpace(req.TemplateID)
+	if templateID == "" {
+		writeError(w, http.StatusBadRequest, "templateId is required")
+		return
+	}
+
+	tx, err := a.db.Begin(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not start transaction")
+		return
+	}
+	defer func() { _ = tx.Rollback(r.Context()) }()
+
+	eventID := r.PathValue("eventID")
+	event, err := a.loadEventDetailsForUpdate(r.Context(), tx, eventID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "event not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "could not load event")
+		return
+	}
+	actorID, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner")
+	if !ok {
+		writeError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+	if event.Status != "draft" {
+		writeError(w, http.StatusConflict, "event must be draft")
+		return
+	}
+
+	var template eventTemplateRow
+	if err := tx.QueryRow(r.Context(), `
+		select id, workspace_id, name, title, public_description, location_display,
+		       ticket_allocation, pricing_mode, ticket_price_cents, ticket_currency,
+		       private_notes, created_at, updated_at
+		from event_templates
+		where workspace_id = $1
+		  and id = $2
+	`, event.WorkspaceID, templateID).Scan(&template.ID, &template.WorkspaceID, &template.Name, &template.Title, &template.PublicDescription, &template.LocationDisplay, &template.TicketAllocation, &template.PricingMode, &template.TicketPriceCents, &template.TicketCurrency, &template.PrivateNotes, &template.CreatedAt, &template.UpdatedAt); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "event template not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "could not load event template")
+		return
+	}
+
+	if event.ReservedCount > 0 {
+		if template.PricingMode != event.PricingMode || template.TicketPriceCents != event.TicketPriceCents || template.TicketCurrency != event.TicketCurrency {
+			writeError(w, http.StatusConflict, "pricing cannot change after tickets exist")
+			return
+		}
+		if template.TicketAllocation < event.ReservedCount {
+			writeError(w, http.StatusConflict, "ticket allocation cannot go below reserved tickets")
+			return
+		}
+	}
+
+	changed := template.Title != event.Title || template.PublicDescription != event.PublicDescription || template.LocationDisplay != event.LocationDisplay || template.TicketAllocation != event.TicketAllocation || template.PricingMode != event.PricingMode || template.TicketPriceCents != event.TicketPriceCents || template.TicketCurrency != event.TicketCurrency
+	if changed {
+		if _, err := tx.Exec(r.Context(), `
+			update events
+			set title = $2,
+			    public_description = $3,
+			    location_display = $4,
+			    ticket_allocation = $5,
+			    pricing_mode = $6,
+			    ticket_price_cents = $7,
+			    ticket_currency = $8,
+			    updated_at = now()
+			where id = $1
+		`, event.ID, template.Title, template.PublicDescription, template.LocationDisplay, template.TicketAllocation, template.PricingMode, template.TicketPriceCents, template.TicketCurrency); err != nil {
+			writeError(w, http.StatusInternalServerError, "could not update event")
+			return
+		}
+		event.Title = template.Title
+		event.PublicDescription = template.PublicDescription
+		event.LocationDisplay = template.LocationDisplay
+		event.TicketAllocation = template.TicketAllocation
+		event.PricingMode = template.PricingMode
+		event.TicketPriceCents = template.TicketPriceCents
+		event.TicketCurrency = template.TicketCurrency
+		if err := a.audit(context.WithValue(r.Context(), txContextKey{}, tx), actorID, "event_template.applied", "event", event.ID, map[string]any{
+			"templateId":  template.ID,
+			"eventId":     event.ID,
+			"workspaceId": event.WorkspaceID,
+		}); err != nil {
+			writeError(w, http.StatusInternalServerError, "could not record audit")
+			return
+		}
+	}
+
+	if err := tx.Commit(r.Context()); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not save event")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, a.eventDTOFromRow(event))
 }
 
 func eventTemplateDTOFromRow(row eventTemplateRow) eventTemplateDTO {

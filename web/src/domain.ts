@@ -120,6 +120,10 @@ export interface UpdateEventTemplateRequestDTO {
   privateNotes?: string | null;
 }
 
+export interface ApplyEventTemplateRequestDTO {
+  templateId: string;
+}
+
 export interface CreateCommitmentRequestDTO {
   title: string;
   description?: string;

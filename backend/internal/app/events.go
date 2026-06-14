@@ -1690,6 +1690,29 @@ func (a *App) loadEventDetails(ctx context.Context, eventID string) (eventRow, e
 	return row, nil
 }
 
+func (a *App) loadEventDetailsForUpdate(ctx context.Context, tx pgx.Tx, eventID string) (eventRow, error) {
+	var row eventRow
+	if eventID == "" {
+		return row, pgx.ErrNoRows
+	}
+	if err := tx.QueryRow(ctx, `
+		select e.id, e.workspace_id, e.title, e.starts_at, e.public_description, e.location_display,
+		       e.ticket_allocation, e.pricing_mode, e.ticket_price_cents, e.ticket_currency, e.status, e.public_slug,
+		       (select count(*) from tickets t where t.event_id = e.id and t.payment_status <> 'cancelled') as reserved_count,
+		       (select count(*) from tickets t where t.event_id = e.id and t.status = 'checked_in' and t.payment_status <> 'cancelled') as checked_in_count,
+		       (select count(*) from event_staffing_items esi where esi.event_id = e.id and esi.status = 'open') as staffing_open_count,
+		       (select count(*) from event_staffing_items esi where esi.event_id = e.id and esi.status = 'assigned') as staffing_assigned_count,
+		       (select count(*) from event_staffing_items esi where esi.event_id = e.id and esi.status = 'completed') as staffing_completed_count,
+		       (select count(*) from event_staffing_items esi where esi.event_id = e.id and esi.status = 'cancelled') as staffing_cancelled_count
+		from events e
+		where e.id = $1
+		for update
+	`, eventID).Scan(&row.ID, &row.WorkspaceID, &row.Title, &row.StartsAt, &row.PublicDescription, &row.LocationDisplay, &row.TicketAllocation, &row.PricingMode, &row.TicketPriceCents, &row.TicketCurrency, &row.Status, &row.PublicSlug, &row.ReservedCount, &row.CheckedInCount, &row.StaffingOpenCount, &row.StaffingAssignedCount, &row.StaffingCompletedCount, &row.StaffingCancelledCount); err != nil {
+		return eventRow{}, err
+	}
+	return row, nil
+}
+
 func (a *App) eventDTOFromRow(row eventRow) eventDTO {
 	dto := eventDTO{
 		ID:                     row.ID,
