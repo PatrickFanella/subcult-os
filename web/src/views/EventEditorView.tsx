@@ -1272,6 +1272,30 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                         )}
                       </div>
 
+                      <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Participant memory</p>
+                        <p className="mt-2 text-sm leading-6 text-zinc-400">Accepted and confirmed participants are preserved here without private emails or messages.</p>
+                        {archive.participants.length > 0 ? (
+                          <div className="mt-3 space-y-3">
+                            {archive.participants.map((participant) => (
+                              <article key={participant.sourceApplicationId} className="rounded-2xl border border-white/10 bg-zinc-950/50 p-4">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                  <div>
+                                    <p className="text-sm font-semibold text-white">{participant.participantName}</p>
+                                    <p className="mt-1 text-sm text-zinc-400">Role {participant.roleName}</p>
+                                  </div>
+                                  <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-zinc-200">
+                                    {participant.status}
+                                  </span>
+                                </div>
+                              </article>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="mt-3 rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-400">No participant memory yet.</p>
+                        )}
+                      </div>
+
                       {canManageArchive ? (
                         <>
                           <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">

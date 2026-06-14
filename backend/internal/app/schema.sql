@@ -143,6 +143,17 @@ create table if not exists event_archives (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists event_archive_participants (
+  id uuid primary key default gen_random_uuid(),
+  archive_id uuid not null references event_archives(id) on delete cascade,
+  source_application_id uuid not null references event_role_applications(id) on delete cascade,
+  role_name text not null,
+  participant_name text not null,
+  status text not null check (status in ('accepted', 'confirmed')),
+  created_at timestamptz not null default now(),
+  unique (archive_id, source_application_id)
+);
+
 create table if not exists event_archive_notes (
   id uuid primary key default gen_random_uuid(),
   archive_id uuid not null references event_archives(id) on delete cascade,

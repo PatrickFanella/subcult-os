@@ -155,9 +155,20 @@ export interface EventArchiveDTO {
   seededEventId?: string;
   status: 'private';
   noteCount: number;
+  participants: EventArchiveParticipantDTO[];
   notes: EventArchiveNoteDTO[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface EventArchiveParticipantDTO {
+  id: string;
+  archiveId: string;
+  sourceApplicationId: string;
+  roleName: string;
+  participantName: string;
+  status: 'accepted' | 'confirmed';
+  createdAt: string;
 }
 
 export interface WorkspaceArchiveSummaryDTO {

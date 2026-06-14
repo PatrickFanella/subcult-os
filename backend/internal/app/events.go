@@ -47,16 +47,27 @@ type eventReportDTO struct {
 }
 
 type eventArchiveDTO struct {
-	ID            string                `json:"id"`
-	EventID       string                `json:"eventId"`
-	ReportID      string                `json:"reportId"`
-	SettlementID  string                `json:"settlementId"`
-	SeededEventID *string               `json:"seededEventId,omitempty"`
-	Status        string                `json:"status"`
-	NoteCount     int                   `json:"noteCount"`
-	Notes         []eventArchiveNoteDTO `json:"notes"`
-	CreatedAt     string                `json:"createdAt"`
-	UpdatedAt     string                `json:"updatedAt"`
+	ID            string                       `json:"id"`
+	EventID       string                       `json:"eventId"`
+	ReportID      string                       `json:"reportId"`
+	SettlementID  string                       `json:"settlementId"`
+	SeededEventID *string                      `json:"seededEventId,omitempty"`
+	Status        string                       `json:"status"`
+	NoteCount     int                          `json:"noteCount"`
+	Participants  []eventArchiveParticipantDTO `json:"participants"`
+	Notes         []eventArchiveNoteDTO        `json:"notes"`
+	CreatedAt     string                       `json:"createdAt"`
+	UpdatedAt     string                       `json:"updatedAt"`
+}
+
+type eventArchiveParticipantDTO struct {
+	ID                  string `json:"id"`
+	ArchiveID           string `json:"archiveId"`
+	SourceApplicationID string `json:"sourceApplicationId"`
+	RoleName            string `json:"roleName"`
+	ParticipantName     string `json:"participantName"`
+	Status              string `json:"status"`
+	CreatedAt           string `json:"createdAt"`
 }
 
 type eventArchiveNoteDTO struct {
@@ -116,7 +127,7 @@ type eventSettlementDTO struct {
 	Adjustments           []eventSettlementAdjustmentDTO `json:"adjustments"`
 }
 
-func (a *App) ensureEventArchive(ctx context.Context, tx pgx.Tx, eventID, reportID, actorID string) error {
+func (a *App) ensureEventArchive(ctx context.Context, tx pgx.Tx, eventID, reportID, actorID string) (string, bool, error) {
 	var settlementID string
 	if err := tx.QueryRow(ctx, `
 		select id
@@ -124,15 +135,44 @@ func (a *App) ensureEventArchive(ctx context.Context, tx pgx.Tx, eventID, report
 		where event_id = $1
 	`, eventID).Scan(&settlementID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil
+			return "", false, nil
 		}
-		return err
+		return "", false, err
 	}
-	_, err := tx.Exec(ctx, `
+	tag, err := tx.Exec(ctx, `
 		insert into event_archives (event_id, report_id, settlement_id, created_by_person_id)
 		values ($1, $2, $3, $4)
 		on conflict (event_id) do nothing
 	`, eventID, reportID, settlementID, actorID)
+	if err != nil {
+		return "", false, err
+	}
+	created := tag.RowsAffected() > 0
+	var archiveID string
+	if err := tx.QueryRow(ctx, `
+		select id
+		from event_archives
+		where event_id = $1
+	`, eventID).Scan(&archiveID); err != nil {
+		return "", false, err
+	}
+	return archiveID, created, nil
+}
+
+func (a *App) snapshotArchiveParticipants(ctx context.Context, tx pgx.Tx, eventID, archiveID string) error {
+	if archiveID == "" {
+		return nil
+	}
+	_, err := tx.Exec(ctx, `
+		insert into event_archive_participants (archive_id, source_application_id, role_name, participant_name, status)
+		select $1, a.id, r.name, a.applicant_name, a.status
+		from event_role_applications a
+		join event_roles r on r.id = a.role_id and r.event_id = a.event_id
+		where a.event_id = $2
+		  and a.status in ('accepted', 'confirmed')
+		order by r.name asc, a.applicant_name asc, a.id asc
+		on conflict (archive_id, source_application_id) do nothing
+	`, archiveID, eventID)
 	return err
 }
 
@@ -688,9 +728,16 @@ func (a *App) handleEndOfNight(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		if err := a.ensureEventArchive(r.Context(), tx, event.ID, existingReportID, actorID); err != nil {
+		archiveID, created, err := a.ensureEventArchive(r.Context(), tx, event.ID, existingReportID, actorID)
+		if err != nil {
 			writeError(w, http.StatusInternalServerError, "could not create archive")
 			return
+		}
+		if created {
+			if err := a.snapshotArchiveParticipants(r.Context(), tx, event.ID, archiveID); err != nil {
+				writeError(w, http.StatusInternalServerError, "could not create archive participants")
+				return
+			}
 		}
 		if err := tx.Commit(r.Context()); err != nil {
 			writeError(w, http.StatusInternalServerError, "could not save report")
@@ -805,9 +852,16 @@ func (a *App) handleEndOfNight(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not store settlement")
 		return
 	}
-	if err := a.ensureEventArchive(r.Context(), tx, event.ID, report.ID, actorID); err != nil {
+	archiveID, created, err := a.ensureEventArchive(r.Context(), tx, event.ID, report.ID, actorID)
+	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not create archive")
 		return
+	}
+	if created {
+		if err := a.snapshotArchiveParticipants(r.Context(), tx, event.ID, archiveID); err != nil {
+			writeError(w, http.StatusInternalServerError, "could not create archive participants")
+			return
+		}
 	}
 	if _, err := tx.Exec(r.Context(), `
 		update events
@@ -1436,6 +1490,31 @@ func (a *App) loadArchiveDTO(ctx context.Context, eventID string) (eventArchiveD
 	}
 	archive.SeededEventID = nullableString(seededEventID)
 
+	participantRows, err := a.db.Query(ctx, `
+		select id, archive_id, source_application_id, role_name, participant_name, status, created_at
+		from event_archive_participants
+		where archive_id = $1
+		order by role_name asc, participant_name asc, source_application_id asc, id asc
+	`, archive.ID)
+	if err != nil {
+		return eventArchiveDTO{}, err
+	}
+	defer participantRows.Close()
+
+	participants := make([]eventArchiveParticipantDTO, 0)
+	for participantRows.Next() {
+		var participant eventArchiveParticipantDTO
+		var participantCreatedAt time.Time
+		if err := participantRows.Scan(&participant.ID, &participant.ArchiveID, &participant.SourceApplicationID, &participant.RoleName, &participant.ParticipantName, &participant.Status, &participantCreatedAt); err != nil {
+			return eventArchiveDTO{}, err
+		}
+		participant.CreatedAt = participantCreatedAt.UTC().Format(time.RFC3339Nano)
+		participants = append(participants, participant)
+	}
+	if err := participantRows.Err(); err != nil {
+		return eventArchiveDTO{}, err
+	}
+
 	rows, err := a.db.Query(ctx, `
 		select id, archive_id, body, created_by_person_id, created_at
 		from event_archive_notes
@@ -1463,6 +1542,7 @@ func (a *App) loadArchiveDTO(ctx context.Context, eventID string) (eventArchiveD
 
 	archive.CreatedAt = createdAt.UTC().Format(time.RFC3339Nano)
 	archive.UpdatedAt = updatedAt.UTC().Format(time.RFC3339Nano)
+	archive.Participants = participants
 	archive.Notes = notes
 	return archive, nil
 }

@@ -599,6 +599,7 @@ describe('App routes', () => {
         settlementId: 'settlement-1',
         status: 'private',
         noteCount: 1,
+        participants: [],
         notes: [
           {
             id: 'note-1',
@@ -720,6 +721,7 @@ describe('App routes', () => {
         seededEventId: 'event-2',
         status: 'private',
         noteCount: 0,
+        participants: [],
         notes: [],
         createdAt: '2026-06-14T03:00:00.000Z',
         updatedAt: '2026-06-14T03:00:00.000Z',
@@ -802,6 +804,7 @@ describe('App routes', () => {
         settlementId: 'settlement-1',
         status: 'private',
         noteCount: 0,
+        participants: [],
         notes: [],
         createdAt: '2026-06-14T03:00:00.000Z',
         updatedAt: '2026-06-14T03:00:00.000Z',
@@ -852,6 +855,110 @@ describe('App routes', () => {
     expect(rendered).toContain('Private archive');
     expect(rendered).not.toContain('Seed next draft');
     expect(rendered).not.toContain('Add lesson');
+  });
+
+  it('renders participant memory in the event archive panel', () => {
+    const event = {
+      id: 'event-1',
+      workspaceId: 'workspace-1',
+      title: 'Night Market',
+      startsAt: '2026-06-13T23:00:00.000Z',
+      publicDescription: 'A late set.',
+      locationDisplay: 'The Hall',
+      ticketAllocation: 100,
+      pricingMode: 'fixed',
+      ticketPriceCents: 1800,
+      ticketCurrency: 'usd',
+      reservedCount: 26,
+      checkedInCount: 20,
+      status: 'end_of_night',
+      publicSlug: 'night-market',
+      publicUrl: '/e/night-market',
+    };
+
+    const rendered = renderWithState('/events/event-1?workspaceId=workspace-1', <EventEditorView eventId="event-1" />, [
+      event,
+      null,
+      {
+        id: 'archive-1',
+        eventId: event.id,
+        reportId: 'report-1',
+        settlementId: 'settlement-1',
+        status: 'private',
+        noteCount: 0,
+        participants: [
+          {
+            id: 'archive-participant-1',
+            archiveId: 'archive-1',
+            sourceApplicationId: 'application-1',
+            roleName: 'Performer',
+            participantName: 'Alex',
+            status: 'accepted',
+            createdAt: '2026-06-14T03:05:00.000Z',
+          },
+          {
+            id: 'archive-participant-2',
+            archiveId: 'archive-1',
+            sourceApplicationId: 'application-2',
+            roleName: 'Performer',
+            participantName: 'Blair',
+            status: 'confirmed',
+            createdAt: '2026-06-14T03:06:00.000Z',
+          },
+        ],
+        notes: [],
+        createdAt: '2026-06-14T03:00:00.000Z',
+        updatedAt: '2026-06-14T03:10:00.000Z',
+      },
+      '',
+      false,
+      false,
+      {
+        title: event.title,
+        startsAt: '2026-06-13T23:00',
+        publicDescription: event.publicDescription,
+        locationDisplay: event.locationDisplay,
+        ticketAllocation: '100',
+        pricingMode: 'fixed',
+        ticketPriceDollars: '18.00',
+      },
+      {
+        title: event.title,
+        startsAt: '2026-06-13T23:00',
+        publicDescription: event.publicDescription,
+        locationDisplay: event.locationDisplay,
+        ticketAllocation: '100',
+        pricingMode: 'fixed',
+        ticketPriceDollars: '18.00',
+      },
+      false,
+      false,
+      false,
+      null,
+      null,
+      null,
+      {
+        amountDollars: '',
+        label: '',
+        reason: '',
+      },
+      false,
+      false,
+      {
+        id: 'workspace-1',
+        name: 'Main Room',
+        role: 'owner',
+        members: [],
+        invitations: [],
+      },
+    ]);
+
+    expect(rendered).toContain('Participant memory');
+    expect(rendered).toContain('Alex');
+    expect(rendered).toContain('Blair');
+    expect(rendered).toContain('accepted');
+    expect(rendered).toContain('confirmed');
+    expect(rendered).not.toContain('applicantEmail');
   });
 
   it('renders the public paid ticket CTA', () => {

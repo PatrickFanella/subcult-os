@@ -145,6 +145,259 @@ func TestFirstEventLifecycleArchiveAPI(t *testing.T) {
 	getJSON(t, fx.app, otherFx.memberCookie, "/api/events/"+eventID+"/archive", http.StatusForbidden)
 }
 
+func TestArchiveCapturesParticipantMemory(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 4)
+	eventID := mustString(t, event, "id")
+	published := publishEvent(t, fx, eventID)
+	slug := mustString(t, published, "publicSlug")
+
+	performer := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/roles", map[string]any{"name": "Performer", "description": "Play a 20-minute set.", "capacity": 3, "public": true}, http.StatusOK)
+	roleID := mustString(t, performer.JSON, "id")
+
+	accepted := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": roleID, "applicantName": "  Alex  ", "applicantEmail": "  ALEX@example.com ", "message": "  Bring a keyboard.  "}, http.StatusOK)
+	confirmed := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": roleID, "applicantName": "Blair", "applicantEmail": "blair@example.com", "message": "Backup vocals."}, http.StatusOK)
+	ignored := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": roleID, "applicantName": "Casey", "applicantEmail": "casey@example.com", "message": "Still interested."}, http.StatusOK)
+
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update event_role_applications
+		set status = 'accepted', updated_at = now()
+		where id = $1
+	`, mustString(t, accepted.JSON, "id")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update event_role_applications
+		set status = 'confirmed', updated_at = now()
+		where id = $1
+	`, mustString(t, confirmed.JSON, "id")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update event_role_applications
+		set status = 'rejected', updated_at = now()
+		where id = $1
+	`, mustString(t, ignored.JSON, "id")); err != nil {
+		t.Fatal(err)
+	}
+
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+	firstArchive := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/archive", http.StatusOK)
+	first := mustObject(t, firstArchive.JSON)
+	participants, ok := first["participants"].([]any)
+	if !ok || len(participants) != 2 {
+		t.Fatalf("expected two archived participants, got %#v", firstArchive.JSON)
+	}
+	firstParticipant := mustObject(t, participants[0])
+	secondParticipant := mustObject(t, participants[1])
+	if firstParticipant["roleName"] != "Performer" || firstParticipant["participantName"] != "Alex" || firstParticipant["status"] != "accepted" {
+		t.Fatalf("unexpected first archived participant: %#v", firstParticipant)
+	}
+	if secondParticipant["roleName"] != "Performer" || secondParticipant["participantName"] != "Blair" || secondParticipant["status"] != "confirmed" {
+		t.Fatalf("unexpected second archived participant: %#v", secondParticipant)
+	}
+	for _, participant := range participants {
+		entry := mustObject(t, participant)
+		for _, forbidden := range []string{"applicantEmail", "message"} {
+			if _, ok := entry[forbidden]; ok {
+				t.Fatalf("archive participant memory must not expose %s: %#v", forbidden, entry)
+			}
+		}
+	}
+
+	var count int
+	if err := fx.app.db.QueryRow(t.Context(), `select count(*) from event_archive_participants where archive_id = $1`, first["id"]).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Fatalf("expected two archive participant rows, got %d", count)
+	}
+
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+	secondArchive := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/archive", http.StatusOK)
+	if !reflect.DeepEqual(firstArchive.JSON, secondArchive.JSON) {
+		t.Fatalf("expected archive retry to be idempotent: first=%#v second=%#v", firstArchive.JSON, secondArchive.JSON)
+	}
+}
+
+func TestArchiveSnapshotStaysImmutableAfterCreation(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 4)
+	eventID := mustString(t, event, "id")
+	published := publishEvent(t, fx, eventID)
+	slug := mustString(t, published, "publicSlug")
+
+	performer := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/roles", map[string]any{"name": "Performer", "description": "Play a 20-minute set.", "capacity": 3, "public": true}, http.StatusOK)
+	roleID := mustString(t, performer.JSON, "id")
+
+	first := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": roleID, "applicantName": "Alex", "applicantEmail": "alex@example.com", "message": "Bring a keyboard."}, http.StatusOK)
+	second := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": roleID, "applicantName": "Blair", "applicantEmail": "blair@example.com", "message": "Backup vocals."}, http.StatusOK)
+
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update event_role_applications
+		set status = 'accepted', updated_at = now()
+		where id = $1
+	`, mustString(t, first.JSON, "id")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update event_role_applications
+		set status = 'confirmed', updated_at = now()
+		where id = $1
+	`, mustString(t, second.JSON, "id")); err != nil {
+		t.Fatal(err)
+	}
+
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+	archiveBefore := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/archive", http.StatusOK)
+
+	late := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": roleID, "applicantName": "Casey", "applicantEmail": "casey@example.com", "message": "Late addition."}, http.StatusOK)
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update event_role_applications
+		set status = 'accepted', updated_at = now()
+		where id = $1
+	`, mustString(t, late.JSON, "id")); err != nil {
+		t.Fatal(err)
+	}
+
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+	archiveAfter := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/archive", http.StatusOK)
+
+	if !reflect.DeepEqual(archiveBefore.JSON, archiveAfter.JSON) {
+		t.Fatalf("expected archive snapshot to remain immutable after retry: before=%#v after=%#v", archiveBefore.JSON, archiveAfter.JSON)
+	}
+}
+
+func TestArchiveCapturesDuplicateParticipantNamesFromDistinctApplications(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 4)
+	eventID := mustString(t, event, "id")
+	published := publishEvent(t, fx, eventID)
+	slug := mustString(t, published, "publicSlug")
+
+	performer := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/roles", map[string]any{"name": "Performer", "description": "Play a 20-minute set.", "capacity": 3, "public": true}, http.StatusOK)
+	roleID := mustString(t, performer.JSON, "id")
+
+	first := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": roleID, "applicantName": "Jordan", "applicantEmail": "jordan-a@example.com", "message": "First applicant."}, http.StatusOK)
+	second := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": roleID, "applicantName": "Jordan", "applicantEmail": "jordan-b@example.com", "message": "Second applicant."}, http.StatusOK)
+
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update event_role_applications
+		set status = 'accepted', updated_at = now()
+		where id = $1
+	`, mustString(t, first.JSON, "id")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update event_role_applications
+		set status = 'confirmed', updated_at = now()
+		where id = $1
+	`, mustString(t, second.JSON, "id")); err != nil {
+		t.Fatal(err)
+	}
+
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+	archive := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/archive", http.StatusOK)
+	participants, ok := mustObject(t, archive.JSON)["participants"].([]any)
+	if !ok || len(participants) != 2 {
+		t.Fatalf("expected two archived participants, got %#v", archive.JSON)
+	}
+
+	seenSourceIDs := map[string]struct{}{}
+	for _, participant := range participants {
+		entry := mustObject(t, participant)
+		if entry["participantName"] != "Jordan" {
+			t.Fatalf("unexpected participant name: %#v", entry)
+		}
+		sourceID := mustString(t, entry, "sourceApplicationId")
+		if _, exists := seenSourceIDs[sourceID]; exists {
+			t.Fatalf("expected distinct source applications, got duplicate source id %s", sourceID)
+		}
+		seenSourceIDs[sourceID] = struct{}{}
+	}
+}
+
+func TestLegacyReportCreatesArchiveOnceAndKeepsSnapshotImmutable(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 4)
+	eventID := mustString(t, event, "id")
+	published := publishEvent(t, fx, eventID)
+	slug := mustString(t, published, "publicSlug")
+	ownerID := ownerPersonID(t, fx)
+
+	performer := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/roles", map[string]any{"name": "Performer", "description": "Play a 20-minute set.", "capacity": 3, "public": true}, http.StatusOK)
+	roleID := mustString(t, performer.JSON, "id")
+
+	first := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": roleID, "applicantName": "Alex", "applicantEmail": "alex@example.com", "message": "Bring a keyboard."}, http.StatusOK)
+	second := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": roleID, "applicantName": "Blair", "applicantEmail": "blair@example.com", "message": "Backup vocals."}, http.StatusOK)
+
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update event_role_applications
+		set status = 'accepted', updated_at = now()
+		where id = $1
+	`, mustString(t, first.JSON, "id")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update event_role_applications
+		set status = 'confirmed', updated_at = now()
+		where id = $1
+	`, mustString(t, second.JSON, "id")); err != nil {
+		t.Fatal(err)
+	}
+
+	legacySnapshot := map[string]any{
+		"id":                     "legacy-report",
+		"eventId":                eventID,
+		"title":                  "Night Market",
+		"startsAt":               event["startsAt"],
+		"publicUrl":              published["publicUrl"],
+		"ticketAllocation":       4,
+		"ticketsReserved":        0,
+		"ticketsCheckedIn":       0,
+		"noShows":                0,
+		"generatedAt":            time.Now().UTC().Format(time.RFC3339Nano),
+		"generatedByMemberEmail": fx.email("owner"),
+	}
+	payload, err := json.Marshal(legacySnapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fx.app.db.Exec(t.Context(), `
+		insert into event_reports (event_id, generated_by_person_id, snapshot)
+		values ($1, $2, $3)
+	`, eventID, ownerID, payload); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fx.app.db.Exec(t.Context(), `
+		insert into event_settlements (event_id, currency, generated_by_person_id)
+		values ($1, 'usd', $2)
+	`, eventID, ownerID); err != nil {
+		t.Fatal(err)
+	}
+
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+	archiveBefore := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/archive", http.StatusOK)
+	if participants, ok := mustObject(t, archiveBefore.JSON)["participants"].([]any); !ok || len(participants) != 2 {
+		t.Fatalf("expected two archived participants from legacy report retry, got %#v", archiveBefore.JSON)
+	}
+
+	late := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": roleID, "applicantName": "Casey", "applicantEmail": "casey@example.com", "message": "Late addition."}, http.StatusOK)
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update event_role_applications
+		set status = 'accepted', updated_at = now()
+		where id = $1
+	`, mustString(t, late.JSON, "id")); err != nil {
+		t.Fatal(err)
+	}
+
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+	archiveAfter := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/archive", http.StatusOK)
+	if !reflect.DeepEqual(archiveBefore.JSON, archiveAfter.JSON) {
+		t.Fatalf("expected legacy archive snapshot to remain immutable after retry: before=%#v after=%#v", archiveBefore.JSON, archiveAfter.JSON)
+	}
+}
+
 func TestEventRoleDefinitionsAPI(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	event := createEvent(t, fx, "Night Market", 4)
