@@ -153,6 +153,19 @@ export interface EventParticipantDTO {
   updatedAt: string;
 }
 
+export interface NotificationEventDTO {
+  id: string;
+  eventId?: string;
+  recipientEmail: string;
+  notificationType: string;
+  relatedType: string;
+  relatedId?: string;
+  subject: string;
+  preview: string;
+  status: 'queued';
+  createdAt: string;
+}
+
 export interface TicketDTO {
   id: string;
   eventId: string;

@@ -223,6 +223,26 @@ create table if not exists email_outbox (
   created_at timestamptz not null default now()
 );
 
+create table if not exists notification_events (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references workspaces(id) on delete cascade,
+  event_id uuid references events(id) on delete cascade,
+  recipient_email text not null,
+  notification_type text not null,
+  related_type text not null,
+  related_id uuid,
+  idempotency_key text not null unique,
+  email_outbox_id uuid references email_outbox(id) on delete set null,
+  subject text not null,
+  preview text not null,
+  status text not null default 'queued' check (status in ('queued')),
+  created_by_person_id uuid references people(id),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists notification_events_event_created_idx
+  on notification_events (event_id, created_at desc);
+
 alter table events add column if not exists pricing_mode text not null default 'free' check (pricing_mode in ('free', 'fixed'));
 alter table events add column if not exists ticket_price_cents integer not null default 0 check (ticket_price_cents >= 0);
 alter table events add column if not exists ticket_currency text not null default 'usd';

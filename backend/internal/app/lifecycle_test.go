@@ -270,6 +270,58 @@ func TestArchiveSnapshotStaysImmutableAfterCreation(t *testing.T) {
 	}
 }
 
+func TestNotificationLedgerAPI(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 4)
+	eventID := mustString(t, event, "id")
+	ownerID := ownerPersonID(t, fx)
+
+	var outboxID string
+	if err := fx.app.db.QueryRow(t.Context(), `
+		insert into email_outbox (recipient_email, subject, body, related_type, related_id)
+		values ($1, $2, $3, $4, null)
+		returning id
+	`, "notify@example.test", "Notification subject", "Sensitive message body", "event_notification").Scan(&outboxID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fx.app.db.Exec(t.Context(), `
+		insert into notification_events (
+			workspace_id, event_id, recipient_email, notification_type, related_type,
+			related_id, idempotency_key, email_outbox_id, subject, preview, created_by_person_id
+		)
+		values ($1, $2, $3, $4, $5, null, $6, $7, $8, $9, $10)
+	`, fx.workspaceID, eventID, "notify@example.test", "event.update", "event_notification", "notification-ledger:test", outboxID, "Notification subject", "Sensitive preview", ownerID); err != nil {
+		t.Fatal(err)
+	}
+
+	ownerResp := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/notifications", http.StatusOK)
+	memberResp := getJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/notifications", http.StatusOK)
+	if !reflect.DeepEqual(ownerResp.JSON, memberResp.JSON) {
+		t.Fatalf("expected owner/member notifications to match: owner=%#v member=%#v", ownerResp.JSON, memberResp.JSON)
+	}
+
+	items := ownerResp.JSON.([]any)
+	if len(items) != 1 {
+		t.Fatalf("expected one notification event, got %#v", ownerResp.JSON)
+	}
+	item := mustObject(t, items[0])
+	if item["eventId"] != eventID || item["recipientEmail"] != "notify@example.test" || item["notificationType"] != "event.update" || item["relatedType"] != "event_notification" || item["subject"] != "Notification subject" || item["preview"] != "Sensitive preview" || item["status"] != "queued" {
+		t.Fatalf("unexpected notification payload: %#v", item)
+	}
+	if _, ok := item["relatedId"]; ok {
+		t.Fatalf("expected relatedId to be omitted when null: %#v", item)
+	}
+	for _, forbidden := range []string{"message", "notes", "body"} {
+		if _, ok := item[forbidden]; ok {
+			t.Fatalf("notification ledger leaked %s: %#v", forbidden, item)
+		}
+	}
+
+	otherFx := newLifecycleFixture(t)
+	getJSON(t, fx.app, otherFx.memberCookie, "/api/events/"+eventID+"/notifications", http.StatusForbidden)
+	getJSON(t, fx.app, nil, "/api/events/"+eventID+"/notifications", http.StatusForbidden)
+}
+
 func TestPublicEventDiscoveryAPI(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	draft := createEvent(t, fx, "Draft Night", 20)
