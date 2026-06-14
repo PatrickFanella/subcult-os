@@ -450,6 +450,185 @@ func TestEventStaffingCreateAPI(t *testing.T) {
 	}
 }
 
+func TestEventStaffingUpdateAPI(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 4)
+	eventID := mustString(t, event, "id")
+	published := publishEvent(t, fx, eventID)
+	slug := mustString(t, published, "publicSlug")
+
+	accepted := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": mustString(t, postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/roles", map[string]any{"name": "Performer", "description": "Play a set.", "capacity": 1, "public": true}, http.StatusOK).JSON, "id"), "applicantName": "Alex Applicant", "applicantEmail": "alex@example.test", "message": "Happy to help."}, http.StatusOK)
+	acceptedAppID := mustString(t, accepted.JSON, "id")
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update event_role_applications
+		set status = 'accepted', updated_at = now()
+		where id = $1
+	`, acceptedAppID); err != nil {
+		t.Fatal(err)
+	}
+
+	submitted := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": mustString(t, postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/roles", map[string]any{"name": "Support", "description": "Help out.", "capacity": 1, "public": true}, http.StatusOK).JSON, "id"), "applicantName": "Sam Submitted", "applicantEmail": "submitted@example.test", "message": "Still waiting."}, http.StatusOK)
+	submittedAppID := mustString(t, submitted.JSON, "id")
+	rejected := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": mustString(t, postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/roles", map[string]any{"name": "Runner", "description": "Run errands.", "capacity": 1, "public": true}, http.StatusOK).JSON, "id"), "applicantName": "Riley Rejected", "applicantEmail": "rejected@example.test", "message": "Maybe later."}, http.StatusOK)
+	rejectedAppID := mustString(t, rejected.JSON, "id")
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update event_role_applications
+		set status = 'rejected', updated_at = now()
+		where id = $1
+	`, rejectedAppID); err != nil {
+		t.Fatal(err)
+	}
+
+	otherEvent := createEvent(t, fx, "Other Night", 2)
+	otherEventID := mustString(t, otherEvent, "id")
+	otherPublished := publishEvent(t, fx, otherEventID)
+	otherSlug := mustString(t, otherPublished, "publicSlug")
+	otherRole := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+otherEventID+"/roles", map[string]any{"name": "Other Performer", "description": "Other set.", "capacity": 1, "public": true}, http.StatusOK)
+	otherRoleID := mustString(t, otherRole.JSON, "id")
+	otherAccepted := postJSON(t, fx.app, nil, "/api/public/events/"+otherSlug+"/role-applications", map[string]any{"roleId": otherRoleID, "applicantName": "Other Applicant", "applicantEmail": "other@example.test", "message": "Different event."}, http.StatusOK)
+	otherAcceptedID := mustString(t, otherAccepted.JSON, "id")
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update event_role_applications
+		set status = 'accepted', updated_at = now()
+		where id = $1
+	`, otherAcceptedID); err != nil {
+		t.Fatal(err)
+	}
+
+	memberID := mustString(t, func() map[string]any {
+		var personID string
+		if err := fx.app.db.QueryRow(t.Context(), `
+			select person_id
+			from workspace_members
+			where workspace_id = $1
+			  and role = 'member'
+			  and removed_at is null
+			limit 1
+		`, fx.workspaceID).Scan(&personID); err != nil {
+			t.Fatal(err)
+		}
+		return map[string]any{"id": personID}
+	}(), "id")
+	ownerID := ownerPersonID(t, fx)
+
+	item := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/staffing", map[string]any{"title": "Opening checklist", "kind": "task", "notes": "Check lights and radios."}, http.StatusOK)
+	taskID := mustString(t, item.JSON, "id")
+
+	assignedMember := patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/staffing/"+taskID, map[string]any{"assignedPersonId": memberID}, http.StatusOK)
+	assignedMemberObj := mustObject(t, assignedMember.JSON)
+	if assignedMemberObj["status"] != "assigned" || assignedMemberObj["assignedPersonId"] != memberID || assignedMemberObj["assigneeName"] != "Door" {
+		t.Fatalf("unexpected member assignment response: %#v", assignedMemberObj)
+	}
+
+	var metadataText string
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select metadata::text
+		from audit_entries
+		where action = $1
+		  and subject_id = $2
+		order by created_at desc
+		limit 1
+	`, "staffing.updated", taskID).Scan(&metadataText); err != nil {
+		t.Fatal(err)
+	}
+	var metadata map[string]any
+	if err := json.Unmarshal([]byte(metadataText), &metadata); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := metadata["notes"]; ok {
+		t.Fatalf("staffing update audit must not include notes: %#v", metadata)
+	}
+	if len(metadata) != 6 || metadata["eventId"] != eventID || metadata["staffingItemId"] != taskID || metadata["previousStatus"] != "open" || metadata["status"] != "assigned" || metadata["assignedPersonId"] != memberID || metadata["assignedApplicationId"] != nil {
+		t.Fatalf("unexpected staffing update audit metadata: %#v", metadata)
+	}
+
+	cleared := patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/staffing/"+taskID, map[string]any{"clearAssignee": true}, http.StatusOK)
+	clearedObj := mustObject(t, cleared.JSON)
+	if clearedObj["status"] != "open" {
+		t.Fatalf("expected cleared assignee to reopen item, got %#v", clearedObj)
+	}
+	for _, field := range []string{"assignedPersonId", "assignedApplicationId", "assigneeName"} {
+		if _, ok := clearedObj[field]; ok {
+			t.Fatalf("expected cleared item to omit %s, got %#v", field, clearedObj)
+		}
+	}
+
+	assignedApplication := patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/staffing/"+taskID, map[string]any{"assignedApplicationId": acceptedAppID}, http.StatusOK)
+	assignedApplicationObj := mustObject(t, assignedApplication.JSON)
+	if assignedApplicationObj["status"] != "assigned" || assignedApplicationObj["assignedApplicationId"] != acceptedAppID || assignedApplicationObj["assigneeName"] != "Alex Applicant" {
+		t.Fatalf("unexpected application assignment response: %#v", assignedApplicationObj)
+	}
+
+	for _, payload := range []map[string]any{
+		{"assignedApplicationId": submittedAppID},
+		{"assignedApplicationId": rejectedAppID},
+		{"assignedApplicationId": otherAcceptedID},
+	} {
+		patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/staffing/"+taskID, payload, http.StatusBadRequest)
+	}
+
+	completed := patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/staffing/"+taskID, map[string]any{"status": "completed"}, http.StatusOK)
+	completedObj := mustObject(t, completed.JSON)
+	completedAt := completedObj["completedAt"].(string)
+	completedBy := completedObj["completedByPersonId"].(string)
+	if completedObj["status"] != "completed" || completedAt == "" || completedBy != ownerID {
+		t.Fatalf("unexpected completed response: %#v", completedObj)
+	}
+
+	var beforeCount int
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select count(*)
+		from audit_entries
+		where action = 'staffing.updated'
+		  and subject_id = $1
+	`, taskID).Scan(&beforeCount); err != nil {
+		t.Fatal(err)
+	}
+	completedAgain := patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/staffing/"+taskID, map[string]any{"status": "completed"}, http.StatusOK)
+	completedAgainObj := mustObject(t, completedAgain.JSON)
+	if completedAgainObj["completedAt"] != completedAt || completedAgainObj["completedByPersonId"] != completedBy || completedAgainObj["status"] != "completed" {
+		t.Fatalf("expected completed idempotency, got %#v", completedAgainObj)
+	}
+	var afterCount int
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select count(*)
+		from audit_entries
+		where action = 'staffing.updated'
+		  and subject_id = $1
+	`, taskID).Scan(&afterCount); err != nil {
+		t.Fatal(err)
+	}
+	if beforeCount != afterCount {
+		t.Fatalf("expected repeated complete to avoid duplicate audit, before=%d after=%d", beforeCount, afterCount)
+	}
+
+	cancelled := patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/staffing/"+taskID, map[string]any{"status": "cancelled"}, http.StatusOK)
+	cancelledObj := mustObject(t, cancelled.JSON)
+	if cancelledObj["status"] != "cancelled" {
+		t.Fatalf("unexpected cancelled response: %#v", cancelledObj)
+	}
+	for _, field := range []string{"completedAt", "completedByPersonId"} {
+		if _, ok := cancelledObj[field]; ok {
+			t.Fatalf("expected cancelled item to omit %s, got %#v", field, cancelledObj)
+		}
+	}
+
+	shift := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/staffing", map[string]any{"title": "Door shift", "kind": "shift", "notes": "Front door coverage.", "startsAt": "2026-07-01T20:00:00Z", "endsAt": "2026-07-01T22:00:00Z"}, http.StatusOK)
+	shiftID := mustString(t, shift.JSON, "id")
+	clearedShift := patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/staffing/"+shiftID, map[string]any{"clearStartsAt": true, "clearEndsAt": true}, http.StatusOK)
+	clearedShiftObj := mustObject(t, clearedShift.JSON)
+	for _, field := range []string{"startsAt", "endsAt"} {
+		if _, ok := clearedShiftObj[field]; ok {
+			t.Fatalf("expected cleared shift to omit %s, got %#v", field, clearedShiftObj)
+		}
+	}
+
+	postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/staffing/"+taskID, map[string]any{"title": "Member update"}, http.StatusForbidden)
+
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+	patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/staffing/"+taskID, map[string]any{"title": "Closed update"}, http.StatusConflict)
+}
+
 func TestArchiveCapturesDuplicateParticipantNamesFromDistinctApplications(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	event := createEvent(t, fx, "Night Market", 4)

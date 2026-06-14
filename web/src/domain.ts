@@ -108,6 +108,19 @@ export interface CreateEventStaffingRequestDTO {
   endsAt?: string | null;
 }
 
+export interface UpdateEventStaffingRequestDTO {
+  title?: string | null;
+  notes?: string | null;
+  startsAt?: string | null;
+  clearStartsAt?: boolean;
+  endsAt?: string | null;
+  clearEndsAt?: boolean;
+  assignedPersonId?: string | null;
+  assignedApplicationId?: string | null;
+  clearAssignee?: boolean;
+  status?: 'open' | 'assigned' | 'completed' | 'cancelled' | null;
+}
+
 export interface EventParticipantDTO {
   applicationId: string;
   roleId: string;
