@@ -96,6 +96,30 @@ export interface EventTemplateDTO {
   updatedAt: string;
 }
 
+export interface CreateEventTemplateRequestDTO {
+  name: string;
+  title: string;
+  publicDescription?: string;
+  locationDisplay?: string;
+  ticketAllocation?: number;
+  pricingMode?: string;
+  ticketPriceCents?: number;
+  ticketCurrency?: string;
+  privateNotes?: string;
+}
+
+export interface UpdateEventTemplateRequestDTO {
+  name?: string | null;
+  title?: string | null;
+  publicDescription?: string | null;
+  locationDisplay?: string | null;
+  ticketAllocation?: number | null;
+  pricingMode?: string | null;
+  ticketPriceCents?: number | null;
+  ticketCurrency?: string | null;
+  privateNotes?: string | null;
+}
+
 export interface CreateCommitmentRequestDTO {
   title: string;
   description?: string;

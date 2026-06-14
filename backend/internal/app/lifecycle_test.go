@@ -269,6 +269,98 @@ func TestEventTemplatesListAPI(t *testing.T) {
 	getJSON(t, fx.app, otherFx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/event-templates", http.StatusForbidden)
 }
 
+func TestEventTemplatesMutationAPI(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	created := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/event-templates", map[string]any{
+		"name":              "  Monthly Market  ",
+		"title":             "  Night Market  ",
+		"publicDescription": "  Public copy  ",
+		"locationDisplay":   "  The Hall  ",
+		"ticketAllocation":  40,
+		"pricingMode":       "fixed",
+		"ticketPriceCents":  1500,
+		"ticketCurrency":    " USD ",
+		"privateNotes":      "Private setup note",
+	}, http.StatusOK)
+	createdTemplate := mustObject(t, created.JSON)
+	if createdTemplate["name"] != "Monthly Market" || createdTemplate["title"] != "Night Market" || createdTemplate["publicDescription"] != "Public copy" || createdTemplate["locationDisplay"] != "The Hall" || int(createdTemplate["ticketAllocation"].(float64)) != 40 || createdTemplate["pricingMode"] != "fixed" || int(createdTemplate["ticketPriceCents"].(float64)) != 1500 || createdTemplate["ticketCurrency"] != "usd" || createdTemplate["privateNotes"] != "Private setup note" {
+		t.Fatalf("unexpected created template: %#v", createdTemplate)
+	}
+	templateID := createdTemplate["id"].(string)
+
+	updated := patchJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/event-templates/"+templateID, map[string]any{
+		"name":             "  Market v2  ",
+		"pricingMode":      "free",
+		"ticketPriceCents": 0,
+		"privateNotes":     "  Still private  ",
+	}, http.StatusOK)
+	updatedTemplate := mustObject(t, updated.JSON)
+	if updatedTemplate["name"] != "Market v2" || updatedTemplate["pricingMode"] != "free" || int(updatedTemplate["ticketPriceCents"].(float64)) != 0 || updatedTemplate["ticketCurrency"] != "usd" || updatedTemplate["privateNotes"] != "Still private" {
+		t.Fatalf("unexpected updated template: %#v", updatedTemplate)
+	}
+
+	postJSON(t, fx.app, fx.memberCookie, "/api/workspaces/"+fx.workspaceID+"/event-templates", map[string]any{"name": "member", "title": "member"}, http.StatusForbidden)
+	patchJSON(t, fx.app, fx.memberCookie, "/api/workspaces/"+fx.workspaceID+"/event-templates/"+templateID, map[string]any{"name": "member"}, http.StatusForbidden)
+	doJSON(t, http.MethodDelete, fx.app, fx.memberCookie, "/api/workspaces/"+fx.workspaceID+"/event-templates/"+templateID, nil, http.StatusForbidden)
+
+	postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/event-templates", map[string]any{"name": "", "title": "x"}, http.StatusBadRequest)
+	postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/event-templates", map[string]any{"name": "bad", "title": "bad", "pricingMode": "fixed", "ticketPriceCents": 49}, http.StatusBadRequest)
+	patchJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/event-templates/"+templateID, map[string]any{}, http.StatusBadRequest)
+
+	rawAudit := auditMetadataForAction(t, fx.app.db, "event_template.created") + auditMetadataForAction(t, fx.app.db, "event_template.updated")
+	if strings.Contains(rawAudit, "Private setup note") || strings.Contains(rawAudit, "Still private") || strings.Contains(rawAudit, "Night Market") || strings.Contains(rawAudit, "Public copy") || strings.Contains(rawAudit, "The Hall") {
+		t.Fatalf("audit metadata leaked template content: %s", rawAudit)
+	}
+
+	for _, action := range []string{"event_template.created", "event_template.updated"} {
+		var metadataText string
+		if err := fx.app.db.QueryRow(t.Context(), `
+			select metadata::text
+			from audit_entries
+			where action = $1 and subject_id = $2
+			order by created_at desc
+			limit 1
+		`, action, templateID).Scan(&metadataText); err != nil {
+			t.Fatal(err)
+		}
+		var metadata map[string]any
+		if err := json.Unmarshal([]byte(metadataText), &metadata); err != nil {
+			t.Fatal(err)
+		}
+		if len(metadata) != 2 || metadata["templateId"] != templateID || metadata["workspaceId"] != fx.workspaceID {
+			t.Fatalf("unexpected %s audit metadata: %#v", action, metadata)
+		}
+	}
+
+	deleted := doJSON(t, http.MethodDelete, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/event-templates/"+templateID, nil, http.StatusNoContent)
+	if deleted.Body != "" {
+		t.Fatalf("expected empty delete response, got %q", deleted.Body)
+	}
+	getJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/event-templates", http.StatusOK)
+
+	rawAudit = auditMetadataForAction(t, fx.app.db, "event_template.deleted")
+	if strings.Contains(rawAudit, "Private setup note") || strings.Contains(rawAudit, "Still private") || strings.Contains(rawAudit, "Night Market") || strings.Contains(rawAudit, "Public copy") || strings.Contains(rawAudit, "The Hall") {
+		t.Fatalf("audit metadata leaked template content: %s", rawAudit)
+	}
+	var deleteMetadataText string
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select metadata::text
+		from audit_entries
+		where action = $1 and subject_id = $2
+		order by created_at desc
+		limit 1
+	`, "event_template.deleted", templateID).Scan(&deleteMetadataText); err != nil {
+		t.Fatal(err)
+	}
+	var deleteMetadata map[string]any
+	if err := json.Unmarshal([]byte(deleteMetadataText), &deleteMetadata); err != nil {
+		t.Fatal(err)
+	}
+	if len(deleteMetadata) != 2 || deleteMetadata["templateId"] != templateID || deleteMetadata["workspaceId"] != fx.workspaceID {
+		t.Fatalf("unexpected delete audit metadata: %#v", deleteMetadata)
+	}
+}
+
 func TestCommitmentsAPI(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	event := createEvent(t, fx, "Benefit Show", 20)
