@@ -685,6 +685,17 @@ func (a *App) handleEndOfNight(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := tx.Exec(r.Context(), `
+		insert into event_settlements (
+			event_id, currency, gross_paid_revenue_cents, paid_ticket_count, pending_ticket_count,
+			cancelled_ticket_count, free_ticket_count, reserved_count, status, generated_at, generated_by_person_id
+		)
+		values ($1, $2, $3, $4, $5, $6, $7, $8, 'open', $9, $10)
+		on conflict (event_id) do nothing
+	`, event.ID, report.SettlementSummary.Currency, report.SettlementSummary.GrossPaidRevenueCents, report.SettlementSummary.PaidTicketCount, report.SettlementSummary.PendingTicketCount, report.SettlementSummary.CancelledTicketCount, report.SettlementSummary.FreeTicketCount, report.SettlementSummary.ReservedCount, generatedAt, actorID); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not store settlement")
+		return
+	}
+	if _, err := tx.Exec(r.Context(), `
 		update events
 		set status = 'end_of_night', ended_at = coalesce(ended_at, now()), updated_at = now()
 		where id = $1

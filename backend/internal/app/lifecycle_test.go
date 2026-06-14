@@ -82,10 +82,52 @@ func TestFirstEventLifecyclePaidReportSettlementSummaryIsIdempotent(t *testing.T
 		t.Fatalf("unexpected paid settlement summary: %#v", firstSummary)
 	}
 
+	type settlementRow struct {
+		Currency              string
+		GrossPaidRevenueCents int
+		PaidTicketCount       int
+		PendingTicketCount    int
+		CancelledTicketCount  int
+		FreeTicketCount       int
+		ReservedCount         int
+		Status                string
+		GeneratedByPersonID   string
+		GeneratedAt           time.Time
+		CreatedAt             time.Time
+		UpdatedAt             time.Time
+	}
+	settlement := settlementRow{}
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select currency, gross_paid_revenue_cents, paid_ticket_count, pending_ticket_count,
+		       cancelled_ticket_count, free_ticket_count, reserved_count, status,
+		       generated_by_person_id, generated_at, created_at, updated_at
+		from event_settlements
+		where event_id = $1
+	`, eventID).Scan(&settlement.Currency, &settlement.GrossPaidRevenueCents, &settlement.PaidTicketCount, &settlement.PendingTicketCount, &settlement.CancelledTicketCount, &settlement.FreeTicketCount, &settlement.ReservedCount, &settlement.Status, &settlement.GeneratedByPersonID, &settlement.GeneratedAt, &settlement.CreatedAt, &settlement.UpdatedAt); err != nil {
+		t.Fatal(err)
+	}
+	if settlement.Currency != "usd" || settlement.GrossPaidRevenueCents != 3000 || settlement.PaidTicketCount != 2 || settlement.PendingTicketCount != 0 || settlement.CancelledTicketCount != 1 || settlement.FreeTicketCount != 1 || settlement.ReservedCount != 3 || settlement.Status != "open" || settlement.GeneratedByPersonID != ownerPersonID(t, fx) {
+		t.Fatalf("unexpected settlement row: %#v", settlement)
+	}
+
 	insertTicketWithPaymentStatus(t, fx, eventID, fx.email("late-paid"), "Late Paid", "paid", 9999, "usd")
 	second := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
 	if !reflect.DeepEqual(first.JSON, second.JSON) {
 		t.Fatalf("expected end-of-night report to be idempotent: first=%#v second=%#v", first.JSON, second.JSON)
+	}
+
+	settlementAfter := settlementRow{}
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select currency, gross_paid_revenue_cents, paid_ticket_count, pending_ticket_count,
+		       cancelled_ticket_count, free_ticket_count, reserved_count, status,
+		       generated_by_person_id, generated_at, created_at, updated_at
+		from event_settlements
+		where event_id = $1
+	`, eventID).Scan(&settlementAfter.Currency, &settlementAfter.GrossPaidRevenueCents, &settlementAfter.PaidTicketCount, &settlementAfter.PendingTicketCount, &settlementAfter.CancelledTicketCount, &settlementAfter.FreeTicketCount, &settlementAfter.ReservedCount, &settlementAfter.Status, &settlementAfter.GeneratedByPersonID, &settlementAfter.GeneratedAt, &settlementAfter.CreatedAt, &settlementAfter.UpdatedAt); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(settlement, settlementAfter) {
+		t.Fatalf("expected settlement row to remain unchanged: first=%#v second=%#v", settlement, settlementAfter)
 	}
 }
 

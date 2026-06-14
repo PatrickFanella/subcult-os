@@ -80,6 +80,23 @@ create table if not exists event_reports (
   snapshot jsonb not null
 );
 
+create table if not exists event_settlements (
+  id uuid primary key default gen_random_uuid(),
+  event_id uuid not null unique references events(id) on delete cascade,
+  currency text not null,
+  gross_paid_revenue_cents integer not null default 0 check (gross_paid_revenue_cents >= 0),
+  paid_ticket_count integer not null default 0 check (paid_ticket_count >= 0),
+  pending_ticket_count integer not null default 0 check (pending_ticket_count >= 0),
+  cancelled_ticket_count integer not null default 0 check (cancelled_ticket_count >= 0),
+  free_ticket_count integer not null default 0 check (free_ticket_count >= 0),
+  reserved_count integer not null default 0 check (reserved_count >= 0),
+  status text not null default 'open',
+  generated_at timestamptz not null default now(),
+  generated_by_person_id uuid not null references people(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists audit_entries (
   id uuid primary key default gen_random_uuid(),
   actor_person_id uuid references people(id),
