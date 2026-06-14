@@ -268,6 +268,52 @@ func TestArchiveSnapshotStaysImmutableAfterCreation(t *testing.T) {
 	}
 }
 
+func TestPublicEventDiscoveryAPI(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	draft := createEvent(t, fx, "Draft Night", 20)
+	published := createEventWithPricing(t, fx, "Published Market", 40, "fixed", 1500, "usd")
+	closed := createEvent(t, fx, "Closed Night", 30)
+
+	publishedID := mustString(t, published, "id")
+	closedID := mustString(t, closed, "id")
+	publishedAfterPublish := publishEvent(t, fx, publishedID)
+	publishEvent(t, fx, closedID)
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+closedID+"/end-of-night", map[string]any{}, http.StatusOK)
+
+	publishedSlug := mustString(t, publishedAfterPublish, "publicSlug")
+	postJSON(t, fx.app, nil, "/api/public/events/"+publishedSlug+"/reservations", map[string]any{
+		"name":  "Ada",
+		"email": "ada@example.com",
+	}, http.StatusOK)
+
+	resp := getJSON(t, fx.app, nil, "/api/public/events", http.StatusOK)
+	events := resp.JSON.([]any)
+	if len(events) != 1 {
+		t.Fatalf("expected one discoverable event, got %#v", events)
+	}
+
+	event := mustObject(t, events[0])
+	if event["title"] != "Published Market" || event["status"] != "published" || event["publicUrl"] == nil {
+		t.Fatalf("unexpected public event summary: %#v", event)
+	}
+	if event["workspaceId"] != nil || event["ticketAllocation"] != nil || event["reservedCount"] != nil || event["checkedInCount"] != nil || event["staffingOpenCount"] != nil || event["staffingAssignedCount"] != nil || event["staffingCompletedCount"] != nil || event["staffingCancelledCount"] != nil || event["settlementSummary"] != nil || event["archive"] != nil {
+		t.Fatalf("discovery leaked private fields: %#v", event)
+	}
+	if int(event["remainingTickets"].(float64)) != 39 || event["isFull"].(bool) {
+		t.Fatalf("unexpected availability: %#v", event)
+	}
+	if !strings.HasPrefix(event["publicUrl"].(string), "http://example.test/e/") {
+		t.Fatalf("unexpected public url: %#v", event["publicUrl"])
+	}
+
+	titles := []string{mustString(t, draft, "title"), "Closed Night"}
+	for _, title := range titles {
+		if strings.Contains(fmt.Sprintf("%#v", events), title) {
+			t.Fatalf("hidden event %q leaked in discovery: %#v", title, events)
+		}
+	}
+}
+
 func TestEventStaffingListAPI(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	event := createEvent(t, fx, "Night Market", 4)

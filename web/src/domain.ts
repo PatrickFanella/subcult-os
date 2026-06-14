@@ -60,6 +60,22 @@ export interface PublicEventDTO extends EventDTO {
   isFull: boolean;
 }
 
+export interface PublicEventSummaryDTO {
+  id: string;
+  title: string;
+  startsAt: string;
+  publicDescription: string;
+  locationDisplay: string;
+  pricingMode: 'free' | 'fixed';
+  ticketPriceCents: number;
+  ticketCurrency: string;
+  remainingTickets: number;
+  isFull: boolean;
+  status: 'published';
+  publicSlug: string;
+  publicUrl: string;
+}
+
 export interface EventRoleDTO {
   id: string;
   eventId: string;
