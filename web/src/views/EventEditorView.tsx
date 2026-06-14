@@ -1,7 +1,20 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ApiError, api, patchJSON, postJSON } from '../api';
-import type { CurrentWorkspaceDTO, EventArchiveDTO, EventDTO, EventParticipantDTO, EventReportDTO, EventRoleApplicationDTO, EventRoleDTO, EventSettlementDTO, EventStaffingItemDTO, EventStatus, NotificationEventDTO } from '../domain';
+import type {
+  CommitmentDTO,
+  CurrentWorkspaceDTO,
+  EventArchiveDTO,
+  EventDTO,
+  EventParticipantDTO,
+  EventReportDTO,
+  EventRoleApplicationDTO,
+  EventRoleDTO,
+  EventSettlementDTO,
+  EventStaffingItemDTO,
+  EventStatus,
+  NotificationEventDTO,
+} from '../domain';
 
 type FormState = {
   title: string;
@@ -25,6 +38,12 @@ type StaffingFormState = {
   notes: string;
   startsAt: string;
   endsAt: string;
+};
+
+type CommitmentFormState = {
+  title: string;
+  description: string;
+  dueAt: string;
 };
 
 const applicationReviewStatusOptions: { value: EventRoleApplicationDTO['status']; label: string }[] = [
@@ -61,6 +80,15 @@ function toInputValue(value: string) {
 
 function fromInputValue(value: string) {
   return new Date(value).toISOString();
+}
+
+function toRfc3339DateTime(value: string) {
+  if (!value) {
+    return undefined;
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
 }
 
 function emptyForm(): FormState {
@@ -134,6 +162,47 @@ function emptyStaffingForm(): StaffingFormState {
     startsAt: '',
     endsAt: '',
   };
+}
+
+function emptyCommitmentForm(): CommitmentFormState {
+  return { title: '', description: '', dueAt: '' };
+}
+
+function sortCommitments(items: CommitmentDTO[]) {
+  const statusOrder: Record<CommitmentDTO['status'], number> = { open: 0, done: 1, cancelled: 2 };
+
+  return [...items].sort((left, right) => {
+    const statusDelta = statusOrder[left.status] - statusOrder[right.status];
+    if (statusDelta !== 0) return statusDelta;
+
+    const leftDue = left.dueAt ? new Date(left.dueAt).getTime() : Number.POSITIVE_INFINITY;
+    const rightDue = right.dueAt ? new Date(right.dueAt).getTime() : Number.POSITIVE_INFINITY;
+    if (leftDue !== rightDue) return leftDue - rightDue;
+
+    return new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
+  });
+}
+
+function commitmentStatusLabel(status: CommitmentDTO['status']) {
+  switch (status) {
+    case 'open':
+      return 'Open';
+    case 'done':
+      return 'Done';
+    case 'cancelled':
+      return 'Cancelled';
+  }
+}
+
+function commitmentStatusTone(status: CommitmentDTO['status']) {
+  switch (status) {
+    case 'open':
+      return 'border-amber-400/20 bg-amber-400/10 text-amber-200';
+    case 'done':
+      return 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200';
+    case 'cancelled':
+      return 'border-rose-400/20 bg-rose-400/10 text-rose-200';
+  }
 }
 
 function staffingStatusOrder(status: EventStaffingItemDTO['status']) {
@@ -278,6 +347,12 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   const [staffingActioningId, setStaffingActioningId] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<NotificationEventDTO[] | null | undefined>(undefined);
   const [notificationsRefreshTick, setNotificationsRefreshTick] = useState(0);
+  const [commitments, setCommitments] = useState<CommitmentDTO[] | null>(null);
+  const [commitmentsDenied, setCommitmentsDenied] = useState(false);
+  const [commitmentForm, setCommitmentForm] = useState<CommitmentFormState>(emptyCommitmentForm());
+  const [commitmentSubmitting, setCommitmentSubmitting] = useState(false);
+  const [commitmentActioningId, setCommitmentActioningId] = useState<string | null>(null);
+  const commitmentsRevisionRef = useRef(0);
 
   const hasWorkspace = workspaceId !== '';
   const closed = event?.status === 'end_of_night';
@@ -325,6 +400,18 @@ export function EventEditorView({ eventId }: { eventId: string }) {
       { kind: 'shift', label: 'Shifts', items: staffingShifts },
     ],
     [staffingShifts, staffingTasks],
+  );
+  const visibleCommitments = useMemo(() => (commitments ? sortCommitments(commitments) : []), [commitments]);
+  const commitmentCounts = useMemo(
+    () =>
+      visibleCommitments.reduce(
+        (counts, commitment) => ({
+          ...counts,
+          [commitment.status]: counts[commitment.status] + 1,
+        }),
+        { open: 0, done: 0, cancelled: 0 },
+      ),
+    [visibleCommitments],
   );
   const dirty = useMemo(() => !formsMatch(form, initialForm), [form, initialForm]);
 
@@ -645,6 +732,56 @@ export function EventEditorView({ eventId }: { eventId: string }) {
     };
   }, [creating, event?.id, event?.status]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCommitments() {
+      const requestRevision = ++commitmentsRevisionRef.current;
+
+      if (creating || !event) {
+        setCommitments(null);
+        setCommitmentsDenied(false);
+        setCommitmentForm(emptyCommitmentForm());
+        setCommitmentSubmitting(false);
+        setCommitmentActioningId(null);
+        return;
+      }
+
+      setCommitments(null);
+      setCommitmentsDenied(false);
+      setCommitmentForm(emptyCommitmentForm());
+      setCommitmentSubmitting(false);
+      setCommitmentActioningId(null);
+
+      try {
+        const loadedCommitments = await api<CommitmentDTO[]>(`/api/events/${event.id}/commitments`);
+        if (!cancelled && requestRevision === commitmentsRevisionRef.current) {
+          setCommitments(sortCommitments(loadedCommitments));
+        }
+      } catch (caught) {
+        if (cancelled) return;
+
+        if (caught instanceof ApiError && caught.status === 403) {
+          if (requestRevision === commitmentsRevisionRef.current) {
+            setCommitmentsDenied(true);
+            setCommitments(null);
+          }
+          return;
+        }
+
+        if (requestRevision === commitmentsRevisionRef.current) {
+          setError(caught instanceof Error ? caught.message : 'Unable to load commitments');
+        }
+      }
+    }
+
+    void loadCommitments();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [creating, event?.id]);
+
   async function persist() {
     const ticketPriceCents = form.pricingMode === 'fixed' ? priceInCents(form.ticketPriceDollars) : 0;
 
@@ -901,6 +1038,57 @@ export function EventEditorView({ eventId }: { eventId: string }) {
 
   async function handleSetStaffingStatus(staffingID: string, status: EventStaffingItemDTO['status']) {
     await handleStaffingUpdate(staffingID, { status });
+  }
+
+  async function handleCommitmentCreate(formEvent: FormEvent<HTMLFormElement>) {
+    formEvent.preventDefault();
+    if (!event || !currentWorkspace || currentWorkspace.id !== event.workspaceId || currentWorkspace.role !== 'owner') {
+      return;
+    }
+
+    const title = commitmentForm.title.trim();
+    if (!title) {
+      setError('Enter a commitment title before saving it.');
+      return;
+    }
+
+    setCommitmentSubmitting(true);
+    setError(null);
+
+    try {
+      const created = await postJSON<CommitmentDTO>(`/api/workspaces/${event.workspaceId}/commitments`, {
+        title,
+        description: commitmentForm.description.trim(),
+        dueAt: toRfc3339DateTime(commitmentForm.dueAt),
+        eventId: event.id,
+      });
+      commitmentsRevisionRef.current += 1;
+      setCommitments((current) => sortCommitments([...(current ?? []), created]));
+      setCommitmentForm(emptyCommitmentForm());
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to save commitment');
+    } finally {
+      setCommitmentSubmitting(false);
+    }
+  }
+
+  async function handleCommitmentStatus(commitmentID: string, status: CommitmentDTO['status']) {
+    if (!event || !currentWorkspace || currentWorkspace.id !== event.workspaceId || currentWorkspace.role !== 'owner') {
+      return;
+    }
+
+    setCommitmentActioningId(commitmentID);
+    setError(null);
+
+    try {
+      const updated = await patchJSON<CommitmentDTO>(`/api/workspaces/${event.workspaceId}/commitments/${commitmentID}`, { status });
+      commitmentsRevisionRef.current += 1;
+      setCommitments((current) => sortCommitments([...(current ?? []).filter((commitment) => commitment.id !== updated.id), updated]));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to update commitment');
+    } finally {
+      setCommitmentActioningId((current) => (current === commitmentID ? null : current));
+    }
   }
 
   async function handleSeedNextDraft() {
@@ -1926,6 +2114,130 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                     </a>
                   </div>
                 </section>
+              ) : null}
+
+              {!creating && effective && currentWorkspace?.id === effective.workspaceId && !commitmentsDenied ? (
+                commitments === null ? (
+                  <section className="space-y-4 rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.3em] text-fuchsia-300">Event commitments</p>
+                      <p className="mt-2 text-sm leading-6 text-zinc-400">Loading commitments…</p>
+                    </div>
+                  </section>
+                ) : (
+                <section className="space-y-4 rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-fuchsia-300">Event commitments</p>
+                    <p className="mt-2 text-sm leading-6 text-zinc-400">Private promises for {effective.title} stay tied to this workspace only.</p>
+                  </div>
+
+                  <div className="grid gap-3 text-sm sm:grid-cols-3">
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Open</p>
+                      <p className="mt-2 text-2xl font-semibold text-white">{commitmentCounts.open}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Done</p>
+                      <p className="mt-2 text-2xl font-semibold text-white">{commitmentCounts.done}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Cancelled</p>
+                      <p className="mt-2 text-2xl font-semibold text-white">{commitmentCounts.cancelled}</p>
+                    </div>
+                  </div>
+
+                  {visibleCommitments.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-5 text-sm text-zinc-400">
+                      <p className="font-medium text-white">No commitments yet for this event.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {visibleCommitments.map((commitment) => (
+                        <article key={commitment.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <p className="text-lg font-medium text-white">{commitment.title}</p>
+                              <p className="mt-1 text-sm text-zinc-400">
+                                {commitment.dueAt ? `Due ${formatDateTime(commitment.dueAt)}` : 'No due date'}
+                                {commitment.ownerPersonId ? ' · Owner assigned' : ''}
+                              </p>
+                            </div>
+                            <span className={`rounded-full border px-3 py-1 text-xs uppercase tracking-[0.25em] ${commitmentStatusTone(commitment.status)}`}>
+                              {commitmentStatusLabel(commitment.status)}
+                            </span>
+                          </div>
+
+                          <p className="mt-3 text-sm leading-6 text-zinc-300">{commitment.description || 'No private description yet.'}</p>
+
+                          {currentWorkspace?.role === 'owner' ? (
+                            <div className="mt-4 flex flex-wrap gap-2 text-sm">
+                              <button
+                                className="rounded-full border border-emerald-400/20 bg-emerald-300 px-3 py-2 font-medium text-zinc-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:bg-emerald-300/60"
+                                type="button"
+                                onClick={() => void handleCommitmentStatus(commitment.id, 'done')}
+                                disabled={commitmentActioningId === commitment.id}
+                              >
+                                Mark done
+                              </button>
+                              <button
+                                className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-zinc-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:bg-white/5"
+                                type="button"
+                                onClick={() => void handleCommitmentStatus(commitment.id, 'open')}
+                                disabled={commitmentActioningId === commitment.id}
+                              >
+                                Reopen
+                              </button>
+                              <button
+                                className="rounded-full border border-rose-400/20 bg-rose-300 px-3 py-2 font-medium text-zinc-950 transition hover:bg-rose-200 disabled:cursor-not-allowed disabled:bg-rose-300/60"
+                                type="button"
+                                onClick={() => void handleCommitmentStatus(commitment.id, 'cancelled')}
+                                disabled={commitmentActioningId === commitment.id}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : null}
+                        </article>
+                      ))}
+                    </div>
+                  )}
+
+                  {currentWorkspace?.role === 'owner' ? (
+                    <form className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4" onSubmit={handleCommitmentCreate}>
+                      <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Add commitment</p>
+                      <label className="block space-y-2 text-sm">
+                        <span className="text-zinc-300">Title</span>
+                        <input
+                          className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-fuchsia-300/60 focus:bg-zinc-950/80"
+                          value={commitmentForm.title}
+                          onChange={(event) => setCommitmentForm((current) => ({ ...current, title: event.target.value }))}
+                          required
+                        />
+                      </label>
+                      <label className="block space-y-2 text-sm">
+                        <span className="text-zinc-300">Description</span>
+                        <textarea
+                          className="min-h-28 w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-fuchsia-300/60 focus:bg-zinc-950/80"
+                          value={commitmentForm.description}
+                          onChange={(event) => setCommitmentForm((current) => ({ ...current, description: event.target.value }))}
+                        />
+                      </label>
+                      <label className="block space-y-2 text-sm">
+                        <span className="text-zinc-300">Due at</span>
+                        <input
+                          className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-fuchsia-300/60 focus:bg-zinc-950/80"
+                          type="datetime-local"
+                          value={commitmentForm.dueAt}
+                          onChange={(event) => setCommitmentForm((current) => ({ ...current, dueAt: event.target.value }))}
+                        />
+                      </label>
+                      <button className="rounded-2xl bg-fuchsia-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-fuchsia-200 disabled:cursor-not-allowed disabled:bg-fuchsia-300/60" type="submit" disabled={commitmentSubmitting}>
+                        {commitmentSubmitting ? 'Saving…' : 'Add commitment'}
+                      </button>
+                    </form>
+                  ) : null}
+                </section>
+                )
               ) : null}
 
               {creating && hasWorkspace ? (

@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
-import { api, postJSON } from '../api';
+import { ApiError, api, patchJSON, postJSON } from '../api';
 import type {
   CurrentUserDTO,
   CurrentWorkspaceDTO,
+  CommitmentDTO,
   DevEmailOutboxMessageDTO,
   EventDTO,
   EventStatus,
+  ContactDTO,
   InvitationCreatedDTO,
   InvitationDTO,
   MemberDTO,
@@ -17,6 +19,21 @@ import type {
 type CurrentWorkspaceResponse = Omit<CurrentWorkspaceDTO, 'members' | 'invitations'> & {
   members?: MemberDTO[] | null;
   invitations?: InvitationDTO[] | null;
+};
+
+type ContactFormState = {
+  displayName: string;
+  email: string;
+  phone: string;
+  tags: string;
+  notes: string;
+};
+
+type CommitmentFormState = {
+  title: string;
+  description: string;
+  dueAt: string;
+  eventId: string;
 };
 
 export function normalizeCurrentWorkspace(workspace: CurrentWorkspaceResponse): CurrentWorkspaceDTO {
@@ -62,9 +79,93 @@ function formatDateTime(value: string) {
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat([], { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
 
+function toRfc3339DateTime(value: string) {
+  if (!value) {
+    return undefined;
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+}
+
 function formatShortDateTime(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(date);
+}
+
+function emptyContactForm(): ContactFormState {
+  return { displayName: '', email: '', phone: '', tags: '', notes: '' };
+}
+
+function contactFormFrom(contact: ContactDTO): ContactFormState {
+  return {
+    displayName: contact.displayName,
+    email: contact.email ?? '',
+    phone: contact.phone ?? '',
+    tags: contact.tags.join(', '),
+    notes: contact.notes,
+  };
+}
+
+function emptyCommitmentForm(): CommitmentFormState {
+  return { title: '', description: '', dueAt: '', eventId: '' };
+}
+
+function parseTagList(value: string) {
+  const seen = new Set<string>();
+  const tags: string[] = [];
+
+  for (const tag of value.split(',')) {
+    const trimmed = tag.trim();
+    if (!trimmed) continue;
+    const normalized = trimmed.toLowerCase();
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    tags.push(trimmed);
+  }
+
+  return tags;
+}
+
+function sortContacts(contacts: ContactDTO[]) {
+  return [...contacts].sort((left, right) => left.displayName.localeCompare(right.displayName) || new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime());
+}
+
+function sortCommitments(commitments: CommitmentDTO[]) {
+  const statusOrder: Record<CommitmentDTO['status'], number> = { open: 0, done: 1, cancelled: 2 };
+
+  return [...commitments].sort((left, right) => {
+    const statusDelta = statusOrder[left.status] - statusOrder[right.status];
+    if (statusDelta !== 0) return statusDelta;
+
+    const leftDue = left.dueAt ? new Date(left.dueAt).getTime() : Number.POSITIVE_INFINITY;
+    const rightDue = right.dueAt ? new Date(right.dueAt).getTime() : Number.POSITIVE_INFINITY;
+    if (leftDue !== rightDue) return leftDue - rightDue;
+
+    return new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
+  });
+}
+
+function commitmentStatusLabel(status: CommitmentDTO['status']) {
+  switch (status) {
+    case 'open':
+      return 'Open';
+    case 'done':
+      return 'Done';
+    case 'cancelled':
+      return 'Cancelled';
+  }
+}
+
+function commitmentStatusTone(status: CommitmentDTO['status']) {
+  switch (status) {
+    case 'open':
+      return 'border-amber-400/20 bg-amber-400/10 text-amber-200';
+    case 'done':
+      return 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200';
+    case 'cancelled':
+      return 'border-rose-400/20 bg-rose-400/10 text-rose-200';
+  }
 }
 
 function eventStatusLabel(status: EventStatus) {
@@ -302,7 +403,24 @@ export function WorkspaceView() {
   const initialArchiveQuery = useMemo(() => getRequestedArchiveQuery().trim(), []);
   const [archiveQuery, setArchiveQuery] = useState(initialArchiveQuery);
   const [archiveSearching, setArchiveSearching] = useState(false);
+  const [contacts, setContacts] = useState<ContactDTO[] | null>(null);
+  const [contactsDenied, setContactsDenied] = useState(false);
+  const [contactForm, setContactForm] = useState<ContactFormState>(emptyContactForm());
+  const [editingContactId, setEditingContactId] = useState<string | null>(null);
+  const [commitments, setCommitments] = useState<CommitmentDTO[] | null>(null);
+  const [commitmentsDenied, setCommitmentsDenied] = useState(false);
+  const [commitmentForm, setCommitmentForm] = useState<CommitmentFormState>(emptyCommitmentForm());
   const requestedWorkspaceId = useMemo(() => getRequestedWorkspaceId(), []);
+
+  function resetPrivateWorkspaceState() {
+    setContacts(null);
+    setContactsDenied(false);
+    setContactForm(emptyContactForm());
+    setEditingContactId(null);
+    setCommitments(null);
+    setCommitmentsDenied(false);
+    setCommitmentForm(emptyCommitmentForm());
+  }
 
   const workspaceSummaries = useMemo(() => me?.workspaces ?? [], [me]);
   const orderedEvents = useMemo(() => [...events].sort((left, right) => new Date(right.startsAt).getTime() - new Date(left.startsAt).getTime()), [events]);
@@ -312,9 +430,23 @@ export function WorkspaceView() {
   );
   const normalizedArchiveQuery = archiveQuery.trim();
   const archiveByEventId = useMemo(() => new Map(archives.map((archive) => [archive.eventId, archive] as const)), [archives]);
+  const eventTitleById = useMemo(() => new Map(orderedEvents.map((event) => [event.id, event.title] as const)), [orderedEvents]);
   const archiveLearningLoop = useMemo(
     () => (normalizedArchiveQuery ? 'Search results are filtered. Reset to see the full workspace learning loop.' : archiveLearningLoopCopy(orderedArchives)),
     [normalizedArchiveQuery, orderedArchives],
+  );
+  const visibleContacts = useMemo(() => (contacts ? sortContacts(contacts) : []), [contacts]);
+  const visibleCommitments = useMemo(() => (commitments ? sortCommitments(commitments) : []), [commitments]);
+  const commitmentCounts = useMemo(
+    () =>
+      visibleCommitments.reduce(
+        (counts, commitment) => ({
+          ...counts,
+          [commitment.status]: counts[commitment.status] + 1,
+        }),
+        { open: 0, done: 0, cancelled: 0 },
+      ),
+    [visibleCommitments],
   );
   const statusCounts = useMemo(
     () =>
@@ -346,14 +478,39 @@ export function WorkspaceView() {
     }
 
     async function loadWorkspaceData(nextWorkspace: CurrentWorkspaceDTO) {
+      resetPrivateWorkspaceState();
       setWorkspace(nextWorkspace);
-      const [loadedEvents, loadedArchives] = await Promise.all([
+      const [loadedEvents, loadedArchives, loadedContacts, loadedCommitments] = await Promise.all([
         api<EventDTO[]>(`/api/workspaces/${nextWorkspace.id}/events`).catch(() => []),
         loadWorkspaceArchives(nextWorkspace.id),
+        (async () => {
+          try {
+            return { data: await api<ContactDTO[]>(`/api/workspaces/${nextWorkspace.id}/contacts`), denied: false };
+          } catch (caught) {
+            if (caught instanceof ApiError && caught.status === 403) {
+              return { data: null, denied: true };
+            }
+            throw caught;
+          }
+        })(),
+        (async () => {
+          try {
+            return { data: await api<CommitmentDTO[]>(`/api/workspaces/${nextWorkspace.id}/commitments`), denied: false };
+          } catch (caught) {
+            if (caught instanceof ApiError && caught.status === 403) {
+              return { data: null, denied: true };
+            }
+            throw caught;
+          }
+        })(),
       ]);
       if (!cancelled) {
         setEvents(loadedEvents ?? []);
         setArchives(loadedArchives ?? []);
+        setContactsDenied(loadedContacts.denied);
+        setContacts(loadedContacts.data);
+        setCommitmentsDenied(loadedCommitments.denied);
+        setCommitments(loadedCommitments.data);
       }
     }
 
@@ -508,6 +665,7 @@ export function WorkspaceView() {
         members: [],
         invitations: [],
       };
+      resetPrivateWorkspaceState();
       setWorkspace(nextWorkspace);
       setEvents([]);
       setArchives([]);
@@ -642,6 +800,113 @@ export function WorkspaceView() {
       setError(caught instanceof Error ? caught.message : 'Unable to reset archive search');
     } finally {
       setArchiveSearching(false);
+    }
+  }
+
+  function resetContactEditor() {
+    setEditingContactId(null);
+    setContactForm(emptyContactForm());
+  }
+
+  function editContact(contact: ContactDTO) {
+    setEditingContactId(contact.id);
+    setContactForm(contactFormFrom(contact));
+  }
+
+  async function handleContactSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!workspace || workspace.role !== 'owner') {
+      return;
+    }
+
+    const displayName = contactForm.displayName.trim();
+    if (!displayName) {
+      setError('Enter a contact name before saving it.');
+      return;
+    }
+
+    const email = contactForm.email.trim();
+    const phone = contactForm.phone.trim();
+    const notes = contactForm.notes.trim();
+    const tags = parseTagList(contactForm.tags);
+
+    setError(null);
+
+    try {
+      const payload = editingContactId
+        ? {
+            displayName,
+            email: email || undefined,
+            phone: phone || undefined,
+            notes,
+            tags,
+            clearEmail: !email,
+            clearPhone: !phone,
+          }
+        : {
+            displayName,
+            email: email || undefined,
+            phone: phone || undefined,
+            notes,
+            tags,
+          };
+
+      if (editingContactId) {
+        const updated = await patchJSON<ContactDTO>(`/api/workspaces/${workspace.id}/contacts/${editingContactId}`, payload);
+        setContacts((current) => sortContacts([...(current ?? []).filter((contact) => contact.id !== updated.id), updated]));
+      } else {
+        const created = await postJSON<ContactDTO>(`/api/workspaces/${workspace.id}/contacts`, payload);
+        setContacts((current) => sortContacts([...(current ?? []), created]));
+      }
+
+      resetContactEditor();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to save contact');
+    }
+  }
+
+  async function handleCommitmentSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!workspace || workspace.role !== 'owner') {
+      return;
+    }
+
+    const title = commitmentForm.title.trim();
+    if (!title) {
+      setError('Enter a commitment title before saving it.');
+      return;
+    }
+
+    setError(null);
+
+    try {
+      const payload = {
+        title,
+        description: commitmentForm.description.trim(),
+        dueAt: toRfc3339DateTime(commitmentForm.dueAt),
+        eventId: commitmentForm.eventId || undefined,
+      };
+
+      const created = await postJSON<CommitmentDTO>(`/api/workspaces/${workspace.id}/commitments`, payload);
+      setCommitments((current) => sortCommitments([...(current ?? []), created]));
+      setCommitmentForm(emptyCommitmentForm());
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to save commitment');
+    }
+  }
+
+  async function handleCommitmentStatus(commitmentID: string, status: CommitmentDTO['status']) {
+    if (!workspace || workspace.role !== 'owner') {
+      return;
+    }
+
+    setError(null);
+
+    try {
+      const updated = await patchJSON<CommitmentDTO>(`/api/workspaces/${workspace.id}/commitments/${commitmentID}`, { status });
+      setCommitments((current) => sortCommitments([...(current ?? []).filter((commitment) => commitment.id !== updated.id), updated]));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to update commitment');
     }
   }
 
@@ -977,6 +1242,240 @@ export function WorkspaceView() {
                     ))}
                   </div>
                 </section>
+
+                {contacts !== null && !contactsDenied ? (
+                  <section className="space-y-4 rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Contacts</p>
+                      <p className="mt-2 text-sm leading-6 text-zinc-400">Private memory for people you want to remember across events.</p>
+                    </div>
+
+                    {visibleContacts.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-5 text-sm text-zinc-400">
+                        <p className="font-medium text-white">No contacts yet. Add people you want to remember across events.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {visibleContacts.map((contact) => (
+                          <article key={contact.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <p className="text-lg font-medium text-white">{contact.displayName}</p>
+                                <p className="mt-1 text-sm text-zinc-400">
+                                  {[contact.email, contact.phone].filter(Boolean).join(' · ') || 'No contact details'}
+                                </p>
+                              </div>
+                              {workspace.role === 'owner' ? (
+                                <button className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.25em] text-zinc-200 transition hover:bg-white/10" type="button" onClick={() => editContact(contact)}>
+                                  Edit
+                                </button>
+                              ) : null}
+                            </div>
+
+                            {contact.tags.length > 0 ? (
+                              <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-zinc-500">
+                                {contact.tags.map((tag) => (
+                                  <span key={tag} className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-zinc-300">
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : null}
+
+                            <p className="mt-3 text-sm leading-6 text-zinc-300">
+                              <span className="text-zinc-500">Private note:</span> {contact.notes || 'No private note yet.'}
+                            </p>
+                          </article>
+                        ))}
+                      </div>
+                    )}
+
+                    {workspace.role === 'owner' ? (
+                      <form className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4" onSubmit={handleContactSubmit}>
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">{editingContactId ? 'Edit contact' : 'Add contact'}</p>
+                          {editingContactId ? (
+                            <button className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.25em] text-zinc-200 transition hover:bg-white/10" type="button" onClick={resetContactEditor}>
+                              Cancel
+                            </button>
+                          ) : null}
+                        </div>
+                        <label className="block space-y-2 text-sm">
+                          <span className="text-zinc-300">Display name</span>
+                          <input
+                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-zinc-950/80"
+                            value={contactForm.displayName}
+                            onChange={(event) => setContactForm((current) => ({ ...current, displayName: event.target.value }))}
+                            required
+                          />
+                        </label>
+                        <label className="block space-y-2 text-sm">
+                          <span className="text-zinc-300">Email</span>
+                          <input
+                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-zinc-950/80"
+                            type="email"
+                            value={contactForm.email}
+                            onChange={(event) => setContactForm((current) => ({ ...current, email: event.target.value }))}
+                          />
+                        </label>
+                        <label className="block space-y-2 text-sm">
+                          <span className="text-zinc-300">Phone</span>
+                          <input
+                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-zinc-950/80"
+                            value={contactForm.phone}
+                            onChange={(event) => setContactForm((current) => ({ ...current, phone: event.target.value }))}
+                          />
+                        </label>
+                        <label className="block space-y-2 text-sm">
+                          <span className="text-zinc-300">Tags</span>
+                          <input
+                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-zinc-950/80"
+                            placeholder="trusted, door"
+                            value={contactForm.tags}
+                            onChange={(event) => setContactForm((current) => ({ ...current, tags: event.target.value }))}
+                          />
+                        </label>
+                        <label className="block space-y-2 text-sm">
+                          <span className="text-zinc-300">Notes</span>
+                          <textarea
+                            className="min-h-28 w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-zinc-950/80"
+                            value={contactForm.notes}
+                            onChange={(event) => setContactForm((current) => ({ ...current, notes: event.target.value }))}
+                          />
+                        </label>
+                        <button className="rounded-2xl bg-amber-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-amber-200" type="submit">
+                          {editingContactId ? 'Save contact' : 'Add contact'}
+                        </button>
+                      </form>
+                    ) : null}
+                  </section>
+                ) : null}
+
+                {commitments !== null && !commitmentsDenied ? (
+                  <section className="space-y-4 rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Commitments</p>
+                      <p className="mt-2 text-sm leading-6 text-zinc-400">Track private promises, due dates, and follow-up status across the workspace.</p>
+                    </div>
+
+                    <div className="grid gap-3 text-sm sm:grid-cols-3">
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Open</p>
+                        <p className="mt-2 text-2xl font-semibold text-white">{commitmentCounts.open}</p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Done</p>
+                        <p className="mt-2 text-2xl font-semibold text-white">{commitmentCounts.done}</p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Cancelled</p>
+                        <p className="mt-2 text-2xl font-semibold text-white">{commitmentCounts.cancelled}</p>
+                      </div>
+                    </div>
+
+                    {visibleCommitments.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-5 text-sm text-zinc-400">
+                        <p className="font-medium text-white">No commitments yet.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {visibleCommitments.map((commitment) => (
+                          <article key={commitment.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <p className="text-lg font-medium text-white">{commitment.title}</p>
+                                <p className="mt-1 text-sm text-zinc-400">
+                                  {commitment.dueAt ? `Due ${formatDateTime(commitment.dueAt)}` : 'No due date'}
+                                  {commitment.eventId ? ` · ${eventTitleById.get(commitment.eventId) ?? 'Workspace event'}` : ' · Workspace level'}
+                                </p>
+                              </div>
+                              <span className={`rounded-full border px-3 py-1 text-xs uppercase tracking-[0.25em] ${commitmentStatusTone(commitment.status)}`}>
+                                {commitmentStatusLabel(commitment.status)}
+                              </span>
+                            </div>
+                            <p className="mt-3 text-sm leading-6 text-zinc-300">{commitment.description || 'No private description yet.'}</p>
+
+                            {workspace.role === 'owner' ? (
+                              <div className="mt-4 flex flex-wrap gap-2 text-sm">
+                                <button
+                                  className="rounded-full border border-emerald-400/20 bg-emerald-300 px-3 py-2 font-medium text-zinc-950 transition hover:bg-emerald-200"
+                                  type="button"
+                                  onClick={() => void handleCommitmentStatus(commitment.id, 'done')}
+                                >
+                                  Mark done
+                                </button>
+                                <button
+                                  className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-zinc-200 transition hover:bg-white/10"
+                                  type="button"
+                                  onClick={() => void handleCommitmentStatus(commitment.id, 'open')}
+                                >
+                                  Reopen
+                                </button>
+                                <button
+                                  className="rounded-full border border-rose-400/20 bg-rose-300 px-3 py-2 font-medium text-zinc-950 transition hover:bg-rose-200"
+                                  type="button"
+                                  onClick={() => void handleCommitmentStatus(commitment.id, 'cancelled')}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : null}
+                          </article>
+                        ))}
+                      </div>
+                    )}
+
+                    {workspace.role === 'owner' ? (
+                      <form className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4" onSubmit={handleCommitmentSubmit}>
+                        <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Add commitment</p>
+                        <label className="block space-y-2 text-sm">
+                          <span className="text-zinc-300">Title</span>
+                          <input
+                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-zinc-950/80"
+                            value={commitmentForm.title}
+                            onChange={(event) => setCommitmentForm((current) => ({ ...current, title: event.target.value }))}
+                            required
+                          />
+                        </label>
+                        <label className="block space-y-2 text-sm">
+                          <span className="text-zinc-300">Description</span>
+                          <textarea
+                            className="min-h-28 w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-zinc-950/80"
+                            value={commitmentForm.description}
+                            onChange={(event) => setCommitmentForm((current) => ({ ...current, description: event.target.value }))}
+                          />
+                        </label>
+                        <label className="block space-y-2 text-sm">
+                          <span className="text-zinc-300">Due at</span>
+                          <input
+                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-zinc-950/80"
+                            type="datetime-local"
+                            value={commitmentForm.dueAt}
+                            onChange={(event) => setCommitmentForm((current) => ({ ...current, dueAt: event.target.value }))}
+                          />
+                        </label>
+                        <label className="block space-y-2 text-sm">
+                          <span className="text-zinc-300">Event</span>
+                          <select
+                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-zinc-950/80"
+                            value={commitmentForm.eventId}
+                            onChange={(event) => setCommitmentForm((current) => ({ ...current, eventId: event.target.value }))}
+                          >
+                            <option value="">Workspace only</option>
+                            {orderedEvents.map((event) => (
+                              <option key={event.id} value={event.id}>
+                                {event.title}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <button className="rounded-2xl bg-amber-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-amber-200" type="submit">
+                          Add commitment
+                        </button>
+                      </form>
+                    ) : null}
+                  </section>
+                ) : null}
               </div>
 
               <aside className="space-y-6">

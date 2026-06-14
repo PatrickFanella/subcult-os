@@ -17,11 +17,21 @@ vi.mock('react', async () => {
 });
 
 const useStateMock = vi.mocked(React.useState);
+const SKIP = Symbol('skip-state');
+
+function skipStates(count: number) {
+  return Array.from({ length: count }, () => SKIP);
+}
 
 function makeUseStateImplementation(values: unknown[] = []) {
   return ((initial: unknown) => {
     if (values.length > 0) {
-      return [values.shift(), vi.fn()];
+      const next = values.shift();
+      if (next === SKIP) {
+        return [typeof initial === 'function' ? (initial as () => unknown)() : initial, vi.fn()];
+      }
+
+      return [next, vi.fn()];
     }
 
     return [typeof initial === 'function' ? (initial as () => unknown)() : initial, vi.fn()];
@@ -373,6 +383,193 @@ describe('App routes', () => {
     expect(rendered).toContain('Open seeded draft');
     expect(rendered).not.toContain('Seed next draft');
     expect(rendered).toContain('All staffing complete.');
+  });
+
+  it('renders contacts and commitments panels for owners', () => {
+    const event = {
+      id: 'event-1',
+      workspaceId: 'workspace-1',
+      title: 'Night Market',
+      startsAt: '2026-06-13T23:00:00.000Z',
+      publicDescription: 'A late set.',
+      locationDisplay: 'The Hall',
+      ticketAllocation: 100,
+      pricingMode: 'fixed',
+      ticketPriceCents: 1800,
+      ticketCurrency: 'usd',
+      reservedCount: 26,
+      checkedInCount: 20,
+      staffingOpenCount: 0,
+      staffingAssignedCount: 0,
+      staffingCompletedCount: 0,
+      staffingCancelledCount: 0,
+      status: 'published',
+      publicSlug: 'night-market',
+      publicUrl: '/e/night-market',
+    };
+
+    const rendered = renderWithState('/workspace?workspaceId=workspace-1', <WorkspaceView />, [
+      {
+        id: 'person-1',
+        email: 'owner@example.com',
+        displayName: 'Owner',
+        workspaces: [{ id: 'workspace-1', name: 'Main Room', role: 'owner' }],
+      },
+      {
+        id: 'workspace-1',
+        name: 'Main Room',
+        role: 'owner',
+        members: [{ id: 'member-1', email: 'morgan@example.com', displayName: 'Morgan', role: 'member' }],
+        invitations: [],
+      },
+      [event],
+      [],
+      false,
+      ...skipStates(11),
+      [
+        {
+          id: 'contact-1',
+          workspaceId: 'workspace-1',
+          displayName: 'Mira Door',
+          email: 'mira@example.com',
+          phone: '+15555550123',
+          notes: 'Prefers late load-in',
+          tags: ['door', 'trusted'],
+          createdAt: '2026-06-13T20:00:00.000Z',
+          updatedAt: '2026-06-13T20:10:00.000Z',
+        },
+      ],
+      ...skipStates(3),
+      [
+        {
+          id: 'commitment-1',
+          workspaceId: 'workspace-1',
+          eventId: event.id,
+          title: 'Confirm projector',
+          description: 'Keep private',
+          dueAt: '2026-06-14T18:00:00.000Z',
+          status: 'open',
+          ownerPersonId: null,
+          createdByPersonId: 'person-1',
+          completedAt: null,
+          completedByPersonId: null,
+          createdAt: '2026-06-13T20:15:00.000Z',
+          updatedAt: '2026-06-13T20:15:00.000Z',
+        },
+        {
+          id: 'commitment-2',
+          workspaceId: 'workspace-1',
+          eventId: null,
+          contactId: null,
+          title: 'Follow up with vendor',
+          description: '',
+          dueAt: null,
+          status: 'done',
+          ownerPersonId: 'member-1',
+          createdByPersonId: 'person-1',
+          completedAt: '2026-06-13T21:00:00.000Z',
+          completedByPersonId: 'person-1',
+          createdAt: '2026-06-13T20:20:00.000Z',
+          updatedAt: '2026-06-13T21:00:00.000Z',
+        },
+      ],
+    ]);
+
+    expect(rendered).toContain('Contacts');
+    expect(rendered).toContain('Mira Door');
+    expect(rendered).toContain('door');
+    expect(rendered).toContain('trusted');
+    expect(rendered).toContain('Private note:');
+    expect(rendered).toContain('Commitments');
+    expect(rendered).toContain('Confirm projector');
+    expect(rendered).toContain('Follow up with vendor');
+    expect(rendered).toContain('Mark done');
+    expect(rendered).toContain('Add contact');
+    expect(rendered).toContain('Add commitment');
+  });
+
+  it('hides owner-only workspace controls for members', () => {
+    const event = {
+      id: 'event-1',
+      workspaceId: 'workspace-1',
+      title: 'Night Market',
+      startsAt: '2026-06-13T23:00:00.000Z',
+      publicDescription: 'A late set.',
+      locationDisplay: 'The Hall',
+      ticketAllocation: 100,
+      pricingMode: 'fixed',
+      ticketPriceCents: 1800,
+      ticketCurrency: 'usd',
+      reservedCount: 26,
+      checkedInCount: 20,
+      staffingOpenCount: 0,
+      staffingAssignedCount: 0,
+      staffingCompletedCount: 0,
+      staffingCancelledCount: 0,
+      status: 'published',
+      publicSlug: 'night-market',
+      publicUrl: '/e/night-market',
+    };
+
+    const rendered = renderWithState('/workspace?workspaceId=workspace-1', <WorkspaceView />, [
+      {
+        id: 'person-1',
+        email: 'member@example.com',
+        displayName: 'Member',
+        workspaces: [{ id: 'workspace-1', name: 'Main Room', role: 'member' }],
+      },
+      {
+        id: 'workspace-1',
+        name: 'Main Room',
+        role: 'member',
+        members: [{ id: 'member-1', email: 'morgan@example.com', displayName: 'Morgan', role: 'member' }],
+        invitations: [],
+      },
+      [event],
+      [],
+      false,
+      ...skipStates(11),
+      [
+        {
+          id: 'contact-1',
+          workspaceId: 'workspace-1',
+          displayName: 'Mira Door',
+          email: 'mira@example.com',
+          phone: '+15555550123',
+          notes: 'Prefers late load-in',
+          tags: ['door', 'trusted'],
+          createdAt: '2026-06-13T20:00:00.000Z',
+          updatedAt: '2026-06-13T20:10:00.000Z',
+        },
+      ],
+      ...skipStates(3),
+      [
+        {
+          id: 'commitment-1',
+          workspaceId: 'workspace-1',
+          eventId: event.id,
+          title: 'Confirm projector',
+          description: 'Keep private',
+          dueAt: '2026-06-14T18:00:00.000Z',
+          status: 'open',
+          ownerPersonId: null,
+          createdByPersonId: 'person-1',
+          completedAt: null,
+          completedByPersonId: null,
+          createdAt: '2026-06-13T20:15:00.000Z',
+          updatedAt: '2026-06-13T20:15:00.000Z',
+        },
+      ],
+    ]);
+
+    expect(rendered).toContain('Contacts');
+    expect(rendered).toContain('Commitments');
+    expect(rendered).toContain('Mira Door');
+    expect(rendered).toContain('Confirm projector');
+    expect(rendered).not.toContain('Add contact');
+    expect(rendered).not.toContain('Add commitment');
+    expect(rendered).not.toContain('Edit');
+    expect(rendered).not.toContain('Mark done');
   });
 
   it('shows no staffing copy on event cards without staffing items', () => {
@@ -864,6 +1061,244 @@ describe('App routes', () => {
     expect(rendered).not.toContain('Clear assignee');
     expect(rendered).not.toContain('Mark completed');
     expect(rendered).not.toContain('Mark cancelled');
+  });
+
+  it('renders event commitments for owners', () => {
+    const event = {
+      id: 'event-1',
+      workspaceId: 'workspace-1',
+      title: 'Night Market',
+      startsAt: '2026-06-13T23:00:00.000Z',
+      publicDescription: 'A late set.',
+      locationDisplay: 'The Hall',
+      ticketAllocation: 100,
+      pricingMode: 'fixed',
+      ticketPriceCents: 1800,
+      ticketCurrency: 'usd',
+      reservedCount: 12,
+      checkedInCount: 0,
+      status: 'published',
+      publicSlug: 'night-market',
+      publicUrl: '/e/night-market',
+    };
+
+    const rendered = renderWithState('/events/event-1?workspaceId=workspace-1', <EventEditorView eventId="event-1" />, [
+      event,
+      null,
+      null,
+      '',
+      false,
+      false,
+      {
+        title: event.title,
+        startsAt: '2026-06-13T23:00',
+        publicDescription: event.publicDescription,
+        locationDisplay: event.locationDisplay,
+        ticketAllocation: '100',
+        pricingMode: 'fixed',
+        ticketPriceDollars: '18.00',
+      },
+      {
+        title: event.title,
+        startsAt: '2026-06-13T23:00',
+        publicDescription: event.publicDescription,
+        locationDisplay: event.locationDisplay,
+        ticketAllocation: '100',
+        pricingMode: 'fixed',
+        ticketPriceDollars: '18.00',
+      },
+      false,
+      false,
+      false,
+      null,
+      null,
+      null,
+      {
+        amountDollars: '',
+        label: '',
+        reason: '',
+      },
+      false,
+      false,
+      {
+        id: 'workspace-1',
+        name: 'Main Room',
+        role: 'owner',
+        members: [{ id: 'member-1', email: 'morgan@example.com', displayName: 'Morgan', role: 'member' }],
+        invitations: [],
+      },
+      [
+        {
+          id: 'role-1',
+          eventId: event.id,
+          name: 'Performer',
+          description: 'Play a 20-minute set.',
+          capacity: 3,
+          public: true,
+          active: true,
+          createdAt: '2026-06-13T20:00:00.000Z',
+          updatedAt: '2026-06-13T20:00:00.000Z',
+        },
+      ],
+      null,
+      {},
+      null,
+      null,
+      null,
+      false,
+      {
+        title: '',
+        kind: 'task',
+        notes: '',
+        startsAt: '',
+        endsAt: '',
+      },
+      null,
+      ...skipStates(2),
+      [
+        {
+          id: 'commitment-1',
+          workspaceId: 'workspace-1',
+          eventId: event.id,
+          title: 'Confirm projector',
+          description: 'Keep private',
+          dueAt: '2026-06-14T18:00:00.000Z',
+          status: 'open',
+          ownerPersonId: 'member-1',
+          createdByPersonId: 'person-1',
+          completedAt: null,
+          completedByPersonId: null,
+          createdAt: '2026-06-13T20:15:00.000Z',
+          updatedAt: '2026-06-13T20:15:00.000Z',
+        },
+      ],
+    ]);
+
+    expect(rendered).toContain('Event commitments');
+    expect(rendered).toContain('Confirm projector');
+    expect(rendered).toContain('Owner assigned');
+    expect(rendered).toContain('Add commitment');
+    expect(rendered).toContain('Mark done');
+    expect(rendered).toContain('Reopen');
+    expect(rendered).toContain('Cancel');
+  });
+
+  it('hides event commitment controls for members', () => {
+    const event = {
+      id: 'event-1',
+      workspaceId: 'workspace-1',
+      title: 'Night Market',
+      startsAt: '2026-06-13T23:00:00.000Z',
+      publicDescription: 'A late set.',
+      locationDisplay: 'The Hall',
+      ticketAllocation: 100,
+      pricingMode: 'fixed',
+      ticketPriceCents: 1800,
+      ticketCurrency: 'usd',
+      reservedCount: 12,
+      checkedInCount: 0,
+      status: 'published',
+      publicSlug: 'night-market',
+      publicUrl: '/e/night-market',
+    };
+
+    const rendered = renderWithState('/events/event-1?workspaceId=workspace-1', <EventEditorView eventId="event-1" />, [
+      event,
+      null,
+      null,
+      '',
+      false,
+      false,
+      {
+        title: event.title,
+        startsAt: '2026-06-13T23:00',
+        publicDescription: event.publicDescription,
+        locationDisplay: event.locationDisplay,
+        ticketAllocation: '100',
+        pricingMode: 'fixed',
+        ticketPriceDollars: '18.00',
+      },
+      {
+        title: event.title,
+        startsAt: '2026-06-13T23:00',
+        publicDescription: event.publicDescription,
+        locationDisplay: event.locationDisplay,
+        ticketAllocation: '100',
+        pricingMode: 'fixed',
+        ticketPriceDollars: '18.00',
+      },
+      false,
+      false,
+      false,
+      null,
+      null,
+      null,
+      {
+        amountDollars: '',
+        label: '',
+        reason: '',
+      },
+      false,
+      false,
+      {
+        id: 'workspace-1',
+        name: 'Main Room',
+        role: 'member',
+        members: [{ id: 'member-1', email: 'morgan@example.com', displayName: 'Morgan', role: 'member' }],
+        invitations: [],
+      },
+      [
+        {
+          id: 'role-1',
+          eventId: event.id,
+          name: 'Performer',
+          description: 'Play a 20-minute set.',
+          capacity: 3,
+          public: true,
+          active: true,
+          createdAt: '2026-06-13T20:00:00.000Z',
+          updatedAt: '2026-06-13T20:00:00.000Z',
+        },
+      ],
+      null,
+      {},
+      null,
+      null,
+      null,
+      false,
+      {
+        title: '',
+        kind: 'task',
+        notes: '',
+        startsAt: '',
+        endsAt: '',
+      },
+      null,
+      ...skipStates(2),
+      [
+        {
+          id: 'commitment-1',
+          workspaceId: 'workspace-1',
+          eventId: event.id,
+          title: 'Confirm projector',
+          description: 'Keep private',
+          dueAt: '2026-06-14T18:00:00.000Z',
+          status: 'open',
+          ownerPersonId: 'member-1',
+          createdByPersonId: 'person-1',
+          completedAt: null,
+          completedByPersonId: null,
+          createdAt: '2026-06-13T20:15:00.000Z',
+          updatedAt: '2026-06-13T20:15:00.000Z',
+        },
+      ],
+    ]);
+
+    expect(rendered).toContain('Event commitments');
+    expect(rendered).toContain('Confirm projector');
+    expect(rendered).not.toContain('Add commitment');
+    expect(rendered).not.toContain('Mark done');
+    expect(rendered).not.toContain('Reopen');
   });
 
   it('renders notification activity for member views without private body text', () => {
