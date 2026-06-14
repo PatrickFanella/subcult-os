@@ -262,6 +262,38 @@ func TestFirstEventLifecyclePaidReportSettlementSummaryIsIdempotent(t *testing.T
 	}
 }
 
+func TestFirstEventLifecycleCreatesArchiveAtEndOfNight(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 4)
+	eventID := mustString(t, event, "id")
+	publishEvent(t, fx, eventID)
+
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+
+	var archiveID string
+	var status string
+	var noteCount int
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select id, status, note_count
+		from event_archives
+		where event_id = $1
+	`, eventID).Scan(&archiveID, &status, &noteCount); err != nil {
+		t.Fatal(err)
+	}
+	if archiveID == "" || status != "private" || noteCount != 0 {
+		t.Fatalf("unexpected archive row: id=%q status=%q noteCount=%d", archiveID, status, noteCount)
+	}
+
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+	var count int
+	if err := fx.app.db.QueryRow(t.Context(), `select count(*) from event_archives where event_id = $1`, eventID).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("expected exactly one archive row, got %d", count)
+	}
+}
+
 func TestFirstEventLifecycleOldReportSnapshotOmitsSettlementSummary(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	event := createEvent(t, fx, "Night Market", 2)

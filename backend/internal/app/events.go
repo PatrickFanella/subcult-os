@@ -91,6 +91,15 @@ type eventSettlementDTO struct {
 	Adjustments           []eventSettlementAdjustmentDTO `json:"adjustments"`
 }
 
+func (a *App) ensureEventArchive(ctx context.Context, tx pgx.Tx, eventID, reportID, actorID string) error {
+	_, err := tx.Exec(ctx, `
+		insert into event_archives (event_id, report_id, settlement_id, created_by_person_id)
+		values ($1, $2, (select id from event_settlements where event_id = $1), $3)
+		on conflict (event_id) do nothing
+	`, eventID, reportID, actorID)
+	return err
+}
+
 type eventSettlementRow struct {
 	ID                    string
 	EventID               string
@@ -643,6 +652,10 @@ func (a *App) handleEndOfNight(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+		if err := a.ensureEventArchive(r.Context(), tx, event.ID, existingReportID, actorID); err != nil {
+			writeError(w, http.StatusInternalServerError, "could not create archive")
+			return
+		}
 		if err := tx.Commit(r.Context()); err != nil {
 			writeError(w, http.StatusInternalServerError, "could not save report")
 			return
@@ -754,6 +767,10 @@ func (a *App) handleEndOfNight(w http.ResponseWriter, r *http.Request) {
 		on conflict (event_id) do nothing
 	`, event.ID, report.SettlementSummary.Currency, report.SettlementSummary.GrossPaidRevenueCents, report.SettlementSummary.PaidTicketCount, report.SettlementSummary.PendingTicketCount, report.SettlementSummary.CancelledTicketCount, report.SettlementSummary.FreeTicketCount, report.SettlementSummary.ReservedCount, generatedAt, actorID); err != nil {
 		writeError(w, http.StatusInternalServerError, "could not store settlement")
+		return
+	}
+	if err := a.ensureEventArchive(r.Context(), tx, event.ID, report.ID, actorID); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not create archive")
 		return
 	}
 	if _, err := tx.Exec(r.Context(), `

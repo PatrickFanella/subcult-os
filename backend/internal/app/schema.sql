@@ -99,6 +99,18 @@ create table if not exists event_settlements (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists event_archives (
+  id uuid primary key default gen_random_uuid(),
+  event_id uuid not null unique references events(id) on delete cascade,
+  report_id uuid not null references event_reports(id) on delete cascade,
+  settlement_id uuid not null references event_settlements(id) on delete cascade,
+  status text not null default 'private' check (status in ('private')),
+  note_count integer not null default 0 check (note_count >= 0),
+  created_by_person_id uuid not null references people(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists event_settlement_adjustments (
   id uuid primary key default gen_random_uuid(),
   settlement_id uuid not null references event_settlements(id) on delete cascade,
