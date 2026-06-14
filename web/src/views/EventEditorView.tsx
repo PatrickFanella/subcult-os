@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
-import { api, patchJSON, postJSON } from '../api';
-import type { EventDTO, EventReportDTO, EventStatus } from '../domain';
+import { ApiError, api, patchJSON, postJSON } from '../api';
+import type { EventDTO, EventReportDTO, EventSettlementDTO, EventStatus } from '../domain';
 
 type FormState = {
   title: string;
@@ -11,6 +11,12 @@ type FormState = {
   ticketAllocation: string;
   pricingMode: 'free' | 'fixed';
   ticketPriceDollars: string;
+};
+
+type SettlementAdjustmentFormState = {
+  amountDollars: string;
+  label: string;
+  reason: string;
 };
 
 function isNewEvent(eventId: string) {
@@ -80,6 +86,11 @@ function formatMoney(cents: number, currency: string) {
   return `${new Intl.NumberFormat([], { style: 'currency', currency: normalizedCurrency }).format(cents / 100)} ${normalizedCurrency}`;
 }
 
+function formatSignedMoney(cents: number, currency: string) {
+  const sign = cents < 0 ? '-' : '+';
+  return `${sign}${formatMoney(Math.abs(cents), currency)}`;
+}
+
 function priceInCents(value: string) {
   const parsed = Number(value);
   if (Number.isNaN(parsed)) {
@@ -87,6 +98,14 @@ function priceInCents(value: string) {
   }
 
   return Math.round(parsed * 100);
+}
+
+function emptySettlementAdjustmentForm(): SettlementAdjustmentFormState {
+  return {
+    amountDollars: '',
+    label: '',
+    reason: '',
+  };
 }
 
 function pricingSummary(event: EventDTO | null) {
@@ -147,6 +166,9 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   const [actioning, setActioning] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [settlement, setSettlement] = useState<EventSettlementDTO | null>(null);
+  const [settlementForm, setSettlementForm] = useState<SettlementAdjustmentFormState>(emptySettlementAdjustmentForm);
+  const [settlementSubmitting, setSettlementSubmitting] = useState(false);
 
   const hasWorkspace = workspaceId !== '';
   const closed = event?.status === 'end_of_night';
@@ -159,11 +181,14 @@ export function EventEditorView({ eventId }: { eventId: string }) {
     async function load() {
       if (creating) {
         setLoading(false);
+        setSettlement(null);
+        setSettlementForm(emptySettlementAdjustmentForm());
         return;
       }
 
       setLoading(true);
       setError(null);
+      setSettlement(null);
 
       try {
         const loaded = await api<EventDTO>(`/api/events/${eventId}`);
@@ -177,7 +202,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
 
         if (loaded.status === 'end_of_night') {
           const loadedReport = await api<EventReportDTO>(`/api/events/${eventId}/report`).catch(() => null);
-          if (!cancelled && loadedReport) {
+          if (!cancelled) {
             setReport(loadedReport);
           }
         } else {
@@ -206,10 +231,45 @@ export function EventEditorView({ eventId }: { eventId: string }) {
       const blank = emptyForm();
       setEvent(null);
       setReport(null);
+      setSettlement(null);
       setForm(blank);
       setInitialForm(blank);
+      setSettlementForm(emptySettlementAdjustmentForm());
     }
   }, [creating]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSettlement() {
+      if (creating || event?.status !== 'end_of_night' || !event) {
+        setSettlement(null);
+        return;
+      }
+
+      try {
+        const loadedSettlement = await api<EventSettlementDTO>(`/api/events/${event.id}/settlement`);
+        if (!cancelled) {
+          setSettlement(loadedSettlement);
+        }
+      } catch (caught) {
+        if (cancelled) return;
+
+        if (caught instanceof ApiError && caught.status === 404) {
+          setSettlement(null);
+          return;
+        }
+
+        setError(caught instanceof Error ? caught.message : 'Unable to load settlement');
+      }
+    }
+
+    void loadSettlement();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [creating, event?.id, event?.status]);
 
   async function persist() {
     const ticketPriceCents = form.pricingMode === 'fixed' ? priceInCents(form.ticketPriceDollars) : 0;
@@ -302,6 +362,30 @@ export function EventEditorView({ eventId }: { eventId: string }) {
       setError(caught instanceof Error ? caught.message : 'Unable to end event');
     } finally {
       setActioning(false);
+    }
+  }
+
+  async function handleSettlementAdjustmentSubmit(formEvent: FormEvent<HTMLFormElement>) {
+    formEvent.preventDefault();
+    if (!event || !settlement) return;
+
+    setSettlementSubmitting(true);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const updatedSettlement = await postJSON<EventSettlementDTO>(`/api/events/${event.id}/settlement/adjustments`, {
+        amountCents: priceInCents(settlementForm.amountDollars),
+        label: settlementForm.label.trim(),
+        reason: settlementForm.reason.trim(),
+      });
+
+      setSettlement(updatedSettlement);
+      setSettlementForm(emptySettlementAdjustmentForm());
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to add adjustment');
+    } finally {
+      setSettlementSubmitting(false);
     }
   }
 
@@ -663,6 +747,91 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                       Workspace
                     </a>
                   </div>
+                </section>
+              ) : null}
+
+              {settlement ? (
+                <section className="rounded-[1.75rem] border border-cyan-400/20 bg-zinc-950/95 p-6 shadow-2xl shadow-black/30">
+                  <p className="text-xs uppercase tracking-[0.3em] text-cyan-300">Settlement closeout</p>
+                  <h2 className="mt-2 text-2xl font-semibold text-white">Review adjustments</h2>
+                  <p className="mt-2 text-sm text-zinc-400">Status: {settlement.status}</p>
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Gross revenue</p>
+                      <p className="mt-2 text-lg font-semibold text-white">{formatMoney(settlement.grossPaidRevenueCents, settlement.currency)}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Adjustment total</p>
+                      <p className="mt-2 text-lg font-semibold text-white">{formatSignedMoney(settlement.adjustmentTotalCents, settlement.currency)}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Net total</p>
+                      <p className="mt-2 text-lg font-semibold text-white">{formatMoney(settlement.netTotalCents, settlement.currency)}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Adjustments</p>
+                    {settlement.adjustments.length > 0 ? (
+                      <div className="mt-3 space-y-3">
+                        {settlement.adjustments.map((adjustment) => (
+                          <div key={adjustment.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-semibold text-white">{adjustment.label}</p>
+                                <p className="mt-1 text-sm leading-6 text-zinc-400">{adjustment.reason}</p>
+                              </div>
+                              <p className="text-sm font-semibold text-white">{formatSignedMoney(adjustment.amountCents, settlement.currency)}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-sm leading-6 text-zinc-400">No adjustments yet.</p>
+                    )}
+                  </div>
+
+                  <form className="mt-4 space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4" onSubmit={handleSettlementAdjustmentSubmit}>
+                    <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Add adjustment</p>
+                    <label className="block space-y-2 text-sm">
+                      <span className="text-zinc-300">Amount in USD</span>
+                      <input
+                        className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-cyan-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                        type="number"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={settlementForm.amountDollars}
+                        onChange={(event) => setSettlementForm((current) => ({ ...current, amountDollars: event.target.value }))}
+                        placeholder="-2.00"
+                        required
+                        disabled={settlementSubmitting}
+                      />
+                    </label>
+                    <label className="block space-y-2 text-sm">
+                      <span className="text-zinc-300">Label</span>
+                      <input
+                        className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-cyan-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                        value={settlementForm.label}
+                        onChange={(event) => setSettlementForm((current) => ({ ...current, label: event.target.value }))}
+                        required
+                        disabled={settlementSubmitting}
+                      />
+                    </label>
+                    <label className="block space-y-2 text-sm">
+                      <span className="text-zinc-300">Reason</span>
+                      <textarea
+                        className="min-h-28 w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-cyan-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                        value={settlementForm.reason}
+                        onChange={(event) => setSettlementForm((current) => ({ ...current, reason: event.target.value }))}
+                        required
+                        disabled={settlementSubmitting}
+                      />
+                    </label>
+                    <button className="rounded-2xl bg-cyan-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:bg-cyan-300/60" type="submit" disabled={settlementSubmitting}>
+                      {settlementSubmitting ? 'Saving…' : 'Add adjustment'}
+                    </button>
+                  </form>
                 </section>
               ) : null}
 

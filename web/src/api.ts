@@ -1,3 +1,15 @@
+export class ApiError extends Error {
+  status: number;
+  data: unknown;
+
+  constructor(status: number, message: string, data: unknown) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.data = data;
+  }
+}
+
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
   if (!headers.has('Content-Type')) {
@@ -12,7 +24,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(typeof data.error === 'string' ? data.error : `Request failed: ${response.status}`);
+    throw new ApiError(response.status, typeof data.error === 'string' ? data.error : `Request failed: ${response.status}`, data);
   }
 
   return data as T;

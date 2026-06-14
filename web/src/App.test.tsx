@@ -213,6 +213,33 @@ describe('App routes', () => {
       generatedByMemberEmail: 'operator@example.com',
     };
 
+    const settlement = {
+      id: 'settlement-1',
+      eventId: event.id,
+      currency: 'usd',
+      grossPaidRevenueCents: 3000,
+      paidTicketCount: 12,
+      pendingTicketCount: 3,
+      cancelledTicketCount: 4,
+      freeTicketCount: 5,
+      reservedCount: 24,
+      adjustmentTotalCents: -250,
+      netTotalCents: 2750,
+      status: 'open',
+      generatedAt: '2026-06-14T03:00:00.000Z',
+      adjustments: [
+        {
+          id: 'adjustment-1',
+          settlementId: 'settlement-1',
+          amountCents: -250,
+          label: 'Cash drawer',
+          reason: 'Counted short at closeout',
+          createdByPersonId: 'member-1',
+          createdAt: '2026-06-14T03:15:00.000Z',
+        },
+      ],
+    };
+
     const rendered = renderWithState('/events/event-1?workspaceId=workspace-1', <EventEditorView eventId="event-1" />, [
       event,
       report,
@@ -239,6 +266,13 @@ describe('App routes', () => {
       false,
       null,
       null,
+      settlement,
+      {
+        amountDollars: '',
+        label: '',
+        reason: '',
+      },
+      false,
     ]);
 
     expect(rendered).toContain('Settlement summary');
@@ -253,6 +287,15 @@ describe('App routes', () => {
     expect(rendered).toContain('5');
     expect(rendered).toContain('Reserved total');
     expect(rendered).toContain('24');
+    expect(rendered).toContain('Settlement closeout');
+    expect(rendered).toContain('Gross revenue');
+    expect(rendered).toContain('$30.00 USD');
+    expect(rendered).toContain('Adjustment total');
+    expect(rendered).toContain('-$2.50 USD');
+    expect(rendered).toContain('Net total');
+    expect(rendered).toContain('$27.50 USD');
+    expect(rendered).toContain('Cash drawer');
+    expect(rendered).toContain('Counted short at closeout');
   });
 
   it('renders the public paid ticket CTA', () => {
