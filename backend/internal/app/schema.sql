@@ -123,6 +123,27 @@ create table if not exists event_staffing_items (
   check (ends_at is null or starts_at is null or ends_at >= starts_at)
 );
 
+create table if not exists commitments (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references workspaces(id) on delete cascade,
+  event_id uuid references events(id) on delete cascade,
+  contact_id uuid references contacts(id) on delete set null,
+  title text not null,
+  description text not null default '',
+  due_at timestamptz,
+  status text not null default 'open' check (status in ('open', 'done', 'cancelled')),
+  owner_person_id uuid references people(id),
+  created_by_person_id uuid not null references people(id),
+  completed_at timestamptz,
+  completed_by_person_id uuid references people(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (trim(title) <> '')
+);
+
+create index if not exists commitments_workspace_status_due_idx on commitments (workspace_id, status, due_at nulls last, created_at desc);
+create index if not exists commitments_event_idx on commitments (event_id, status, due_at nulls last);
+
 create unique index if not exists event_role_applications_active_email_idx
   on event_role_applications (event_id, role_id, lower(applicant_email))
   where status in ('submitted', 'under_review', 'accepted', 'waitlisted', 'confirmed');

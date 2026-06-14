@@ -231,6 +231,109 @@ func TestWorkspaceContactsMutationAPI(t *testing.T) {
 	}
 }
 
+func TestCommitmentsAPI(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Benefit Show", 20)
+	eventID := mustString(t, event, "id")
+	dueAt := time.Now().UTC().Add(24 * time.Hour).Format(time.RFC3339)
+
+	created := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments", map[string]any{
+		"eventId":       eventID,
+		"title":         "Confirm projector",
+		"description":   "Private vendor detail",
+		"dueAt":         dueAt,
+		"ownerPersonId": ownerPersonID(t, fx),
+	}, http.StatusOK)
+	commitment := mustObject(t, created.JSON)
+	if commitment["title"] != "Confirm projector" || commitment["status"] != "open" || commitment["eventId"] != eventID || commitment["description"] != "Private vendor detail" {
+		t.Fatalf("unexpected commitment: %#v", created.JSON)
+	}
+	if commitment["completedAt"] != nil || commitment["completedByPersonId"] != nil {
+		t.Fatalf("expected open commitment to be incomplete: %#v", commitment)
+	}
+	commitmentID := commitment["id"].(string)
+
+	workspaceList := getJSON(t, fx.app, fx.memberCookie, "/api/workspaces/"+fx.workspaceID+"/commitments", http.StatusOK)
+	if got := workspaceList.JSON.([]any); len(got) != 1 {
+		t.Fatalf("expected one workspace commitment, got %#v", got)
+	}
+	eventList := getJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/commitments", http.StatusOK)
+	if got := eventList.JSON.([]any); len(got) != 1 {
+		t.Fatalf("expected one event commitment, got %#v", got)
+	}
+
+	firstDone := patchJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments/"+commitmentID, map[string]any{"status": "done"}, http.StatusOK)
+	doneCommitment := mustObject(t, firstDone.JSON)
+	if doneCommitment["status"] != "done" || doneCommitment["completedAt"] == nil || doneCommitment["completedByPersonId"] != ownerPersonID(t, fx) {
+		t.Fatalf("expected done commitment: %#v", doneCommitment)
+	}
+	firstCompletedAt := doneCommitment["completedAt"]
+	secondDone := patchJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments/"+commitmentID, map[string]any{"status": "done"}, http.StatusOK)
+	if mustObject(t, secondDone.JSON)["completedAt"] != firstCompletedAt {
+		t.Fatalf("expected done to be idempotent: %#v", secondDone.JSON)
+	}
+	reopened := patchJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments/"+commitmentID, map[string]any{"status": "open"}, http.StatusOK)
+	reopenedCommitment := mustObject(t, reopened.JSON)
+	if reopenedCommitment["status"] != "open" || reopenedCommitment["completedAt"] != nil || reopenedCommitment["completedByPersonId"] != nil {
+		t.Fatalf("expected reopen to clear completion fields: %#v", reopenedCommitment)
+	}
+	redone := patchJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments/"+commitmentID, map[string]any{"status": "done"}, http.StatusOK)
+	if mustObject(t, redone.JSON)["completedAt"] == nil {
+		t.Fatalf("expected commitment to complete again: %#v", redone.JSON)
+	}
+	cancelled := patchJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments/"+commitmentID, map[string]any{"status": "cancelled"}, http.StatusOK)
+	cancelledCommitment := mustObject(t, cancelled.JSON)
+	if cancelledCommitment["status"] != "cancelled" || cancelledCommitment["completedAt"] != nil || cancelledCommitment["completedByPersonId"] != nil {
+		t.Fatalf("expected cancel to clear completion fields: %#v", cancelledCommitment)
+	}
+
+	postJSON(t, fx.app, fx.memberCookie, "/api/workspaces/"+fx.workspaceID+"/commitments", map[string]any{"title": "member"}, http.StatusForbidden)
+	getJSON(t, fx.app, nil, "/api/workspaces/"+fx.workspaceID+"/commitments", http.StatusForbidden)
+	otherFx := newLifecycleFixture(t)
+	getJSON(t, fx.app, otherFx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments", http.StatusForbidden)
+
+	otherEvent := createEvent(t, otherFx, "Other workspace event", 5)
+	otherContact := postJSON(t, otherFx.app, otherFx.ownerCookie, "/api/workspaces/"+otherFx.workspaceID+"/contacts", map[string]any{"displayName": "Other Contact"}, http.StatusOK)
+	postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments", map[string]any{"title": "bad event", "eventId": mustString(t, otherEvent, "id")}, http.StatusBadRequest)
+	postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments", map[string]any{"title": "bad contact", "contactId": mustString(t, otherContact.JSON, "id")}, http.StatusBadRequest)
+	postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments", map[string]any{"title": "bad owner", "ownerPersonId": ownerPersonID(t, otherFx)}, http.StatusBadRequest)
+	patchJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments/"+commitmentID, map[string]any{"eventId": mustString(t, otherEvent, "id")}, http.StatusBadRequest)
+	patchJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments/"+commitmentID, map[string]any{"contactId": mustString(t, otherContact.JSON, "id")}, http.StatusBadRequest)
+	patchJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments/"+commitmentID, map[string]any{"ownerPersonId": ownerPersonID(t, otherFx)}, http.StatusBadRequest)
+	patchJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments/"+commitmentID, map[string]any{"clearDueAt": true, "dueAt": dueAt}, http.StatusBadRequest)
+	patchJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments/"+commitmentID, map[string]any{"clearEvent": true, "eventId": eventID}, http.StatusBadRequest)
+	patchJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments/"+commitmentID, map[string]any{"clearContact": true, "contactId": mustString(t, otherContact.JSON, "id")}, http.StatusBadRequest)
+	patchJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments/"+commitmentID, map[string]any{"clearOwner": true, "ownerPersonId": ownerPersonID(t, fx)}, http.StatusBadRequest)
+
+	createdAudit := auditMetadataForAction(t, fx.app.db, "commitment.created")
+	updatedAudit := auditMetadataForAction(t, fx.app.db, "commitment.updated")
+	for _, audit := range []string{createdAudit, updatedAudit} {
+		if strings.Contains(audit, "Private vendor detail") || strings.Contains(audit, "Confirm projector") || strings.Contains(audit, "Benefit Show") {
+			t.Fatalf("audit metadata leaked commitment details: %s", audit)
+		}
+	}
+
+	for _, action := range []string{"commitment.created", "commitment.updated"} {
+		var metadataText string
+		if err := fx.app.db.QueryRow(t.Context(), `
+			select metadata::text
+			from audit_entries
+			where action = $1 and subject_id = $2
+			order by created_at desc
+			limit 1
+		`, action, commitmentID).Scan(&metadataText); err != nil {
+			t.Fatal(err)
+		}
+		var metadata map[string]any
+		if err := json.Unmarshal([]byte(metadataText), &metadata); err != nil {
+			t.Fatal(err)
+		}
+		if len(metadata) != 3 || metadata["commitmentId"] != commitmentID || metadata["workspaceId"] != fx.workspaceID || metadata["status"] == "" {
+			t.Fatalf("unexpected %s audit metadata: %#v", action, metadata)
+		}
+	}
+}
+
 func TestFirstEventLifecycleArchiveAPI(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	event := createEvent(t, fx, "Night Market", 4)

@@ -63,6 +63,46 @@ export interface UpdateContactRequestDTO {
   clearPhone?: boolean;
 }
 
+export interface CommitmentDTO {
+  id: string;
+  workspaceId: string;
+  eventId?: string | null;
+  contactId?: string | null;
+  title: string;
+  description: string;
+  dueAt?: string | null;
+  status: 'open' | 'done' | 'cancelled';
+  ownerPersonId?: string | null;
+  createdByPersonId: string;
+  completedAt?: string | null;
+  completedByPersonId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateCommitmentRequestDTO {
+  title: string;
+  description?: string;
+  dueAt?: string;
+  eventId?: string;
+  contactId?: string;
+  ownerPersonId?: string;
+}
+
+export interface UpdateCommitmentRequestDTO {
+  title?: string | null;
+  description?: string | null;
+  dueAt?: string | null;
+  eventId?: string | null;
+  contactId?: string | null;
+  ownerPersonId?: string | null;
+  status?: 'open' | 'done' | 'cancelled' | null;
+  clearDueAt?: boolean;
+  clearEvent?: boolean;
+  clearContact?: boolean;
+  clearOwner?: boolean;
+}
+
 export interface EventDTO {
   id: string;
   workspaceId: string;
