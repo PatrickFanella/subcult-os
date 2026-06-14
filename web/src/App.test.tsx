@@ -160,7 +160,7 @@ describe('App routes', () => {
         id: 'workspace-1',
         name: 'Main Room',
         role: 'owner',
-        members: [],
+        members: [{ id: 'member-1', email: 'morgan@example.com', displayName: 'Morgan', role: 'member' }],
         invitations: [],
       },
       [event],
@@ -206,7 +206,7 @@ describe('App routes', () => {
         id: 'workspace-1',
         name: 'Main Room',
         role: 'owner',
-        members: [],
+        members: [{ id: 'member-1', email: 'morgan@example.com', displayName: 'Morgan', role: 'member' }],
         invitations: [],
       },
       [],
@@ -508,6 +508,72 @@ describe('App routes', () => {
           updatedAt: '2026-06-13T22:00:00.000Z',
         },
       ],
+      [
+        {
+          id: 'staffing-1',
+          eventId: event.id,
+          title: 'Load in',
+          kind: 'task',
+          notes: 'Bring the banner.',
+          startsAt: '2026-06-13T21:00:00.000Z',
+          endsAt: '2026-06-13T21:30:00.000Z',
+          assignedPersonId: 'member-1',
+          assigneeName: 'Morgan',
+          status: 'assigned',
+          createdAt: '2026-06-13T20:00:00.000Z',
+          updatedAt: '2026-06-13T20:10:00.000Z',
+        },
+        {
+          id: 'staffing-2',
+          eventId: event.id,
+          title: 'Door shift',
+          kind: 'shift',
+          notes: 'Front desk coverage.',
+          startsAt: '2026-06-13T22:00:00.000Z',
+          endsAt: '2026-06-13T23:00:00.000Z',
+          assignedApplicationId: 'application-1',
+          assigneeName: 'Alex',
+          status: 'open',
+          createdAt: '2026-06-13T20:15:00.000Z',
+          updatedAt: '2026-06-13T20:15:00.000Z',
+        },
+        {
+          id: 'staffing-3',
+          eventId: event.id,
+          title: 'Sound check',
+          kind: 'task',
+          notes: '',
+          startsAt: null,
+          endsAt: null,
+          assigneeName: 'Morgan',
+          status: 'completed',
+          createdAt: '2026-06-13T20:20:00.000Z',
+          updatedAt: '2026-06-13T22:30:00.000Z',
+          completedAt: '2026-06-13T22:30:00.000Z',
+          completedByPersonId: 'person-1',
+        },
+        {
+          id: 'staffing-4',
+          eventId: event.id,
+          title: 'Decor setup',
+          kind: 'shift',
+          notes: 'Unused if vendor arrives early.',
+          startsAt: null,
+          endsAt: null,
+          status: 'cancelled',
+          createdAt: '2026-06-13T20:25:00.000Z',
+          updatedAt: '2026-06-13T20:40:00.000Z',
+        },
+      ],
+      false,
+      {
+        title: '',
+        kind: 'task',
+        notes: '',
+        startsAt: '',
+        endsAt: '',
+      },
+      null,
     ]);
 
     expect(rendered).toContain('Participant roster');
@@ -516,6 +582,142 @@ describe('App routes', () => {
     expect(rendered).toContain('Alex');
     expect(rendered).toContain('confirmed');
     expect(rendered).not.toContain('Bring a keyboard.');
+    expect(rendered).toContain('Staffing board');
+    expect(rendered).toContain('Add staffing item');
+    expect(rendered).toContain('Assign to');
+    expect(rendered).toContain('Clear assignee');
+    expect(rendered).toContain('Mark completed');
+    expect(rendered).toContain('Mark cancelled');
+  });
+
+  it('hides staffing mutation controls for members', () => {
+    const event = {
+      id: 'event-1',
+      workspaceId: 'workspace-1',
+      title: 'Night Market',
+      startsAt: '2026-06-13T23:00:00.000Z',
+      publicDescription: 'A late set.',
+      locationDisplay: 'The Hall',
+      ticketAllocation: 100,
+      pricingMode: 'fixed',
+      ticketPriceCents: 1800,
+      ticketCurrency: 'usd',
+      reservedCount: 12,
+      checkedInCount: 0,
+      status: 'published',
+      publicSlug: 'night-market',
+      publicUrl: '/e/night-market',
+    };
+
+    const rendered = renderWithState('/events/event-1?workspaceId=workspace-1', <EventEditorView eventId="event-1" />, [
+      event,
+      null,
+      null,
+      '',
+      false,
+      false,
+      {
+        title: event.title,
+        startsAt: '2026-06-13T23:00',
+        publicDescription: event.publicDescription,
+        locationDisplay: event.locationDisplay,
+        ticketAllocation: '100',
+        pricingMode: 'fixed',
+        ticketPriceDollars: '18.00',
+      },
+      {
+        title: event.title,
+        startsAt: '2026-06-13T23:00',
+        publicDescription: event.publicDescription,
+        locationDisplay: event.locationDisplay,
+        ticketAllocation: '100',
+        pricingMode: 'fixed',
+        ticketPriceDollars: '18.00',
+      },
+      false,
+      false,
+      false,
+      null,
+      null,
+      null,
+      {
+        amountDollars: '',
+        label: '',
+        reason: '',
+      },
+      false,
+      false,
+      {
+        id: 'workspace-1',
+        name: 'Main Room',
+        role: 'member',
+        members: [{ id: 'member-1', email: 'morgan@example.com', displayName: 'Morgan', role: 'member' }],
+        invitations: [],
+      },
+      [
+        {
+          id: 'role-1',
+          eventId: event.id,
+          name: 'Performer',
+          description: 'Play a 20-minute set.',
+          capacity: 3,
+          public: true,
+          active: true,
+          createdAt: '2026-06-13T20:00:00.000Z',
+          updatedAt: '2026-06-13T20:00:00.000Z',
+        },
+      ],
+      null,
+      {},
+      null,
+      [
+        {
+          applicationId: 'application-1',
+          roleId: 'role-1',
+          roleName: 'Performer',
+          applicantName: 'Alex',
+          applicantEmail: 'alex@example.com',
+          status: 'confirmed',
+          updatedAt: '2026-06-13T22:00:00.000Z',
+        },
+      ],
+      [
+        {
+          id: 'staffing-1',
+          eventId: event.id,
+          title: 'Load in',
+          kind: 'task',
+          notes: 'Bring the banner.',
+          startsAt: '2026-06-13T21:00:00.000Z',
+          endsAt: '2026-06-13T21:30:00.000Z',
+          assignedPersonId: 'member-1',
+          assigneeName: 'Morgan',
+          status: 'assigned',
+          createdAt: '2026-06-13T20:00:00.000Z',
+          updatedAt: '2026-06-13T20:10:00.000Z',
+        },
+      ],
+      false,
+      {
+        title: '',
+        kind: 'task',
+        notes: '',
+        startsAt: '',
+        endsAt: '',
+      },
+      null,
+    ]);
+
+    expect(rendered).toContain('Staffing board');
+    expect(rendered).toContain('Open');
+    expect(rendered).toContain('Assigned');
+    expect(rendered).toContain('Completed');
+    expect(rendered).toContain('Cancelled');
+    expect(rendered).not.toContain('Add staffing item');
+    expect(rendered).not.toContain('Assign to');
+    expect(rendered).not.toContain('Clear assignee');
+    expect(rendered).not.toContain('Mark completed');
+    expect(rendered).not.toContain('Mark cancelled');
   });
 
   it('renders the end-of-night settlement summary report panel', () => {

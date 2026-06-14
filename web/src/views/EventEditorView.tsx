@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ApiError, api, patchJSON, postJSON } from '../api';
-import type { CurrentWorkspaceDTO, EventArchiveDTO, EventDTO, EventParticipantDTO, EventReportDTO, EventRoleApplicationDTO, EventRoleDTO, EventSettlementDTO, EventStatus } from '../domain';
+import type { CurrentWorkspaceDTO, EventArchiveDTO, EventDTO, EventParticipantDTO, EventReportDTO, EventRoleApplicationDTO, EventRoleDTO, EventSettlementDTO, EventStaffingItemDTO, EventStatus } from '../domain';
 
 type FormState = {
   title: string;
@@ -17,6 +17,14 @@ type SettlementAdjustmentFormState = {
   amountDollars: string;
   label: string;
   reason: string;
+};
+
+type StaffingFormState = {
+  title: string;
+  kind: EventStaffingItemDTO['kind'];
+  notes: string;
+  startsAt: string;
+  endsAt: string;
 };
 
 const applicationReviewStatusOptions: { value: EventRoleApplicationDTO['status']; label: string }[] = [
@@ -118,6 +126,80 @@ function emptySettlementAdjustmentForm(): SettlementAdjustmentFormState {
   };
 }
 
+function emptyStaffingForm(): StaffingFormState {
+  return {
+    title: '',
+    kind: 'task',
+    notes: '',
+    startsAt: '',
+    endsAt: '',
+  };
+}
+
+function staffingStatusOrder(status: EventStaffingItemDTO['status']) {
+  switch (status) {
+    case 'open':
+      return 0;
+    case 'assigned':
+      return 1;
+    case 'completed':
+      return 2;
+    case 'cancelled':
+      return 3;
+  }
+}
+
+function compareStaffingItems(left: EventStaffingItemDTO, right: EventStaffingItemDTO) {
+  const statusDelta = staffingStatusOrder(left.status) - staffingStatusOrder(right.status);
+  if (statusDelta !== 0) return statusDelta;
+
+  const leftStarts = left.startsAt ? new Date(left.startsAt).getTime() : Number.POSITIVE_INFINITY;
+  const rightStarts = right.startsAt ? new Date(right.startsAt).getTime() : Number.POSITIVE_INFINITY;
+  if (leftStarts !== rightStarts) return leftStarts - rightStarts;
+
+  const createdDelta = new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
+  if (createdDelta !== 0) return createdDelta;
+
+  return left.id.localeCompare(right.id);
+}
+
+function sortStaffingItems(items: EventStaffingItemDTO[]) {
+  return [...items].sort(compareStaffingItems);
+}
+
+function staffingStatusLabel(status: EventStaffingItemDTO['status']) {
+  switch (status) {
+    case 'open':
+      return 'Open';
+    case 'assigned':
+      return 'Assigned';
+    case 'completed':
+      return 'Completed';
+    case 'cancelled':
+      return 'Cancelled';
+  }
+}
+
+function staffingKindLabel(kind: EventStaffingItemDTO['kind']) {
+  return kind === 'task' ? 'Task' : 'Shift';
+}
+
+function staffingWindowLabel(item: EventStaffingItemDTO) {
+  if (item.startsAt && item.endsAt) {
+    return `${formatDateTime(item.startsAt)} → ${formatDateTime(item.endsAt)}`;
+  }
+
+  if (item.startsAt) {
+    return `Starts ${formatDateTime(item.startsAt)}`;
+  }
+
+  if (item.endsAt) {
+    return `Ends ${formatDateTime(item.endsAt)}`;
+  }
+
+  return 'No time window set';
+}
+
 function pricingSummary(event: EventDTO | null) {
   if (!event || event.pricingMode === 'free') {
     return 'Free reservation';
@@ -190,6 +272,10 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   const [applicationReviewDrafts, setApplicationReviewDrafts] = useState<Record<string, EventRoleApplicationDTO['status']>>({});
   const [reviewingApplicationId, setReviewingApplicationId] = useState<string | null>(null);
   const [participants, setParticipants] = useState<EventParticipantDTO[] | null>(null);
+  const [staffingItems, setStaffingItems] = useState<EventStaffingItemDTO[] | null>(null);
+  const [staffingLoading, setStaffingLoading] = useState(false);
+  const [staffingForm, setStaffingForm] = useState<StaffingFormState>(emptyStaffingForm);
+  const [staffingActioningId, setStaffingActioningId] = useState<string | null>(null);
 
   const hasWorkspace = workspaceId !== '';
   const closed = event?.status === 'end_of_night';
@@ -200,7 +286,42 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   const canReviewApplications = currentWorkspace?.role === 'owner' && currentWorkspace?.id === event?.workspaceId;
   const applicationsReady = roles !== null && applications !== null;
   const participantsReady = participants !== null;
+  const staffingReady = staffingLoading || staffingItems !== null;
+  const canManageStaffing = currentWorkspace?.role === 'owner' && currentWorkspace?.id === event?.workspaceId;
   const roleNameById = useMemo(() => new Map<string, string>((roles ?? []).map((role) => [role.id, role.name] as [string, string])), [roles]);
+  const staffingAssigneeOptions = useMemo(
+    () => ({
+      members: (currentWorkspace?.members ?? []).map((member) => ({
+        value: `member:${member.id}`,
+        label: member.displayName ?? member.email,
+      })),
+      participants: (participants ?? []).map((participant) => ({
+        value: `participant:${participant.applicationId}`,
+        label: `${participant.applicantName} • ${participant.roleName} • ${participant.status}`,
+      })),
+    }),
+    [currentWorkspace?.members, participants],
+  );
+  const staffingCounts = useMemo(
+    () =>
+      (staffingItems ?? []).reduce(
+        (counts, item) => ({
+          ...counts,
+          [item.status]: counts[item.status] + 1,
+        }),
+        { open: 0, assigned: 0, completed: 0, cancelled: 0 },
+      ),
+    [staffingItems],
+  );
+  const staffingTasks = useMemo(() => sortStaffingItems((staffingItems ?? []).filter((item) => item.kind === 'task')), [staffingItems]);
+  const staffingShifts = useMemo(() => sortStaffingItems((staffingItems ?? []).filter((item) => item.kind === 'shift')), [staffingItems]);
+  const staffingGroups: Array<{ kind: 'task' | 'shift'; label: string; items: EventStaffingItemDTO[] }> = useMemo(
+    () => [
+      { kind: 'task', label: 'Tasks', items: staffingTasks },
+      { kind: 'shift', label: 'Shifts', items: staffingShifts },
+    ],
+    [staffingShifts, staffingTasks],
+  );
   const dirty = useMemo(() => !formsMatch(form, initialForm), [form, initialForm]);
 
   useEffect(() => {
@@ -302,6 +423,10 @@ export function EventEditorView({ eventId }: { eventId: string }) {
       setEvent(null);
       setReport(null);
       setSettlement(null);
+      setStaffingItems(null);
+      setStaffingLoading(false);
+      setStaffingForm(emptyStaffingForm());
+      setStaffingActioningId(null);
       setForm(blank);
       setInitialForm(blank);
       setSettlementForm(emptySettlementAdjustmentForm());
@@ -401,6 +526,46 @@ export function EventEditorView({ eventId }: { eventId: string }) {
     }
 
     void loadParticipants();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [creating, event?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadStaffing() {
+      if (creating || !event) {
+        setStaffingItems(null);
+        setStaffingLoading(false);
+        setStaffingForm(emptyStaffingForm());
+        setStaffingActioningId(null);
+        return;
+      }
+
+      setStaffingLoading(true);
+      setStaffingItems(null);
+      setStaffingForm(emptyStaffingForm());
+      setStaffingActioningId(null);
+
+      try {
+        const loadedStaffing = await api<EventStaffingItemDTO[]>(`/api/events/${event.id}/staffing`);
+        if (!cancelled) {
+          setStaffingItems(sortStaffingItems(loadedStaffing));
+        }
+      } catch (caught) {
+        if (!cancelled) {
+          setError(caught instanceof Error ? caught.message : 'Unable to load staffing board');
+        }
+      } finally {
+        if (!cancelled) {
+          setStaffingLoading(false);
+        }
+      }
+    }
+
+    void loadStaffing();
 
     return () => {
       cancelled = true;
@@ -606,6 +771,94 @@ export function EventEditorView({ eventId }: { eventId: string }) {
     } finally {
       setReviewingApplicationId(null);
     }
+  }
+
+  async function handleCreateStaffing(formEvent: FormEvent<HTMLFormElement>) {
+    formEvent.preventDefault();
+    if (!event || !canManageStaffing) return;
+
+    const title = staffingForm.title.trim();
+    if (!title) {
+      setError('title is required');
+      return;
+    }
+
+    setStaffingActioningId('new');
+    setMessage(null);
+    setError(null);
+
+    try {
+      const created = await postJSON<EventStaffingItemDTO>(`/api/events/${event.id}/staffing`, {
+        title,
+        kind: staffingForm.kind,
+        notes: staffingForm.notes.trim(),
+        startsAt: staffingForm.startsAt ? fromInputValue(staffingForm.startsAt) : null,
+        endsAt: staffingForm.endsAt ? fromInputValue(staffingForm.endsAt) : null,
+      });
+
+      setStaffingItems((current) => sortStaffingItems([...(current ?? []), created]));
+      setStaffingForm(emptyStaffingForm());
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to create staffing item');
+    } finally {
+      setStaffingActioningId(null);
+    }
+  }
+
+  async function handleStaffingUpdate(staffingID: string, payload: Record<string, unknown>) {
+    if (!event || !canManageStaffing) return;
+
+    setStaffingActioningId(staffingID);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const updated = await patchJSON<EventStaffingItemDTO>(`/api/events/${event.id}/staffing/${staffingID}`, payload);
+      setStaffingItems((current) => sortStaffingItems((current ?? []).map((item) => (item.id === staffingID ? updated : item))));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to update staffing item');
+    } finally {
+      setStaffingActioningId(null);
+    }
+  }
+
+  async function handleAssignStaffing(staffingID: string, formEvent: FormEvent<HTMLFormElement>) {
+    formEvent.preventDefault();
+    if (!canManageStaffing) return;
+
+    const formData = new FormData(formEvent.currentTarget);
+    const selection = String(formData.get('assignee') ?? '');
+
+    if (!selection) {
+      setError('Select an assignee');
+      return;
+    }
+
+    const [targetType, targetID] = selection.split(':', 2);
+    if (!targetType || !targetID) {
+      setError('Select an assignee');
+      return;
+    }
+
+    if (targetType === 'member') {
+      await handleStaffingUpdate(staffingID, { assignedPersonId: targetID });
+      return;
+    }
+
+    if (targetType === 'participant') {
+      await handleStaffingUpdate(staffingID, { assignedApplicationId: targetID });
+      return;
+    }
+
+    setError('Select an assignee');
+  }
+
+  async function handleClearStaffingAssignee(staffingID: string) {
+    await handleStaffingUpdate(staffingID, { clearAssignee: true });
+  }
+
+  async function handleSetStaffingStatus(staffingID: string, status: EventStaffingItemDTO['status']) {
+    await handleStaffingUpdate(staffingID, { status });
   }
 
   async function handleSeedNextDraft() {
@@ -1230,6 +1483,202 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                   ) : (
                     <p className="mt-4 rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-400">No accepted participants yet.</p>
                   )}
+                </section>
+              ) : null}
+
+              {staffingReady && event ? (
+                <section className="rounded-[1.75rem] border border-sky-400/20 bg-zinc-950/95 p-6 shadow-2xl shadow-black/30">
+                  <p className="text-xs uppercase tracking-[0.3em] text-sky-300">Staffing</p>
+                  <h2 className="mt-2 text-2xl font-semibold text-white">Staffing board</h2>
+                  <p className="mt-2 text-sm leading-6 text-zinc-400">Track tasks and shifts, then assign them to workspace members or accepted participants.</p>
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    {([
+                      ['open', 'Open'],
+                      ['assigned', 'Assigned'],
+                      ['completed', 'Completed'],
+                      ['cancelled', 'Cancelled'],
+                    ] as const).map(([status, label]) => (
+                      <div key={status} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">{label}</p>
+                        <p className="mt-2 text-lg font-semibold text-white">{staffingCounts[status]}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {canManageStaffing ? (
+                    <form className="mt-4 space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4" onSubmit={handleCreateStaffing}>
+                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Add staffing item</p>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <label className="block space-y-2 text-sm">
+                          <span className="text-zinc-300">Title</span>
+                          <input
+                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-sky-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                            value={staffingForm.title}
+                            onChange={(event) => setStaffingForm((current) => ({ ...current, title: event.target.value }))}
+                            required
+                            disabled={staffingActioningId === 'new'}
+                          />
+                        </label>
+                        <label className="block space-y-2 text-sm">
+                          <span className="text-zinc-300">Kind</span>
+                          <select
+                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-sky-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                            value={staffingForm.kind}
+                            onChange={(event) => setStaffingForm((current) => ({ ...current, kind: event.target.value as EventStaffingItemDTO['kind'] }))}
+                            disabled={staffingActioningId === 'new'}
+                          >
+                            <option value="task">Task</option>
+                            <option value="shift">Shift</option>
+                          </select>
+                        </label>
+                      </div>
+
+                      <label className="block space-y-2 text-sm">
+                        <span className="text-zinc-300">Notes</span>
+                        <textarea
+                          className="min-h-28 w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-sky-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                          value={staffingForm.notes}
+                          onChange={(event) => setStaffingForm((current) => ({ ...current, notes: event.target.value }))}
+                          disabled={staffingActioningId === 'new'}
+                        />
+                      </label>
+
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <label className="block space-y-2 text-sm">
+                          <span className="text-zinc-300">Starts at</span>
+                          <input
+                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-sky-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                            type="datetime-local"
+                            value={staffingForm.startsAt}
+                            onChange={(event) => setStaffingForm((current) => ({ ...current, startsAt: event.target.value }))}
+                            disabled={staffingActioningId === 'new'}
+                          />
+                        </label>
+                        <label className="block space-y-2 text-sm">
+                          <span className="text-zinc-300">Ends at</span>
+                          <input
+                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-sky-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                            type="datetime-local"
+                            value={staffingForm.endsAt}
+                            onChange={(event) => setStaffingForm((current) => ({ ...current, endsAt: event.target.value }))}
+                            disabled={staffingActioningId === 'new'}
+                          />
+                        </label>
+                      </div>
+
+                      <button className="rounded-2xl bg-sky-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-sky-200 disabled:cursor-not-allowed disabled:bg-sky-300/60" type="submit" disabled={staffingActioningId === 'new'}>
+                        {staffingActioningId === 'new' ? 'Saving…' : 'Add staffing item'}
+                      </button>
+                    </form>
+                  ) : null}
+
+                  {staffingLoading && !staffingItems ? <p className="mt-4 text-sm leading-6 text-zinc-400">Loading staffing board…</p> : null}
+
+                  {!staffingLoading && staffingItems ? (
+                    <div className="mt-4 space-y-4">
+                      {staffingGroups.map(({ kind, label, items }) => (
+                        <div key={kind} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">{label}</p>
+
+                          {items.length > 0 ? (
+                            <div className="mt-3 space-y-3">
+                              {items.map((item) => (
+                                <article key={item.id} className="rounded-2xl border border-white/10 bg-zinc-950/50 p-4">
+                                  <div className="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                      <p className="text-sm font-semibold text-white">{item.title}</p>
+                                      <p className="mt-1 text-sm leading-6 text-zinc-400">{item.notes || 'No notes yet.'}</p>
+                                    </div>
+                                    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-zinc-200">
+                                      {staffingStatusLabel(item.status)}
+                                    </span>
+                                  </div>
+
+                                  <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-zinc-500">
+                                    <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">{staffingKindLabel(item.kind)}</span>
+                                    <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">{staffingWindowLabel(item)}</span>
+                                    <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">{item.assigneeName ?? 'Unassigned'}</span>
+                                  </div>
+
+                                  {canManageStaffing ? (
+                                    <div className="mt-4 space-y-3">
+                                      <form
+                                        key={`${item.id}:${item.assignedPersonId ?? item.assignedApplicationId ?? 'none'}`}
+                                        className="flex flex-wrap items-end gap-3"
+                                        onSubmit={(submitEvent) => {
+                                          void handleAssignStaffing(item.id, submitEvent);
+                                        }}
+                                      >
+                                        <label className="block min-w-64 space-y-2 text-sm">
+                                          <span className="text-zinc-300">Assign to</span>
+                                          <select
+                                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-sky-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                                            name="assignee"
+                                            defaultValue={item.assignedPersonId ? `member:${item.assignedPersonId}` : item.assignedApplicationId ? `participant:${item.assignedApplicationId}` : ''}
+                                            disabled={staffingActioningId === item.id}
+                                          >
+                                            <option value="">Select an assignee</option>
+                                            <optgroup label="Workspace members">
+                                              {staffingAssigneeOptions.members.map((option) => (
+                                                <option key={option.value} value={option.value}>
+                                                  {option.label}
+                                                </option>
+                                              ))}
+                                            </optgroup>
+                                            <optgroup label="Accepted participants">
+                                              {staffingAssigneeOptions.participants.map((option) => (
+                                                <option key={option.value} value={option.value}>
+                                                  {option.label}
+                                                </option>
+                                              ))}
+                                            </optgroup>
+                                          </select>
+                                        </label>
+
+                                        <button className="rounded-2xl bg-sky-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-sky-200 disabled:cursor-not-allowed disabled:bg-sky-300/60" type="submit" disabled={staffingActioningId === item.id}>
+                                          {staffingActioningId === item.id ? 'Saving…' : 'Assign'}
+                                        </button>
+                                      </form>
+
+                                      <div className="flex flex-wrap gap-3 text-sm">
+                                        <button
+                                          className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-medium text-zinc-100 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:bg-white/5"
+                                          type="button"
+                                          onClick={() => void handleClearStaffingAssignee(item.id)}
+                                          disabled={staffingActioningId === item.id || (!item.assignedPersonId && !item.assignedApplicationId)}
+                                        >
+                                          Clear assignee
+                                        </button>
+                                        <button
+                                          className="rounded-2xl border border-emerald-400/20 bg-emerald-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:bg-emerald-300/60"
+                                          type="button"
+                                          onClick={() => void handleSetStaffingStatus(item.id, 'completed')}
+                                          disabled={staffingActioningId === item.id || item.status === 'completed'}
+                                        >
+                                          Mark completed
+                                        </button>
+                                        <button
+                                          className="rounded-2xl border border-rose-400/20 bg-rose-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-rose-200 disabled:cursor-not-allowed disabled:bg-rose-300/60"
+                                          type="button"
+                                          onClick={() => void handleSetStaffingStatus(item.id, 'cancelled')}
+                                          disabled={staffingActioningId === item.id || item.status === 'cancelled'}
+                                        >
+                                          Mark cancelled
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : null}
+                                </article>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="mt-3 rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-400">No {label.toLowerCase()} yet.</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                 </section>
               ) : null}
 
