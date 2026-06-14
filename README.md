@@ -36,6 +36,7 @@ The first product slice proves:
 6. Member runs mobile-friendly Door Check-In by manual lookup or exact Ticket code.
 7. Owner runs End of Night and views the private Event Report.
 8. People can belong to multiple Workspaces and switch the active operator home from the Workspace access panel.
+9. Public discovery page at `/discover` lists published events without exposing private workspace, archive, staffing, settlement, or application data.
 
 Run locally:
 

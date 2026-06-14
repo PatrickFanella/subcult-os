@@ -67,6 +67,7 @@ describe('App routes', () => {
     const rendered = renderAt('/');
     expect(rendered).toContain('Operator home');
     expect(rendered).toContain('Run the room from one place');
+    expect(rendered).toContain('Public discovery');
   });
 
   it('renders the workspace route with a selected workspace', () => {
@@ -201,6 +202,7 @@ describe('App routes', () => {
     const rendered = renderAt('/e/night-market');
     expect(rendered).toContain('Free guest reservation');
     expect(rendered).toContain('No account needed');
+    expect(rendered).toContain('Discover more events');
     expect(rendered).toContain('free ticket');
     expect(rendered).toContain('Email required');
   });

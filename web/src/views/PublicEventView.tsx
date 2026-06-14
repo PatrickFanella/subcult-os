@@ -248,6 +248,9 @@ export function PublicEventView({ slug }: { slug: string }) {
               <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-amber-200">
                 No account needed
               </span>
+              <a className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-white transition hover:bg-white/10" href="/discover">
+                Discover more events
+              </a>
               {event?.pricingMode === 'fixed' ? (
                 <span className="rounded-full border border-fuchsia-400/30 bg-fuchsia-500/10 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-fuchsia-100">
                   Stripe Checkout

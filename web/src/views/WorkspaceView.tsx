@@ -663,6 +663,9 @@ export function WorkspaceView() {
             <a className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-zinc-200 transition hover:bg-white/10" href="/login">
               Auth
             </a>
+            <a className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-zinc-200 transition hover:bg-white/10" href="/discover">
+              Public discovery
+            </a>
             <button className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-zinc-200 transition hover:bg-white/10" type="button" onClick={signOut}>
               Sign out
             </button>
@@ -683,6 +686,9 @@ export function WorkspaceView() {
             <aside className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
               <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Workspace access</p>
               <p className="mt-2 text-sm leading-6 text-zinc-400">One person can operate multiple Workspaces. Use this switcher to jump between them.</p>
+              <a className="mt-4 inline-flex rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-zinc-200 transition hover:bg-white/10" href="/discover">
+                Public discovery
+              </a>
               <div className="mt-4 space-y-2">
                 <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-500">Loading access…</div>
               </div>

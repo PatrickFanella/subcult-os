@@ -312,7 +312,12 @@ func TestPublicEventDiscoveryAPI(t *testing.T) {
 	if publishedEvent["workspaceName"] != "Signal Collective" || publishedEvent["applicationsOpen"] != true {
 		t.Fatalf("unexpected trust context: %#v", publishedEvent)
 	}
-	if publishedEvent["workspaceId"] != nil || publishedEvent["ticketAllocation"] != nil || publishedEvent["reservedCount"] != nil || publishedEvent["checkedInCount"] != nil || publishedEvent["staffingOpenCount"] != nil || publishedEvent["staffingAssignedCount"] != nil || publishedEvent["staffingCompletedCount"] != nil || publishedEvent["staffingCancelledCount"] != nil || publishedEvent["settlementSummary"] != nil || publishedEvent["archive"] != nil {
+	for _, forbidden := range []string{"applicantEmail", "message", "staffingItems", "settlement", "archive", "notes", "workspaceId", "ticketAllocation", "reservedCount", "checkedInCount", "staffingOpenCount", "staffingAssignedCount", "staffingCompletedCount", "staffingCancelledCount"} {
+		if _, ok := publishedEvent[forbidden]; ok {
+			t.Fatalf("discovery leaked private field %q: %#v", forbidden, publishedEvent)
+		}
+	}
+	if publishedEvent["settlementSummary"] != nil {
 		t.Fatalf("discovery leaked private fields: %#v", publishedEvent)
 	}
 	if int(publishedEvent["remainingTickets"].(float64)) != 39 || publishedEvent["isFull"].(bool) {
@@ -326,7 +331,12 @@ func TestPublicEventDiscoveryAPI(t *testing.T) {
 	if privateEvent["workspaceName"] != "Signal Collective" || privateEvent["applicationsOpen"] != false {
 		t.Fatalf("unexpected private-event trust context: %#v", privateEvent)
 	}
-	if privateEvent["workspaceId"] != nil || privateEvent["ticketAllocation"] != nil || privateEvent["reservedCount"] != nil || privateEvent["checkedInCount"] != nil || privateEvent["staffingOpenCount"] != nil || privateEvent["staffingAssignedCount"] != nil || privateEvent["staffingCompletedCount"] != nil || privateEvent["staffingCancelledCount"] != nil {
+	for _, forbidden := range []string{"applicantEmail", "message", "staffingItems", "settlement", "archive", "notes", "workspaceId", "ticketAllocation", "reservedCount", "checkedInCount", "staffingOpenCount", "staffingAssignedCount", "staffingCompletedCount", "staffingCancelledCount"} {
+		if _, ok := privateEvent[forbidden]; ok {
+			t.Fatalf("discovery leaked private field %q: %#v", forbidden, privateEvent)
+		}
+	}
+	if privateEvent["settlementSummary"] != nil || privateEvent["archive"] != nil {
 		t.Fatalf("discovery leaked private fields: %#v", privateEvent)
 	}
 
@@ -334,6 +344,11 @@ func TestPublicEventDiscoveryAPI(t *testing.T) {
 	for _, title := range titles {
 		if strings.Contains(fmt.Sprintf("%#v", events), title) {
 			t.Fatalf("hidden event %q leaked in discovery: %#v", title, events)
+		}
+	}
+	for _, forbidden := range []string{"applicantEmail", "message", "staffingItems", "settlement", "archive", "notes", "workspaceId"} {
+		if strings.Contains(fmt.Sprintf("%#v", events), forbidden) {
+			t.Fatalf("discovery response leaked %q: %#v", forbidden, events)
 		}
 	}
 }
