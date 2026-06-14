@@ -68,6 +68,18 @@ export interface EventRoleDTO {
   updatedAt: string;
 }
 
+export interface EventRoleApplicationDTO {
+  id: string;
+  eventId: string;
+  roleId: string;
+  applicantName: string;
+  applicantEmail: string;
+  message: string;
+  status: 'submitted' | 'under_review' | 'accepted' | 'waitlisted' | 'rejected' | 'withdrawn' | 'confirmed';
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface TicketDTO {
   id: string;
   eventId: string;

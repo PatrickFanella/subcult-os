@@ -219,6 +219,110 @@ func TestEventRoleDefinitionsAPI(t *testing.T) {
 	}
 }
 
+func TestPublicRoleApplicationsAPI(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 4)
+	eventID := mustString(t, event, "id")
+	published := publishEvent(t, fx, eventID)
+	slug := mustString(t, published, "publicSlug")
+
+	publicRole := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/roles", map[string]any{"name": "Performer", "description": "Play a 20-minute set.", "capacity": 2, "public": true}, http.StatusOK)
+	roleID := mustString(t, publicRole.JSON, "id")
+
+	var privateRoleID string
+	if err := fx.app.db.QueryRow(t.Context(), `
+		insert into event_roles (event_id, name, description, capacity, "public", active, created_by_person_id, created_at, updated_at)
+		values ($1, $2, $3, $4, false, true, $5, $6, $6)
+		returning id
+	`, eventID, "Backstage", "Private notes", 0, ownerPersonID(t, fx), time.Now().UTC()).Scan(&privateRoleID); err != nil {
+		t.Fatal(err)
+	}
+	var inactiveRoleID string
+	if err := fx.app.db.QueryRow(t.Context(), `
+		insert into event_roles (event_id, name, description, capacity, "public", active, created_by_person_id, created_at, updated_at)
+		values ($1, $2, $3, $4, true, false, $5, $6, $6)
+		returning id
+	`, eventID, "Disabled", "Inactive role", 0, ownerPersonID(t, fx), time.Now().Add(time.Minute).UTC()).Scan(&inactiveRoleID); err != nil {
+		t.Fatal(err)
+	}
+
+	otherEvent := createEvent(t, fx, "Other Night", 4)
+	otherEventID := mustString(t, otherEvent, "id")
+	publishEvent(t, fx, otherEventID)
+	otherRole := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+otherEventID+"/roles", map[string]any{"name": "Host", "description": "Run the door.", "capacity": 1, "public": true}, http.StatusOK)
+	otherRoleID := mustString(t, otherRole.JSON, "id")
+
+	draftEvent := createEvent(t, fx, "Draft Night", 4)
+	draftEventID := mustString(t, draftEvent, "id")
+	draftSlug := "draft-role-applications-" + strings.ReplaceAll(fx.suffix, "_", "-")
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update events
+		set public_slug = $2
+		where id = $1
+	`, draftEventID, draftSlug); err != nil {
+		t.Fatal(err)
+	}
+	draftRole := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+draftEventID+"/roles", map[string]any{"name": "Runner", "description": "Draft role.", "capacity": 1, "public": true}, http.StatusOK)
+	draftRoleID := mustString(t, draftRole.JSON, "id")
+
+	created := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{
+		"roleId":         roleID,
+		"applicantName":  "  Alex  ",
+		"applicantEmail": "  ALEX@example.com ",
+		"message":        "  Bring a keyboard.  ",
+	}, http.StatusOK)
+	application := mustObject(t, created.JSON)
+	applicationID := mustString(t, created.JSON, "id")
+	if application["eventId"] != eventID || application["roleId"] != roleID || application["applicantName"] != "Alex" || application["applicantEmail"] != "alex@example.com" || application["message"] != "Bring a keyboard." || application["status"] != "submitted" || application["createdAt"] == "" || application["updatedAt"] == "" {
+		t.Fatalf("unexpected application response: %#v", application)
+	}
+
+	var auditAction, auditSubjectType, auditSubjectID, metadataText string
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select action, subject_type, subject_id::text, metadata::text
+		from audit_entries
+		where action = $1 and subject_id = $2
+		order by created_at desc
+		limit 1
+	`, "role_application.submitted", applicationID).Scan(&auditAction, &auditSubjectType, &auditSubjectID, &metadataText); err != nil {
+		t.Fatal(err)
+	}
+	if auditAction != "role_application.submitted" || auditSubjectType != "event_role_application" || auditSubjectID != applicationID {
+		t.Fatalf("unexpected audit entry: action=%q subjectType=%q subjectID=%q", auditAction, auditSubjectType, auditSubjectID)
+	}
+	var metadata map[string]any
+	if err := json.Unmarshal([]byte(metadataText), &metadata); err != nil {
+		t.Fatal(err)
+	}
+	if len(metadata) != 3 || metadata["eventId"] != eventID || metadata["roleId"] != roleID || metadata["applicationId"] != applicationID {
+		t.Fatalf("unexpected audit metadata: %#v", metadata)
+	}
+	for _, forbidden := range []string{"applicantName", "applicantEmail", "message"} {
+		if _, ok := metadata[forbidden]; ok {
+			t.Fatalf("audit metadata must not include %s: %#v", forbidden, metadata)
+		}
+	}
+
+	postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": roleID, "applicantName": "Alex", "applicantEmail": "alex@example.com", "message": "Follow-up"}, http.StatusConflict)
+
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update event_role_applications
+		set status = 'withdrawn', updated_at = now()
+		where id = $1
+	`, applicationID); err != nil {
+		t.Fatal(err)
+	}
+	postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": roleID, "applicantName": "Alex", "applicantEmail": "alex@example.com", "message": "Follow-up"}, http.StatusOK)
+
+	postJSON(t, fx.app, nil, "/api/public/events/"+draftSlug+"/role-applications", map[string]any{"roleId": draftRoleID, "applicantName": "Alex", "applicantEmail": "alex@example.com", "message": "Draft event"}, http.StatusNotFound)
+	postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": privateRoleID, "applicantName": "Alex", "applicantEmail": "alex@example.com", "message": "Private"}, http.StatusNotFound)
+	postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": inactiveRoleID, "applicantName": "Alex", "applicantEmail": "alex@example.com", "message": "Inactive"}, http.StatusNotFound)
+	postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": otherRoleID, "applicantName": "Alex", "applicantEmail": "alex@example.com", "message": "Mismatch"}, http.StatusNotFound)
+	postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": roleID, "applicantName": "   ", "applicantEmail": "alex@example.com", "message": "Name"}, http.StatusBadRequest)
+	postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": roleID, "applicantName": "Alex", "applicantEmail": "not-an-email", "message": "Email"}, http.StatusBadRequest)
+	postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": roleID, "applicantName": "Alex", "applicantEmail": "alex@example.com", "message": strings.Repeat("a", 2001)}, http.StatusBadRequest)
+}
+
 func TestWorkspaceArchiveIndexAPI(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	firstEvent := createEvent(t, fx, "Night Market", 4)

@@ -73,6 +73,24 @@ create table if not exists event_roles (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists event_role_applications (
+  id uuid primary key default gen_random_uuid(),
+  event_id uuid not null references events(id) on delete cascade,
+  role_id uuid not null references event_roles(id) on delete cascade,
+  applicant_name text not null,
+  applicant_email text not null,
+  message text not null default '',
+  status text not null default 'submitted' check (status in ('submitted', 'under_review', 'accepted', 'waitlisted', 'rejected', 'withdrawn', 'confirmed')),
+  reviewed_by_person_id uuid references people(id),
+  reviewed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create unique index if not exists event_role_applications_active_email_idx
+  on event_role_applications (event_id, role_id, lower(applicant_email))
+  where status in ('submitted', 'under_review', 'accepted', 'waitlisted', 'confirmed');
+
 create table if not exists tickets (
   id uuid primary key default gen_random_uuid(),
   event_id uuid not null references events(id) on delete cascade,

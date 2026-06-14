@@ -72,6 +72,7 @@ func (a *App) routes() {
 	a.mux.HandleFunc("POST /api/events/{eventID}/settlement/adjustments", a.handleCreateSettlementAdjustment)
 	a.mux.HandleFunc("GET /api/public/events/{slug}", a.handlePublicEvent)
 	a.mux.HandleFunc("GET /api/public/events/{slug}/roles", a.handleListPublicEventRoles)
+	a.mux.HandleFunc("POST /api/public/events/{slug}/role-applications", a.handleSubmitPublicRoleApplication)
 	a.mux.HandleFunc("POST /api/public/events/{slug}/reservations", a.handleReserveTicket)
 	a.mux.HandleFunc("POST /api/public/events/{slug}/paid-reservations", a.handleCreatePaidReservation)
 	a.mux.HandleFunc("POST /api/stripe/webhook", a.handleStripeWebhook)

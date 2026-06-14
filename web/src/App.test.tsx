@@ -672,10 +672,65 @@ describe('App routes', () => {
       isFull: false,
     };
 
-    const rendered = renderWithState('/e/night-market', <PublicEventView slug="night-market" />, [event, '', '', false, false, null, null]);
+    const rendered = renderWithState('/e/night-market', <PublicEventView slug="night-market" />, [event, '', '', false, false, null, null, [], {}]);
 
     expect(rendered).toContain('Buy ticket');
     expect(rendered).toContain('$18.00');
+    expect(rendered).toContain('Stripe Checkout');
+  });
+
+  it('renders public role application forms alongside ticket flow', () => {
+    const event = {
+      id: 'event-1',
+      workspaceId: 'workspace-1',
+      title: 'Night Market',
+      startsAt: '2026-06-13T23:00:00.000Z',
+      publicDescription: 'A late set.',
+      locationDisplay: 'The Hall',
+      ticketAllocation: 100,
+      pricingMode: 'fixed',
+      ticketPriceCents: 1800,
+      ticketCurrency: 'usd',
+      reservedCount: 12,
+      checkedInCount: 0,
+      status: 'published',
+      publicSlug: 'night-market',
+      publicUrl: '/e/night-market',
+      remainingTickets: 88,
+      isFull: false,
+    };
+
+    const rendered = renderWithState('/e/night-market', <PublicEventView slug="night-market" />, [
+      event,
+      '',
+      '',
+      false,
+      false,
+      null,
+      null,
+      [
+        {
+          id: 'role-1',
+          eventId: event.id,
+          name: 'Performer',
+          description: 'Play a 20-minute set.',
+          capacity: 3,
+          public: true,
+          active: true,
+          createdAt: '2026-06-13T20:00:00.000Z',
+          updatedAt: '2026-06-13T20:00:00.000Z',
+        },
+      ],
+      {},
+    ]);
+
+    expect(rendered).toContain('Apply to participate');
+    expect(rendered).toContain('Performer');
+    expect(rendered).toContain('Applicant name');
+    expect(rendered).toContain('Applicant email');
+    expect(rendered).toContain('Message');
+    expect(rendered).toContain('Submit application');
+    expect(rendered).toContain('Buy ticket');
     expect(rendered).toContain('Stripe Checkout');
   });
 
