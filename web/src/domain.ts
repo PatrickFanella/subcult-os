@@ -100,6 +100,14 @@ export interface EventStaffingItemDTO {
   completedByPersonId?: string | null;
 }
 
+export interface CreateEventStaffingRequestDTO {
+  title: string;
+  kind: 'task' | 'shift';
+  notes: string;
+  startsAt?: string | null;
+  endsAt?: string | null;
+}
+
 export interface EventParticipantDTO {
   applicationId: string;
   roleId: string;

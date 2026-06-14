@@ -1,13 +1,24 @@
 package app
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 )
+
+type createEventStaffingRequest struct {
+	Title    string  `json:"title"`
+	Kind     string  `json:"kind"`
+	Notes    string  `json:"notes"`
+	StartsAt *string `json:"startsAt"`
+	EndsAt   *string `json:"endsAt"`
+}
 
 type eventStaffingItemDTO struct {
 	ID                    string  `json:"id"`
@@ -103,6 +114,119 @@ func (a *App) handleListEventStaffing(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, items)
 }
 
+func (a *App) handleCreateEventStaffing(w http.ResponseWriter, r *http.Request) {
+	if a.db == nil {
+		writeError(w, http.StatusInternalServerError, "database unavailable")
+		return
+	}
+	event, err := a.loadEventDetails(r.Context(), r.PathValue("eventID"))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "event not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "could not load event")
+		return
+	}
+	actorID, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner")
+	if !ok {
+		writeError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
+	var req createEventStaffingRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	title := strings.TrimSpace(req.Title)
+	kind := strings.ToLower(strings.TrimSpace(req.Kind))
+	notes := strings.TrimSpace(req.Notes)
+	if title == "" {
+		writeError(w, http.StatusBadRequest, "title is required")
+		return
+	}
+	switch kind {
+	case "task", "shift":
+	default:
+		writeError(w, http.StatusBadRequest, "kind must be task or shift")
+		return
+	}
+	if utf8.RuneCountInString(notes) > 2000 {
+		writeError(w, http.StatusBadRequest, "notes must be 2000 characters or fewer")
+		return
+	}
+	startsAt, err := parseOptionalRFC3339Time(req.StartsAt)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid startsAt")
+		return
+	}
+	endsAt, err := parseOptionalRFC3339Time(req.EndsAt)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid endsAt")
+		return
+	}
+	if startsAt != nil && endsAt != nil && endsAt.Before(*startsAt) {
+		writeError(w, http.StatusBadRequest, "endsAt must be greater than or equal to startsAt")
+		return
+	}
+	if event.Status == "end_of_night" {
+		writeError(w, http.StatusConflict, "event is closed")
+		return
+	}
+
+	tx, err := a.db.Begin(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not start transaction")
+		return
+	}
+	defer func() { _ = tx.Rollback(r.Context()) }()
+
+	var startsAtArg any
+	if startsAt != nil {
+		startsAtArg = *startsAt
+	}
+	var endsAtArg any
+	if endsAt != nil {
+		endsAtArg = *endsAt
+	}
+
+	var row eventStaffingItemRow
+	if err := tx.QueryRow(r.Context(), `
+		insert into event_staffing_items (
+			event_id, title, kind, notes, starts_at, ends_at, status, created_by_person_id
+		)
+		values ($1, $2, $3, $4, $5, $6, 'open', $7)
+		returning id, event_id, title, kind, notes, starts_at, ends_at,
+		          assigned_person_id, assigned_application_id,
+		          null as assignee_name,
+		          status, created_at, updated_at, completed_at, completed_by_person_id
+	`, event.ID, title, kind, notes, startsAtArg, endsAtArg, actorID).Scan(
+		&row.ID, &row.EventID, &row.Title, &row.Kind, &row.Notes, &row.StartsAt, &row.EndsAt,
+		&row.AssignedPersonID, &row.AssignedApplicationID, &row.AssigneeName, &row.Status, &row.CreatedAt, &row.UpdatedAt, &row.CompletedAt, &row.CompletedByPersonID,
+	); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not create staffing item")
+		return
+	}
+
+	txCtx := context.WithValue(r.Context(), txContextKey{}, tx)
+	if err := a.audit(txCtx, actorID, "staffing.created", "event_staffing_item", row.ID, map[string]any{
+		"eventId":        row.EventID,
+		"staffingItemId": row.ID,
+		"kind":           row.Kind,
+		"status":         row.Status,
+	}); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not record audit")
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not save staffing item")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, eventStaffingItemDTOFromRow(row))
+}
+
 func eventStaffingItemDTOFromRow(row eventStaffingItemRow) eventStaffingItemDTO {
 	dto := eventStaffingItemDTO{
 		ID:        row.ID,
@@ -122,4 +246,15 @@ func eventStaffingItemDTOFromRow(row eventStaffingItemRow) eventStaffingItemDTO 
 	dto.CompletedAt = nullableTimeString(row.CompletedAt)
 	dto.CompletedByPersonID = nullableString(row.CompletedByPersonID)
 	return dto
+}
+
+func parseOptionalRFC3339Time(value *string) (*time.Time, error) {
+	if value == nil {
+		return nil, nil
+	}
+	parsed, err := parseRFC3339Time(*value)
+	if err != nil {
+		return nil, err
+	}
+	return &parsed, nil
 }

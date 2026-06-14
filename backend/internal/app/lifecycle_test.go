@@ -345,6 +345,111 @@ func TestEventStaffingListAPI(t *testing.T) {
 	getJSON(t, fx.app, fx.ownerCookie, "/api/events/does-not-exist/staffing", http.StatusNotFound)
 }
 
+func TestEventStaffingCreateAPI(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 4)
+	eventID := mustString(t, event, "id")
+
+	ownerList := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/staffing", http.StatusOK)
+	memberList := getJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/staffing", http.StatusOK)
+	if !reflect.DeepEqual(ownerList.JSON, memberList.JSON) {
+		t.Fatalf("expected owner/member staffing lists to match before creation: owner=%#v member=%#v", ownerList.JSON, memberList.JSON)
+	}
+
+	postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/staffing", map[string]any{
+		"title": "Member task",
+		"kind":  "task",
+	}, http.StatusForbidden)
+
+	createdTask := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/staffing", map[string]any{
+		"title": "  Opening checklist  ",
+		"kind":  "task",
+		"notes": "  Check lights and radios.  ",
+	}, http.StatusOK)
+	task := mustObject(t, createdTask.JSON)
+	taskID := mustString(t, createdTask.JSON, "id")
+	if task["eventId"] != eventID || task["title"] != "Opening checklist" || task["kind"] != "task" || task["notes"] != "Check lights and radios." || task["status"] != "open" || task["createdAt"] == "" || task["updatedAt"] == "" {
+		t.Fatalf("unexpected created task response: %#v", task)
+	}
+	for _, field := range []string{"startsAt", "endsAt", "assignedPersonId", "assignedApplicationId", "assigneeName", "completedAt", "completedByPersonId"} {
+		if _, ok := task[field]; ok {
+			t.Fatalf("expected created task to omit %s, got %#v", field, task)
+		}
+	}
+
+	createdShift := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/staffing", map[string]any{
+		"title":    "Front door shift",
+		"kind":     "shift",
+		"notes":    "Volunteer at the front door.",
+		"startsAt": "2026-07-01T20:00:00Z",
+		"endsAt":   "2026-07-01T22:00:00Z",
+	}, http.StatusOK)
+	shift := mustObject(t, createdShift.JSON)
+	if shift["title"] != "Front door shift" || shift["kind"] != "shift" || shift["startsAt"] != "2026-07-01T20:00:00Z" || shift["endsAt"] != "2026-07-01T22:00:00Z" || shift["status"] != "open" {
+		t.Fatalf("unexpected created shift response: %#v", shift)
+	}
+
+	var auditAction, auditSubjectType, auditSubjectID, metadataText string
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select action, subject_type, subject_id::text, metadata::text
+		from audit_entries
+		where action = $1 and subject_id = $2
+		order by created_at desc
+		limit 1
+	`, "staffing.created", taskID).Scan(&auditAction, &auditSubjectType, &auditSubjectID, &metadataText); err != nil {
+		t.Fatal(err)
+	}
+	if auditAction != "staffing.created" || auditSubjectType != "event_staffing_item" || auditSubjectID != taskID {
+		t.Fatalf("unexpected staffing audit entry: action=%q subjectType=%q subjectID=%q", auditAction, auditSubjectType, auditSubjectID)
+	}
+	var metadata map[string]any
+	if err := json.Unmarshal([]byte(metadataText), &metadata); err != nil {
+		t.Fatal(err)
+	}
+	if len(metadata) != 4 || metadata["eventId"] != eventID || metadata["staffingItemId"] != taskID || metadata["kind"] != "task" || metadata["status"] != "open" {
+		t.Fatalf("unexpected staffing audit metadata: %#v", metadata)
+	}
+	for _, forbidden := range []string{"notes"} {
+		if _, ok := metadata[forbidden]; ok {
+			t.Fatalf("staffing audit metadata must not include %s: %#v", forbidden, metadata)
+		}
+	}
+
+	for _, payload := range []map[string]any{
+		{"title": "   ", "kind": "task"},
+		{"title": "Invalid kind", "kind": "job"},
+		{"title": "Bad dates", "kind": "shift", "startsAt": "2026-07-01T22:00:00Z", "endsAt": "2026-07-01T20:00:00Z"},
+		{"title": "Long notes", "kind": "task", "notes": strings.Repeat("a", 2001)},
+	} {
+		postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/staffing", payload, http.StatusBadRequest)
+	}
+
+	publishEvent(t, fx, eventID)
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/staffing", map[string]any{
+		"title": "After close",
+		"kind":  "task",
+	}, http.StatusConflict)
+
+	ownerAfter := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/staffing", http.StatusOK)
+	memberAfter := getJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/staffing", http.StatusOK)
+	if !reflect.DeepEqual(ownerAfter.JSON, memberAfter.JSON) {
+		t.Fatalf("expected owner/member staffing lists to match after creation: owner=%#v member=%#v", ownerAfter.JSON, memberAfter.JSON)
+	}
+	items := ownerAfter.JSON.([]any)
+	if len(items) != 2 {
+		t.Fatalf("expected 2 staffing items, got %#v", ownerAfter.JSON)
+	}
+	byTitle := map[string]map[string]any{}
+	for _, item := range items {
+		entry := mustObject(t, item)
+		byTitle[entry["title"].(string)] = entry
+	}
+	if byTitle["Opening checklist"]["notes"] != "Check lights and radios." || byTitle["Front door shift"]["notes"] != "Volunteer at the front door." || byTitle["Front door shift"]["startsAt"] != "2026-07-01T20:00:00Z" {
+		t.Fatalf("unexpected staffing list after creation: %#v", ownerAfter.JSON)
+	}
+}
+
 func TestArchiveCapturesDuplicateParticipantNamesFromDistinctApplications(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	event := createEvent(t, fx, "Night Market", 4)
