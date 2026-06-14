@@ -323,6 +323,128 @@ func TestPublicRoleApplicationsAPI(t *testing.T) {
 	postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": roleID, "applicantName": "Alex", "applicantEmail": "alex@example.com", "message": strings.Repeat("a", 2001)}, http.StatusBadRequest)
 }
 
+func TestEventRoleApplicationReviewAPI(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 4)
+	eventID := mustString(t, event, "id")
+	published := publishEvent(t, fx, eventID)
+	slug := mustString(t, published, "publicSlug")
+
+	role := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/roles", map[string]any{"name": "Performer", "description": "Play a 20-minute set.", "capacity": 2, "public": true}, http.StatusOK)
+	roleID := mustString(t, role.JSON, "id")
+
+	applicantIDs := make([]string, 0, 3)
+	for _, draft := range []struct {
+		name  string
+		email string
+	}{
+		{name: "Alex", email: "alex@example.com"},
+		{name: "Brie", email: "brie@example.com"},
+		{name: "Casey", email: "casey@example.com"},
+	} {
+		created := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": roleID, "applicantName": draft.name, "applicantEmail": draft.email, "message": draft.name + " on stage"}, http.StatusOK)
+		applicantIDs = append(applicantIDs, mustString(t, created.JSON, "id"))
+	}
+
+	ownerList := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/role-applications", http.StatusOK)
+	memberList := getJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/role-applications", http.StatusOK)
+	if !reflect.DeepEqual(ownerList.JSON, memberList.JSON) {
+		t.Fatalf("expected owner/member application lists to match: owner=%#v member=%#v", ownerList.JSON, memberList.JSON)
+	}
+	applications := ownerList.JSON.([]any)
+	if len(applications) != 3 {
+		t.Fatalf("expected three applications, got %#v", ownerList.JSON)
+	}
+	first := mustObject(t, applications[0])
+	second := mustObject(t, applications[1])
+	third := mustObject(t, applications[2])
+	if first["applicantName"] != "Alex" || first["status"] != "submitted" || first["reviewedAt"] != nil {
+		t.Fatalf("unexpected first application payload: %#v", first)
+	}
+	for _, field := range []string{"reviewedByPersonId", "reviewedAt"} {
+		if _, ok := first[field]; ok {
+			t.Fatalf("did not expect %s before review: %#v", field, first)
+		}
+	}
+	if second["applicantName"] != "Brie" || third["applicantName"] != "Casey" {
+		t.Fatalf("unexpected application ordering: %#v", ownerList.JSON)
+	}
+
+	patchJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/role-applications/"+applicantIDs[0], map[string]any{"status": "under_review"}, http.StatusForbidden)
+	patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/role-applications/"+applicantIDs[0], map[string]any{"status": "bogus"}, http.StatusBadRequest)
+
+	underReview := patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/role-applications/"+applicantIDs[2], map[string]any{"status": "under_review"}, http.StatusOK)
+	if mustString(t, underReview.JSON, "status") != "under_review" {
+		t.Fatalf("unexpected under_review response: %#v", underReview.JSON)
+	}
+	withdrawn := patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/role-applications/"+applicantIDs[2], map[string]any{"status": "withdrawn"}, http.StatusOK)
+	if mustString(t, withdrawn.JSON, "status") != "withdrawn" {
+		t.Fatalf("unexpected withdrawn response: %#v", withdrawn.JSON)
+	}
+
+	accepted := patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/role-applications/"+applicantIDs[0], map[string]any{"status": "accepted"}, http.StatusOK)
+	acceptedObj := mustObject(t, accepted.JSON)
+	if acceptedObj["status"] != "accepted" || acceptedObj["reviewedByPersonId"] == nil || acceptedObj["reviewedAt"] == nil {
+		t.Fatalf("unexpected accepted response: %#v", acceptedObj)
+	}
+	confirmed := patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/role-applications/"+applicantIDs[1], map[string]any{"status": "confirmed"}, http.StatusOK)
+	if mustString(t, confirmed.JSON, "status") != "confirmed" {
+		t.Fatalf("unexpected confirmed response: %#v", confirmed.JSON)
+	}
+
+	patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/role-applications/"+applicantIDs[2], map[string]any{"status": "accepted"}, http.StatusConflict)
+	patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/role-applications/"+applicantIDs[2], map[string]any{"status": "confirmed"}, http.StatusConflict)
+
+	acceptedConfirmed := patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/role-applications/"+applicantIDs[0], map[string]any{"status": "confirmed"}, http.StatusOK)
+	if mustString(t, acceptedConfirmed.JSON, "status") != "confirmed" {
+		t.Fatalf("unexpected accepted->confirmed response: %#v", acceptedConfirmed.JSON)
+	}
+	confirmedAgain := patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/role-applications/"+applicantIDs[0], map[string]any{"status": "confirmed"}, http.StatusOK)
+	if mustString(t, confirmedAgain.JSON, "status") != "confirmed" {
+		t.Fatalf("unexpected confirmed->confirmed response: %#v", confirmedAgain.JSON)
+	}
+
+	var auditAction, auditSubjectType, auditSubjectID, metadataText string
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select action, subject_type, subject_id::text, metadata::text
+		from audit_entries
+		where action = $1
+		  and subject_id = $2
+		  and metadata->>'previousStatus' = 'accepted'
+		  and metadata->>'nextStatus' = 'confirmed'
+		order by created_at desc
+		limit 1
+	`, "role_application.reviewed", applicantIDs[0]).Scan(&auditAction, &auditSubjectType, &auditSubjectID, &metadataText); err != nil {
+		t.Fatal(err)
+	}
+	if auditAction != "role_application.reviewed" || auditSubjectType != "event_role_application" || auditSubjectID != applicantIDs[0] {
+		t.Fatalf("unexpected review audit entry: action=%q subjectType=%q subjectID=%q", auditAction, auditSubjectType, auditSubjectID)
+	}
+	var metadata map[string]any
+	if err := json.Unmarshal([]byte(metadataText), &metadata); err != nil {
+		t.Fatal(err)
+	}
+	if metadata["eventId"] != eventID || metadata["roleId"] != roleID || metadata["applicationId"] != applicantIDs[0] || metadata["previousStatus"] != "accepted" || metadata["nextStatus"] != "confirmed" {
+		t.Fatalf("unexpected review audit metadata: %#v", metadata)
+	}
+	for _, forbidden := range []string{"applicantEmail", "message"} {
+		if _, ok := metadata[forbidden]; ok {
+			t.Fatalf("review audit metadata must not include %s: %#v", forbidden, metadata)
+		}
+	}
+
+	updatedList := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/role-applications", http.StatusOK).JSON.([]any)
+	updatedFirst := mustObject(t, updatedList[0])
+	if updatedFirst["status"] != "confirmed" || updatedFirst["reviewedByPersonId"] == nil || updatedFirst["reviewedAt"] == nil {
+		t.Fatalf("expected confirmed application to include review timestamps: %#v", updatedFirst)
+	}
+	for _, forbidden := range []string{"applicantEmail", "message"} {
+		if _, ok := metadata[forbidden]; ok {
+			t.Fatalf("review audit metadata must not include %s: %#v", forbidden, metadata)
+		}
+	}
+}
+
 func TestWorkspaceArchiveIndexAPI(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	firstEvent := createEvent(t, fx, "Night Market", 4)

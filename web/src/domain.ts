@@ -76,6 +76,8 @@ export interface EventRoleApplicationDTO {
   applicantEmail: string;
   message: string;
   status: 'submitted' | 'under_review' | 'accepted' | 'waitlisted' | 'rejected' | 'withdrawn' | 'confirmed';
+  reviewedByPersonId?: string | null;
+  reviewedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

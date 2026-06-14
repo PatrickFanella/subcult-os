@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ApiError, api, patchJSON, postJSON } from '../api';
-import type { CurrentWorkspaceDTO, EventArchiveDTO, EventDTO, EventReportDTO, EventSettlementDTO, EventStatus } from '../domain';
+import type { CurrentWorkspaceDTO, EventArchiveDTO, EventDTO, EventReportDTO, EventRoleApplicationDTO, EventRoleDTO, EventSettlementDTO, EventStatus } from '../domain';
 
 type FormState = {
   title: string;
@@ -18,6 +18,16 @@ type SettlementAdjustmentFormState = {
   label: string;
   reason: string;
 };
+
+const applicationReviewStatusOptions: { value: EventRoleApplicationDTO['status']; label: string }[] = [
+  { value: 'submitted', label: 'Submitted' },
+  { value: 'under_review', label: 'Under review' },
+  { value: 'accepted', label: 'Accepted' },
+  { value: 'waitlisted', label: 'Waitlisted' },
+  { value: 'rejected', label: 'Rejected' },
+  { value: 'withdrawn', label: 'Withdrawn' },
+  { value: 'confirmed', label: 'Confirmed' },
+];
 
 function isNewEvent(eventId: string) {
   return eventId === '' || eventId === 'new';
@@ -175,6 +185,10 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   const [settlementSubmitting, setSettlementSubmitting] = useState(false);
   const [settlementFinalizing, setSettlementFinalizing] = useState(false);
   const [currentWorkspace, setCurrentWorkspace] = useState<CurrentWorkspaceDTO | null>(null);
+  const [roles, setRoles] = useState<EventRoleDTO[] | null>(null);
+  const [applications, setApplications] = useState<EventRoleApplicationDTO[] | null>(null);
+  const [applicationReviewDrafts, setApplicationReviewDrafts] = useState<Record<string, EventRoleApplicationDTO['status']>>({});
+  const [reviewingApplicationId, setReviewingApplicationId] = useState<string | null>(null);
 
   const hasWorkspace = workspaceId !== '';
   const closed = event?.status === 'end_of_night';
@@ -182,6 +196,9 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   const settlementFinalized = settlement?.status === 'finalized';
   const settlementOpen = settlement?.status === 'open';
   const canManageArchive = event?.status === 'end_of_night' && currentWorkspace?.role === 'owner' && currentWorkspace?.id === event?.workspaceId;
+  const canReviewApplications = currentWorkspace?.role === 'owner' && currentWorkspace?.id === event?.workspaceId;
+  const applicationsReady = roles !== null && applications !== null;
+  const roleNameById = useMemo(() => new Map<string, string>((roles ?? []).map((role) => [role.id, role.name] as [string, string])), [roles]);
   const dirty = useMemo(() => !formsMatch(form, initialForm), [form, initialForm]);
 
   useEffect(() => {
@@ -316,6 +333,47 @@ export function EventEditorView({ eventId }: { eventId: string }) {
       cancelled = true;
     };
   }, [event?.workspaceId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadRoleApplications() {
+      if (creating || !event) {
+        setRoles(null);
+        setApplications(null);
+        setApplicationReviewDrafts({});
+        setReviewingApplicationId(null);
+        return;
+      }
+
+      setRoles(null);
+      setApplications(null);
+
+      try {
+        const [loadedRoles, loadedApplications] = await Promise.all([
+          api<EventRoleDTO[]>(`/api/events/${event.id}/roles`),
+          api<EventRoleApplicationDTO[]>(`/api/events/${event.id}/role-applications`),
+        ]);
+
+        if (!cancelled) {
+          setRoles(loadedRoles);
+          setApplications(loadedApplications);
+          setApplicationReviewDrafts({});
+          setReviewingApplicationId(null);
+        }
+      } catch (caught) {
+        if (!cancelled) {
+          setError(caught instanceof Error ? caught.message : 'Unable to load role applications');
+        }
+      }
+    }
+
+    void loadRoleApplications();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [creating, event?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -496,6 +554,25 @@ export function EventEditorView({ eventId }: { eventId: string }) {
       setError(caught instanceof Error ? caught.message : 'Unable to add lesson');
     } finally {
       setArchiveSubmitting(false);
+    }
+  }
+
+  async function handleReviewApplication(applicationID: string, status: EventRoleApplicationDTO['status']) {
+    if (!event || !canReviewApplications) return;
+
+    setReviewingApplicationId(applicationID);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const updated = await patchJSON<EventRoleApplicationDTO>(`/api/events/${event.id}/role-applications/${applicationID}`, { status });
+      setApplications((current) => current?.map((application) => (application.id === applicationID ? updated : application)) ?? current);
+      setApplicationReviewDrafts((current) => ({ ...current, [applicationID]: updated.status }));
+      setMessage('Application updated');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to review application');
+    } finally {
+      setReviewingApplicationId(null);
     }
   }
 
@@ -1007,6 +1084,86 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                     </form>
                   ) : (
                     <p className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-zinc-400">Adjustments are locked after settlement finalization.</p>
+                  )}
+                </section>
+              ) : null}
+
+              {applicationsReady && event ? (
+                <section className="rounded-[1.75rem] border border-emerald-400/20 bg-zinc-950/95 p-6 shadow-2xl shadow-black/30">
+                  <p className="text-xs uppercase tracking-[0.3em] text-emerald-300">Applications</p>
+                  <h2 className="mt-2 text-2xl font-semibold text-white">Private review</h2>
+                  <p className="mt-2 text-sm leading-6 text-zinc-400">Owners and members can read submitted role applications. Owners can move each application through review.</p>
+
+                  {applications && applications.length > 0 ? (
+                    <div className="mt-4 space-y-3">
+                      {applications.map((application) => {
+                        const selectedStatus = applicationReviewDrafts[application.id] ?? application.status;
+                        const roleName = roleNameById.get(application.roleId) ?? application.roleId;
+
+                        return (
+                          <article key={application.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-semibold text-white">{application.applicantName}</p>
+                                <p className="mt-1 text-sm text-zinc-400">{application.applicantEmail}</p>
+                              </div>
+                              <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-zinc-200">
+                                {application.status}
+                              </span>
+                            </div>
+
+                            <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-zinc-500">
+                              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Role {roleName}</span>
+                              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Created {formatDateTime(application.createdAt)}</span>
+                              {application.reviewedAt ? <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Reviewed {formatDateTime(application.reviewedAt)}</span> : null}
+                            </div>
+
+                            <p className="mt-3 text-sm leading-6 text-zinc-300">{application.message || 'No message provided.'}</p>
+
+                            {canReviewApplications ? (
+                              <form
+                                className="mt-4 flex flex-wrap items-end gap-3"
+                                onSubmit={(submitEvent) => {
+                                  submitEvent.preventDefault();
+                                  void handleReviewApplication(application.id, selectedStatus);
+                                }}
+                              >
+                                <label className="block min-w-44 space-y-2 text-sm">
+                                  <span className="text-zinc-300">Status</span>
+                                  <select
+                                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-emerald-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                                    value={selectedStatus}
+                                    onChange={(selectEvent) =>
+                                      setApplicationReviewDrafts((current) => ({
+                                        ...current,
+                                        [application.id]: selectEvent.target.value as EventRoleApplicationDTO['status'],
+                                      }))
+                                    }
+                                    disabled={reviewingApplicationId === application.id}
+                                  >
+                                    {applicationReviewStatusOptions.map((option) => (
+                                      <option key={option.value} value={option.value}>
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+
+                                <button
+                                  className="rounded-2xl bg-emerald-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:bg-emerald-300/60"
+                                  type="submit"
+                                  disabled={reviewingApplicationId === application.id}
+                                >
+                                  {reviewingApplicationId === application.id ? 'Saving…' : 'Update status'}
+                                </button>
+                              </form>
+                            ) : null}
+                          </article>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="mt-4 rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-400">No applications yet.</p>
                   )}
                 </section>
               ) : null}
