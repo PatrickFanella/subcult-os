@@ -56,6 +56,39 @@ type eventSettlementSummaryDTO struct {
 	ReservedCount         int    `json:"reservedCount"`
 }
 
+type eventSettlementAdjustmentDTO struct{}
+
+type eventSettlementDTO struct {
+	ID                    string                         `json:"id"`
+	EventID               string                         `json:"eventId"`
+	Currency              string                         `json:"currency"`
+	GrossPaidRevenueCents int                            `json:"grossPaidRevenueCents"`
+	PaidTicketCount       int                            `json:"paidTicketCount"`
+	PendingTicketCount    int                            `json:"pendingTicketCount"`
+	CancelledTicketCount  int                            `json:"cancelledTicketCount"`
+	FreeTicketCount       int                            `json:"freeTicketCount"`
+	ReservedCount         int                            `json:"reservedCount"`
+	AdjustmentTotalCents  int                            `json:"adjustmentTotalCents"`
+	NetTotalCents         int                            `json:"netTotalCents"`
+	Status                string                         `json:"status"`
+	GeneratedAt           string                         `json:"generatedAt"`
+	Adjustments           []eventSettlementAdjustmentDTO `json:"adjustments"`
+}
+
+type eventSettlementRow struct {
+	ID                    string
+	EventID               string
+	Currency              string
+	GrossPaidRevenueCents int
+	PaidTicketCount       int
+	PendingTicketCount    int
+	CancelledTicketCount  int
+	FreeTicketCount       int
+	ReservedCount         int
+	Status                string
+	GeneratedAt           time.Time
+}
+
 type eventRow struct {
 	ID                string
 	WorkspaceID       string
@@ -760,6 +793,59 @@ func (a *App) handleGetReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, report)
+}
+
+func (a *App) handleGetSettlement(w http.ResponseWriter, r *http.Request) {
+	if a.db == nil {
+		writeError(w, http.StatusInternalServerError, "database unavailable")
+		return
+	}
+	event, err := a.loadEventDetails(r.Context(), r.PathValue("eventID"))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "event not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "could not load event")
+		return
+	}
+	if _, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner", "member"); !ok {
+		writeError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
+	var row eventSettlementRow
+	if err := a.db.QueryRow(r.Context(), `
+		select id, event_id, currency, gross_paid_revenue_cents, paid_ticket_count,
+		       pending_ticket_count, cancelled_ticket_count, free_ticket_count, reserved_count,
+		       status, generated_at
+		from event_settlements
+		where event_id = $1
+	`, event.ID).Scan(&row.ID, &row.EventID, &row.Currency, &row.GrossPaidRevenueCents, &row.PaidTicketCount, &row.PendingTicketCount, &row.CancelledTicketCount, &row.FreeTicketCount, &row.ReservedCount, &row.Status, &row.GeneratedAt); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "event not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "could not load settlement")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, eventSettlementDTO{
+		ID:                    row.ID,
+		EventID:               row.EventID,
+		Currency:              row.Currency,
+		GrossPaidRevenueCents: row.GrossPaidRevenueCents,
+		PaidTicketCount:       row.PaidTicketCount,
+		PendingTicketCount:    row.PendingTicketCount,
+		CancelledTicketCount:  row.CancelledTicketCount,
+		FreeTicketCount:       row.FreeTicketCount,
+		ReservedCount:         row.ReservedCount,
+		AdjustmentTotalCents:  0,
+		NetTotalCents:         row.GrossPaidRevenueCents,
+		Status:                row.Status,
+		GeneratedAt:           row.GeneratedAt.UTC().Format(time.RFC3339Nano),
+		Adjustments:           []eventSettlementAdjustmentDTO{},
+	})
 }
 
 func (a *App) loadEventDetails(ctx context.Context, eventID string) (eventRow, error) {

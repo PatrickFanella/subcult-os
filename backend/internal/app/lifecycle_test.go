@@ -56,6 +56,41 @@ func TestFirstEventLifecycleFreeReportSettlementSummary(t *testing.T) {
 	}
 }
 
+func TestFirstEventLifecycleSettlementAPI(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 4)
+	eventID := mustString(t, event, "id")
+	publishEvent(t, fx, eventID)
+	insertTicketWithPaymentStatus(t, fx, eventID, fx.email("paid"), "Paid Guest", "paid", 1500, "usd")
+	insertTicketWithPaymentStatus(t, fx, eventID, fx.email("free"), "Free Guest", "free", 0, "usd")
+	insertTicketWithPaymentStatus(t, fx, eventID, fx.email("cancelled"), "Cancelled Guest", "cancelled", 1500, "usd")
+
+	getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/settlement", http.StatusNotFound)
+
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+
+	ownerSettlement := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/settlement", http.StatusOK)
+	memberSettlement := getJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/settlement", http.StatusOK)
+	if !reflect.DeepEqual(ownerSettlement.JSON, memberSettlement.JSON) {
+		t.Fatalf("expected owner/member settlement responses to match: owner=%#v member=%#v", ownerSettlement.JSON, memberSettlement.JSON)
+	}
+
+	settlement := mustObject(t, ownerSettlement.JSON)
+	if settlement["eventId"] != eventID || settlement["currency"] != "usd" || int(settlement["grossPaidRevenueCents"].(float64)) != 1500 || int(settlement["paidTicketCount"].(float64)) != 1 || int(settlement["pendingTicketCount"].(float64)) != 0 || int(settlement["cancelledTicketCount"].(float64)) != 1 || int(settlement["freeTicketCount"].(float64)) != 1 || int(settlement["reservedCount"].(float64)) != 2 || int(settlement["adjustmentTotalCents"].(float64)) != 0 || int(settlement["netTotalCents"].(float64)) != 1500 || settlement["status"] != "open" {
+		t.Fatalf("unexpected settlement payload: %#v", settlement)
+	}
+	if generatedAt, ok := settlement["generatedAt"].(string); !ok || generatedAt == "" {
+		t.Fatalf("expected generatedAt timestamp, got %#v", settlement["generatedAt"])
+	}
+	if adjustments, ok := settlement["adjustments"].([]any); !ok || len(adjustments) != 0 {
+		t.Fatalf("expected empty adjustments, got %#v", settlement["adjustments"])
+	}
+
+	getJSON(t, fx.app, nil, "/api/events/"+eventID+"/settlement", http.StatusForbidden)
+	otherFx := newLifecycleFixture(t)
+	getJSON(t, fx.app, otherFx.memberCookie, "/api/events/"+eventID+"/settlement", http.StatusForbidden)
+}
+
 func TestFirstEventLifecycleEndOfNightRejectsPendingPaidTickets(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	event := createEventWithPricing(t, fx, "Night Market", 2, "fixed", 1500, "usd")

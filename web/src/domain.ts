@@ -121,6 +121,25 @@ export interface EventSettlementSummaryDTO {
   reservedCount: number;
 }
 
+export type EventSettlementAdjustmentDTO = never;
+
+export interface EventSettlementDTO {
+  id: string;
+  eventId: string;
+  currency: string;
+  grossPaidRevenueCents: number;
+  paidTicketCount: number;
+  pendingTicketCount: number;
+  cancelledTicketCount: number;
+  freeTicketCount: number;
+  reservedCount: number;
+  adjustmentTotalCents: number;
+  netTotalCents: number;
+  status: string;
+  generatedAt: string;
+  adjustments: EventSettlementAdjustmentDTO[];
+}
+
 export interface DevEmailOutboxMessageDTO {
   id: string;
   recipientEmail: string;
