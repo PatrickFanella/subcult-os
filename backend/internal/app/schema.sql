@@ -104,6 +104,7 @@ create table if not exists event_archives (
   event_id uuid not null unique references events(id) on delete cascade,
   report_id uuid not null references event_reports(id) on delete cascade,
   settlement_id uuid not null references event_settlements(id) on delete cascade,
+  seeded_event_id uuid references events(id),
   status text not null default 'private' check (status in ('private')),
   note_count integer not null default 0 check (note_count >= 0),
   created_by_person_id uuid not null references people(id),
@@ -161,6 +162,8 @@ alter table tickets add column if not exists paid_at timestamptz;
 
 alter table event_settlements add column if not exists finalized_at timestamptz;
 alter table event_settlements add column if not exists finalized_by_person_id uuid references people(id);
+
+alter table event_archives add column if not exists seeded_event_id uuid references events(id);
 
 create table if not exists payment_webhook_events (
   id text primary key,

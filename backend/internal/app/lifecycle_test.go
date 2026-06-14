@@ -173,6 +173,94 @@ func TestFirstEventLifecycleArchiveNotes(t *testing.T) {
 	postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/archive/notes", map[string]any{"body": "member note"}, http.StatusForbidden)
 }
 
+func TestFirstEventLifecycleArchiveSeedsDraftWithoutPrivateData(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEventWithPricing(t, fx, "Night Market", 40, "fixed", 1500, "usd")
+	eventID := mustString(t, event, "id")
+	publishEvent(t, fx, eventID)
+
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/archive/notes", map[string]any{"body": "Private lesson"}, http.StatusOK)
+
+	startsAt, err := time.Parse(time.RFC3339Nano, mustString(t, event, "startsAt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	seeded := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/archive/seed-draft", map[string]any{}, http.StatusOK)
+	draft := mustObject(t, seeded.JSON)
+	draftID := mustString(t, seeded.JSON, "id")
+	expectedStartsAt := startsAt.AddDate(0, 0, 7).UTC().Format(time.RFC3339Nano)
+	if draftID == eventID || draft["status"] != "draft" || draft["title"] != event["title"] || draft["workspaceId"] != fx.workspaceID || draft["startsAt"] != expectedStartsAt {
+		t.Fatalf("unexpected seeded draft: %#v", draft)
+	}
+	if draft["publicSlug"] != nil || draft["publicUrl"] != nil {
+		t.Fatalf("seeded draft must not have public URLs: %#v", draft)
+	}
+
+	seededAgain := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/archive/seed-draft", map[string]any{}, http.StatusOK)
+	if mustString(t, seededAgain.JSON, "id") != draftID {
+		t.Fatalf("expected seed draft retry to return same event id: first=%s second=%s", draftID, mustString(t, seededAgain.JSON, "id"))
+	}
+
+	var workspaceID, title, publicDescription, locationDisplay, pricingMode, ticketCurrency, status, createdByPersonID string
+	var ticketAllocation, ticketPriceCents int
+	var seededStartsAt time.Time
+	var publicSlug sql.NullString
+	var publishedAt, endedAt sql.NullTime
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select workspace_id, title, starts_at, public_description, location_display,
+		       ticket_allocation, pricing_mode, ticket_price_cents, ticket_currency,
+		       status, public_slug, published_at, ended_at, created_by_person_id
+		from events
+		where id = $1
+	`, draftID).Scan(&workspaceID, &title, &seededStartsAt, &publicDescription, &locationDisplay, &ticketAllocation, &pricingMode, &ticketPriceCents, &ticketCurrency, &status, &publicSlug, &publishedAt, &endedAt, &createdByPersonID); err != nil {
+		t.Fatal(err)
+	}
+	if workspaceID != fx.workspaceID || title != event["title"] || !seededStartsAt.Equal(startsAt.AddDate(0, 0, 7)) || publicDescription != event["publicDescription"].(string) || locationDisplay != event["locationDisplay"].(string) || ticketAllocation != 40 || pricingMode != "fixed" || ticketPriceCents != 1500 || ticketCurrency != "usd" || status != "draft" || publicSlug.Valid || publishedAt.Valid || endedAt.Valid || createdByPersonID != ownerPersonID(t, fx) {
+		t.Fatalf("seeded event row mismatch: workspace=%q title=%q startsAt=%s description=%q location=%q allocation=%d pricing=%q price=%d currency=%q status=%q publicSlug=%v publishedAt=%v endedAt=%v createdBy=%q", workspaceID, title, seededStartsAt.Format(time.RFC3339Nano), publicDescription, locationDisplay, ticketAllocation, pricingMode, ticketPriceCents, ticketCurrency, status, publicSlug, publishedAt, endedAt, createdByPersonID)
+	}
+
+	var ticketCount, reportCount, settlementCount, archiveCount int
+	if err := fx.app.db.QueryRow(t.Context(), `select count(*) from tickets where event_id = $1`, draftID).Scan(&ticketCount); err != nil {
+		t.Fatal(err)
+	}
+	if err := fx.app.db.QueryRow(t.Context(), `select count(*) from event_reports where event_id = $1`, draftID).Scan(&reportCount); err != nil {
+		t.Fatal(err)
+	}
+	if err := fx.app.db.QueryRow(t.Context(), `select count(*) from event_settlements where event_id = $1`, draftID).Scan(&settlementCount); err != nil {
+		t.Fatal(err)
+	}
+	if err := fx.app.db.QueryRow(t.Context(), `select count(*) from event_archives where event_id = $1`, draftID).Scan(&archiveCount); err != nil {
+		t.Fatal(err)
+	}
+	if ticketCount != 0 || reportCount != 0 || settlementCount != 0 || archiveCount != 0 {
+		t.Fatalf("seeded draft copied private rows: tickets=%d reports=%d settlements=%d archives=%d", ticketCount, reportCount, settlementCount, archiveCount)
+	}
+
+	var auditAction, auditSubjectType, auditSubjectID, auditEventID, auditNewEventID, auditWorkspaceID string
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select action, subject_type, coalesce(subject_id::text, ''), metadata->>'eventId', metadata->>'newEventId', metadata->>'workspaceId'
+		from audit_entries
+		where action = 'archive.seed_draft_created'
+		order by created_at desc
+		limit 1
+	`).Scan(&auditAction, &auditSubjectType, &auditSubjectID, &auditEventID, &auditNewEventID, &auditWorkspaceID); err != nil {
+		t.Fatal(err)
+	}
+	if auditAction != "archive.seed_draft_created" || auditSubjectType != "event_archive" || auditEventID != eventID || auditNewEventID != draftID || auditWorkspaceID != fx.workspaceID {
+		t.Fatalf("unexpected audit entry: action=%q subjectType=%q subjectID=%q eventId=%q newEventId=%q workspaceId=%q", auditAction, auditSubjectType, auditSubjectID, auditEventID, auditNewEventID, auditWorkspaceID)
+	}
+
+	postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/archive/seed-draft", map[string]any{}, http.StatusForbidden)
+	postJSON(t, fx.app, nil, "/api/events/"+eventID+"/archive/seed-draft", map[string]any{}, http.StatusForbidden)
+
+	otherEvent := createEvent(t, fx, "Second Night", 10)
+	otherEventID := mustString(t, otherEvent, "id")
+	publishEvent(t, fx, otherEventID)
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+otherEventID+"/archive/seed-draft", map[string]any{}, http.StatusNotFound)
+}
+
 func TestFirstEventLifecycleSettlementAdjustments(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	event := createEventWithPricing(t, fx, "Night Market", 4, "fixed", 1500, "usd")
@@ -385,10 +473,26 @@ func TestFirstEventLifecycleOldReportSnapshotOmitsSettlementSummary(t *testing.T
 		t.Fatal(err)
 	}
 
-	report := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
-	reportObj := mustObject(t, report.JSON)
+	first := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+	reportObj := mustObject(t, first.JSON)
 	if _, ok := reportObj["settlementSummary"]; ok {
 		t.Fatalf("legacy snapshot should not synthesize settlement summary: %#v", reportObj)
+	}
+
+	second := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+	if !reflect.DeepEqual(first.JSON, second.JSON) {
+		t.Fatalf("expected legacy end-of-night retry to return same snapshot: first=%#v second=%#v", first.JSON, second.JSON)
+	}
+
+	var archiveCount, settlementCount int
+	if err := fx.app.db.QueryRow(t.Context(), `select count(*) from event_archives where event_id = $1`, eventID).Scan(&archiveCount); err != nil {
+		t.Fatal(err)
+	}
+	if err := fx.app.db.QueryRow(t.Context(), `select count(*) from event_settlements where event_id = $1`, eventID).Scan(&settlementCount); err != nil {
+		t.Fatal(err)
+	}
+	if archiveCount != 0 || settlementCount != 0 {
+		t.Fatalf("legacy retry should not require archive or settlement: archives=%d settlements=%d", archiveCount, settlementCount)
 	}
 }
 

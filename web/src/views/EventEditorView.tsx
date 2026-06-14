@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ApiError, api, patchJSON, postJSON } from '../api';
-import type { EventArchiveDTO, EventDTO, EventReportDTO, EventSettlementDTO, EventStatus } from '../domain';
+import type { CurrentWorkspaceDTO, EventArchiveDTO, EventDTO, EventReportDTO, EventSettlementDTO, EventStatus } from '../domain';
 
 type FormState = {
   title: string;
@@ -174,12 +174,14 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   const [settlementForm, setSettlementForm] = useState<SettlementAdjustmentFormState>(emptySettlementAdjustmentForm);
   const [settlementSubmitting, setSettlementSubmitting] = useState(false);
   const [settlementFinalizing, setSettlementFinalizing] = useState(false);
+  const [currentWorkspace, setCurrentWorkspace] = useState<CurrentWorkspaceDTO | null>(null);
 
   const hasWorkspace = workspaceId !== '';
   const closed = event?.status === 'end_of_night';
   const pricingLocked = (event?.reservedCount ?? 0) > 0 || closed;
   const settlementFinalized = settlement?.status === 'finalized';
   const settlementOpen = settlement?.status === 'open';
+  const canManageArchive = event?.status === 'end_of_night' && currentWorkspace?.role === 'owner' && currentWorkspace?.id === event?.workspaceId;
   const dirty = useMemo(() => !formsMatch(form, initialForm), [form, initialForm]);
 
   useEffect(() => {
@@ -286,6 +288,34 @@ export function EventEditorView({ eventId }: { eventId: string }) {
       setSettlementForm(emptySettlementAdjustmentForm());
     }
   }, [creating]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadEventWorkspace() {
+      if (!event?.workspaceId) {
+        setCurrentWorkspace(null);
+        return;
+      }
+
+      try {
+        const loaded = await api<CurrentWorkspaceDTO>(`/api/workspaces/${event.workspaceId}`);
+        if (!cancelled) {
+          setCurrentWorkspace(loaded);
+        }
+      } catch {
+        if (!cancelled) {
+          setCurrentWorkspace(null);
+        }
+      }
+    }
+
+    void loadEventWorkspace();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [event?.workspaceId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -466,6 +496,26 @@ export function EventEditorView({ eventId }: { eventId: string }) {
       setError(caught instanceof Error ? caught.message : 'Unable to add lesson');
     } finally {
       setArchiveSubmitting(false);
+    }
+  }
+
+  async function handleSeedNextDraft() {
+    if (!event || !archive) {
+      setError('Archive is unavailable');
+      return;
+    }
+
+    setActioning(true);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const seeded = await postJSON<EventDTO>(`/api/events/${event.id}/archive/seed-draft`, {});
+      setMessage(`Seeded next draft: ${seeded.title}`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to seed next draft');
+    } finally {
+      setActioning(false);
     }
   }
 
@@ -986,22 +1036,34 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                         )}
                       </div>
 
-                      <form className="mt-4 space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4" onSubmit={handleArchiveNoteSubmit}>
-                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Add lesson</p>
-                        <label className="block space-y-2 text-sm">
-                          <span className="text-zinc-300">Write a note for the next closeout</span>
-                          <textarea
-                            className="min-h-28 w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-violet-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
-                            value={archiveNoteBody}
-                            onChange={(event) => setArchiveNoteBody(event.target.value)}
-                            placeholder="Move doors earlier."
-                            disabled={archiveSubmitting}
-                          />
-                        </label>
-                        <button className="rounded-2xl bg-violet-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:bg-violet-300/60" type="submit" disabled={archiveSubmitting}>
-                          {archiveSubmitting ? 'Saving…' : 'Add lesson'}
-                        </button>
-                      </form>
+                      {canManageArchive ? (
+                        <>
+                          <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Next draft</p>
+                            <p className="mt-2 text-sm leading-6 text-zinc-400">Seed a fresh draft in this workspace from the public planning fields preserved in the archive.</p>
+                            <button className="mt-3 rounded-2xl border border-violet-400/30 bg-violet-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:bg-violet-300/60" type="button" onClick={handleSeedNextDraft} disabled={actioning}>
+                              {actioning ? 'Seeding…' : 'Seed next draft'}
+                            </button>
+                          </div>
+
+                          <form className="mt-4 space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4" onSubmit={handleArchiveNoteSubmit}>
+                            <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Add lesson</p>
+                            <label className="block space-y-2 text-sm">
+                              <span className="text-zinc-300">Write a note for the next closeout</span>
+                              <textarea
+                                className="min-h-28 w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-violet-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                                value={archiveNoteBody}
+                                onChange={(event) => setArchiveNoteBody(event.target.value)}
+                                placeholder="Move doors earlier."
+                                disabled={archiveSubmitting}
+                              />
+                            </label>
+                            <button className="rounded-2xl bg-violet-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:bg-violet-300/60" type="submit" disabled={archiveSubmitting}>
+                              {archiveSubmitting ? 'Saving…' : 'Add lesson'}
+                            </button>
+                          </form>
+                        </>
+                      ) : null}
                     </>
                   ) : null}
                 </section>

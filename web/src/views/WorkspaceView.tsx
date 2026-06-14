@@ -253,6 +253,7 @@ export function WorkspaceView() {
   const [sendingInvite, setSendingInvite] = useState(false);
   const [inviteNotice, setInviteNotice] = useState<string | null>(null);
   const [emailOutbox, setEmailOutbox] = useState<DevEmailOutboxMessageDTO[] | null>(null);
+  const [seedingEventId, setSeedingEventId] = useState<string | null>(null);
   const requestedWorkspaceId = useMemo(() => getRequestedWorkspaceId(), []);
 
   const workspaceSummaries = useMemo(() => me?.workspaces ?? [], [me]);
@@ -495,6 +496,25 @@ export function WorkspaceView() {
     }
   }
 
+  async function handleSeedNextDraft(eventID: string) {
+    if (!workspace || workspace.role !== 'owner') {
+      return;
+    }
+
+    setError(null);
+    setSeedingEventId(eventID);
+
+    try {
+      const seeded = await postJSON<EventDTO>(`/api/events/${eventID}/archive/seed-draft`, {});
+      setEvents((current) => [...current.filter((event) => event.id !== seeded.id), seeded]);
+      setWorkspaceNotice(`Seeded next draft: ${seeded.title}`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to seed next draft');
+    } finally {
+      setSeedingEventId((current) => (current === eventID ? null : current));
+    }
+  }
+
   const workspaceId = workspace?.id ?? '';
 
   return (
@@ -708,13 +728,21 @@ export function WorkspaceView() {
                           ) : null}
                           {event.status === 'end_of_night' ? (
                             <>
-                              <span className="rounded-full border border-fuchsia-400/20 bg-fuchsia-400/10 px-3 py-2 text-[11px] uppercase tracking-[0.25em] text-fuchsia-100">
-                                Archive ready after closeout
-                              </span>
-                              <a className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-zinc-200 transition hover:bg-white/10" href={`/events/new?workspaceId=${workspace.id}`}>
-                                Create next event
-                              </a>
-                            </>
+                              <div className="rounded-2xl border border-fuchsia-400/20 bg-fuchsia-400/10 px-3 py-3 text-sm text-fuchsia-50">
+                                <p className="text-[11px] uppercase tracking-[0.25em] text-fuchsia-100">Archive ready after closeout</p>
+                                <p className="mt-2 leading-6">Use the private archive to seed the next draft from the event editor.</p>
+                              </div>
+                              {workspace?.role === 'owner' ? (
+                                <button
+                                  className="rounded-full border border-violet-400/20 bg-violet-300 px-3 py-2 text-zinc-950 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:bg-violet-300/60"
+                                  type="button"
+                                  onClick={() => void handleSeedNextDraft(event.id)}
+                                  disabled={seedingEventId === event.id}
+                                >
+                                  {seedingEventId === event.id ? 'Seeding…' : 'Seed next draft'}
+                                </button>
+                              ) : null}
+                              </>
                           ) : null}
                         </div>
                       </article>

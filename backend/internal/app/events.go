@@ -116,11 +116,22 @@ type eventSettlementDTO struct {
 }
 
 func (a *App) ensureEventArchive(ctx context.Context, tx pgx.Tx, eventID, reportID, actorID string) error {
+	var settlementID string
+	if err := tx.QueryRow(ctx, `
+		select id
+		from event_settlements
+		where event_id = $1
+	`, eventID).Scan(&settlementID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		return err
+	}
 	_, err := tx.Exec(ctx, `
 		insert into event_archives (event_id, report_id, settlement_id, created_by_person_id)
-		values ($1, $2, (select id from event_settlements where event_id = $1), $3)
+		values ($1, $2, $3, $4)
 		on conflict (event_id) do nothing
-	`, eventID, reportID, actorID)
+	`, eventID, reportID, settlementID, actorID)
 	return err
 }
 
@@ -1027,6 +1038,144 @@ func (a *App) handleCreateArchiveNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, archive)
+}
+
+func (a *App) handleSeedDraftFromArchive(w http.ResponseWriter, r *http.Request) {
+	if a.db == nil {
+		writeError(w, http.StatusInternalServerError, "database unavailable")
+		return
+	}
+	event, err := a.loadEventDetails(r.Context(), r.PathValue("eventID"))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "event not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "could not load event")
+		return
+	}
+	actorID, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner")
+	if !ok {
+		writeError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
+	tx, err := a.db.Begin(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not start transaction")
+		return
+	}
+	defer func() { _ = tx.Rollback(r.Context()) }()
+
+	var archiveID string
+	var seededEventID sql.NullString
+	if err := tx.QueryRow(r.Context(), `
+		select id, seeded_event_id
+		from event_archives
+		where event_id = $1
+		for update
+	`, event.ID).Scan(&archiveID, &seededEventID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "archive not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "could not load archive")
+		return
+	}
+	if seededEventID.Valid {
+		var seeded eventRow
+		if err := tx.QueryRow(r.Context(), `
+			select id, workspace_id, title, starts_at, public_description, location_display,
+			       ticket_allocation, pricing_mode, ticket_price_cents, ticket_currency,
+			       status, public_slug, created_by_person_id
+			from events
+			where id = $1
+		`, seededEventID.String).Scan(
+			&seeded.ID,
+			&seeded.WorkspaceID,
+			&seeded.Title,
+			&seeded.StartsAt,
+			&seeded.PublicDescription,
+			&seeded.LocationDisplay,
+			&seeded.TicketAllocation,
+			&seeded.PricingMode,
+			&seeded.TicketPriceCents,
+			&seeded.TicketCurrency,
+			&seeded.Status,
+			&seeded.PublicSlug,
+			&seeded.CreatedByPersonID,
+		); err != nil {
+			writeError(w, http.StatusInternalServerError, "could not load draft")
+			return
+		}
+		seeded.ReservedCount = 0
+		seeded.CheckedInCount = 0
+		if err := tx.Commit(r.Context()); err != nil {
+			writeError(w, http.StatusInternalServerError, "could not save draft")
+			return
+		}
+		writeJSON(w, http.StatusOK, a.eventDTOFromRow(seeded))
+		return
+	}
+
+	seededStartsAt := event.StartsAt.AddDate(0, 0, 7)
+	var seeded eventRow
+	if err := tx.QueryRow(r.Context(), `
+		insert into events (
+			workspace_id, title, starts_at, public_description, location_display,
+			ticket_allocation, pricing_mode, ticket_price_cents, ticket_currency,
+			status, created_by_person_id
+		)
+		values ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'draft', $10)
+		returning id, workspace_id, title, starts_at, public_description, location_display,
+		          ticket_allocation, pricing_mode, ticket_price_cents, ticket_currency,
+		          status, public_slug, created_by_person_id
+	`, event.WorkspaceID, event.Title, seededStartsAt, event.PublicDescription, event.LocationDisplay, event.TicketAllocation, event.PricingMode, event.TicketPriceCents, event.TicketCurrency, actorID).Scan(
+		&seeded.ID,
+		&seeded.WorkspaceID,
+		&seeded.Title,
+		&seeded.StartsAt,
+		&seeded.PublicDescription,
+		&seeded.LocationDisplay,
+		&seeded.TicketAllocation,
+		&seeded.PricingMode,
+		&seeded.TicketPriceCents,
+		&seeded.TicketCurrency,
+		&seeded.Status,
+		&seeded.PublicSlug,
+		&seeded.CreatedByPersonID,
+	); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not create draft")
+		return
+	}
+	seeded.ReservedCount = 0
+	seeded.CheckedInCount = 0
+	if _, err := tx.Exec(r.Context(), `
+		update event_archives
+		set seeded_event_id = $2, updated_at = now()
+		where id = $1
+	`, archiveID, seeded.ID); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not link draft")
+		return
+	}
+	txCtx := context.WithValue(r.Context(), txContextKey{}, tx)
+	if err := a.audit(txCtx, actorID, "archive.seed_draft_created", "event_archive", archiveID, map[string]any{
+		"eventId":        event.ID,
+		"newEventId":     seeded.ID,
+		"workspaceId":    event.WorkspaceID,
+		"sourceStartsAt": event.StartsAt.UTC().Format(time.RFC3339Nano),
+		"startsAt":       seededStartsAt.UTC().Format(time.RFC3339Nano),
+		"title":          event.Title,
+	}); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not record audit")
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not save draft")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, a.eventDTOFromRow(seeded))
 }
 
 func (a *App) handleCreateSettlementAdjustment(w http.ResponseWriter, r *http.Request) {
