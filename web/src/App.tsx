@@ -1,4 +1,5 @@
 import { AuthView } from './views/AuthView';
+import { DiscoverView } from './views/DiscoverView';
 import { DoorView } from './views/DoorView';
 import { EventEditorView } from './views/EventEditorView';
 import { InviteView } from './views/InviteView';
@@ -23,6 +24,10 @@ export default function App() {
 
   if (pathname === '/login' || pathname === '/signup' || pathname === '/auth') {
     return <AuthView />;
+  }
+
+  if (pathname === '/discover') {
+    return <DiscoverView />;
   }
 
   if (pathname.startsWith('/e/')) {

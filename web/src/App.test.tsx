@@ -95,6 +95,53 @@ describe('App routes', () => {
     expect(rendered).toContain('Accepting an invitation? Sign in/sign up with the invited email.');
   });
 
+  it('renders the discover loading state', () => {
+    const rendered = renderAt('/discover');
+    expect(rendered).toContain('Discover events');
+    expect(rendered).toContain('Loading published events…');
+  });
+
+  it('renders discover event cards', () => {
+    const rendered = renderWithState('/discover', <App />, [
+      [
+        {
+          id: 'event-1',
+          title: 'Night Market',
+          startsAt: '2026-06-14T23:00:00.000Z',
+          publicDescription: 'Late set with food and music.',
+          locationDisplay: 'The Hall',
+          pricingMode: 'fixed',
+          ticketPriceCents: 1800,
+          ticketCurrency: 'usd',
+          remainingTickets: 12,
+          isFull: false,
+          status: 'published',
+          publicSlug: 'night-market',
+          publicUrl: '/e/night-market',
+        },
+      ],
+      false,
+      null,
+    ]);
+
+    expect(rendered).toContain('Discover events');
+    expect(rendered).toContain('Night Market');
+    expect(rendered).toContain('The Hall');
+    expect(rendered).toContain('View event');
+    expect(rendered).toContain('2026');
+  });
+
+  it('renders the discover empty state', () => {
+    const rendered = renderWithState('/discover', <App />, [[], false, null]);
+    expect(rendered).toContain('No published events are discoverable yet.');
+  });
+
+  it('renders the discover error state', () => {
+    const rendered = renderWithState('/discover', <App />, [[], false, 'Network down']);
+    expect(rendered).toContain('Could not load published events.');
+    expect(rendered).toContain('Network down');
+  });
+
   it('renders the invite route', () => {
     const rendered = renderAt('/invite/test-token');
     expect(rendered).toContain('Invitation');
