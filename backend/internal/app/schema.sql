@@ -87,6 +87,25 @@ create table if not exists event_role_applications (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists event_staffing_items (
+  id uuid primary key default gen_random_uuid(),
+  event_id uuid not null references events(id) on delete cascade,
+  title text not null,
+  kind text not null check (kind in ('task', 'shift')),
+  notes text not null default '',
+  starts_at timestamptz,
+  ends_at timestamptz,
+  assigned_person_id uuid references people(id),
+  assigned_application_id uuid references event_role_applications(id),
+  status text not null default 'open' check (status in ('open', 'assigned', 'completed', 'cancelled')),
+  created_by_person_id uuid not null references people(id),
+  completed_at timestamptz,
+  completed_by_person_id uuid references people(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (ends_at is null or starts_at is null or ends_at >= starts_at)
+);
+
 create unique index if not exists event_role_applications_active_email_idx
   on event_role_applications (event_id, role_id, lower(applicant_email))
   where status in ('submitted', 'under_review', 'accepted', 'waitlisted', 'confirmed');

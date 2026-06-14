@@ -268,6 +268,83 @@ func TestArchiveSnapshotStaysImmutableAfterCreation(t *testing.T) {
 	}
 }
 
+func TestEventStaffingListAPI(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 4)
+	eventID := mustString(t, event, "id")
+
+	ownerEmpty := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/staffing", http.StatusOK)
+	memberEmpty := getJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/staffing", http.StatusOK)
+	if !reflect.DeepEqual(ownerEmpty.JSON, memberEmpty.JSON) {
+		t.Fatalf("expected owner/member staffing responses to match: owner=%#v member=%#v", ownerEmpty.JSON, memberEmpty.JSON)
+	}
+	if items, ok := ownerEmpty.JSON.([]any); !ok || len(items) != 0 {
+		t.Fatalf("expected empty staffing list, got %#v", ownerEmpty.JSON)
+	}
+
+	published := publishEvent(t, fx, eventID)
+	slug := mustString(t, published, "publicSlug")
+	role := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/roles", map[string]any{"name": "Performer", "description": "Play a set.", "capacity": 1, "public": true}, http.StatusOK)
+	roleID := mustString(t, role.JSON, "id")
+	application := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": roleID, "applicantName": "Alex Applicant", "applicantEmail": "alex@example.test", "message": "Happy to help."}, http.StatusOK)
+	applicationID := mustString(t, application.JSON, "id")
+
+	ownerID := ownerPersonID(t, fx)
+	if _, err := fx.app.db.Exec(t.Context(), `
+		insert into event_staffing_items (
+			event_id, title, kind, notes, starts_at, ends_at, assigned_person_id, assigned_application_id, status,
+			created_by_person_id, completed_at, completed_by_person_id
+		)
+		values
+			($1, $2, 'task', '', null, null, null, null, 'open', $3, null, null),
+			($1, $4, 'shift', 'Door shift', '2026-07-01T20:00:00Z', '2026-07-01T22:00:00Z', $3, null, 'assigned', $3, null, null),
+			($1, $5, 'task', 'Volunteer note', null, null, null, $6, 'completed', $3, '2026-07-01T23:30:00Z', $3)
+	`, eventID, "Open task", ownerID, "Owner shift", "Application task", applicationID); err != nil {
+		t.Fatal(err)
+	}
+
+	staffing := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/staffing", http.StatusOK)
+	items := staffing.JSON.([]any)
+	if len(items) != 3 {
+		t.Fatalf("expected 3 staffing items, got %#v", staffing.JSON)
+	}
+
+	byTitle := map[string]map[string]any{}
+	for _, item := range items {
+		entry := mustObject(t, item)
+		byTitle[entry["title"].(string)] = entry
+	}
+
+	open := byTitle["Open task"]
+	if open["eventId"] != eventID || open["kind"] != "task" || open["notes"] != "" || open["status"] != "open" {
+		t.Fatalf("unexpected open staffing item: %#v", open)
+	}
+	if _, ok := open["startsAt"]; ok {
+		t.Fatalf("expected open staffing item to omit startsAt, got %#v", open)
+	}
+	if _, ok := open["assignedPersonId"]; ok {
+		t.Fatalf("expected open staffing item to omit assignee ids, got %#v", open)
+	}
+
+	shift := byTitle["Owner shift"]
+	if shift["assignedPersonId"] != ownerID || shift["assigneeName"] != "Owner" || shift["startsAt"] != "2026-07-01T20:00:00Z" || shift["endsAt"] != "2026-07-01T22:00:00Z" || shift["status"] != "assigned" {
+		t.Fatalf("unexpected assigned staffing item: %#v", shift)
+	}
+	if _, ok := shift["completedAt"]; ok {
+		t.Fatalf("expected assigned staffing item to omit completedAt, got %#v", shift)
+	}
+
+	completed := byTitle["Application task"]
+	if completed["assignedApplicationId"] != applicationID || completed["assigneeName"] != "Alex Applicant" || completed["status"] != "completed" || completed["completedByPersonId"] != ownerID || completed["completedAt"] != "2026-07-01T23:30:00Z" {
+		t.Fatalf("unexpected completed staffing item: %#v", completed)
+	}
+
+	getJSON(t, fx.app, nil, "/api/events/"+eventID+"/staffing", http.StatusForbidden)
+	otherFx := newLifecycleFixture(t)
+	getJSON(t, fx.app, otherFx.memberCookie, "/api/events/"+eventID+"/staffing", http.StatusForbidden)
+	getJSON(t, fx.app, fx.ownerCookie, "/api/events/does-not-exist/staffing", http.StatusNotFound)
+}
+
 func TestArchiveCapturesDuplicateParticipantNamesFromDistinctApplications(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	event := createEvent(t, fx, "Night Market", 4)

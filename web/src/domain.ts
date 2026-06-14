@@ -82,6 +82,24 @@ export interface EventRoleApplicationDTO {
   updatedAt: string;
 }
 
+export interface EventStaffingItemDTO {
+  id: string;
+  eventId: string;
+  title: string;
+  kind: 'task' | 'shift';
+  notes: string;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  assignedPersonId?: string | null;
+  assignedApplicationId?: string | null;
+  assigneeName?: string | null;
+  status: 'open' | 'assigned' | 'completed' | 'cancelled';
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string | null;
+  completedByPersonId?: string | null;
+}
+
 export interface EventParticipantDTO {
   applicationId: string;
   roleId: string;
