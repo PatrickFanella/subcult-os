@@ -49,6 +49,14 @@ function getRequestedWorkspaceId() {
   return new URLSearchParams(window.location.search).get('workspaceId');
 }
 
+function getRequestedArchiveQuery() {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  return new URLSearchParams(window.location.search).get('q') ?? '';
+}
+
 function formatDateTime(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat([], { dateStyle: 'medium', timeStyle: 'short' }).format(date);
@@ -256,6 +264,9 @@ export function WorkspaceView() {
   const [inviteNotice, setInviteNotice] = useState<string | null>(null);
   const [emailOutbox, setEmailOutbox] = useState<DevEmailOutboxMessageDTO[] | null>(null);
   const [seedingEventId, setSeedingEventId] = useState<string | null>(null);
+  const initialArchiveQuery = useMemo(() => getRequestedArchiveQuery().trim(), []);
+  const [archiveQuery, setArchiveQuery] = useState(initialArchiveQuery);
+  const [archiveSearching, setArchiveSearching] = useState(false);
   const requestedWorkspaceId = useMemo(() => getRequestedWorkspaceId(), []);
 
   const workspaceSummaries = useMemo(() => me?.workspaces ?? [], [me]);
@@ -264,6 +275,7 @@ export function WorkspaceView() {
     () => [...archives].sort((left, right) => new Date(right.startsAt).getTime() - new Date(left.startsAt).getTime() || new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()),
     [archives],
   );
+  const normalizedArchiveQuery = archiveQuery.trim();
   const archiveByEventId = useMemo(() => new Map(archives.map((archive) => [archive.eventId, archive] as const)), [archives]);
   const statusCounts = useMemo(
     () =>
@@ -281,11 +293,24 @@ export function WorkspaceView() {
   useEffect(() => {
     let cancelled = false;
 
+    async function loadWorkspaceArchives(workspaceID: string) {
+      const query = initialArchiveQuery;
+      const path = query ? `/api/workspaces/${workspaceID}/archives?q=${encodeURIComponent(query)}` : `/api/workspaces/${workspaceID}/archives`;
+      try {
+        return await api<WorkspaceArchiveSummaryDTO[]>(path);
+      } catch (caught) {
+        if (query) {
+          throw caught;
+        }
+        return [];
+      }
+    }
+
     async function loadWorkspaceData(nextWorkspace: CurrentWorkspaceDTO) {
       setWorkspace(nextWorkspace);
       const [loadedEvents, loadedArchives] = await Promise.all([
         api<EventDTO[]>(`/api/workspaces/${nextWorkspace.id}/events`).catch(() => []),
-        api<WorkspaceArchiveSummaryDTO[]>(`/api/workspaces/${nextWorkspace.id}/archives`).catch(() => []),
+        loadWorkspaceArchives(nextWorkspace.id),
       ]);
       if (!cancelled) {
         setEvents(loadedEvents ?? []);
@@ -528,6 +553,56 @@ export function WorkspaceView() {
       setError(caught instanceof Error ? caught.message : 'Unable to seed next draft');
     } finally {
       setSeedingEventId((current) => (current === eventID ? null : current));
+    }
+  }
+
+  async function handleArchiveSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!workspace) {
+      return;
+    }
+
+    const nextQuery = archiveQuery.trim();
+    setArchiveQuery(nextQuery);
+    setArchiveSearching(true);
+    setError(null);
+
+    try {
+      const path = nextQuery ? `/api/workspaces/${workspace.id}/archives?q=${encodeURIComponent(nextQuery)}` : `/api/workspaces/${workspace.id}/archives`;
+      const loaded = await api<WorkspaceArchiveSummaryDTO[]>(path);
+      setArchives(loaded ?? []);
+      setError(null);
+      if (typeof window !== 'undefined') {
+        const suffix = nextQuery ? `&q=${encodeURIComponent(nextQuery)}` : '';
+        window.history.pushState({}, '', `/workspace?workspaceId=${workspace.id}${suffix}`);
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to search archives');
+    } finally {
+      setArchiveSearching(false);
+    }
+  }
+
+  async function handleArchiveReset() {
+    if (!workspace) {
+      return;
+    }
+
+    setArchiveQuery('');
+    setArchiveSearching(true);
+    setError(null);
+
+    try {
+      const loaded = await api<WorkspaceArchiveSummaryDTO[]>(`/api/workspaces/${workspace.id}/archives`);
+      setArchives(loaded ?? []);
+      setError(null);
+      if (typeof window !== 'undefined') {
+        window.history.pushState({}, '', `/workspace?workspaceId=${workspace.id}`);
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to reset archive search');
+    } finally {
+      setArchiveSearching(false);
     }
   }
 
@@ -780,11 +855,36 @@ export function WorkspaceView() {
                   <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Workspace archive</p>
                   <p className="text-sm leading-6 text-zinc-400">Closed events become private workspace memory here.</p>
 
+                  <form className="flex flex-wrap items-end gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4" onSubmit={handleArchiveSearch}>
+                    <label className="min-w-0 flex-1 space-y-2 text-sm">
+                      <span className="text-zinc-300">Search archives</span>
+                      <input
+                        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-white/8"
+                        placeholder="Search titles, locations, or notes"
+                        value={archiveQuery}
+                        onChange={(event) => setArchiveQuery(event.target.value)}
+                      />
+                    </label>
+                    <button className="rounded-2xl bg-amber-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-amber-300/60" type="submit" disabled={archiveSearching}>
+                      {archiveSearching ? 'Searching…' : 'Search'}
+                    </button>
+                    <button
+                      className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-zinc-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                      type="button"
+                      onClick={() => void handleArchiveReset()}
+                      disabled={archiveSearching}
+                    >
+                      Reset
+                    </button>
+                  </form>
+
                   <div className="space-y-3">
                     {orderedArchives.length === 0 ? (
                       <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-5 text-sm text-zinc-400">
-                        <p className="font-medium text-white">No archives yet</p>
-                        <p className="mt-1 leading-6">Close an event to add its summary here.</p>
+                        <p className="font-medium text-white">{normalizedArchiveQuery ? 'No archives matched your search' : 'No archives yet'}</p>
+                        <p className="mt-1 leading-6">
+                          {normalizedArchiveQuery ? 'Try a different search or reset the filter to show every private archive.' : 'Close an event to add its summary here.'}
+                        </p>
                       </div>
                     ) : null}
 

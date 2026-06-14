@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -214,8 +215,13 @@ func (a *App) handleListWorkspaceArchives(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
+	query := strings.TrimSpace(strings.ToLower(r.URL.Query().Get("q")))
+	if utf8.RuneCountInString(query) > 120 {
+		writeError(w, http.StatusBadRequest, "search query is too long")
+		return
+	}
 
-	archives, err := a.listWorkspaceArchives(r.Context(), workspaceID)
+	archives, err := a.listWorkspaceArchives(r.Context(), workspaceID, query)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not load archives")
 		return
@@ -272,8 +278,8 @@ func (a *App) hydrateWorkspace(ctx context.Context, workspace currentWorkspaceDT
 	return workspace, nil
 }
 
-func (a *App) listWorkspaceArchives(ctx context.Context, workspaceID string) ([]workspaceArchiveSummaryDTO, error) {
-	rows, err := a.db.Query(ctx, `
+func (a *App) listWorkspaceArchives(ctx context.Context, workspaceID string, query string) ([]workspaceArchiveSummaryDTO, error) {
+	baseQuery := `
 		select ea.id, ea.event_id, e.title, e.starts_at, e.location_display, ea.note_count,
 		       ea.report_id, ea.settlement_id, ea.seeded_event_id, ea.created_at, ea.updated_at
 		from event_archives ea
@@ -281,7 +287,37 @@ func (a *App) listWorkspaceArchives(ctx context.Context, workspaceID string) ([]
 		where e.workspace_id = $1
 		order by e.starts_at desc, ea.created_at desc
 		limit 100
-	`, workspaceID)
+	`
+	searchQuery := `
+		select ea.id, ea.event_id, e.title, e.starts_at, e.location_display, ea.note_count,
+		       ea.report_id, ea.settlement_id, ea.seeded_event_id, ea.created_at, ea.updated_at
+		from event_archives ea
+		join events e on e.id = ea.event_id
+		where e.workspace_id = $1
+		  and (
+		    position($2 in lower(e.title)) > 0
+		    or position($2 in lower(coalesce(e.public_description, ''))) > 0
+		    or position($2 in lower(coalesce(e.location_display, ''))) > 0
+		    or exists (
+		      select 1
+		      from event_archive_notes ean
+		      where ean.archive_id = ea.id
+		        and position($2 in lower(ean.body)) > 0
+		    )
+		  )
+		order by e.starts_at desc, ea.created_at desc
+		limit 100
+	`
+
+	var (
+		rows pgx.Rows
+		err  error
+	)
+	if query == "" {
+		rows, err = a.db.Query(ctx, baseQuery, workspaceID)
+	} else {
+		rows, err = a.db.Query(ctx, searchQuery, workspaceID, query)
+	}
 	if err != nil {
 		return nil, err
 	}

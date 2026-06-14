@@ -185,9 +185,53 @@ func TestWorkspaceArchiveIndexAPI(t *testing.T) {
 		t.Fatalf("expected seeded draft id in archive summary, got %#v", older["seededEventId"])
 	}
 
+	titleSearch := getJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/archives?q=night", http.StatusOK)
+	titleMatches, ok := titleSearch.JSON.([]any)
+	if !ok || len(titleMatches) != 1 || mustObject(t, titleMatches[0])["eventId"] != firstEventID {
+		t.Fatalf("expected title search to match first archive only, got %#v", titleSearch.JSON)
+	}
+
+	noteSearch := getJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/archives?q=doors", http.StatusOK)
+	noteMatches, ok := noteSearch.JSON.([]any)
+	if !ok || len(noteMatches) != 1 || mustObject(t, noteMatches[0])["eventId"] != firstEventID {
+		t.Fatalf("expected note-body search to match first archive only, got %#v", noteSearch.JSON)
+	}
+	if _, ok := mustObject(t, noteMatches[0])["notes"]; ok {
+		t.Fatalf("workspace archive summaries must not include note bodies: %#v", noteMatches[0])
+	}
+
+	missingSearch := getJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/archives?q=missing", http.StatusOK)
+	if matches, ok := missingSearch.JSON.([]any); !ok || len(matches) != 0 {
+		t.Fatalf("expected missing search to return empty array, got %#v", missingSearch.JSON)
+	}
+
+	percentSearch := getJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/archives?q=%25", http.StatusOK)
+	if matches, ok := percentSearch.JSON.([]any); !ok || len(matches) != 0 {
+		t.Fatalf("expected percent search to return empty array, got %#v", percentSearch.JSON)
+	}
+
+	underscoreSearch := getJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/archives?q=_", http.StatusOK)
+	if matches, ok := underscoreSearch.JSON.([]any); !ok || len(matches) != 0 {
+		t.Fatalf("expected underscore search to return empty array, got %#v", underscoreSearch.JSON)
+	}
+
+	other := newLifecycleFixture(t)
+	otherEvent := createEvent(t, other, "Night Market", 4)
+	otherEventID := mustString(t, otherEvent, "id")
+	publishEvent(t, other, otherEventID)
+	postJSON(t, other.app, other.ownerCookie, "/api/events/"+otherEventID+"/end-of-night", map[string]any{}, http.StatusOK)
+	postJSON(t, other.app, other.ownerCookie, "/api/events/"+otherEventID+"/archive/notes", map[string]any{"body": "Move doors earlier."}, http.StatusOK)
+
+	scopedSearch := getJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/archives?q=night", http.StatusOK)
+	if matches, ok := scopedSearch.JSON.([]any); !ok || len(matches) != 1 || mustObject(t, matches[0])["eventId"] != firstEventID {
+		t.Fatalf("expected workspace-scoped search to exclude other workspace archives, got %#v", scopedSearch.JSON)
+	}
+
+	tooLongQuery := strings.Repeat("a", 121)
+	getJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/archives?q="+tooLongQuery, http.StatusBadRequest)
+
 	getJSON(t, fx.app, fx.memberCookie, "/api/workspaces/"+fx.workspaceID+"/archives", http.StatusOK)
 	getJSON(t, fx.app, nil, "/api/workspaces/"+fx.workspaceID+"/archives", http.StatusForbidden)
-	other := newLifecycleFixture(t)
 	getJSON(t, fx.app, other.memberCookie, "/api/workspaces/"+fx.workspaceID+"/archives", http.StatusForbidden)
 }
 

@@ -182,11 +182,39 @@ describe('App routes', () => {
     ]);
 
     expect(rendered).toContain('Workspace archive');
+    expect(rendered).toContain('Search archives');
+    expect(rendered).toContain('Search titles, locations, or notes');
+    expect(rendered).toContain('Search');
+    expect(rendered).toContain('Reset');
     expect(rendered).toContain('Night Market');
     expect(rendered).toContain('1 note');
     expect(rendered).toContain('Open archive');
     expect(rendered).toContain('Seed next draft');
     expect(rendered).toContain('No seeded draft yet');
+  });
+
+  it('renders empty archive search copy', () => {
+    const rendered = renderWithState('/workspace?workspaceId=workspace-1&q=doors', <WorkspaceView />, [
+      {
+        id: 'person-1',
+        email: 'owner@example.com',
+        displayName: 'Owner',
+        workspaces: [{ id: 'workspace-1', name: 'Main Room', role: 'owner' }],
+      },
+      {
+        id: 'workspace-1',
+        name: 'Main Room',
+        role: 'owner',
+        members: [],
+        invitations: [],
+      },
+      [],
+      [],
+      false,
+    ]);
+
+    expect(rendered).toContain('No archives matched your search');
+    expect(rendered).toContain('Try a different search or reset the filter to show every private archive.');
   });
 
   it('shows seeded draft links in the archive section', () => {
