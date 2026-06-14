@@ -145,6 +145,34 @@ func TestFirstEventLifecycleArchiveAPI(t *testing.T) {
 	getJSON(t, fx.app, otherFx.memberCookie, "/api/events/"+eventID+"/archive", http.StatusForbidden)
 }
 
+func TestFirstEventLifecycleArchiveNotes(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 4)
+	eventID := mustString(t, event, "id")
+	publishEvent(t, fx, eventID)
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/archive/notes", map[string]any{"body": "Move doors earlier."}, http.StatusOK)
+	resp := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/archive/notes", map[string]any{"body": "Keep card reader charged."}, http.StatusOK)
+	archive := mustObject(t, resp.JSON)
+	if int(archive["noteCount"].(float64)) != 2 {
+		t.Fatalf("expected two notes, got %#v", archive)
+	}
+	notes := archive["notes"].([]any)
+	if mustObject(t, notes[0])["body"] != "Move doors earlier." || mustObject(t, notes[1])["body"] != "Keep card reader charged." {
+		t.Fatalf("notes not ordered by creation: %#v", notes)
+	}
+
+	reloaded := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/archive", http.StatusOK)
+	reloadedNotes := mustObject(t, reloaded.JSON)["notes"].([]any)
+	if len(reloadedNotes) != 2 || mustObject(t, reloadedNotes[0])["body"] != "Move doors earlier." || mustObject(t, reloadedNotes[1])["body"] != "Keep card reader charged." {
+		t.Fatalf("GET archive did not return persisted notes in order: %#v", reloadedNotes)
+	}
+
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/archive/notes", map[string]any{"body": "   "}, http.StatusBadRequest)
+	postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/archive/notes", map[string]any{"body": "member note"}, http.StatusForbidden)
+}
+
 func TestFirstEventLifecycleSettlementAdjustments(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	event := createEventWithPricing(t, fx, "Night Market", 4, "fixed", 1500, "usd")

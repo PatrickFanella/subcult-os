@@ -82,6 +82,10 @@ type createSettlementAdjustmentRequest struct {
 	Reason      string `json:"reason"`
 }
 
+type createArchiveNoteRequest struct {
+	Body string `json:"body"`
+}
+
 type eventSettlementAdjustmentDTO struct {
 	ID                string `json:"id"`
 	SettlementID      string `json:"settlementId"`
@@ -911,14 +915,8 @@ func (a *App) handleGetArchive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var archive eventArchiveDTO
-	var createdAt time.Time
-	var updatedAt time.Time
-	if err := a.db.QueryRow(r.Context(), `
-		select id, event_id, report_id, settlement_id, status, note_count, created_at, updated_at
-		from event_archives
-		where event_id = $1
-	`, event.ID).Scan(&archive.ID, &archive.EventID, &archive.ReportID, &archive.SettlementID, &archive.Status, &archive.NoteCount, &createdAt, &updatedAt); err != nil {
+	archive, err := a.loadArchiveDTO(r.Context(), event.ID)
+	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			writeError(w, http.StatusNotFound, "archive not found")
 			return
@@ -926,10 +924,108 @@ func (a *App) handleGetArchive(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not load archive")
 		return
 	}
-	archive.CreatedAt = createdAt.UTC().Format(time.RFC3339Nano)
-	archive.UpdatedAt = updatedAt.UTC().Format(time.RFC3339Nano)
-	archive.Notes = make([]eventArchiveNoteDTO, 0)
 
+	writeJSON(w, http.StatusOK, archive)
+}
+
+func (a *App) handleCreateArchiveNote(w http.ResponseWriter, r *http.Request) {
+	if a.db == nil {
+		writeError(w, http.StatusInternalServerError, "database unavailable")
+		return
+	}
+	event, err := a.loadEventDetails(r.Context(), r.PathValue("eventID"))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "event not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "could not load event")
+		return
+	}
+	actorID, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner")
+	if !ok {
+		writeError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
+	var req createArchiveNoteRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	body := strings.TrimSpace(req.Body)
+	if body == "" {
+		writeError(w, http.StatusBadRequest, "note body is required")
+		return
+	}
+
+	tx, err := a.db.Begin(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not start transaction")
+		return
+	}
+	defer func() { _ = tx.Rollback(r.Context()) }()
+
+	var archiveID string
+	var reportID string
+	var settlementID string
+	var status string
+	var noteCount int
+	if err := tx.QueryRow(r.Context(), `
+		select id, report_id, settlement_id, status, note_count
+		from event_archives
+		where event_id = $1
+		for update
+	`, event.ID).Scan(&archiveID, &reportID, &settlementID, &status, &noteCount); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "archive not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "could not load archive")
+		return
+	}
+
+	var noteID string
+	if err := tx.QueryRow(r.Context(), `
+		insert into event_archive_notes (archive_id, body, created_by_person_id)
+		values ($1, $2, $3)
+		returning id
+	`, archiveID, body, actorID).Scan(&noteID); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not create archive note")
+		return
+	}
+	if _, err := tx.Exec(r.Context(), `
+		update event_archives
+		set note_count = note_count + 1, updated_at = now()
+		where id = $1
+	`, archiveID); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not update archive")
+		return
+	}
+	txCtx := context.WithValue(r.Context(), txContextKey{}, tx)
+	if err := a.audit(txCtx, actorID, "archive.note_created", "event_archive", archiveID, map[string]any{
+		"eventId":           event.ID,
+		"noteId":            noteID,
+		"body":              body,
+		"createdByPersonId": actorID,
+		"reportId":          reportID,
+		"settlementId":      settlementID,
+		"status":            status,
+		"noteCount":         noteCount + 1,
+	}); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not record audit")
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not save archive note")
+		return
+	}
+
+	archive, err := a.loadArchiveDTO(r.Context(), event.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not load archive")
+		return
+	}
 	writeJSON(w, http.StatusOK, archive)
 }
 
@@ -1174,6 +1270,49 @@ func (a *App) loadSettlementDTO(ctx context.Context, eventID string) (eventSettl
 		FinalizedByPersonID:   nullableString(row.FinalizedByPersonID),
 		Adjustments:           adjustments,
 	}, nil
+}
+
+func (a *App) loadArchiveDTO(ctx context.Context, eventID string) (eventArchiveDTO, error) {
+	var archive eventArchiveDTO
+	var createdAt time.Time
+	var updatedAt time.Time
+	if err := a.db.QueryRow(ctx, `
+		select id, event_id, report_id, settlement_id, status, note_count, created_at, updated_at
+		from event_archives
+		where event_id = $1
+	`, eventID).Scan(&archive.ID, &archive.EventID, &archive.ReportID, &archive.SettlementID, &archive.Status, &archive.NoteCount, &createdAt, &updatedAt); err != nil {
+		return eventArchiveDTO{}, err
+	}
+
+	rows, err := a.db.Query(ctx, `
+		select id, archive_id, body, created_by_person_id, created_at
+		from event_archive_notes
+		where archive_id = $1
+		order by created_at asc, id asc
+	`, archive.ID)
+	if err != nil {
+		return eventArchiveDTO{}, err
+	}
+	defer rows.Close()
+
+	notes := make([]eventArchiveNoteDTO, 0)
+	for rows.Next() {
+		var note eventArchiveNoteDTO
+		var createdAt time.Time
+		if err := rows.Scan(&note.ID, &note.ArchiveID, &note.Body, &note.CreatedByPersonID, &createdAt); err != nil {
+			return eventArchiveDTO{}, err
+		}
+		note.CreatedAt = createdAt.UTC().Format(time.RFC3339Nano)
+		notes = append(notes, note)
+	}
+	if err := rows.Err(); err != nil {
+		return eventArchiveDTO{}, err
+	}
+
+	archive.CreatedAt = createdAt.UTC().Format(time.RFC3339Nano)
+	archive.UpdatedAt = updatedAt.UTC().Format(time.RFC3339Nano)
+	archive.Notes = notes
+	return archive, nil
 }
 
 func nullableTimeString(value sql.NullTime) *string {
