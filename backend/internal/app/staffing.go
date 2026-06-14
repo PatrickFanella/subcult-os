@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -364,13 +365,13 @@ func (a *App) handleUpdateEventStaffing(w http.ResponseWriter, r *http.Request) 
 	}
 	defer func() { _ = tx.Rollback(r.Context()) }()
 
-	var lockedEventID, workspaceID, eventStatus string
+	var lockedEventID, workspaceID, eventTitle, eventStatus string
 	if err := tx.QueryRow(r.Context(), `
-		select id, workspace_id, status
+		select id, workspace_id, title, status
 		from events
 		where id = $1
 		for update
-	`, r.PathValue("eventID")).Scan(&lockedEventID, &workspaceID, &eventStatus); err != nil {
+	`, r.PathValue("eventID")).Scan(&lockedEventID, &workspaceID, &eventTitle, &eventStatus); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			writeError(w, http.StatusNotFound, "event not found")
 			return
@@ -403,6 +404,8 @@ func (a *App) handleUpdateEventStaffing(w http.ResponseWriter, r *http.Request) 
 
 	newRow := current
 	changed := false
+	assignmentChanged := false
+	assignmentRecipientEmail := ""
 
 	if requestedTitle != nil && *requestedTitle != current.Title {
 		newRow.Title = *requestedTitle
@@ -446,19 +449,20 @@ func (a *App) handleUpdateEventStaffing(w http.ResponseWriter, r *http.Request) 
 	} else if requestedPersonID != nil {
 		var assigneeName string
 		if err := tx.QueryRow(r.Context(), `
-			select coalesce(nullif(trim(p.display_name), ''), p.email)
+			select coalesce(nullif(trim(p.display_name), ''), p.email), p.email
 			from workspace_members wm
 			join people p on p.id = wm.person_id
 			where wm.workspace_id = $1
 			  and wm.person_id = $2
 			  and wm.removed_at is null
-		`, workspaceID, *requestedPersonID).Scan(&assigneeName); err != nil {
+		`, workspaceID, *requestedPersonID).Scan(&assigneeName, &assignmentRecipientEmail); err != nil {
 			writeError(w, http.StatusBadRequest, "assignedPersonId must be an active workspace member")
 			return
 		}
 		_ = assigneeName
 		candidate := sql.NullString{String: *requestedPersonID, Valid: true}
 		if !current.AssignedPersonID.Valid || current.AssignedPersonID.String != candidate.String || current.AssignedApplicationID.Valid {
+			assignmentChanged = true
 			changed = true
 		}
 		newRow.AssignedPersonID = candidate
@@ -466,18 +470,19 @@ func (a *App) handleUpdateEventStaffing(w http.ResponseWriter, r *http.Request) 
 	} else if requestedApplicationID != nil {
 		var assigneeName string
 		if err := tx.QueryRow(r.Context(), `
-			select applicant_name
+			select applicant_name, applicant_email
 			from event_role_applications
 			where id = $1
 			  and event_id = $2
 			  and status in ('accepted', 'confirmed')
-		`, *requestedApplicationID, lockedEventID).Scan(&assigneeName); err != nil {
+		`, *requestedApplicationID, lockedEventID).Scan(&assigneeName, &assignmentRecipientEmail); err != nil {
 			writeError(w, http.StatusBadRequest, "assignedApplicationId must be an accepted or confirmed application for this event")
 			return
 		}
 		_ = assigneeName
 		candidate := sql.NullString{String: *requestedApplicationID, Valid: true}
 		if !current.AssignedApplicationID.Valid || current.AssignedApplicationID.String != candidate.String || current.AssignedPersonID.Valid {
+			assignmentChanged = true
 			changed = true
 		}
 		newRow.AssignedApplicationID = candidate
@@ -574,6 +579,28 @@ func (a *App) handleUpdateEventStaffing(w http.ResponseWriter, r *http.Request) 
 	}
 
 	txCtx := context.WithValue(r.Context(), txContextKey{}, tx)
+	if assignmentChanged && updated.Status == "assigned" {
+		recipientEmail := normalizeEmail(assignmentRecipientEmail)
+		if recipientEmail != "" {
+			params := enqueueNotificationParams{
+				WorkspaceID:       workspaceID,
+				EventID:           lockedEventID,
+				RecipientEmail:    recipientEmail,
+				NotificationType:  "staffing.assignment",
+				RelatedType:       "event_staffing_item",
+				RelatedID:         updated.ID,
+				IdempotencyKey:    "staffing_assignment:" + updated.ID + ":" + recipientEmail,
+				Subject:           fmt.Sprintf("%s: staffing assignment for %s", eventTitle, updated.Title),
+				Body:              fmt.Sprintf("You have been assigned to %s at %s.", updated.Title, eventTitle),
+				Preview:           fmt.Sprintf("Assignment for %s", updated.Title),
+				CreatedByPersonID: actorID,
+			}
+			if _, err := a.enqueueNotification(txCtx, tx, params); err != nil {
+				writeError(w, http.StatusInternalServerError, "could not enqueue notification")
+				return
+			}
+		}
+	}
 	if err := a.audit(txCtx, actorID, "staffing.updated", "event_staffing_item", updated.ID, map[string]any{
 		"eventId":               lockedEventID,
 		"staffingItemId":        updated.ID,

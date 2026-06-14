@@ -789,6 +789,7 @@ func TestEventStaffingUpdateAPI(t *testing.T) {
 		return map[string]any{"id": personID}
 	}(), "id")
 	ownerID := ownerPersonID(t, fx)
+	memberEmail := fx.email("member")
 
 	item := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/staffing", map[string]any{"title": "Opening checklist", "kind": "task", "notes": "Check lights and radios."}, http.StatusOK)
 	taskID := mustString(t, item.JSON, "id")
@@ -798,6 +799,14 @@ func TestEventStaffingUpdateAPI(t *testing.T) {
 	if assignedMemberObj["status"] != "assigned" || assignedMemberObj["assignedPersonId"] != memberID || assignedMemberObj["assigneeName"] != "Door" {
 		t.Fatalf("unexpected member assignment response: %#v", assignedMemberObj)
 	}
+	assertStaffingAssignmentNotificationCounts(t, fx, eventID, 1, 1)
+	assertStaffingAssignmentNotificationRecord(t, fx, taskID, memberEmail, "staffing.assignment", "staffing_assignment:"+taskID+":"+memberEmail, "Night Market", "Opening checklist", "Check lights and radios.")
+
+	repeatAssignedMember := patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/staffing/"+taskID, map[string]any{"assignedPersonId": memberID}, http.StatusOK)
+	if !reflect.DeepEqual(assignedMember.JSON, repeatAssignedMember.JSON) {
+		t.Fatalf("expected repeated member assignment to be idempotent: first=%#v second=%#v", assignedMember.JSON, repeatAssignedMember.JSON)
+	}
+	assertStaffingAssignmentNotificationCounts(t, fx, eventID, 1, 1)
 
 	var metadataText string
 	if err := fx.app.db.QueryRow(t.Context(), `
@@ -826,6 +835,7 @@ func TestEventStaffingUpdateAPI(t *testing.T) {
 	if clearedObj["status"] != "open" {
 		t.Fatalf("expected cleared assignee to reopen item, got %#v", clearedObj)
 	}
+	assertStaffingAssignmentNotificationCounts(t, fx, eventID, 1, 1)
 	for _, field := range []string{"assignedPersonId", "assignedApplicationId", "assigneeName"} {
 		if _, ok := clearedObj[field]; ok {
 			t.Fatalf("expected cleared item to omit %s, got %#v", field, clearedObj)
@@ -837,6 +847,8 @@ func TestEventStaffingUpdateAPI(t *testing.T) {
 	if assignedApplicationObj["status"] != "assigned" || assignedApplicationObj["assignedApplicationId"] != acceptedAppID || assignedApplicationObj["assigneeName"] != "Alex Applicant" {
 		t.Fatalf("unexpected application assignment response: %#v", assignedApplicationObj)
 	}
+	assertStaffingAssignmentNotificationCounts(t, fx, eventID, 2, 2)
+	assertStaffingAssignmentNotificationRecord(t, fx, taskID, "alex@example.test", "staffing.assignment", "staffing_assignment:"+taskID+":alex@example.test", "Night Market", "Opening checklist", "Happy to help.")
 
 	for _, payload := range []map[string]any{
 		{"assignedApplicationId": submittedAppID},
@@ -853,6 +865,7 @@ func TestEventStaffingUpdateAPI(t *testing.T) {
 	if completedObj["status"] != "completed" || completedAt == "" || completedBy != ownerID {
 		t.Fatalf("unexpected completed response: %#v", completedObj)
 	}
+	assertStaffingAssignmentNotificationCounts(t, fx, eventID, 2, 2)
 
 	var beforeCount int
 	if err := fx.app.db.QueryRow(t.Context(), `
@@ -886,6 +899,7 @@ func TestEventStaffingUpdateAPI(t *testing.T) {
 	if cancelledObj["status"] != "cancelled" {
 		t.Fatalf("unexpected cancelled response: %#v", cancelledObj)
 	}
+	assertStaffingAssignmentNotificationCounts(t, fx, eventID, 2, 2)
 	for _, field := range []string{"completedAt", "completedByPersonId"} {
 		if _, ok := cancelledObj[field]; ok {
 			t.Fatalf("expected cancelled item to omit %s, got %#v", field, cancelledObj)
@@ -1515,6 +1529,60 @@ func assertRoleApplicationNotificationRecord(t *testing.T, fx lifecycleFixture, 
 	}
 	if strings.Contains(subject, applicantMessage) || strings.Contains(preview, applicantMessage) || strings.Contains(body, applicantMessage) {
 		t.Fatalf("notification leaked application message %q: subject=%q preview=%q body=%q", applicantMessage, subject, preview, body)
+	}
+}
+
+func assertStaffingAssignmentNotificationCounts(t *testing.T, fx lifecycleFixture, eventID string, wantNotifications, wantOutbox int) {
+	t.Helper()
+	var notificationCount int
+	if err := fx.app.db.QueryRow(t.Context(), `select count(*) from notification_events where event_id = $1`, eventID).Scan(&notificationCount); err != nil {
+		t.Fatal(err)
+	}
+	if notificationCount != wantNotifications {
+		t.Fatalf("unexpected staffing notification count for event %s: got %d want %d", eventID, notificationCount, wantNotifications)
+	}
+
+	var outboxCount int
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select count(*)
+		from email_outbox o
+		join notification_events n on n.email_outbox_id = o.id
+		where n.event_id = $1
+	`, eventID).Scan(&outboxCount); err != nil {
+		t.Fatal(err)
+	}
+	if outboxCount != wantOutbox {
+		t.Fatalf("unexpected staffing outbox count for event %s: got %d want %d", eventID, outboxCount, wantOutbox)
+	}
+}
+
+func assertStaffingAssignmentNotificationRecord(t *testing.T, fx lifecycleFixture, staffingID, wantRecipient, wantType, wantKey, eventTitle, staffingTitle, forbiddenText string) {
+	t.Helper()
+	var notificationType, idempotencyKey, recipientEmail, subject, preview, body string
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select n.notification_type, n.idempotency_key, n.recipient_email, n.subject, n.preview, o.body
+		from notification_events n
+		join email_outbox o on o.id = n.email_outbox_id
+		where n.related_id = $1
+		order by n.created_at desc
+		limit 1
+	`, staffingID).Scan(&notificationType, &idempotencyKey, &recipientEmail, &subject, &preview, &body); err != nil {
+		t.Fatal(err)
+	}
+	if notificationType != wantType || idempotencyKey != wantKey || recipientEmail != wantRecipient {
+		t.Fatalf("unexpected staffing notification identity for %s: type=%q key=%q recipient=%q", staffingID, notificationType, idempotencyKey, recipientEmail)
+	}
+	if !strings.Contains(subject, eventTitle) || !strings.Contains(subject, staffingTitle) {
+		t.Fatalf("notification subject missing event/staffing: %q", subject)
+	}
+	if preview != "Assignment for "+staffingTitle {
+		t.Fatalf("unexpected staffing notification preview: %q", preview)
+	}
+	if !strings.Contains(body, eventTitle) || !strings.Contains(body, staffingTitle) {
+		t.Fatalf("notification body missing event/staffing: %q", body)
+	}
+	if strings.Contains(subject, forbiddenText) || strings.Contains(preview, forbiddenText) || strings.Contains(body, forbiddenText) {
+		t.Fatalf("notification leaked restricted text %q: subject=%q preview=%q body=%q", forbiddenText, subject, preview, body)
 	}
 }
 
