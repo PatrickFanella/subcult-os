@@ -145,6 +145,80 @@ func TestFirstEventLifecycleArchiveAPI(t *testing.T) {
 	getJSON(t, fx.app, otherFx.memberCookie, "/api/events/"+eventID+"/archive", http.StatusForbidden)
 }
 
+func TestEventRoleDefinitionsAPI(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 4)
+	eventID := mustString(t, event, "id")
+	roleSlug := "event-role-definitions-" + strings.ReplaceAll(fx.suffix, "_", "-")
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update events
+		set public_slug = $2
+		where id = $1
+	`, eventID, roleSlug); err != nil {
+		t.Fatal(err)
+	}
+
+	if ownerList := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/roles", http.StatusOK); len(ownerList.JSON.([]any)) != 0 {
+		t.Fatalf("expected empty role list, got %#v", ownerList.JSON)
+	}
+	if memberList := getJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/roles", http.StatusOK); len(memberList.JSON.([]any)) != 0 {
+		t.Fatalf("expected empty member role list, got %#v", memberList.JSON)
+	}
+
+	postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/roles", map[string]any{"name": "Denied", "description": "Member", "capacity": 1, "public": true}, http.StatusForbidden)
+
+	performer := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/roles", map[string]any{"name": " Performer ", "description": " Play a 20-minute set. ", "capacity": 3, "public": true}, http.StatusOK)
+	performerRole := mustObject(t, performer.JSON)
+	if performerRole["eventId"] != eventID || performerRole["name"] != "Performer" || performerRole["description"] != "Play a 20-minute set." || int(performerRole["capacity"].(float64)) != 3 || performerRole["public"] != true || performerRole["active"] != true || performerRole["id"] == "" || performerRole["createdAt"] == "" || performerRole["updatedAt"] == "" {
+		t.Fatalf("unexpected role response: %#v", performerRole)
+	}
+
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/roles", map[string]any{"name": " Host ", "description": "Run the door", "capacity": 0}, http.StatusOK)
+	if _, err := fx.app.db.Exec(t.Context(), `
+		insert into event_roles (event_id, name, description, capacity, "public", active, created_by_person_id, created_at, updated_at)
+		values ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+	`, eventID, "Backstage", "Private notes", 0, false, true, ownerPersonID(t, fx), time.Now().Add(2*time.Minute).UTC()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fx.app.db.Exec(t.Context(), `
+		insert into event_roles (event_id, name, description, capacity, "public", active, created_by_person_id, created_at, updated_at)
+		values ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+	`, eventID, "Disabled", "Inactive role", 0, true, false, ownerPersonID(t, fx), time.Now().Add(3*time.Minute).UTC()); err != nil {
+		t.Fatal(err)
+	}
+
+	unpublished := getJSON(t, fx.app, nil, "/api/public/events/"+roleSlug+"/roles", http.StatusNotFound)
+	if unpublished.Status != http.StatusNotFound {
+		t.Fatalf("expected unpublished public roles to 404, got %d", unpublished.Status)
+	}
+
+	published := publishEvent(t, fx, eventID)
+	if mustString(t, published, "publicSlug") != roleSlug {
+		t.Fatalf("expected publish to preserve manual slug, got %#v", published)
+	}
+
+	publicRoles := getJSON(t, fx.app, nil, "/api/public/events/"+roleSlug+"/roles", http.StatusOK)
+	publicRoleList := publicRoles.JSON.([]any)
+	if len(publicRoleList) != 2 {
+		t.Fatalf("expected two public roles, got %#v", publicRoles.JSON)
+	}
+	if mustObject(t, publicRoleList[0])["name"] != "Performer" || mustObject(t, publicRoleList[1])["name"] != "Host" {
+		t.Fatalf("expected public roles ordered by creation, got %#v", publicRoles.JSON)
+	}
+
+	ownerRoles := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/roles", http.StatusOK).JSON.([]any)
+	memberRoles := getJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/roles", http.StatusOK).JSON.([]any)
+	if len(ownerRoles) != 4 || len(memberRoles) != 4 {
+		t.Fatalf("expected owner/member to read all roles, owner=%#v member=%#v", ownerRoles, memberRoles)
+	}
+	if !reflect.DeepEqual(ownerRoles, memberRoles) {
+		t.Fatalf("expected owner/member role reads to match, owner=%#v member=%#v", ownerRoles, memberRoles)
+	}
+	if mustObject(t, ownerRoles[2])["name"] != "Backstage" || mustObject(t, ownerRoles[3])["name"] != "Disabled" {
+		t.Fatalf("expected private/inactive roles to be retained privately, got %#v", ownerRoles)
+	}
+}
+
 func TestWorkspaceArchiveIndexAPI(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	firstEvent := createEvent(t, fx, "Night Market", 4)

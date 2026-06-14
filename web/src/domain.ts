@@ -56,6 +56,18 @@ export interface PublicEventDTO extends EventDTO {
   isFull: boolean;
 }
 
+export interface EventRoleDTO {
+  id: string;
+  eventId: string;
+  name: string;
+  description: string;
+  capacity: number;
+  public: boolean;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface TicketDTO {
   id: string;
   eventId: string;

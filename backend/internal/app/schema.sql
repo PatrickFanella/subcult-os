@@ -60,6 +60,19 @@ create table if not exists events (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists event_roles (
+  id uuid primary key default gen_random_uuid(),
+  event_id uuid not null references events(id) on delete cascade,
+  name text not null,
+  description text not null default '',
+  capacity integer not null default 0 check (capacity >= 0),
+  "public" boolean not null default true,
+  active boolean not null default true,
+  created_by_person_id uuid not null references people(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists tickets (
   id uuid primary key default gen_random_uuid(),
   event_id uuid not null references events(id) on delete cascade,
