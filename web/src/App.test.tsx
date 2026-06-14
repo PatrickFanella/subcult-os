@@ -113,6 +113,8 @@ describe('App routes', () => {
     expect(rendered).toContain('Search');
     expect(rendered).toContain('Reset');
     expect(rendered).toContain('Loading published events…');
+    expect(rendered).not.toContain('Private note:');
+    expect(rendered).not.toContain('Keep private');
   });
 
   it('syncs the discover search query from the url', () => {
@@ -176,6 +178,8 @@ describe('App routes', () => {
     expect(rendered).toContain('The Hall');
     expect(rendered).toContain('View event');
     expect(rendered).toContain('2026');
+    expect(rendered).not.toContain('Private note:');
+    expect(rendered).not.toContain('Keep private');
   });
 
   it('renders the discover empty state', () => {
@@ -215,6 +219,8 @@ describe('App routes', () => {
     expect(rendered).toContain('Discover more events');
     expect(rendered).toContain('free ticket');
     expect(rendered).toContain('Email required');
+    expect(rendered).not.toContain('Private note:');
+    expect(rendered).not.toContain('Keep private');
   });
 
   it('renders the event editor route', () => {
@@ -2041,6 +2047,8 @@ describe('App routes', () => {
     const rendered = renderAt('/tickets/ticket-123');
     expect(rendered).toContain('Show this at the door');
     expect(rendered).toContain('Your reservation lives here');
+    expect(rendered).not.toContain('Private note:');
+    expect(rendered).not.toContain('Keep private');
   });
 
   it.each([
@@ -2117,6 +2125,8 @@ describe('App routes', () => {
 
     expect(rendered).toContain(banner);
     expect(rendered).toContain(summary);
+    expect(rendered).not.toContain('Private note:');
+    expect(rendered).not.toContain('Keep private');
   });
 });
 

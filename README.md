@@ -72,6 +72,7 @@ If the app is already running, use the Workspace page to inspect development inv
 - Cookie-authenticated mutating API requests with an `Origin` header must come from the same host or `PUBLIC_WEB_URL`.
 - Login attempts are lightly throttled per email/IP in process memory.
 - Public free ticket reservations remain guest-accessible without account login.
+- Private contacts and commitments help organizers remember scene relationships and promises; they are workspace-only and never shown on public discovery/event pages.
 
 ## Production readiness checklist
 

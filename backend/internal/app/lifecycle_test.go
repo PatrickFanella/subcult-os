@@ -551,6 +551,77 @@ func TestNotificationLedgerAPI(t *testing.T) {
 	getJSON(t, fx.app, nil, "/api/events/"+eventID+"/notifications", http.StatusForbidden)
 }
 
+func TestPrivateMemoryBoundaries(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEventWithPricing(t, fx, "Night Market", 40, "fixed", 1800, "usd")
+	eventID := mustString(t, event, "id")
+	published := publishEvent(t, fx, eventID)
+	slug := mustString(t, published, "publicSlug")
+	ownerID := ownerPersonID(t, fx)
+
+	contactNotes := "Prefers late load-in"
+	commitmentDescription := "Private vendor detail"
+
+	contact := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/contacts", map[string]any{
+		"displayName": "Mira Door",
+		"email":       "mira@example.test",
+		"phone":       "+15555550123",
+		"notes":       contactNotes,
+		"tags":        []string{"door", "trusted"},
+	}, http.StatusOK)
+	contactID := mustString(t, contact.JSON, "id")
+
+	postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments", map[string]any{
+		"eventId":       eventID,
+		"contactId":     contactID,
+		"title":         "Confirm projector",
+		"description":   commitmentDescription,
+		"dueAt":         time.Now().UTC().Add(24 * time.Hour).Format(time.RFC3339),
+		"ownerPersonId": ownerID,
+	}, http.StatusOK)
+
+	ticket := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/reservations", map[string]any{"email": fx.email("guest"), "displayName": "Guest"}, http.StatusOK)
+	ticketCode := mustString(t, ticket.JSON, "code")
+
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+
+	var outboxID string
+	if err := fx.app.db.QueryRow(t.Context(), `
+		insert into email_outbox (recipient_email, subject, body, related_type, related_id)
+		values ($1, $2, $3, $4, null)
+		returning id
+	`, "notify@example.test", "Notification subject", "Sensitive message body", "event_notification").Scan(&outboxID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fx.app.db.Exec(t.Context(), `
+		insert into notification_events (
+			workspace_id, event_id, recipient_email, notification_type, related_type,
+			related_id, idempotency_key, email_outbox_id, subject, preview, created_by_person_id
+		)
+		values ($1, $2, $3, $4, $5, null, $6, $7, $8, $9, $10)
+	`, fx.workspaceID, eventID, "notify@example.test", "event.update", "event_notification", "notification-ledger:test", outboxID, "Notification subject", "Sensitive preview", ownerID); err != nil {
+		t.Fatal(err)
+	}
+
+	responses := map[string]string{
+		"public discovery": getJSON(t, fx.app, nil, "/api/public/events", http.StatusOK).Body,
+		"public event":     getJSON(t, fx.app, nil, "/api/public/events/"+slug, http.StatusOK).Body,
+		"ticket lookup":    getJSON(t, fx.app, nil, "/api/tickets/"+ticketCode, http.StatusOK).Body,
+		"report":           getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/report", http.StatusOK).Body,
+		"settlement":       getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/settlement", http.StatusOK).Body,
+		"archive summary":  getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/archive", http.StatusOK).Body,
+		"notifications":    getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/notifications", http.StatusOK).Body,
+	}
+
+	for label, body := range responses {
+		for _, forbidden := range []string{contactID, "Mira Door", "mira@example.test", "+15555550123", contactNotes, "Confirm projector", commitmentDescription} {
+			if strings.Contains(body, forbidden) {
+				t.Fatalf("%s leaked %q: %s", label, forbidden, body)
+			}
+		}
+	}
+}
+
 func TestPublicEventDiscoveryAPI(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	draft := createEvent(t, fx, "Draft Night", 20)
