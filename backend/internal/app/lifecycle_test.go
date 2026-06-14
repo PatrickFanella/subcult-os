@@ -275,6 +275,10 @@ func TestNotificationLedgerAPI(t *testing.T) {
 	event := createEvent(t, fx, "Night Market", 4)
 	eventID := mustString(t, event, "id")
 	ownerID := ownerPersonID(t, fx)
+	roleApplicationMessage := "Role application message should stay private"
+	staffingNotes := "Staffing notes should stay private"
+	archiveNoteBody := "Archive note body should stay private"
+	settlementInternal := "Settlement internals should stay private"
 
 	var outboxID string
 	if err := fx.app.db.QueryRow(t.Context(), `
@@ -314,6 +318,11 @@ func TestNotificationLedgerAPI(t *testing.T) {
 	for _, forbidden := range []string{"message", "notes", "body"} {
 		if _, ok := item[forbidden]; ok {
 			t.Fatalf("notification ledger leaked %s: %#v", forbidden, item)
+		}
+	}
+	for _, forbidden := range []string{roleApplicationMessage, staffingNotes, archiveNoteBody, settlementInternal, "settlementSummary", "finalizedByPersonId", "adjustments"} {
+		if strings.Contains(ownerResp.Body, forbidden) {
+			t.Fatalf("notification api leaked %q: %s", forbidden, ownerResp.Body)
 		}
 	}
 

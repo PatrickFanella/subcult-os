@@ -884,11 +884,35 @@ describe('App routes', () => {
       publicSlug: 'night-market',
       publicUrl: '/e/night-market',
     };
+    const archiveNoteBody = 'Archive note body should stay private';
+    const settlementInternal = 'Settlement internals should stay private';
+    const applicationMessage = 'Role application message should stay private';
+    const staffingNotes = 'Staffing notes should stay private';
 
     const rendered = renderWithState('/events/event-1?workspaceId=workspace-1', <EventEditorView eventId="event-1" />, [
       event,
       null,
-      null,
+      {
+        id: 'archive-1',
+        eventId: event.id,
+        reportId: 'report-1',
+        settlementId: 'settlement-1',
+        status: 'private',
+        noteCount: 1,
+        participants: [],
+        staffingItems: [],
+        notes: [
+          {
+            id: 'note-1',
+            archiveId: 'archive-1',
+            body: archiveNoteBody,
+            createdByPersonId: 'owner-1',
+            createdAt: '2026-06-13T22:25:00.000Z',
+          },
+        ],
+        createdAt: '2026-06-13T22:00:00.000Z',
+        updatedAt: '2026-06-13T22:25:00.000Z',
+      },
       '',
       false,
       false,
@@ -915,7 +939,34 @@ describe('App routes', () => {
       false,
       null,
       null,
-      null,
+      {
+        id: 'settlement-1',
+        eventId: event.id,
+        currency: 'usd',
+        grossPaidRevenueCents: 3000,
+        paidTicketCount: 12,
+        pendingTicketCount: 3,
+        cancelledTicketCount: 4,
+        freeTicketCount: 5,
+        reservedCount: 24,
+        adjustmentTotalCents: -250,
+        netTotalCents: 2750,
+        status: 'finalized',
+        generatedAt: '2026-06-13T22:30:00.000Z',
+        finalizedAt: '2026-06-13T22:45:00.000Z',
+        finalizedByPersonId: 'owner-1',
+        adjustments: [
+          {
+            id: 'adjustment-1',
+            settlementId: 'settlement-1',
+            amountCents: -250,
+            label: 'Cash drawer',
+            reason: settlementInternal,
+            createdByPersonId: 'member-1',
+            createdAt: '2026-06-13T22:40:00.000Z',
+          },
+        ],
+      },
       {
         amountDollars: '',
         label: '',
@@ -974,16 +1025,24 @@ describe('App routes', () => {
       0,
     ]);
 
-    expect(rendered).toContain('Notification activity');
-    expect(rendered).toContain('2 queued notifications');
-    expect(rendered).toContain('alex@example.com');
-    expect(rendered).toContain('role_application.accepted');
-    expect(rendered).toContain('Application accepted for Performer');
-    expect(rendered).toContain('staffing.assignment');
-    expect(rendered).toContain('morgan@example.com');
-    expect(rendered).not.toContain('Bring a keyboard.');
-    expect(rendered).not.toContain('Bring the banner.');
-    expect(rendered).not.toContain('Front desk coverage.');
+    const notificationStart = rendered.indexOf('Notification activity');
+    const archiveStart = rendered.indexOf('Private archive');
+    expect(notificationStart).toBeGreaterThanOrEqual(0);
+    expect(archiveStart).toBeGreaterThan(notificationStart);
+
+    const notificationSection = rendered.slice(notificationStart, archiveStart);
+
+    expect(notificationSection).toContain('Notification activity');
+    expect(notificationSection).toContain('2 queued notifications');
+    expect(notificationSection).toContain('alex@example.com');
+    expect(notificationSection).toContain('role_application.accepted');
+    expect(notificationSection).toContain('Application accepted for Performer');
+    expect(notificationSection).toContain('staffing.assignment');
+    expect(notificationSection).toContain('morgan@example.com');
+    expect(notificationSection).not.toContain(applicationMessage);
+    expect(notificationSection).not.toContain(staffingNotes);
+    expect(notificationSection).not.toContain(archiveNoteBody);
+    expect(notificationSection).not.toContain(settlementInternal);
   });
 
   it('renders the end-of-night settlement summary report panel', () => {
