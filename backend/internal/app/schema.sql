@@ -97,6 +97,16 @@ create table if not exists event_settlements (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists event_settlement_adjustments (
+  id uuid primary key default gen_random_uuid(),
+  settlement_id uuid not null references event_settlements(id) on delete cascade,
+  amount_cents integer not null check (amount_cents <> 0),
+  label text not null,
+  reason text not null default '',
+  created_by_person_id uuid not null references people(id),
+  created_at timestamptz not null default now()
+);
+
 create table if not exists audit_entries (
   id uuid primary key default gen_random_uuid(),
   actor_person_id uuid references people(id),

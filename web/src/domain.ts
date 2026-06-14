@@ -121,7 +121,15 @@ export interface EventSettlementSummaryDTO {
   reservedCount: number;
 }
 
-export type EventSettlementAdjustmentDTO = never;
+export interface EventSettlementAdjustmentDTO {
+  id: string;
+  settlementId: string;
+  amountCents: number;
+  label: string;
+  reason: string;
+  createdByPersonId: string;
+  createdAt: string;
+}
 
 export interface EventSettlementDTO {
   id: string;

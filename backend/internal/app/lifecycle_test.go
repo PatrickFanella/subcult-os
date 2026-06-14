@@ -89,6 +89,82 @@ func TestFirstEventLifecycleSettlementAPI(t *testing.T) {
 	getJSON(t, fx.app, nil, "/api/events/"+eventID+"/settlement", http.StatusForbidden)
 	otherFx := newLifecycleFixture(t)
 	getJSON(t, fx.app, otherFx.memberCookie, "/api/events/"+eventID+"/settlement", http.StatusForbidden)
+	postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/settlement/adjustments", map[string]any{"amountCents": 100, "label": "Member"}, http.StatusForbidden)
+}
+
+func TestFirstEventLifecycleSettlementAdjustments(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEventWithPricing(t, fx, "Night Market", 4, "fixed", 1500, "usd")
+	eventID := mustString(t, event, "id")
+	publishEvent(t, fx, eventID)
+	insertTicketWithPaymentStatus(t, fx, eventID, fx.email("paid"), "Paid Guest", "paid", 1500, "usd")
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+
+	first := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/settlement/adjustments", map[string]any{
+		"amountCents": 500,
+		"label":       "Donation",
+		"reason":      "  community support  ",
+	}, http.StatusOK)
+	firstSettlement := mustObject(t, first.JSON)
+	if int(firstSettlement["adjustmentTotalCents"].(float64)) != 500 || int(firstSettlement["netTotalCents"].(float64)) != 2000 {
+		t.Fatalf("unexpected first adjustment totals: %#v", firstSettlement)
+	}
+	firstAdjustments := firstSettlement["adjustments"].([]any)
+	if len(firstAdjustments) != 1 {
+		t.Fatalf("expected one adjustment, got %#v", firstAdjustments)
+	}
+	firstAdjustment := mustObject(t, firstAdjustments[0])
+	if firstAdjustment["amountCents"] != float64(500) || firstAdjustment["label"] != "Donation" || firstAdjustment["reason"] != "community support" || firstAdjustment["createdByPersonId"] != ownerPersonID(t, fx) {
+		t.Fatalf("unexpected first adjustment row: %#v", firstAdjustment)
+	}
+	if firstAdjustment["settlementId"] == "" || firstAdjustment["createdAt"] == "" || firstAdjustment["id"] == "" {
+		t.Fatalf("expected first adjustment identifiers: %#v", firstAdjustment)
+	}
+
+	time.Sleep(10 * time.Millisecond)
+	second := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/settlement/adjustments", map[string]any{
+		"amountCents": -200,
+		"label":       "Refund",
+		"reason":      "oops",
+	}, http.StatusOK)
+	secondSettlement := mustObject(t, second.JSON)
+	if int(secondSettlement["adjustmentTotalCents"].(float64)) != 300 || int(secondSettlement["netTotalCents"].(float64)) != 1800 {
+		t.Fatalf("unexpected second adjustment totals: %#v", secondSettlement)
+	}
+	secondAdjustments := secondSettlement["adjustments"].([]any)
+	if len(secondAdjustments) != 2 {
+		t.Fatalf("expected two adjustments, got %#v", secondAdjustments)
+	}
+	if mustObject(t, secondAdjustments[0])["label"] != "Donation" || mustObject(t, secondAdjustments[1])["label"] != "Refund" {
+		t.Fatalf("expected adjustments sorted by createdAt asc: %#v", secondAdjustments)
+	}
+	if int(mustObject(t, secondAdjustments[1])["amountCents"].(float64)) != -200 {
+		t.Fatalf("unexpected second adjustment row: %#v", secondAdjustments[1])
+	}
+
+	memberSettlement := getJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/settlement", http.StatusOK)
+	if !reflect.DeepEqual(second.JSON, memberSettlement.JSON) {
+		t.Fatalf("expected member GET to match owner settlement after adjustments")
+	}
+}
+
+func TestFirstEventLifecycleSettlementAdjustmentValidation(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 2)
+	eventID := mustString(t, event, "id")
+	publishEvent(t, fx, eventID)
+	insertTicketWithPaymentStatus(t, fx, eventID, fx.email("paid"), "Paid Guest", "paid", 1500, "usd")
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/settlement/adjustments", map[string]any{"amountCents": 0, "label": "Zero"}, http.StatusBadRequest)
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/settlement/adjustments", map[string]any{"amountCents": 100, "label": "   "}, http.StatusBadRequest)
+}
+
+func TestFirstEventLifecycleSettlementAdjustmentRequiresSettlement(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 2)
+	eventID := mustString(t, event, "id")
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/settlement/adjustments", map[string]any{"amountCents": 100, "label": "Donation"}, http.StatusNotFound)
 }
 
 func TestFirstEventLifecycleEndOfNightRejectsPendingPaidTickets(t *testing.T) {
