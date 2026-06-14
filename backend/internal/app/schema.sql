@@ -144,6 +144,27 @@ create table if not exists commitments (
 create index if not exists commitments_workspace_status_due_idx on commitments (workspace_id, status, due_at nulls last, created_at desc);
 create index if not exists commitments_event_idx on commitments (event_id, status, due_at nulls last);
 
+create table if not exists event_templates (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references workspaces(id) on delete cascade,
+  name text not null,
+  title text not null,
+  public_description text not null default '',
+  location_display text not null default '',
+  ticket_allocation integer not null default 0 check (ticket_allocation >= 0),
+  pricing_mode text not null default 'free' check (pricing_mode in ('free', 'fixed')),
+  ticket_price_cents integer not null default 0 check (ticket_price_cents >= 0),
+  ticket_currency text not null default 'usd',
+  private_notes text not null default '',
+  created_by_person_id uuid not null references people(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (trim(name) <> ''),
+  check (trim(title) <> '')
+);
+
+create index if not exists event_templates_workspace_name_idx on event_templates (workspace_id, lower(name));
+
 create unique index if not exists event_role_applications_active_email_idx
   on event_role_applications (event_id, role_id, lower(applicant_email))
   where status in ('submitted', 'under_review', 'accepted', 'waitlisted', 'confirmed');

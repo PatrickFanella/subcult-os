@@ -231,6 +231,44 @@ func TestWorkspaceContactsMutationAPI(t *testing.T) {
 	}
 }
 
+func TestEventTemplatesListAPI(t *testing.T) {
+	fx := newLifecycleFixture(t)
+
+	empty := getJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/event-templates", http.StatusOK)
+	if got := empty.JSON.([]any); len(got) != 0 {
+		t.Fatalf("expected empty templates, got %#v", got)
+	}
+
+	var templateID string
+	if err := fx.app.db.QueryRow(t.Context(), `
+		insert into event_templates (
+			workspace_id, name, title, public_description, location_display,
+			ticket_allocation, pricing_mode, ticket_price_cents, ticket_currency,
+			private_notes, created_by_person_id
+		) values ($1, 'Monthly Market', 'Night Market', 'Public copy', 'The Hall', 40, 'fixed', 1500, 'usd', 'Private run-of-show', $2)
+		returning id
+	`, fx.workspaceID, ownerPersonID(t, fx)).Scan(&templateID); err != nil {
+		t.Fatal(err)
+	}
+
+	ownerResp := getJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/event-templates", http.StatusOK)
+	memberResp := getJSON(t, fx.app, fx.memberCookie, "/api/workspaces/"+fx.workspaceID+"/event-templates", http.StatusOK)
+	for _, resp := range []any{ownerResp.JSON, memberResp.JSON} {
+		templates := resp.([]any)
+		if len(templates) != 1 {
+			t.Fatalf("expected one template, got %#v", templates)
+		}
+		tmpl := mustObject(t, templates[0])
+		if tmpl["id"] != templateID || tmpl["name"] != "Monthly Market" || tmpl["title"] != "Night Market" || tmpl["privateNotes"] != "Private run-of-show" {
+			t.Fatalf("unexpected template: %#v", tmpl)
+		}
+	}
+
+	otherFx := newLifecycleFixture(t)
+	getJSON(t, fx.app, nil, "/api/workspaces/"+fx.workspaceID+"/event-templates", http.StatusForbidden)
+	getJSON(t, fx.app, otherFx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/event-templates", http.StatusForbidden)
+}
+
 func TestCommitmentsAPI(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	event := createEvent(t, fx, "Benefit Show", 20)

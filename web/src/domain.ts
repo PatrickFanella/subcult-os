@@ -80,6 +80,22 @@ export interface CommitmentDTO {
   updatedAt: string;
 }
 
+export interface EventTemplateDTO {
+  id: string;
+  workspaceId: string;
+  name: string;
+  title: string;
+  publicDescription: string;
+  locationDisplay: string;
+  ticketAllocation: number;
+  pricingMode: 'free' | 'fixed';
+  ticketPriceCents: number;
+  ticketCurrency: string;
+  privateNotes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CreateCommitmentRequestDTO {
   title: string;
   description?: string;
