@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -305,16 +306,21 @@ func (a *App) handleReviewEventRoleApplication(w http.ResponseWriter, r *http.Re
 	defer func() { _ = tx.Rollback(r.Context()) }()
 
 	applicationID := r.PathValue("applicationID")
+	var workspaceID string
+	var eventTitle string
 	var roleID string
+	var roleName string
 	var capacity int
+	var applicantEmail string
 	if err := tx.QueryRow(r.Context(), `
-		select r.id, r.capacity
-		from event_roles r
-		join event_role_applications a on a.role_id = r.id and a.event_id = r.event_id
-		where r.event_id = $1
+		select e.workspace_id, e.title, r.id, r.name, r.capacity, a.applicant_email
+		from events e
+		join event_roles r on r.event_id = e.id
+		join event_role_applications a on a.role_id = r.id and a.event_id = e.id
+		where e.id = $1
 		  and a.id = $2
-		for update of r
-	`, event.ID, applicationID).Scan(&roleID, &capacity); err != nil {
+		for update of r, a
+	`, event.ID, applicationID).Scan(&workspaceID, &eventTitle, &roleID, &roleName, &capacity, &applicantEmail); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			writeError(w, http.StatusNotFound, "application not found")
 			return
@@ -373,6 +379,25 @@ func (a *App) handleReviewEventRoleApplication(w http.ResponseWriter, r *http.Re
 	}
 
 	txCtx := context.WithValue(r.Context(), txContextKey{}, tx)
+	if isRoleApplicationOutcomeStatus(nextStatus) && previousStatus != nextStatus {
+		params := enqueueNotificationParams{
+			WorkspaceID:       workspaceID,
+			EventID:           event.ID,
+			RecipientEmail:    applicantEmail,
+			NotificationType:  "role_application." + nextStatus,
+			RelatedType:       "event_role_application",
+			RelatedID:         application.ID,
+			IdempotencyKey:    "role_application:" + application.ID + ":" + nextStatus,
+			Subject:           fmt.Sprintf("%s: application update for %s", eventTitle, roleName),
+			Body:              fmt.Sprintf("Your application for %s at %s was %s.", roleName, eventTitle, nextStatus),
+			Preview:           fmt.Sprintf("Application %s for %s", nextStatus, roleName),
+			CreatedByPersonID: actorID,
+		}
+		if _, err := a.enqueueNotification(txCtx, tx, params); err != nil {
+			writeError(w, http.StatusInternalServerError, "could not enqueue notification")
+			return
+		}
+	}
 	if err := a.audit(txCtx, actorID, "role_application.reviewed", "event_role_application", application.ID, map[string]any{
 		"eventId":        application.EventID,
 		"roleId":         roleID,
@@ -668,6 +693,15 @@ func isCapacityConsumingApplicationStatus(status string) bool {
 func isValidReviewApplicationStatus(status string) bool {
 	_, ok := validReviewApplicationStatuses[status]
 	return ok
+}
+
+func isRoleApplicationOutcomeStatus(status string) bool {
+	switch status {
+	case "accepted", "waitlisted", "rejected":
+		return true
+	default:
+		return false
+	}
 }
 
 func basicEmail(email string) bool {

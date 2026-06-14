@@ -1387,10 +1387,13 @@ func TestEventRoleApplicationReviewAPI(t *testing.T) {
 	if acceptedObj["status"] != "accepted" || acceptedObj["reviewedByPersonId"] == nil || acceptedObj["reviewedAt"] == nil {
 		t.Fatalf("unexpected accepted response: %#v", acceptedObj)
 	}
+	assertRoleApplicationNotificationCounts(t, fx, eventID, 1, 1)
+	assertRoleApplicationNotificationRecord(t, fx, applicantIDs[0], "role_application.accepted", "role_application:"+applicantIDs[0]+":accepted", mustString(t, event, "title"), "Performer", "Alex on stage")
 	confirmed := patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/role-applications/"+applicantIDs[1], map[string]any{"status": "confirmed"}, http.StatusOK)
 	if mustString(t, confirmed.JSON, "status") != "confirmed" {
 		t.Fatalf("unexpected confirmed response: %#v", confirmed.JSON)
 	}
+	assertRoleApplicationNotificationCounts(t, fx, eventID, 1, 1)
 
 	patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/role-applications/"+applicantIDs[2], map[string]any{"status": "accepted"}, http.StatusConflict)
 	patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/role-applications/"+applicantIDs[2], map[string]any{"status": "confirmed"}, http.StatusConflict)
@@ -1399,10 +1402,26 @@ func TestEventRoleApplicationReviewAPI(t *testing.T) {
 	if mustString(t, acceptedConfirmed.JSON, "status") != "confirmed" {
 		t.Fatalf("unexpected accepted->confirmed response: %#v", acceptedConfirmed.JSON)
 	}
+	assertRoleApplicationNotificationCounts(t, fx, eventID, 1, 1)
 	confirmedAgain := patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/role-applications/"+applicantIDs[0], map[string]any{"status": "confirmed"}, http.StatusOK)
 	if mustString(t, confirmedAgain.JSON, "status") != "confirmed" {
 		t.Fatalf("unexpected confirmed->confirmed response: %#v", confirmedAgain.JSON)
 	}
+	assertRoleApplicationNotificationCounts(t, fx, eventID, 1, 1)
+
+	waitlisted := patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/role-applications/"+applicantIDs[2], map[string]any{"status": "waitlisted"}, http.StatusOK)
+	if mustString(t, waitlisted.JSON, "status") != "waitlisted" {
+		t.Fatalf("unexpected waitlisted response: %#v", waitlisted.JSON)
+	}
+	assertRoleApplicationNotificationCounts(t, fx, eventID, 2, 2)
+	assertRoleApplicationNotificationRecord(t, fx, applicantIDs[2], "role_application.waitlisted", "role_application:"+applicantIDs[2]+":waitlisted", mustString(t, event, "title"), "Performer", "Casey on stage")
+
+	rejected := patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/role-applications/"+applicantIDs[1], map[string]any{"status": "rejected"}, http.StatusOK)
+	if mustString(t, rejected.JSON, "status") != "rejected" {
+		t.Fatalf("unexpected rejected response: %#v", rejected.JSON)
+	}
+	assertRoleApplicationNotificationCounts(t, fx, eventID, 3, 3)
+	assertRoleApplicationNotificationRecord(t, fx, applicantIDs[1], "role_application.rejected", "role_application:"+applicantIDs[1]+":rejected", mustString(t, event, "title"), "Performer", "Brie on stage")
 
 	var auditAction, auditSubjectType, auditSubjectID, metadataText string
 	if err := fx.app.db.QueryRow(t.Context(), `
@@ -1442,6 +1461,60 @@ func TestEventRoleApplicationReviewAPI(t *testing.T) {
 		if _, ok := metadata[forbidden]; ok {
 			t.Fatalf("review audit metadata must not include %s: %#v", forbidden, metadata)
 		}
+	}
+}
+
+func assertRoleApplicationNotificationCounts(t *testing.T, fx lifecycleFixture, eventID string, wantNotifications, wantOutbox int) {
+	t.Helper()
+	var notificationCount int
+	if err := fx.app.db.QueryRow(t.Context(), `select count(*) from notification_events where event_id = $1`, eventID).Scan(&notificationCount); err != nil {
+		t.Fatal(err)
+	}
+	if notificationCount != wantNotifications {
+		t.Fatalf("unexpected notification count for event %s: got %d want %d", eventID, notificationCount, wantNotifications)
+	}
+
+	var outboxCount int
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select count(*)
+		from email_outbox o
+		join notification_events n on n.email_outbox_id = o.id
+		where n.event_id = $1
+	`, eventID).Scan(&outboxCount); err != nil {
+		t.Fatal(err)
+	}
+	if outboxCount != wantOutbox {
+		t.Fatalf("unexpected outbox count for event %s: got %d want %d", eventID, outboxCount, wantOutbox)
+	}
+}
+
+func assertRoleApplicationNotificationRecord(t *testing.T, fx lifecycleFixture, applicationID, wantType, wantKey, eventTitle, roleName, applicantMessage string) {
+	t.Helper()
+	var notificationType, idempotencyKey, subject, preview, body string
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select n.notification_type, n.idempotency_key, n.subject, n.preview, o.body
+		from notification_events n
+		join email_outbox o on o.id = n.email_outbox_id
+		where n.related_id = $1
+		order by n.created_at desc
+		limit 1
+	`, applicationID).Scan(&notificationType, &idempotencyKey, &subject, &preview, &body); err != nil {
+		t.Fatal(err)
+	}
+	if notificationType != wantType || idempotencyKey != wantKey {
+		t.Fatalf("unexpected notification identity for %s: type=%q key=%q", applicationID, notificationType, idempotencyKey)
+	}
+	if !strings.Contains(subject, eventTitle) || !strings.Contains(subject, roleName) {
+		t.Fatalf("notification subject missing event/role: %q", subject)
+	}
+	if preview != "Application "+strings.TrimPrefix(wantType, "role_application.")+" for "+roleName {
+		t.Fatalf("unexpected notification preview: %q", preview)
+	}
+	if !strings.Contains(body, eventTitle) || !strings.Contains(body, roleName) {
+		t.Fatalf("notification body missing event/role: %q", body)
+	}
+	if strings.Contains(subject, applicantMessage) || strings.Contains(preview, applicantMessage) || strings.Contains(body, applicantMessage) {
+		t.Fatalf("notification leaked application message %q: subject=%q preview=%q body=%q", applicantMessage, subject, preview, body)
 	}
 }
 
