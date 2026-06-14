@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ApiError, api, patchJSON, postJSON } from '../api';
-import type { CurrentWorkspaceDTO, EventArchiveDTO, EventDTO, EventParticipantDTO, EventReportDTO, EventRoleApplicationDTO, EventRoleDTO, EventSettlementDTO, EventStaffingItemDTO, EventStatus } from '../domain';
+import type { CurrentWorkspaceDTO, EventArchiveDTO, EventDTO, EventParticipantDTO, EventReportDTO, EventRoleApplicationDTO, EventRoleDTO, EventSettlementDTO, EventStaffingItemDTO, EventStatus, NotificationEventDTO } from '../domain';
 
 type FormState = {
   title: string;
@@ -276,6 +276,8 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   const [staffingLoading, setStaffingLoading] = useState(false);
   const [staffingForm, setStaffingForm] = useState<StaffingFormState>(emptyStaffingForm);
   const [staffingActioningId, setStaffingActioningId] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<NotificationEventDTO[] | null | undefined>(undefined);
+  const [notificationsRefreshTick, setNotificationsRefreshTick] = useState(0);
 
   const hasWorkspace = workspaceId !== '';
   const closed = event?.status === 'end_of_night';
@@ -284,6 +286,8 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   const settlementOpen = settlement?.status === 'open';
   const canManageArchive = event?.status === 'end_of_night' && currentWorkspace?.role === 'owner' && currentWorkspace?.id === event?.workspaceId;
   const canReviewApplications = currentWorkspace?.role === 'owner' && currentWorkspace?.id === event?.workspaceId;
+  const canViewNotificationActivity = currentWorkspace?.id === event?.workspaceId && (currentWorkspace?.role === 'owner' || currentWorkspace?.role === 'member');
+  const loadedNotificationActivity = Array.isArray(notifications) ? notifications : null;
   const applicationsReady = roles !== null && applications !== null;
   const participantsReady = participants !== null;
   const staffingReady = staffingLoading || staffingItems !== null;
@@ -501,6 +505,42 @@ export function EventEditorView({ eventId }: { eventId: string }) {
       cancelled = true;
     };
   }, [creating, event?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadNotifications() {
+      if (creating || !event || !canViewNotificationActivity) {
+        setNotifications(null);
+        return;
+      }
+
+      setNotifications(undefined);
+
+      try {
+        const loadedNotifications = await api<NotificationEventDTO[]>(`/api/events/${event.id}/notifications`);
+        if (!cancelled) {
+          setNotifications(loadedNotifications);
+        }
+      } catch (caught) {
+        if (cancelled) return;
+
+        if (caught instanceof ApiError && (caught.status === 403 || caught.status === 404)) {
+          setNotifications(null);
+          return;
+        }
+
+        setError(caught instanceof Error ? caught.message : 'Unable to load notification activity');
+        setNotifications(null);
+      }
+    }
+
+    void loadNotifications();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [canViewNotificationActivity, creating, event?.id, notificationsRefreshTick]);
 
   useEffect(() => {
     let cancelled = false;
@@ -765,6 +805,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
       const updated = await patchJSON<EventRoleApplicationDTO>(`/api/events/${event.id}/role-applications/${applicationID}`, { status });
       setApplications((current) => current?.map((application) => (application.id === applicationID ? updated : application)) ?? current);
       setApplicationReviewDrafts((current) => ({ ...current, [applicationID]: updated.status }));
+      setNotificationsRefreshTick((current) => current + 1);
       setMessage('Application updated');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to review application');
@@ -815,6 +856,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
     try {
       const updated = await patchJSON<EventStaffingItemDTO>(`/api/events/${event.id}/staffing/${staffingID}`, payload);
       setStaffingItems((current) => sortStaffingItems((current ?? []).map((item) => (item.id === staffingID ? updated : item))));
+      setNotificationsRefreshTick((current) => current + 1);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to update staffing item');
     } finally {
@@ -1679,6 +1721,44 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                       ))}
                     </div>
                   ) : null}
+                </section>
+              ) : null}
+
+              {canViewNotificationActivity && event && notifications !== null ? (
+                <section className="rounded-[1.75rem] border border-amber-400/20 bg-zinc-950/95 p-6 shadow-2xl shadow-black/30">
+                  <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Notification activity</p>
+                  <h2 className="mt-2 text-2xl font-semibold text-white">
+                    {loadedNotificationActivity === null ? 'Loading notifications…' : `${loadedNotificationActivity.length} queued notification${loadedNotificationActivity.length === 1 ? '' : 's'}`}
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-zinc-400">Recent operator-visible notifications stay here without application messages, staffing notes, or full email bodies.</p>
+
+                  {loadedNotificationActivity === null ? (
+                    <p className="mt-4 text-sm leading-6 text-zinc-400">Loading notification activity…</p>
+                  ) : loadedNotificationActivity.length > 0 ? (
+                    <div className="mt-4 space-y-3">
+                      {loadedNotificationActivity.map((notification) => (
+                        <article key={notification.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-white">{notification.subject}</p>
+                              <p className="mt-1 text-sm text-zinc-400">{notification.recipientEmail}</p>
+                            </div>
+                            <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-zinc-200">
+                              {notification.status}
+                            </span>
+                          </div>
+
+                          <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-zinc-500">
+                            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Type {notification.notificationType}</span>
+                            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Preview {notification.preview}</span>
+                            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Created {formatDateTime(notification.createdAt)}</span>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-4 rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-400">No notification activity yet.</p>
+                  )}
                 </section>
               ) : null}
 

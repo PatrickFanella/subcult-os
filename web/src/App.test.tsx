@@ -866,6 +866,126 @@ describe('App routes', () => {
     expect(rendered).not.toContain('Mark cancelled');
   });
 
+  it('renders notification activity for member views without private body text', () => {
+    const event = {
+      id: 'event-1',
+      workspaceId: 'workspace-1',
+      title: 'Night Market',
+      startsAt: '2026-06-13T23:00:00.000Z',
+      publicDescription: 'A late set.',
+      locationDisplay: 'The Hall',
+      ticketAllocation: 100,
+      pricingMode: 'fixed',
+      ticketPriceCents: 1800,
+      ticketCurrency: 'usd',
+      reservedCount: 12,
+      checkedInCount: 0,
+      status: 'published',
+      publicSlug: 'night-market',
+      publicUrl: '/e/night-market',
+    };
+
+    const rendered = renderWithState('/events/event-1?workspaceId=workspace-1', <EventEditorView eventId="event-1" />, [
+      event,
+      null,
+      null,
+      '',
+      false,
+      false,
+      {
+        title: event.title,
+        startsAt: '2026-06-13T23:00',
+        publicDescription: event.publicDescription,
+        locationDisplay: event.locationDisplay,
+        ticketAllocation: '100',
+        pricingMode: 'fixed',
+        ticketPriceDollars: '18.00',
+      },
+      {
+        title: event.title,
+        startsAt: '2026-06-13T23:00',
+        publicDescription: event.publicDescription,
+        locationDisplay: event.locationDisplay,
+        ticketAllocation: '100',
+        pricingMode: 'fixed',
+        ticketPriceDollars: '18.00',
+      },
+      false,
+      false,
+      false,
+      null,
+      null,
+      null,
+      {
+        amountDollars: '',
+        label: '',
+        reason: '',
+      },
+      false,
+      false,
+      {
+        id: 'workspace-1',
+        name: 'Main Room',
+        role: 'member',
+        members: [{ id: 'member-1', email: 'morgan@example.com', displayName: 'Morgan', role: 'member' }],
+        invitations: [],
+      },
+      null,
+      null,
+      {},
+      null,
+      null,
+      null,
+      false,
+      {
+        title: '',
+        kind: 'task',
+        notes: '',
+        startsAt: '',
+        endsAt: '',
+      },
+      null,
+      [
+        {
+          id: 'notification-1',
+          eventId: event.id,
+          recipientEmail: 'alex@example.com',
+          notificationType: 'role_application.accepted',
+          relatedType: 'role_application',
+          relatedId: 'application-1',
+          subject: 'Application accepted for Performer',
+          preview: 'Application accepted for Performer',
+          status: 'queued',
+          createdAt: '2026-06-13T22:30:00.000Z',
+        },
+        {
+          id: 'notification-2',
+          eventId: event.id,
+          recipientEmail: 'morgan@example.com',
+          notificationType: 'staffing.assignment',
+          relatedType: 'staffing_item',
+          relatedId: 'staffing-1',
+          subject: 'Assigned to Load in',
+          preview: 'Assigned to Load in',
+          status: 'queued',
+          createdAt: '2026-06-13T22:35:00.000Z',
+        },
+      ],
+      0,
+    ]);
+
+    expect(rendered).toContain('Notification activity');
+    expect(rendered).toContain('2 queued notifications');
+    expect(rendered).toContain('alex@example.com');
+    expect(rendered).toContain('role_application.accepted');
+    expect(rendered).toContain('Application accepted for Performer');
+    expect(rendered).toContain('staffing.assignment');
+    expect(rendered).toContain('morgan@example.com');
+    expect(rendered).not.toContain('Bring a keyboard.');
+    expect(rendered).not.toContain('Bring the banner.');
+    expect(rendered).not.toContain('Front desk coverage.');
+  });
+
   it('renders the end-of-night settlement summary report panel', () => {
     const event = {
       id: 'event-1',
