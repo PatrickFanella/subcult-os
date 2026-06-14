@@ -130,7 +130,7 @@ describe('App routes', () => {
     expect(rendered).toContain('USD only');
   });
 
-  it('renders the workspace archive affordance for closed events', () => {
+  it('renders the workspace archive section', () => {
     const event = {
       id: 'event-1',
       workspaceId: 'workspace-1',
@@ -164,13 +164,85 @@ describe('App routes', () => {
         invitations: [],
       },
       [event],
+      [
+        {
+          id: 'archive-1',
+          eventId: event.id,
+          title: 'Night Market',
+          startsAt: event.startsAt,
+          locationDisplay: event.locationDisplay,
+          noteCount: 1,
+          reportId: 'report-1',
+          settlementId: 'settlement-1',
+          createdAt: '2026-06-14T03:00:00.000Z',
+          updatedAt: '2026-06-14T03:10:00.000Z',
+        },
+      ],
       false,
     ]);
 
-    expect(rendered).toContain('Archive ready after closeout');
+    expect(rendered).toContain('Workspace archive');
+    expect(rendered).toContain('Night Market');
+    expect(rendered).toContain('1 note');
     expect(rendered).toContain('Open archive');
     expect(rendered).toContain('Seed next draft');
-    expect(rendered).toContain('Use the private archive to seed the next draft from the event editor.');
+    expect(rendered).toContain('No seeded draft yet');
+  });
+
+  it('shows seeded draft links in the archive section', () => {
+    const event = {
+      id: 'event-1',
+      workspaceId: 'workspace-1',
+      title: 'Night Market',
+      startsAt: '2026-06-13T23:00:00.000Z',
+      publicDescription: 'A late set.',
+      locationDisplay: 'The Hall',
+      ticketAllocation: 100,
+      pricingMode: 'fixed',
+      ticketPriceCents: 1800,
+      ticketCurrency: 'usd',
+      reservedCount: 26,
+      checkedInCount: 20,
+      status: 'end_of_night',
+      publicSlug: 'night-market',
+      publicUrl: '/e/night-market',
+    };
+
+    const rendered = renderWithState('/workspace?workspaceId=workspace-1', <WorkspaceView />, [
+      {
+        id: 'person-1',
+        email: 'owner@example.com',
+        displayName: 'Owner',
+        workspaces: [{ id: 'workspace-1', name: 'Main Room', role: 'owner' }],
+      },
+      {
+        id: 'workspace-1',
+        name: 'Main Room',
+        role: 'owner',
+        members: [],
+        invitations: [],
+      },
+      [event],
+      [
+        {
+          id: 'archive-1',
+          eventId: event.id,
+          title: 'Night Market',
+          startsAt: event.startsAt,
+          locationDisplay: event.locationDisplay,
+          noteCount: 1,
+          reportId: 'report-1',
+          settlementId: 'settlement-1',
+          seededEventId: 'event-2',
+          createdAt: '2026-06-14T03:00:00.000Z',
+          updatedAt: '2026-06-14T03:10:00.000Z',
+        },
+      ],
+      false,
+    ]);
+
+    expect(rendered).toContain('Open seeded draft');
+    expect(rendered).not.toContain('Seed next draft');
   });
 
   it('locks event pricing after tickets exist', () => {

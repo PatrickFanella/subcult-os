@@ -10,6 +10,7 @@ import type {
   InvitationCreatedDTO,
   InvitationDTO,
   MemberDTO,
+  WorkspaceArchiveSummaryDTO,
   WorkspaceDTO,
 } from '../domain';
 
@@ -244,6 +245,7 @@ export function WorkspaceView() {
   const [me, setMe] = useState<CurrentUserDTO | null>(null);
   const [workspace, setWorkspace] = useState<CurrentWorkspaceDTO | null>(null);
   const [events, setEvents] = useState<EventDTO[]>([]);
+  const [archives, setArchives] = useState<WorkspaceArchiveSummaryDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [workspaceNotice, setWorkspaceNotice] = useState<string | null>(null);
@@ -258,6 +260,11 @@ export function WorkspaceView() {
 
   const workspaceSummaries = useMemo(() => me?.workspaces ?? [], [me]);
   const orderedEvents = useMemo(() => [...events].sort((left, right) => new Date(right.startsAt).getTime() - new Date(left.startsAt).getTime()), [events]);
+  const orderedArchives = useMemo(
+    () => [...archives].sort((left, right) => new Date(right.startsAt).getTime() - new Date(left.startsAt).getTime() || new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()),
+    [archives],
+  );
+  const archiveByEventId = useMemo(() => new Map(archives.map((archive) => [archive.eventId, archive] as const)), [archives]);
   const statusCounts = useMemo(
     () =>
       orderedEvents.reduce(
@@ -274,11 +281,15 @@ export function WorkspaceView() {
   useEffect(() => {
     let cancelled = false;
 
-    async function loadWorkspaceEvents(nextWorkspace: CurrentWorkspaceDTO) {
+    async function loadWorkspaceData(nextWorkspace: CurrentWorkspaceDTO) {
       setWorkspace(nextWorkspace);
-      const loadedEvents = await api<EventDTO[]>(`/api/workspaces/${nextWorkspace.id}/events`).catch(() => []);
+      const [loadedEvents, loadedArchives] = await Promise.all([
+        api<EventDTO[]>(`/api/workspaces/${nextWorkspace.id}/events`).catch(() => []),
+        api<WorkspaceArchiveSummaryDTO[]>(`/api/workspaces/${nextWorkspace.id}/archives`).catch(() => []),
+      ]);
       if (!cancelled) {
         setEvents(loadedEvents ?? []);
+        setArchives(loadedArchives ?? []);
       }
     }
 
@@ -318,6 +329,7 @@ export function WorkspaceView() {
         if (user.workspaces.length === 0) {
           setWorkspace(null);
           setEvents([]);
+          setArchives([]);
           return;
         }
 
@@ -325,7 +337,7 @@ export function WorkspaceView() {
           try {
             const selectedWorkspace = normalizeCurrentWorkspace(await api<CurrentWorkspaceResponse>(`/api/workspaces/${requestedWorkspaceId}`));
             if (cancelled) return;
-            await loadWorkspaceEvents(selectedWorkspace);
+            await loadWorkspaceData(selectedWorkspace);
             return;
           } catch {
             if (cancelled) return;
@@ -339,13 +351,14 @@ export function WorkspaceView() {
                   ? 'That Workspace is not available. Showing your current Workspace instead.'
                   : 'That Workspace is not available. Showing the first Workspace you can still access.',
               );
-              await loadWorkspaceEvents(fallback.workspace);
+              await loadWorkspaceData(fallback.workspace);
               return;
             }
 
             setError('That Workspace is not available, and there is no fallback Workspace to open.');
             setWorkspace(null);
             setEvents([]);
+            setArchives([]);
             return;
           }
         }
@@ -354,12 +367,13 @@ export function WorkspaceView() {
         if (cancelled) return;
 
         if (currentWorkspace) {
-          await loadWorkspaceEvents(normalizeCurrentWorkspace(currentWorkspace));
+          await loadWorkspaceData(normalizeCurrentWorkspace(currentWorkspace));
         } else {
           const fallback = user.workspaces[0];
           if (!fallback) {
             setWorkspace(null);
             setEvents([]);
+            setArchives([]);
             return;
           }
 
@@ -370,7 +384,7 @@ export function WorkspaceView() {
             members: [],
             invitations: [],
           };
-          await loadWorkspaceEvents(fallbackWorkspace);
+          await loadWorkspaceData(fallbackWorkspace);
         }
       } catch (caught) {
         if (!cancelled) {
@@ -432,6 +446,7 @@ export function WorkspaceView() {
       };
       setWorkspace(nextWorkspace);
       setEvents([]);
+      setArchives([]);
       setWorkspaceName('');
       setWorkspaceNotice(`Created ${created.name}. You can invite members or start the first event now.`);
       setMe((current) =>
@@ -507,6 +522,7 @@ export function WorkspaceView() {
     try {
       const seeded = await postJSON<EventDTO>(`/api/events/${eventID}/archive/seed-draft`, {});
       setEvents((current) => [...current.filter((event) => event.id !== seeded.id), seeded]);
+      setArchives((current) => current.map((archive) => (archive.eventId === eventID ? { ...archive, seededEventId: seeded.id } : archive)));
       setWorkspaceNotice(`Seeded next draft: ${seeded.title}`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to seed next draft');
@@ -690,7 +706,10 @@ export function WorkspaceView() {
                         <p className="mt-1 leading-6">Create the first event to turn this workspace into a live operator home.</p>
                       </div>
                     ) : null}
-                    {orderedEvents.map((event) => (
+                    {orderedEvents.map((event) => {
+                      const archive = archiveByEventId.get(event.id) ?? null;
+
+                      return (
                       <article key={event.id} className={`rounded-[1.5rem] border p-4 ${eventStatusSurface(event.status)}`}>
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
@@ -733,22 +752,82 @@ export function WorkspaceView() {
                                 <p className="mt-2 leading-6">Use the private archive to seed the next draft from the event editor.</p>
                               </div>
                               {workspace?.role === 'owner' ? (
-                                <button
-                                  className="rounded-full border border-violet-400/20 bg-violet-300 px-3 py-2 text-zinc-950 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:bg-violet-300/60"
-                                  type="button"
-                                  onClick={() => void handleSeedNextDraft(event.id)}
-                                  disabled={seedingEventId === event.id}
-                                >
-                                  {seedingEventId === event.id ? 'Seeding…' : 'Seed next draft'}
-                                </button>
+                                archive?.seededEventId ? (
+                                  <a className="rounded-full border border-violet-400/20 bg-violet-300 px-3 py-2 text-zinc-950 transition hover:bg-violet-200" href={`/events/${archive.seededEventId}`}>
+                                    Open seeded draft
+                                  </a>
+                                ) : (
+                                  <button
+                                    className="rounded-full border border-violet-400/20 bg-violet-300 px-3 py-2 text-zinc-950 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:bg-violet-300/60"
+                                    type="button"
+                                    onClick={() => void handleSeedNextDraft(event.id)}
+                                    disabled={seedingEventId === event.id}
+                                  >
+                                    {seedingEventId === event.id ? 'Seeding…' : 'Seed next draft'}
+                                  </button>
+                                )
                               ) : null}
-                              </>
+                            </>
+                          ) : null}
+                        </div>
+                      </article>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <section className="space-y-3 rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
+                  <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Workspace archive</p>
+                  <p className="text-sm leading-6 text-zinc-400">Closed events become private workspace memory here.</p>
+
+                  <div className="space-y-3">
+                    {orderedArchives.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-5 text-sm text-zinc-400">
+                        <p className="font-medium text-white">No archives yet</p>
+                        <p className="mt-1 leading-6">Close an event to add its summary here.</p>
+                      </div>
+                    ) : null}
+
+                    {orderedArchives.map((archive) => (
+                      <article key={archive.id} className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <h3 className="text-lg font-medium text-white">{archive.title}</h3>
+                            <p className="mt-1 text-sm text-zinc-400">Starts {formatDateTime(archive.startsAt)}</p>
+                            <p className="mt-1 text-sm text-zinc-400">Location {archive.locationDisplay}</p>
+                          </div>
+                          <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs uppercase tracking-[0.25em] text-zinc-300">
+                            {archive.noteCount === 1 ? '1 note' : `${archive.noteCount} notes`}
+                          </span>
+                        </div>
+
+                        <p className="mt-3 text-sm font-medium text-zinc-200">{archive.seededEventId ? 'Seeded draft ready' : 'No seeded draft yet'}</p>
+
+                        <div className="mt-4 flex flex-wrap gap-2 text-sm">
+                          <a className="rounded-full bg-white px-3 py-2 font-medium text-zinc-950 transition hover:bg-zinc-200" href={`/events/${archive.eventId}`}>
+                            Open archive
+                          </a>
+                          {workspace?.role === 'owner' ? (
+                            archive.seededEventId ? (
+                              <a className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-zinc-200 transition hover:bg-white/10" href={`/events/${archive.seededEventId}`}>
+                                Open seeded draft
+                              </a>
+                            ) : (
+                              <button
+                                className="rounded-full border border-violet-400/20 bg-violet-300 px-3 py-2 text-zinc-950 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:bg-violet-300/60"
+                                type="button"
+                                onClick={() => void handleSeedNextDraft(archive.eventId)}
+                                disabled={seedingEventId === archive.eventId}
+                              >
+                                {seedingEventId === archive.eventId ? 'Seeding…' : 'Seed next draft'}
+                              </button>
+                            )
                           ) : null}
                         </div>
                       </article>
                     ))}
                   </div>
-                </div>
+                </section>
               </div>
 
               <aside className="space-y-6">
