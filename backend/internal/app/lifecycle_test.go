@@ -1092,6 +1092,9 @@ func TestPrivateMemoryBoundaries(t *testing.T) {
 	contactNotes := "Prefers late load-in"
 	commitmentDescription := "Private vendor detail"
 	templatePrivateNotes := "Template private notes should stay workspace-only"
+	reminderSubject := "Reminder subject should stay private"
+	reminderPreview := "Reminder preview should stay private"
+	reminderRecipient := "reminder@example.test"
 	template := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/event-templates", map[string]any{
 		"name":         "Monthly Market",
 		"title":        "Night Market",
@@ -1110,7 +1113,7 @@ func TestPrivateMemoryBoundaries(t *testing.T) {
 	}, http.StatusOK)
 	contactID := mustString(t, contact.JSON, "id")
 
-	postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments", map[string]any{
+	commitment := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments", map[string]any{
 		"eventId":       eventID,
 		"contactId":     contactID,
 		"title":         "Confirm projector",
@@ -1141,6 +1144,15 @@ func TestPrivateMemoryBoundaries(t *testing.T) {
 	`, fx.workspaceID, eventID, "notify@example.test", "event.update", "event_notification", "notification-ledger:test", outboxID, "Notification subject", "Sensitive preview", ownerID); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := fx.app.db.Exec(t.Context(), `
+		insert into reminder_events (
+			workspace_id, event_id, source_type, source_id, reminder_type,
+			recipient_email, due_at, idempotency_key, status, subject, preview, created_by_person_id
+		)
+		values ($1, $2, 'commitment', $3, 'commitment.due', $4, now(), 'reminder-ledger:test', 'queued', $5, $6, $7)
+	`, fx.workspaceID, eventID, mustString(t, commitment.JSON, "id"), reminderRecipient, reminderSubject, reminderPreview, ownerID); err != nil {
+		t.Fatal(err)
+	}
 
 	publicResponses := map[string]string{
 		"public discovery": getJSON(t, fx.app, nil, "/api/public/events", http.StatusOK).Body,
@@ -1152,7 +1164,7 @@ func TestPrivateMemoryBoundaries(t *testing.T) {
 		"notifications":    getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/notifications", http.StatusOK).Body,
 	}
 	for label, body := range publicResponses {
-		for _, forbidden := range []string{contactID, "Mira Door", "mira@example.test", "+15555550123", contactNotes, "Confirm projector", commitmentDescription, templatePrivateNotes} {
+		for _, forbidden := range []string{contactID, "Mira Door", "mira@example.test", "+15555550123", contactNotes, "Confirm projector", commitmentDescription, templatePrivateNotes, reminderSubject, reminderPreview, reminderRecipient} {
 			if strings.Contains(body, forbidden) {
 				t.Fatalf("%s leaked %q: %s", label, forbidden, body)
 			}
@@ -1168,6 +1180,11 @@ func TestPrivateMemoryBoundaries(t *testing.T) {
 	if strings.Contains(contactsBody, templatePrivateNotes) {
 		t.Fatalf("contacts route leaked template private notes: %s", contactsBody)
 	}
+	for _, forbidden := range []string{reminderSubject, reminderPreview, reminderRecipient} {
+		if strings.Contains(contactsBody, forbidden) {
+			t.Fatalf("contacts route leaked reminder data %q: %s", forbidden, contactsBody)
+		}
+	}
 
 	commitmentsBody := getJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments", http.StatusOK).Body
 	for _, want := range []string{"Confirm projector", commitmentDescription} {
@@ -1178,10 +1195,29 @@ func TestPrivateMemoryBoundaries(t *testing.T) {
 	if strings.Contains(commitmentsBody, templatePrivateNotes) {
 		t.Fatalf("commitments route leaked template private notes: %s", commitmentsBody)
 	}
+	for _, forbidden := range []string{reminderSubject, reminderPreview, reminderRecipient} {
+		if strings.Contains(commitmentsBody, forbidden) {
+			t.Fatalf("commitments route leaked reminder data %q: %s", forbidden, commitmentsBody)
+		}
+	}
 
 	templateList := getJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/event-templates", http.StatusOK).Body
 	if !strings.Contains(templateList, templatePrivateNotes) {
 		t.Fatalf("template route should expose private notes: %s", templateList)
+	}
+	for _, forbidden := range []string{reminderSubject, reminderPreview, reminderRecipient} {
+		if strings.Contains(templateList, forbidden) {
+			t.Fatalf("template route leaked reminder data %q: %s", forbidden, templateList)
+		}
+	}
+
+	workspaceReminders := getJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/reminders", http.StatusOK).Body
+	if !strings.Contains(workspaceReminders, reminderSubject) || !strings.Contains(workspaceReminders, reminderPreview) || !strings.Contains(workspaceReminders, reminderRecipient) {
+		t.Fatalf("workspace reminders route missing reminder data: %s", workspaceReminders)
+	}
+	eventReminders := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/reminders", http.StatusOK).Body
+	if !strings.Contains(eventReminders, reminderSubject) || !strings.Contains(eventReminders, reminderPreview) || !strings.Contains(eventReminders, reminderRecipient) {
+		t.Fatalf("event reminders route missing reminder data: %s", eventReminders)
 	}
 }
 

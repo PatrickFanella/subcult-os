@@ -37,7 +37,7 @@ The first product slice proves:
 7. Owner runs End of Night and views the private Event Report.
 8. People can belong to multiple Workspaces and switch the active operator home from the Workspace access panel.
 9. Public discovery page at `/discover` lists published events without exposing private workspace, archive, staffing, settlement, or application data.
-10. Event editors show operator-only notification activity for role reviews and staffing assignments without exposing application messages, staffing notes, archive note bodies, or settlement internals.
+10. Owner-triggered reminder sweeps create private notification activity for due commitments and upcoming staffing without exposing free-text notes publicly.
 
 Run locally:
 

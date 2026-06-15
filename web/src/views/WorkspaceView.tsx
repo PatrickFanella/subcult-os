@@ -13,6 +13,7 @@ import type {
   InvitationCreatedDTO,
   InvitationDTO,
   MemberDTO,
+  ReminderEventDTO,
   WorkspaceArchiveSummaryDTO,
   WorkspaceDTO,
 } from '../domain';
@@ -468,6 +469,9 @@ export function WorkspaceView() {
   const [templateSubmitting, setTemplateSubmitting] = useState(false);
   const [templateDeletingId, setTemplateDeletingId] = useState<string | null>(null);
   const [templateNotice, setTemplateNotice] = useState<string | null>(null);
+  const [reminders, setReminders] = useState<ReminderEventDTO[] | null | undefined>(undefined);
+  const [reminderSweepRunning, setReminderSweepRunning] = useState(false);
+  const [remindersRefreshTick, setRemindersRefreshTick] = useState(0);
   const requestedWorkspaceId = useMemo(() => getRequestedWorkspaceId(), []);
 
   function resetPrivateWorkspaceState() {
@@ -484,6 +488,8 @@ export function WorkspaceView() {
     setTemplateSubmitting(false);
     setTemplateDeletingId(null);
     setTemplateNotice(null);
+    setReminders(undefined);
+    setReminderSweepRunning(false);
   }
 
   const workspaceSummaries = useMemo(() => me?.workspaces ?? [], [me]);
@@ -501,6 +507,7 @@ export function WorkspaceView() {
   );
   const visibleContacts = useMemo(() => (contacts ? sortContacts(contacts) : []), [contacts]);
   const visibleCommitments = useMemo(() => (commitments ? sortCommitments(commitments) : []), [commitments]);
+  const visibleReminders = useMemo(() => (Array.isArray(reminders) ? reminders : []), [reminders]);
   const commitmentCounts = useMemo(
     () =>
       visibleCommitments.reduce(
@@ -688,6 +695,37 @@ export function WorkspaceView() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadReminders() {
+      if (!workspace) {
+        setReminders(undefined);
+        return;
+      }
+
+      setReminders(undefined);
+
+      try {
+        const loadedReminders = await api<ReminderEventDTO[]>(`/api/workspaces/${workspace.id}/reminders`);
+        if (!cancelled) {
+          setReminders(loadedReminders);
+        }
+      } catch (caught) {
+        if (!cancelled) {
+          setError(caught instanceof Error ? caught.message : 'Unable to load reminder activity');
+          setReminders(null);
+        }
+      }
+    }
+
+    void loadReminders();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [remindersRefreshTick, workspace?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1007,6 +1045,25 @@ export function WorkspaceView() {
       setCommitments((current) => sortCommitments([...(current ?? []).filter((commitment) => commitment.id !== updated.id), updated]));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to update commitment');
+    }
+  }
+
+  async function handleRunReminderSweep() {
+    if (!workspace || workspace.role !== 'owner') {
+      return;
+    }
+
+    setReminderSweepRunning(true);
+    setError(null);
+
+    try {
+      await postJSON<void>(`/api/workspaces/${workspace.id}/reminders/sweep`, {});
+      setReminders(undefined);
+      setRemindersRefreshTick((tick) => tick + 1);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to sweep reminders');
+    } finally {
+      setReminderSweepRunning(false);
     }
   }
 
@@ -1682,6 +1739,63 @@ export function WorkspaceView() {
                         ))}
                       </div>
                     )}
+
+                    {reminders !== null ? (
+                      <section className="space-y-4 rounded-[1.75rem] border border-fuchsia-400/20 bg-zinc-950/90 p-6 shadow-2xl shadow-black/20">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                          <div>
+                            <p className="text-xs uppercase tracking-[0.3em] text-fuchsia-300">Reminder activity</p>
+                            <h3 className="mt-2 text-2xl font-semibold text-white">
+                              {reminders === undefined ? 'Loading reminders…' : `${visibleReminders.length} reminder${visibleReminders.length === 1 ? '' : 's'}`}
+                            </h3>
+                            <p className="mt-2 text-sm leading-6 text-zinc-400">
+                              Private reminder sweeps stay here for operators without exposing commitment descriptions, staffing notes, or public event copy.
+                            </p>
+                          </div>
+
+                          {workspace.role === 'owner' ? (
+                            <button
+                              className="rounded-2xl border border-fuchsia-400/30 bg-fuchsia-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-fuchsia-200 disabled:cursor-not-allowed disabled:bg-fuchsia-300/60"
+                              type="button"
+                              onClick={() => void handleRunReminderSweep()}
+                              disabled={reminderSweepRunning || reminders === undefined}
+                            >
+                              {reminderSweepRunning ? 'Sweeping…' : 'Run reminder sweep'}
+                            </button>
+                          ) : null}
+                        </div>
+
+                        {reminders === undefined ? (
+                          <p className="text-sm leading-6 text-zinc-400">Loading reminder activity…</p>
+                        ) : visibleReminders.length > 0 ? (
+                          <div className="space-y-3">
+                            {visibleReminders.map((reminder) => (
+                              <article key={reminder.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                  <div>
+                                    <p className="text-sm font-semibold text-white">{reminder.subject}</p>
+                                    <p className="mt-1 text-sm text-zinc-400">
+                                      {reminder.recipientEmail} · {reminder.reminderType}
+                                    </p>
+                                  </div>
+                                  <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-zinc-200">
+                                    {reminder.status}
+                                  </span>
+                                </div>
+
+                                <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-zinc-500">
+                                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Due {formatDateTime(reminder.dueAt)}</span>
+                                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Preview {reminder.preview}</span>
+                                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Created {formatDateTime(reminder.createdAt)}</span>
+                                </div>
+                              </article>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-400">No reminder activity yet.</p>
+                        )}
+                      </section>
+                    ) : null}
 
                     {workspace.role === 'owner' ? (
                       <form className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4" onSubmit={handleContactSubmit}>

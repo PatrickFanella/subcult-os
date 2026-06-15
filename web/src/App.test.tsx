@@ -19,6 +19,8 @@ vi.mock('react', async () => {
 const useStateMock = vi.mocked(React.useState);
 const SKIP = Symbol('skip-state');
 const TEMPLATE_PRIVATE_NOTES = 'Template private notes should stay workspace-only';
+const REMINDER_PRIVATE_SUBJECT = 'Reminder subject should stay private';
+const REMINDER_PRIVATE_PREVIEW = 'Reminder preview should stay private';
 
 function skipStates(count: number) {
   return Array.from({ length: count }, () => SKIP);
@@ -116,6 +118,8 @@ describe('App routes', () => {
     expect(rendered).toContain('Loading published events…');
     expect(rendered).not.toContain('Private note:');
     expect(rendered).not.toContain('Keep private');
+    expect(rendered).not.toContain(REMINDER_PRIVATE_SUBJECT);
+    expect(rendered).not.toContain(REMINDER_PRIVATE_PREVIEW);
   });
 
   it('syncs the discover search query from the url', () => {
@@ -181,6 +185,8 @@ describe('App routes', () => {
     expect(rendered).toContain('2026');
     expect(rendered).not.toContain('Private note:');
     expect(rendered).not.toContain('Keep private');
+    expect(rendered).not.toContain(REMINDER_PRIVATE_SUBJECT);
+    expect(rendered).not.toContain(REMINDER_PRIVATE_PREVIEW);
   });
 
   it('renders the discover empty state', () => {
@@ -222,6 +228,8 @@ describe('App routes', () => {
     expect(rendered).toContain('Email required');
     expect(rendered).not.toContain('Private note:');
     expect(rendered).not.toContain('Keep private');
+    expect(rendered).not.toContain(REMINDER_PRIVATE_SUBJECT);
+    expect(rendered).not.toContain(REMINDER_PRIVATE_PREVIEW);
   });
 
   it('renders the event editor route', () => {
@@ -518,6 +526,23 @@ describe('App routes', () => {
       false,
       null,
       null,
+      [
+        {
+          id: 'reminder-1',
+          workspaceId: 'workspace-1',
+          eventId: event.id,
+          sourceType: 'commitment',
+          sourceId: 'commitment-1',
+          reminderType: 'commitment.due',
+          recipientEmail: 'owner@example.com',
+          dueAt: '2026-06-14T18:00:00.000Z',
+          notificationEventId: null,
+          status: 'queued',
+          subject: REMINDER_PRIVATE_SUBJECT,
+          preview: REMINDER_PRIVATE_PREVIEW,
+          createdAt: '2026-06-13T20:30:00.000Z',
+        },
+      ],
     ]);
 
     expect(rendered).toContain('Contacts');
@@ -532,6 +557,10 @@ describe('App routes', () => {
     expect(rendered).toContain('Event templates');
     expect(rendered).toContain('Monthly Market');
     expect(rendered).toContain(TEMPLATE_PRIVATE_NOTES);
+    expect(rendered).toContain('Reminder activity');
+    expect(rendered).toContain(REMINDER_PRIVATE_SUBJECT);
+    expect(rendered).toContain(REMINDER_PRIVATE_PREVIEW);
+    expect(rendered).toContain('Run reminder sweep');
     expect(rendered).toContain('Add template');
     expect(rendered).toContain('Edit');
     expect(rendered).toContain('Delete');
@@ -649,6 +678,23 @@ describe('App routes', () => {
       false,
       null,
       null,
+      [
+        {
+          id: 'reminder-1',
+          workspaceId: 'workspace-1',
+          eventId: event.id,
+          sourceType: 'commitment',
+          sourceId: 'commitment-1',
+          reminderType: 'commitment.due',
+          recipientEmail: 'member@example.com',
+          dueAt: '2026-06-14T18:00:00.000Z',
+          notificationEventId: null,
+          status: 'queued',
+          subject: REMINDER_PRIVATE_SUBJECT,
+          preview: REMINDER_PRIVATE_PREVIEW,
+          createdAt: '2026-06-13T20:30:00.000Z',
+        },
+      ],
     ]);
 
     expect(rendered).toContain('Contacts');
@@ -658,6 +704,10 @@ describe('App routes', () => {
     expect(rendered).toContain('Event templates');
     expect(rendered).toContain('Monthly Market');
     expect(rendered).toContain(TEMPLATE_PRIVATE_NOTES);
+    expect(rendered).toContain('Reminder activity');
+    expect(rendered).toContain(REMINDER_PRIVATE_SUBJECT);
+    expect(rendered).toContain(REMINDER_PRIVATE_PREVIEW);
+    expect(rendered).not.toContain('Run reminder sweep');
     expect(rendered).not.toContain('Add contact');
     expect(rendered).not.toContain('Add commitment');
     expect(rendered).not.toContain('Edit');
@@ -1676,6 +1726,24 @@ describe('App routes', () => {
         },
       ],
       0,
+      ...skipStates(9),
+      [
+        {
+          id: 'reminder-1',
+          workspaceId: event.workspaceId,
+          eventId: event.id,
+          sourceType: 'commitment',
+          sourceId: 'commitment-1',
+          reminderType: 'commitment.due',
+          recipientEmail: 'morgan@example.com',
+          dueAt: '2026-06-14T18:00:00.000Z',
+          notificationEventId: null,
+          status: 'queued',
+          subject: REMINDER_PRIVATE_SUBJECT,
+          preview: REMINDER_PRIVATE_PREVIEW,
+          createdAt: '2026-06-13T22:40:00.000Z',
+        },
+      ],
     ]);
 
     const notificationStart = rendered.indexOf('Notification activity');
@@ -1696,6 +1764,9 @@ describe('App routes', () => {
     expect(notificationSection).not.toContain(staffingNotes);
     expect(notificationSection).not.toContain(archiveNoteBody);
     expect(notificationSection).not.toContain(settlementInternal);
+    expect(rendered).toContain('Reminder activity');
+    expect(rendered).toContain(REMINDER_PRIVATE_SUBJECT);
+    expect(rendered).toContain(REMINDER_PRIVATE_PREVIEW);
   });
 
   it('renders the end-of-night settlement summary report panel', () => {

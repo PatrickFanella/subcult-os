@@ -14,6 +14,7 @@ import type {
   EventSettlementDTO,
   EventStaffingItemDTO,
   EventStatus,
+  ReminderEventDTO,
   NotificationEventDTO,
 } from '../domain';
 
@@ -363,6 +364,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   const [templateSelectionId, setTemplateSelectionId] = useState('');
   const [templateApplying, setTemplateApplying] = useState(false);
   const [templateSavingFromEvent, setTemplateSavingFromEvent] = useState(false);
+  const [reminders, setReminders] = useState<ReminderEventDTO[] | null | undefined>(undefined);
   const commitmentsRevisionRef = useRef(0);
 
   const hasWorkspace = workspaceId !== '';
@@ -373,7 +375,9 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   const canManageArchive = event?.status === 'end_of_night' && currentWorkspace?.role === 'owner' && currentWorkspace?.id === event?.workspaceId;
   const canReviewApplications = currentWorkspace?.role === 'owner' && currentWorkspace?.id === event?.workspaceId;
   const canViewNotificationActivity = currentWorkspace?.id === event?.workspaceId && (currentWorkspace?.role === 'owner' || currentWorkspace?.role === 'member');
+  const canViewReminderActivity = currentWorkspace?.id === event?.workspaceId && (currentWorkspace?.role === 'owner' || currentWorkspace?.role === 'member');
   const loadedNotificationActivity = Array.isArray(notifications) ? notifications : null;
+  const loadedReminderActivity = Array.isArray(reminders) ? reminders : null;
   const applicationsReady = roles !== null && applications !== null;
   const participantsReady = participants !== null;
   const staffingReady = staffingLoading || staffingItems !== null;
@@ -639,6 +643,42 @@ export function EventEditorView({ eventId }: { eventId: string }) {
       cancelled = true;
     };
   }, [canViewNotificationActivity, creating, event?.id, notificationsRefreshTick]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadReminders() {
+      if (creating || !event || !canViewReminderActivity) {
+        setReminders(null);
+        return;
+      }
+
+      setReminders(undefined);
+
+      try {
+        const loadedReminders = await api<ReminderEventDTO[]>(`/api/events/${event.id}/reminders`);
+        if (!cancelled) {
+          setReminders(loadedReminders);
+        }
+      } catch (caught) {
+        if (cancelled) return;
+
+        if (caught instanceof ApiError && (caught.status === 403 || caught.status === 404)) {
+          setReminders(null);
+          return;
+        }
+
+        setError(caught instanceof Error ? caught.message : 'Unable to load reminder activity');
+        setReminders(null);
+      }
+    }
+
+    void loadReminders();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [canViewReminderActivity, creating, event?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2125,6 +2165,44 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                     </div>
                   ) : (
                     <p className="mt-4 rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-400">No notification activity yet.</p>
+                  )}
+                </section>
+              ) : null}
+
+              {canViewReminderActivity && event && reminders !== null ? (
+                <section className="rounded-[1.75rem] border border-fuchsia-400/20 bg-zinc-950/95 p-6 shadow-2xl shadow-black/30">
+                  <p className="text-xs uppercase tracking-[0.3em] text-fuchsia-300">Reminder activity</p>
+                  <h2 className="mt-2 text-2xl font-semibold text-white">
+                    {loadedReminderActivity === null ? 'Loading reminders…' : `${loadedReminderActivity.length} queued reminder${loadedReminderActivity.length === 1 ? '' : 's'}`}
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-zinc-400">Event reminder sweeps stay here without private commit text, staffing notes, or public copy.</p>
+
+                  {loadedReminderActivity === null ? (
+                    <p className="mt-4 text-sm leading-6 text-zinc-400">Loading reminder activity…</p>
+                  ) : loadedReminderActivity.length > 0 ? (
+                    <div className="mt-4 space-y-3">
+                      {loadedReminderActivity.map((reminder) => (
+                        <article key={reminder.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-white">{reminder.subject}</p>
+                              <p className="mt-1 text-sm text-zinc-400">{reminder.recipientEmail}</p>
+                            </div>
+                            <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-zinc-200">
+                              {reminder.status}
+                            </span>
+                          </div>
+
+                          <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-zinc-500">
+                            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Type {reminder.reminderType}</span>
+                            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Preview {reminder.preview}</span>
+                            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Due {formatDateTime(reminder.dueAt)}</span>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-4 rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-400">No reminder activity yet.</p>
                   )}
                 </section>
               ) : null}
