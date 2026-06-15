@@ -81,6 +81,17 @@ type commitmentReminderRow struct {
 	OwnerPersonID sql.NullString
 }
 
+type staffingReminderRow struct {
+	ID                    string
+	WorkspaceID           string
+	EventID               string
+	EventTitle            string
+	Title                 string
+	StartsAt              time.Time
+	AssignedPersonID      sql.NullString
+	AssignedApplicationID sql.NullString
+}
+
 func (a *App) handleListWorkspaceReminders(w http.ResponseWriter, r *http.Request) {
 	if a.db == nil {
 		writeError(w, http.StatusInternalServerError, "database unavailable")
@@ -181,6 +192,7 @@ func (a *App) runWorkspaceReminderSweep(ctx context.Context, workspaceID, actorI
 		return reminderSweepResult{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+	windowEnd := now.UTC().Add(24 * time.Hour)
 
 	rows, err := tx.Query(ctx, `
 		select id, workspace_id, event_id, title, due_at, owner_person_id
@@ -194,15 +206,23 @@ func (a *App) runWorkspaceReminderSweep(ctx context.Context, workspaceID, actorI
 	if err != nil {
 		return reminderSweepResult{}, err
 	}
-	defer rows.Close()
 
 	result := reminderSweepResult{}
+	commitmentRows := make([]commitmentReminderRow, 0)
 	for rows.Next() {
 		var row commitmentReminderRow
 		if err := rows.Scan(&row.ID, &row.WorkspaceID, &row.EventID, &row.Title, &row.DueAt, &row.OwnerPersonID); err != nil {
 			return reminderSweepResult{}, err
 		}
+		commitmentRows = append(commitmentRows, row)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return reminderSweepResult{}, err
+	}
+	rows.Close()
 
+	for _, row := range commitmentRows {
 		recipients, err := a.commitmentReminderRecipients(ctx, tx, workspaceID, row.OwnerPersonID)
 		if err != nil {
 			return reminderSweepResult{}, err
@@ -246,8 +266,94 @@ func (a *App) runWorkspaceReminderSweep(ctx context.Context, workspaceID, actorI
 			}
 		}
 	}
-	if err := rows.Err(); err != nil {
+	staffingRows, err := tx.Query(ctx, `
+		select esi.id as staffing_id, e.workspace_id, e.id as event_id, e.title as event_title, esi.title as staffing_title, esi.starts_at,
+		       esi.assigned_person_id, esi.assigned_application_id
+		from event_staffing_items esi
+		join events e on e.id = esi.event_id
+		where e.workspace_id = $1
+		  and e.status = 'published'
+		  and esi.status = 'open'
+		  and esi.assigned_person_id is null
+		  and esi.assigned_application_id is null
+		  and esi.starts_at is not null
+		  and esi.starts_at >= $2
+		  and esi.starts_at <= $3
+		union all
+		select esi.id as staffing_id, e.workspace_id, e.id as event_id, e.title as event_title, esi.title as staffing_title, esi.starts_at,
+		       esi.assigned_person_id, esi.assigned_application_id
+		from event_staffing_items esi
+		join events e on e.id = esi.event_id
+		where e.workspace_id = $1
+		  and e.status = 'published'
+		  and esi.status = 'assigned'
+		  and esi.starts_at is not null
+		  and esi.starts_at >= $2
+		  and esi.starts_at <= $3
+		order by starts_at asc, staffing_id asc
+	`, workspaceID, now.UTC(), windowEnd)
+	if err != nil {
 		return reminderSweepResult{}, err
+	}
+	staffingReminderRows := make([]staffingReminderRow, 0)
+
+	for staffingRows.Next() {
+		var row staffingReminderRow
+		if err := staffingRows.Scan(&row.ID, &row.WorkspaceID, &row.EventID, &row.EventTitle, &row.Title, &row.StartsAt, &row.AssignedPersonID, &row.AssignedApplicationID); err != nil {
+			return reminderSweepResult{}, err
+		}
+		staffingReminderRows = append(staffingReminderRows, row)
+	}
+	if err := staffingRows.Err(); err != nil {
+		staffingRows.Close()
+		return reminderSweepResult{}, err
+	}
+	staffingRows.Close()
+
+	for _, row := range staffingReminderRows {
+		recipients, err := a.staffingReminderRecipients(ctx, tx, row)
+		if err != nil {
+			return reminderSweepResult{}, err
+		}
+		if len(recipients) == 0 {
+			result.SkippedCount++
+			continue
+		}
+
+		subject, preview, body := staffingReminderCopy(row.EventTitle, row.Title, row.StartsAt)
+		for _, recipient := range recipients {
+			reminderType := "staffing.unassigned"
+			idempotencyPrefix := "staffing_unassigned"
+			if row.Status() == "assigned" {
+				reminderType = "staffing.upcoming"
+				idempotencyPrefix = "staffing_upcoming"
+			}
+			created, err := a.createReminderAndNotification(ctx, tx, reminderActionParams{
+				WorkspaceID:       workspaceID,
+				EventID:           row.EventID,
+				SourceType:        "staffing",
+				SourceID:          row.ID,
+				ReminderType:      reminderType,
+				RecipientEmail:    recipient,
+				DueAt:             row.StartsAt.UTC(),
+				IdempotencyKey:    idempotencyPrefix + ":" + row.ID + ":" + recipient,
+				NotificationType:  reminderType,
+				RelatedType:       "event_staffing_item",
+				RelatedID:         row.ID,
+				Subject:           subject,
+				Body:              body,
+				Preview:           preview,
+				CreatedByPersonID: actorID,
+			})
+			if err != nil {
+				return reminderSweepResult{}, err
+			}
+			if created {
+				result.CreatedCount++
+			} else {
+				result.SkippedCount++
+			}
+		}
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return reminderSweepResult{}, err
@@ -387,6 +493,14 @@ func (a *App) commitmentReminderRecipients(ctx context.Context, tx pgx.Tx, works
 		}
 	}
 
+	return a.workspaceOwnerRecipients(ctx, tx, workspaceID)
+}
+
+func (a *App) workspaceOwnerRecipients(ctx context.Context, tx pgx.Tx, workspaceID string) ([]string, error) {
+	if tx == nil {
+		return nil, nil
+	}
+
 	rows, err := tx.Query(ctx, `
 		select p.email
 		from workspace_members wm
@@ -424,10 +538,75 @@ func (a *App) commitmentReminderRecipients(ctx context.Context, tx pgx.Tx, works
 	return recipients, nil
 }
 
+func (a *App) staffingReminderRecipients(ctx context.Context, tx pgx.Tx, row staffingReminderRow) ([]string, error) {
+	if tx == nil {
+		return nil, nil
+	}
+	if row.AssignedPersonID.Valid {
+		var email string
+		err := tx.QueryRow(ctx, `
+			select p.email
+			from workspace_members wm
+			join people p on p.id = wm.person_id
+			where wm.workspace_id = $1
+			  and wm.person_id = $2
+			  and wm.removed_at is null
+		`, row.WorkspaceID, row.AssignedPersonID.String).Scan(&email)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, nil
+			}
+			return nil, err
+		}
+		normalized := normalizeEmail(email)
+		if normalized == "" {
+			return nil, nil
+		}
+		return []string{normalized}, nil
+	}
+	if row.AssignedApplicationID.Valid {
+		var email string
+		err := tx.QueryRow(ctx, `
+			select applicant_email
+			from event_role_applications
+			where id = $1
+			  and event_id = $2
+			  and status in ('accepted', 'confirmed')
+		`, row.AssignedApplicationID.String, row.EventID).Scan(&email)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, nil
+			}
+			return nil, err
+		}
+		normalized := normalizeEmail(email)
+		if normalized == "" {
+			return nil, nil
+		}
+		return []string{normalized}, nil
+	}
+	return a.workspaceOwnerRecipients(ctx, tx, row.WorkspaceID)
+}
+
 func commitmentReminderCopy(title string, dueAt time.Time) (string, string, string) {
 	due := dueAt.UTC().Format(time.RFC3339)
-	subject := fmt.Sprintf("Commitment due: %s", title)
+	subject := fmt.Sprintf("Commitment due: %s at %s", title, due)
 	preview := fmt.Sprintf("%s due %s", title, due)
 	body := fmt.Sprintf("Commitment %q is due at %s.", title, due)
 	return subject, preview, body
+}
+
+func staffingReminderCopy(eventTitle, staffingTitle string, startsAt time.Time) (string, string, string) {
+	start := startsAt.UTC().Format(time.RFC3339)
+	subject := fmt.Sprintf("Staffing reminder: %s — %s", eventTitle, staffingTitle)
+	preview := fmt.Sprintf("%s for %s starts %s", staffingTitle, eventTitle, start)
+	body := fmt.Sprintf("Staffing item %q for %q starts at %s.", staffingTitle, eventTitle, start)
+	return subject, preview, body
+}
+
+func (r staffingReminderRow) Status() string {
+	if r.AssignedPersonID.Valid || r.AssignedApplicationID.Valid {
+		return "assigned"
+	}
+	return "open"
 }

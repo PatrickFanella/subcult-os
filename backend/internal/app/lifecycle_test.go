@@ -928,6 +928,159 @@ func TestReminderSweepCommitments(t *testing.T) {
 	}
 }
 
+func TestReminderSweepStaffing(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Benefit Show", 20)
+	eventID := mustString(t, event, "id")
+	published := publishEvent(t, fx, eventID)
+	slug := mustString(t, published, "publicSlug")
+	startsAt := time.Now().UTC().Add(2 * time.Hour)
+	startsAtText := startsAt.Format(time.RFC3339)
+	ownerID := ownerPersonID(t, fx)
+	memberID := mustString(t, func() map[string]any {
+		var personID string
+		if err := fx.app.db.QueryRow(t.Context(), `
+			select person_id
+			from workspace_members
+			where workspace_id = $1
+			  and role = 'member'
+			  and removed_at is null
+			limit 1
+		`, fx.workspaceID).Scan(&personID); err != nil {
+			t.Fatal(err)
+		}
+		return map[string]any{"id": personID}
+	}(), "id")
+
+	role := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/roles", map[string]any{"name": "Performer", "description": "Play a set.", "capacity": 1, "public": true}, http.StatusOK)
+	roleID := mustString(t, role.JSON, "id")
+	accepted := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": roleID, "applicantName": "Alex Applicant", "applicantEmail": "alex@example.test", "message": "Private application message"}, http.StatusOK)
+	acceptedAppID := mustString(t, accepted.JSON, "id")
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update event_role_applications
+		set status = 'accepted', updated_at = now()
+		where id = $1
+	`, acceptedAppID); err != nil {
+		t.Fatal(err)
+	}
+
+	var openID, assignedPersonID, assignedApplicationID, completedID, cancelledID string
+	if err := fx.app.db.QueryRow(t.Context(), `
+		insert into event_staffing_items (
+			event_id, title, kind, notes, starts_at, status, created_by_person_id
+		)
+		values ($1, 'Open door shift', 'shift', 'Private staffing note', $2, 'open', $3)
+		returning id
+	`, eventID, startsAtText, ownerID).Scan(&openID); err != nil {
+		t.Fatal(err)
+	}
+	if err := fx.app.db.QueryRow(t.Context(), `
+		insert into event_staffing_items (
+			event_id, title, kind, notes, starts_at, assigned_person_id, status, created_by_person_id
+		)
+		values ($1, 'Assigned member shift', 'shift', 'Member staffing note', $2, $3, 'assigned', $4)
+		returning id
+	`, eventID, startsAtText, memberID, ownerID).Scan(&assignedPersonID); err != nil {
+		t.Fatal(err)
+	}
+	if err := fx.app.db.QueryRow(t.Context(), `
+		insert into event_staffing_items (
+			event_id, title, kind, notes, starts_at, assigned_application_id, status, created_by_person_id
+		)
+		values ($1, 'Assigned application shift', 'shift', 'Application staffing note', $2, $3, 'assigned', $4)
+		returning id
+	`, eventID, startsAtText, acceptedAppID, ownerID).Scan(&assignedApplicationID); err != nil {
+		t.Fatal(err)
+	}
+	if err := fx.app.db.QueryRow(t.Context(), `
+		insert into event_staffing_items (
+			event_id, title, kind, notes, starts_at, status, created_by_person_id, completed_at, completed_by_person_id
+		)
+		values ($1, 'Completed task', 'task', 'Completed staffing note', $2, 'completed', $3, now(), $3)
+		returning id
+	`, eventID, startsAtText, ownerID).Scan(&completedID); err != nil {
+		t.Fatal(err)
+	}
+	if err := fx.app.db.QueryRow(t.Context(), `
+		insert into event_staffing_items (
+			event_id, title, kind, notes, starts_at, status, created_by_person_id
+		)
+		values ($1, 'Cancelled task', 'task', 'Cancelled staffing note', $2, 'cancelled', $3)
+		returning id
+	`, eventID, startsAtText, ownerID).Scan(&cancelledID); err != nil {
+		t.Fatal(err)
+	}
+
+	draftEvent := createEvent(t, fx, "Draft Night", 10)
+	draftEventID := mustString(t, draftEvent, "id")
+	var draftStaffingID string
+	if err := fx.app.db.QueryRow(t.Context(), `
+		insert into event_staffing_items (
+			event_id, title, kind, notes, starts_at, status, created_by_person_id
+		)
+		values ($1, 'Draft task', 'task', 'Draft staffing note', $2, 'open', $3)
+		returning id
+	`, draftEventID, startsAtText, ownerID).Scan(&draftStaffingID); err != nil {
+		t.Fatal(err)
+	}
+
+	closedEvent := createEvent(t, fx, "Closed Night", 10)
+	closedEventID := mustString(t, closedEvent, "id")
+	publishEvent(t, fx, closedEventID)
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+closedEventID+"/end-of-night", map[string]any{}, http.StatusOK)
+	var closedStaffingID string
+	if err := fx.app.db.QueryRow(t.Context(), `
+		insert into event_staffing_items (
+			event_id, title, kind, notes, starts_at, status, created_by_person_id
+		)
+		values ($1, 'Closed task', 'task', 'Closed staffing note', $2, 'open', $3)
+		returning id
+	`, closedEventID, startsAtText, ownerID).Scan(&closedStaffingID); err != nil {
+		t.Fatal(err)
+	}
+
+	first := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/reminders/sweep", map[string]any{"now": startsAt.Add(-30 * time.Minute).Format(time.RFC3339)}, http.StatusOK)
+	firstResult := mustObject(t, first.JSON)
+	if int(firstResult["createdCount"].(float64)) != 3 || int(firstResult["skippedCount"].(float64)) != 0 {
+		t.Fatalf("expected first staffing sweep to create three reminders: %#v", first.JSON)
+	}
+
+	repeated := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/reminders/sweep", map[string]any{"now": startsAt.Add(-30 * time.Minute).Format(time.RFC3339)}, http.StatusOK)
+	repeatedResult := mustObject(t, repeated.JSON)
+	if int(repeatedResult["createdCount"].(float64)) != 0 || int(repeatedResult["skippedCount"].(float64)) != 3 {
+		t.Fatalf("expected repeated staffing sweep to skip duplicate reminders: %#v", repeated.JSON)
+	}
+
+	assertStaffingReminderCounts(t, fx, eventID, 3, 3, 3)
+
+	reminders := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/reminders", http.StatusOK).JSON.([]any)
+	if len(reminders) != 3 {
+		t.Fatalf("expected three staffing reminders, got %#v", reminders)
+	}
+	remindersRaw, _ := json.Marshal(reminders)
+	for _, forbidden := range []string{"Private staffing note", "Member staffing note", "Application staffing note", "Private application message", "Draft staffing note", "Closed staffing note", "Completed staffing note", "Cancelled staffing note"} {
+		if strings.Contains(string(remindersRaw), forbidden) {
+			t.Fatalf("staffing reminder api leaked %q: %s", forbidden, remindersRaw)
+		}
+	}
+
+	assertStaffingReminderNotificationRecord(t, fx, openID, fx.email("owner"), "staffing.unassigned", "staffing_unassigned:"+openID+":"+fx.email("owner"), "Benefit Show", "Open door shift", startsAtText, "Private staffing note")
+	assertStaffingReminderNotificationRecord(t, fx, assignedPersonID, fx.email("member"), "staffing.upcoming", "staffing_upcoming:"+assignedPersonID+":"+fx.email("member"), "Benefit Show", "Assigned member shift", startsAtText, "Member staffing note")
+	assertStaffingReminderNotificationRecord(t, fx, assignedApplicationID, "alex@example.test", "staffing.upcoming", "staffing_upcoming:"+assignedApplicationID+":alex@example.test", "Benefit Show", "Assigned application shift", startsAtText, "Private application message")
+
+	var excludedCount int
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select count(*)
+		from reminder_events
+		where source_id in ($1, $2, $3, $4)
+	`, draftStaffingID, closedStaffingID, completedID, cancelledID).Scan(&excludedCount); err != nil {
+		t.Fatal(err)
+	}
+	if excludedCount != 0 {
+		t.Fatalf("expected only published staffing items to create reminders, got %d reminders for excluded sources", excludedCount)
+	}
+}
+
 func TestPrivateMemoryBoundaries(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	event := createEventWithPricing(t, fx, "Night Market", 40, "fixed", 1800, "usd")
@@ -2292,6 +2445,80 @@ func assertStaffingAssignmentNotificationRecord(t *testing.T, fx lifecycleFixtur
 		t.Fatalf("notification body missing event/staffing: %q", body)
 	}
 	if strings.Contains(subject, forbiddenText) || strings.Contains(preview, forbiddenText) || strings.Contains(body, forbiddenText) {
+		t.Fatalf("notification leaked restricted text %q: subject=%q preview=%q body=%q", forbiddenText, subject, preview, body)
+	}
+}
+
+func assertStaffingReminderCounts(t *testing.T, fx lifecycleFixture, eventID string, wantReminders, wantNotifications, wantOutbox int) {
+	t.Helper()
+	var reminderCount int
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select count(*)
+		from reminder_events
+		where event_id = $1
+		  and source_type = 'staffing'
+	`, eventID).Scan(&reminderCount); err != nil {
+		t.Fatal(err)
+	}
+	if reminderCount != wantReminders {
+		t.Fatalf("unexpected staffing reminder count for event %s: got %d want %d", eventID, reminderCount, wantReminders)
+	}
+
+	var notificationCount int
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select count(*)
+		from notification_events
+		where event_id = $1
+		  and notification_type in ('staffing.unassigned', 'staffing.upcoming')
+	`, eventID).Scan(&notificationCount); err != nil {
+		t.Fatal(err)
+	}
+	if notificationCount != wantNotifications {
+		t.Fatalf("unexpected staffing notification count for event %s: got %d want %d", eventID, notificationCount, wantNotifications)
+	}
+
+	var outboxCount int
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select count(*)
+		from email_outbox o
+		join notification_events n on n.email_outbox_id = o.id
+		where n.event_id = $1
+		  and n.notification_type in ('staffing.unassigned', 'staffing.upcoming')
+	`, eventID).Scan(&outboxCount); err != nil {
+		t.Fatal(err)
+	}
+	if outboxCount != wantOutbox {
+		t.Fatalf("unexpected staffing outbox count for event %s: got %d want %d", eventID, outboxCount, wantOutbox)
+	}
+}
+
+func assertStaffingReminderNotificationRecord(t *testing.T, fx lifecycleFixture, staffingID, wantRecipient, wantType, wantKey, eventTitle, staffingTitle, startAt, forbiddenText string) {
+	t.Helper()
+	var notificationType, idempotencyKey, recipientEmail, subject, preview, body string
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select n.notification_type, n.idempotency_key, n.recipient_email, n.subject, n.preview, o.body
+		from notification_events n
+		join email_outbox o on o.id = n.email_outbox_id
+		where n.related_id = $1
+		  and n.notification_type = $2
+		order by n.created_at desc
+		limit 1
+	`, staffingID, wantType).Scan(&notificationType, &idempotencyKey, &recipientEmail, &subject, &preview, &body); err != nil {
+		t.Fatal(err)
+	}
+	if notificationType != wantType || idempotencyKey != wantKey || recipientEmail != wantRecipient {
+		t.Fatalf("unexpected staffing reminder identity for %s: type=%q key=%q recipient=%q", staffingID, notificationType, idempotencyKey, recipientEmail)
+	}
+	if !strings.Contains(subject, eventTitle) || !strings.Contains(subject, staffingTitle) {
+		t.Fatalf("notification subject missing event/staffing: %q", subject)
+	}
+	if !strings.Contains(preview, eventTitle) || !strings.Contains(preview, staffingTitle) || !strings.Contains(preview, startAt) {
+		t.Fatalf("notification preview missing event/staffing/time: %q", preview)
+	}
+	if !strings.Contains(body, eventTitle) || !strings.Contains(body, staffingTitle) || !strings.Contains(body, startAt) {
+		t.Fatalf("notification body missing event/staffing/time: %q", body)
+	}
+	if forbiddenText != "" && (strings.Contains(subject, forbiddenText) || strings.Contains(preview, forbiddenText) || strings.Contains(body, forbiddenText)) {
 		t.Fatalf("notification leaked restricted text %q: subject=%q preview=%q body=%q", forbiddenText, subject, preview, body)
 	}
 }
