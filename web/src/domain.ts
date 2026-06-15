@@ -80,6 +80,22 @@ export interface CommitmentDTO {
   updatedAt: string;
 }
 
+export interface ReminderEventDTO {
+  id: string;
+  workspaceId: string;
+  eventId?: string | null;
+  sourceType: 'commitment' | 'staffing';
+  sourceId: string;
+  reminderType: 'commitment.due' | 'staffing.upcoming' | 'staffing.unassigned';
+  recipientEmail: string;
+  dueAt: string;
+  notificationEventId?: string | null;
+  status: 'queued';
+  subject: string;
+  preview: string;
+  createdAt: string;
+}
+
 export interface EventTemplateDTO {
   id: string;
   workspaceId: string;

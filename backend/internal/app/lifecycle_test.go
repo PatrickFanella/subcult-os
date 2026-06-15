@@ -757,6 +757,51 @@ func TestNotificationLedgerAPI(t *testing.T) {
 	getJSON(t, fx.app, nil, "/api/events/"+eventID+"/notifications", http.StatusForbidden)
 }
 
+func TestReminderLedgerAPI(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Benefit Show", 20)
+	eventID := mustString(t, event, "id")
+	commitment := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments", map[string]any{"title": "Seed reminder source"}, http.StatusOK)
+	commitmentID := mustString(t, commitment.JSON, "id")
+
+	var reminderID string
+	if err := fx.app.db.QueryRow(t.Context(), `
+		insert into reminder_events (
+			workspace_id, event_id, source_type, source_id, reminder_type,
+			recipient_email, due_at, idempotency_key, status, subject, preview, created_by_person_id
+		) values ($1, $2, 'commitment', $3, 'commitment.due', 'owner@example.test', now(), 'test-reminder-key', 'queued', 'Reminder subject', 'Reminder preview', $4)
+		returning id
+	`, fx.workspaceID, eventID, commitmentID, ownerPersonID(t, fx)).Scan(&reminderID); err != nil {
+		t.Fatal(err)
+	}
+
+	workspaceResp := getJSON(t, fx.app, fx.memberCookie, "/api/workspaces/"+fx.workspaceID+"/reminders", http.StatusOK)
+	reminders := workspaceResp.JSON.([]any)
+	if len(reminders) != 1 {
+		t.Fatalf("expected one reminder, got %#v", reminders)
+	}
+	reminder := mustObject(t, reminders[0])
+	if reminder["id"] != reminderID || reminder["workspaceId"] != fx.workspaceID || reminder["sourceType"] != "commitment" || reminder["sourceId"] != commitmentID || reminder["reminderType"] != "commitment.due" || reminder["recipientEmail"] != "owner@example.test" || reminder["subject"] != "Reminder subject" || reminder["preview"] != "Reminder preview" || reminder["status"] != "queued" {
+		t.Fatalf("unexpected reminder: %#v", reminder)
+	}
+	if reminder["eventId"] != eventID {
+		t.Fatalf("expected eventId to match, got %#v", reminder["eventId"])
+	}
+	if reminder["notificationEventId"] != nil {
+		t.Fatalf("expected notificationEventId to be null, got %#v", reminder["notificationEventId"])
+	}
+
+	eventResp := getJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/reminders", http.StatusOK)
+	if got := eventResp.JSON.([]any); len(got) != 1 {
+		t.Fatalf("expected one event reminder, got %#v", got)
+	}
+
+	otherFx := newLifecycleFixture(t)
+	getJSON(t, fx.app, nil, "/api/workspaces/"+fx.workspaceID+"/reminders", http.StatusForbidden)
+	getJSON(t, fx.app, otherFx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/reminders", http.StatusForbidden)
+	getJSON(t, fx.app, otherFx.memberCookie, "/api/events/"+eventID+"/reminders", http.StatusForbidden)
+}
+
 func TestPrivateMemoryBoundaries(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	event := createEventWithPricing(t, fx, "Night Market", 40, "fixed", 1800, "usd")

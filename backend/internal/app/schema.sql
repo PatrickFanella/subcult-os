@@ -302,6 +302,28 @@ create table if not exists notification_events (
 create index if not exists notification_events_event_created_idx
   on notification_events (event_id, created_at desc);
 
+create table if not exists reminder_events (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references workspaces(id) on delete cascade,
+  event_id uuid references events(id) on delete cascade,
+  source_type text not null check (source_type in ('commitment', 'staffing')),
+  source_id uuid not null,
+  reminder_type text not null check (reminder_type in ('commitment.due', 'staffing.upcoming', 'staffing.unassigned')),
+  recipient_email text not null,
+  due_at timestamptz not null,
+  idempotency_key text not null unique,
+  notification_event_id uuid references notification_events(id) on delete set null,
+  status text not null default 'queued' check (status in ('queued')),
+  subject text not null,
+  preview text not null,
+  created_by_person_id uuid references people(id),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists reminder_events_workspace_created_idx on reminder_events (workspace_id, created_at desc);
+create index if not exists reminder_events_event_created_idx on reminder_events (event_id, created_at desc);
+create index if not exists reminder_events_source_idx on reminder_events (source_type, source_id);
+
 alter table events add column if not exists pricing_mode text not null default 'free' check (pricing_mode in ('free', 'fixed'));
 alter table events add column if not exists ticket_price_cents integer not null default 0 check (ticket_price_cents >= 0);
 alter table events add column if not exists ticket_currency text not null default 'usd';
