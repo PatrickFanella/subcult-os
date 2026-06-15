@@ -802,6 +802,19 @@ func TestReminderLedgerAPI(t *testing.T) {
 	getJSON(t, fx.app, otherFx.memberCookie, "/api/events/"+eventID+"/reminders", http.StatusForbidden)
 }
 
+func TestReminderSweepAPIEmptyAndPermissions(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	resp := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/reminders/sweep", map[string]any{"now": time.Now().UTC().Format(time.RFC3339)}, http.StatusOK)
+	result := mustObject(t, resp.JSON)
+	if int(result["createdCount"].(float64)) != 0 || int(result["skippedCount"].(float64)) != 0 {
+		t.Fatalf("unexpected empty sweep result: %#v", result)
+	}
+
+	postJSON(t, fx.app, fx.memberCookie, "/api/workspaces/"+fx.workspaceID+"/reminders/sweep", map[string]any{}, http.StatusForbidden)
+	otherFx := newLifecycleFixture(t)
+	postJSON(t, fx.app, otherFx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/reminders/sweep", map[string]any{}, http.StatusForbidden)
+}
+
 func TestPrivateMemoryBoundaries(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	event := createEventWithPricing(t, fx, "Night Market", 40, "fixed", 1800, "usd")
