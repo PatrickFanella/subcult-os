@@ -815,6 +815,119 @@ func TestReminderSweepAPIEmptyAndPermissions(t *testing.T) {
 	postJSON(t, fx.app, otherFx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/reminders/sweep", map[string]any{}, http.StatusForbidden)
 }
 
+func TestReminderSweepCommitments(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	dueAt := time.Now().UTC().Add(-time.Hour).Format(time.RFC3339)
+	var memberPersonID string
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select person_id
+		from workspace_members
+		where workspace_id = $1
+		  and role = 'member'
+		  and removed_at is null
+		limit 1
+	`, fx.workspaceID).Scan(&memberPersonID); err != nil {
+		t.Fatal(err)
+	}
+	memberEmail := fx.email("member")
+
+	open := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments", map[string]any{
+		"title":         "Confirm projector",
+		"description":   "Private projector vendor note",
+		"dueAt":         dueAt,
+		"ownerPersonId": memberPersonID,
+	}, http.StatusOK)
+	openID := mustString(t, open.JSON, "id")
+
+	done := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments", map[string]any{
+		"title":       "Archive invoices",
+		"description": "Private done note",
+		"dueAt":       dueAt,
+	}, http.StatusOK)
+	doneID := mustString(t, done.JSON, "id")
+	patchJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments/"+doneID, map[string]any{"status": "done"}, http.StatusOK)
+
+	cancelled := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments", map[string]any{
+		"title":       "Return deposit",
+		"description": "Private cancelled note",
+		"dueAt":       dueAt,
+	}, http.StatusOK)
+	cancelledID := mustString(t, cancelled.JSON, "id")
+	patchJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments/"+cancelledID, map[string]any{"status": "cancelled"}, http.StatusOK)
+
+	first := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/reminders/sweep", map[string]any{"now": time.Now().UTC().Format(time.RFC3339)}, http.StatusOK)
+	firstResult := mustObject(t, first.JSON)
+	if int(firstResult["createdCount"].(float64)) != 1 || int(firstResult["skippedCount"].(float64)) != 0 {
+		t.Fatalf("expected first sweep to create one reminder: %#v", first.JSON)
+	}
+
+	repeated := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/reminders/sweep", map[string]any{"now": time.Now().UTC().Format(time.RFC3339)}, http.StatusOK)
+	repeatedResult := mustObject(t, repeated.JSON)
+	if int(repeatedResult["createdCount"].(float64)) != 0 || int(repeatedResult["skippedCount"].(float64)) != 1 {
+		t.Fatalf("expected repeated sweep to skip duplicate reminder: %#v", repeated.JSON)
+	}
+
+	var reminderCount int
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select count(*)
+		from reminder_events
+		where workspace_id = $1
+		  and source_type = 'commitment'
+	`, fx.workspaceID).Scan(&reminderCount); err != nil {
+		t.Fatal(err)
+	}
+	if reminderCount != 1 {
+		t.Fatalf("expected one commitment reminder, got %d", reminderCount)
+	}
+
+	var excludedReminderCount int
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select count(*)
+		from reminder_events
+		where source_id in ($1, $2)
+	`, doneID, cancelledID).Scan(&excludedReminderCount); err != nil {
+		t.Fatal(err)
+	}
+	if excludedReminderCount != 0 {
+		t.Fatalf("expected done/cancelled commitments to be excluded, got %d reminders", excludedReminderCount)
+	}
+
+	reminders := getJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/reminders", http.StatusOK).JSON.([]any)
+	if len(reminders) != 1 {
+		t.Fatalf("expected one reminder, got %#v", reminders)
+	}
+	reminder := mustObject(t, reminders[0])
+	if reminder["sourceType"] != "commitment" || reminder["sourceId"] != openID || reminder["reminderType"] != "commitment.due" || reminder["recipientEmail"] != memberEmail {
+		t.Fatalf("unexpected reminder: %#v", reminder)
+	}
+
+	var notificationRecipient, subject, preview, body string
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select n.recipient_email, n.subject, n.preview, o.body
+		from notification_events n
+		join email_outbox o on o.id = n.email_outbox_id
+		where n.related_id = $1
+		  and n.notification_type = 'commitment.due'
+		order by n.created_at desc
+		limit 1
+	`, openID).Scan(&notificationRecipient, &subject, &preview, &body); err != nil {
+		t.Fatal(err)
+	}
+	if notificationRecipient != memberEmail {
+		t.Fatalf("expected reminder recipient %q, got %q", memberEmail, notificationRecipient)
+	}
+	for _, want := range []string{"Confirm projector", dueAt} {
+		if !strings.Contains(subject, want) || !strings.Contains(preview, want) || !strings.Contains(body, want) {
+			t.Fatalf("reminder copy missing %q: subject=%q preview=%q body=%q", want, subject, preview, body)
+		}
+	}
+	for _, forbidden := range []string{"Private projector vendor note", "Private done note", "Private cancelled note"} {
+		if strings.Contains(subject, forbidden) || strings.Contains(preview, forbidden) || strings.Contains(body, forbidden) {
+			t.Fatalf("reminder leaked private text %q: subject=%q preview=%q body=%q", forbidden, subject, preview, body)
+		}
+	}
+}
+
 func TestPrivateMemoryBoundaries(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	event := createEventWithPricing(t, fx, "Night Market", 40, "fixed", 1800, "usd")
