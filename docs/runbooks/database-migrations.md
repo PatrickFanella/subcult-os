@@ -12,6 +12,19 @@
 
 This is acceptable while the app is in alpha and schema changes are additive.
 
+## Local Make commands
+
+The local Docker stack exposes a small alpha migration command set:
+
+```bash
+make migrate         # start local Postgres if needed, then apply backend/internal/app/schema.sql
+make migrate-status  # list public tables and indexes in the running Postgres container
+make migrate-reset   # reset local Docker Postgres data, restart, then apply schema.sql
+```
+
+`make migrate` starts the local Postgres service if it is not already running. `make migrate-status` expects Postgres to be running.
+The app also runs `RunMigrations` on backend startup, so `make migrate` is mainly for explicit local checks after schema edits.
+
 ## Current limitation
 
 There is no ordered migration history yet. Do not use the current approach for destructive changes, backfills, long-running data rewrites, or any production database that needs reversible deploys.
@@ -38,6 +51,8 @@ Before running against external production data, add a real migration tool or re
 
 ```bash
 make up-build
+make migrate-status
+make migrate
 make smoke
 make alpha-qa
 make verify

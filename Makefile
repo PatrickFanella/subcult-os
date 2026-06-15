@@ -5,7 +5,7 @@ PROJECT_NAME := subcult-os
 COMPOSE_PROJECT_NAME ?= $(PROJECT_NAME)
 BACKEND_BIN ?= bin/$(PROJECT_NAME)
 
-.PHONY: help deps verify quick fmt lint test test-backend test-web build build-backend build-web run-backend dev up up-build down reset-db restart logs ps urls smoke alpha-qa alpha-qa-paid compose-config db-shell clean open-pilot-check
+.PHONY: help deps verify quick fmt lint test test-backend test-web build build-backend build-web run-backend dev up up-build down reset-db restart logs ps urls smoke alpha-qa alpha-qa-paid compose-config db-shell migrate migrate-status migrate-reset clean open-pilot-check
 
 help:
 	@awk 'BEGIN {FS = ":.*##"; printf "$(PROJECT_NAME) commands:\n"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -89,7 +89,16 @@ compose-config: ## Validate Docker Compose config
 	docker compose -p $(COMPOSE_PROJECT_NAME) config --quiet
 
 db-shell: ## Open a psql shell in the Postgres container
-	docker compose -p $(COMPOSE_PROJECT_NAME) exec postgres psql -U $${POSTGRES_USER:-app} -d $${POSTGRES_DB:-app}
+	docker compose -p $(COMPOSE_PROJECT_NAME) exec postgres sh -c 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"'
+
+migrate: ## Apply the alpha schema.sql to local Postgres, starting it if needed
+	docker compose -p $(COMPOSE_PROJECT_NAME) up -d --wait postgres
+	docker compose -p $(COMPOSE_PROJECT_NAME) exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"' < backend/internal/app/schema.sql
+
+migrate-status: ## Show local Postgres tables and applied alpha schema objects
+	docker compose -p $(COMPOSE_PROJECT_NAME) exec -T postgres sh -c 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c "\dt public.*" -c "\di public.*"'
+
+migrate-reset: reset-db migrate ## Reset local Postgres data, restart stack, and apply schema.sql
 
 clean: ## Remove local build outputs
 	rm -rf bin web/dist
