@@ -1,10 +1,51 @@
 @import "tailwindcss";
 
+@theme {
+  --color-surface-canvas: #09090b;
+  --color-surface-panel: rgba(24, 24, 27, 0.86);
+  --color-surface-elevated: rgba(39, 39, 42, 0.9);
+  --color-surface-inset: rgba(9, 9, 11, 0.72);
+  --color-surface-scrim: rgba(0, 0, 0, 0.62);
+
+  --color-fg-primary: #fafafa;
+  --color-fg-secondary: #d4d4d8;
+  --color-fg-muted: #a1a1aa;
+  --color-fg-inverse: #09090b;
+  --color-fg-accent: #fbbf24;
+
+  --color-stroke-subtle: rgba(255, 255, 255, 0.1);
+  --color-stroke-strong: rgba(255, 255, 255, 0.18);
+  --color-stroke-focus: #fbbf24;
+
+  --color-action-primary: #fbbf24;
+  --color-action-secondary: #22d3ee;
+  --color-action-brand: #d946ef;
+
+  --color-status-success: #34d399;
+  --color-status-warning: #fbbf24;
+  --color-status-danger: #fb7185;
+  --color-status-info: #38bdf8;
+
+  --font-display: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --font-body: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --font-mono: "SFMono-Regular", "Cascadia Code", "Liberation Mono", Menlo, monospace;
+
+  --radius-card: 1.375rem;
+  --radius-panel: 1.875rem;
+  --radius-pill: 999rem;
+
+  --spacing-touch: 3rem;
+  --spacing-field: 3.5rem;
+
+  --shadow-panel: 0 1.5rem 4rem rgba(0, 0, 0, 0.32);
+  --shadow-pop: 0 1rem 2rem rgba(0, 0, 0, 0.38);
+}
+
 :root {
   color-scheme: dark;
-  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
-  background: #09090b;
-  color: #f4f4f5;
+  font-family: var(--font-body);
+  background: var(--color-surface-canvas);
+  color: var(--color-fg-primary);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -27,8 +68,8 @@ body {
   background:
     radial-gradient(circle at top left, rgba(251, 191, 36, 0.12), transparent 30%),
     radial-gradient(circle at 80% 0%, rgba(232, 121, 249, 0.12), transparent 28%),
-    linear-gradient(180deg, #09090b, #111113 60%, #09090b);
-  color: #f4f4f5;
+    linear-gradient(180deg, var(--color-surface-canvas), #111113 60%, var(--color-surface-canvas));
+  color: var(--color-fg-primary);
 }
 
 a {
@@ -49,22 +90,161 @@ button {
 }
 
 ::selection {
-  background: #fbbf24;
-  color: #09090b;
+  background: var(--color-action-primary);
+  color: var(--color-fg-inverse);
+}
+
+@utility page-shell {
+  min-height: 100vh;
+  background: var(--color-surface-canvas);
+  color: var(--color-fg-primary);
+}
+
+@utility panel {
+  border: 1px solid var(--color-stroke-subtle);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface-panel);
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(12px);
+}
+
+@utility panel-elevated {
+  border: 1px solid var(--color-stroke-strong);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface-elevated);
+  box-shadow: var(--shadow-pop);
+}
+
+@utility field {
+  min-height: var(--spacing-field);
+  width: 100%;
+  border: 1px solid var(--color-stroke-strong);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-inset);
+  color: var(--color-fg-primary);
+  padding-inline: 1rem;
+}
+
+@utility focus-ring {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+@utility btn-primary {
+  min-height: var(--spacing-touch);
+  border-radius: var(--radius-pill);
+  background: var(--color-action-primary);
+  color: var(--color-fg-inverse);
+  font-weight: 900;
+  padding-inline: 1.25rem;
+}
+
+@utility btn-secondary {
+  min-height: var(--spacing-touch);
+  border: 1px solid var(--color-stroke-strong);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-elevated);
+  color: var(--color-fg-primary);
+  font-weight: 800;
+  padding-inline: 1.25rem;
+}
+
+@utility btn-ghost {
+  min-height: var(--spacing-touch);
+  border-radius: var(--radius-pill);
+  color: var(--color-fg-secondary);
+  font-weight: 800;
+  padding-inline: 1.25rem;
+}
+
+@utility chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-stroke-subtle);
+  border-radius: var(--radius-pill);
+  color: var(--color-fg-muted);
+  font-size: 0.6875rem;
+  font-weight: 900;
+  letter-spacing: 0.075em;
+  line-height: 1;
+  padding: 0.5rem 0.75rem;
+  text-transform: uppercase;
+}
+
+@utility kicker {
+  color: var(--color-fg-muted);
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+@utility heading-1 {
+  color: var(--color-fg-primary);
+  font-family: var(--font-display);
+  font-size: clamp(2.25rem, 9vw, 4.5rem);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+}
+
+@utility heading-2 {
+  color: var(--color-fg-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 6vw, 3rem);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+@utility body-copy {
+  color: var(--color-fg-secondary);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+@utility body-small {
+  color: var(--color-fg-muted);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+@utility notice-success {
+  border-color: color-mix(in srgb, var(--color-status-success) 35%, transparent);
+  background: color-mix(in srgb, var(--color-status-success) 12%, transparent);
+  color: var(--color-status-success);
+}
+
+@utility notice-warning {
+  border-color: color-mix(in srgb, var(--color-status-warning) 35%, transparent);
+  background: color-mix(in srgb, var(--color-status-warning) 12%, transparent);
+  color: var(--color-status-warning);
+}
+
+@utility notice-danger {
+  border-color: color-mix(in srgb, var(--color-status-danger) 35%, transparent);
+  background: color-mix(in srgb, var(--color-status-danger) 12%, transparent);
+  color: var(--color-status-danger);
+}
+
+@utility notice-info {
+  border-color: color-mix(in srgb, var(--color-status-info) 35%, transparent);
+  background: color-mix(in srgb, var(--color-status-info) 12%, transparent);
+  color: var(--color-status-info);
 }
 
 .door-action {
-  min-height: 3.5rem;
+  min-height: var(--spacing-field);
   width: 100%;
-  border-radius: 1rem;
-  font-weight: 700;
+  border-radius: var(--radius-card);
+  font-weight: 800;
 }
 
 .door-input {
-  min-height: 3.5rem;
+  min-height: var(--spacing-field);
 }
 
 .card-surface {
-  background: rgba(24, 24, 27, 0.82);
+  background: var(--color-surface-panel);
   backdrop-filter: blur(12px);
 }
