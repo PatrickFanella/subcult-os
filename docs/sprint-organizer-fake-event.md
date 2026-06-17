@@ -21,8 +21,9 @@ Organizer can:
 6. Preview the mobile/public event surface.
 7. Reserve at least one test ticket.
 8. Create roles and run-of-show/staffing items.
-9. Open the readiness checklist and see what is complete or missing.
-10. Rehearse ticket lookup/check-in with the test ticket.
+9. Correct run-of-show item title, notes, and times without recreating the item.
+10. Open the readiness checklist and see what is complete or missing.
+11. Rehearse ticket lookup/check-in with the test ticket.
 
 ## Acceptance criteria
 
@@ -33,6 +34,7 @@ Organizer can:
 - Readiness screen summarizes setup progress and links to the right setup screens.
 - Readiness checks cover event details, hero image, ticket settings, publish status, test ticket, roles, run-of-show, and door rehearsal.
 - Readiness can create a rehearsal ticket directly, without leaving organizer mode.
+- Run-of-show items can be edited for fake-event setup corrections.
 - Existing verification still passes: `make verify` and Expo web export.
 
 ## Rehearsal checklist

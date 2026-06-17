@@ -1,10 +1,10 @@
 import { useLocalSearchParams } from 'expo-router';
-import { CheckCircle2, ChevronLeft, Circle, Clock, Plus } from 'lucide-react-native';
+import { CheckCircle2, ChevronLeft, Circle, Clock, Plus, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { formatTime } from '@/api/format';
-import { createEventStaffing, listEventStaffing, updateEventStaffingStatus } from '@/api/staff';
+import { createEventStaffing, listEventStaffing, updateEventStaffing, updateEventStaffingStatus } from '@/api/staff';
 import type { EventStaffingItemDTO } from '@/api/types';
 import { safeBack } from '@/navigation/safeBack';
 
@@ -26,6 +26,7 @@ export default function RunOfShowScreen() {
   const [error, setError] = useState<string | null>(eventID ? null : 'Missing event ID. Open Run of Show from Staff mode.');
   const [updatingID, setUpdatingID] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [editingID, setEditingID] = useState<string | null>(null);
   const [form, setForm] = useState<StaffingForm>(emptyForm);
 
   useEffect(() => {
@@ -65,11 +66,11 @@ export default function RunOfShowScreen() {
     }
   }
 
-  async function createItem() {
+  async function saveForm() {
     if (!eventID || creating) return;
     const title = form.title.trim();
     if (!title) {
-      setError('Title is required to add a run-of-show item.');
+      setError('Title is required for a run-of-show item.');
       return;
     }
     const startsAt = parseOptionalDateTime(form.startsAt);
@@ -85,20 +86,48 @@ export default function RunOfShowScreen() {
     setCreating(true);
     setError(null);
     try {
-      const created = await createEventStaffing(eventID, {
-        title,
-        kind: form.kind,
-        notes: form.notes.trim(),
-        startsAt: startsAt || null,
-        endsAt: endsAt || null,
-      });
-      setItems((current) => sortStaffingItems([created, ...current]));
-      setForm(emptyForm);
+      if (editingID) {
+        const updated = await updateEventStaffing(eventID, editingID, {
+          title,
+          notes: form.notes.trim(),
+          ...(startsAt ? { startsAt } : { clearStartsAt: true }),
+          ...(endsAt ? { endsAt } : { clearEndsAt: true }),
+        });
+        setItems((current) => sortStaffingItems(current.map((candidate) => (candidate.id === updated.id ? updated : candidate))));
+        stopEditing();
+      } else {
+        const created = await createEventStaffing(eventID, {
+          title,
+          kind: form.kind,
+          notes: form.notes.trim(),
+          startsAt: startsAt || null,
+          endsAt: endsAt || null,
+        });
+        setItems((current) => sortStaffingItems([created, ...current]));
+        setForm(emptyForm);
+      }
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Unable to create run-of-show item');
+      setError(caught instanceof Error ? caught.message : 'Unable to save run-of-show item');
     } finally {
       setCreating(false);
     }
+  }
+
+  function startEditing(item: EventStaffingItemDTO) {
+    setEditingID(item.id);
+    setForm({
+      title: item.title,
+      kind: item.kind,
+      notes: item.notes,
+      startsAt: toLocalInput(item.startsAt),
+      endsAt: toLocalInput(item.endsAt),
+    });
+    setError(null);
+  }
+
+  function stopEditing() {
+    setEditingID(null);
+    setForm(emptyForm);
   }
 
   return (
@@ -111,7 +140,14 @@ export default function RunOfShowScreen() {
       </View>
       <ScrollView style={styles.scroller} contentContainerStyle={styles.timeline}>
         <View style={styles.createPanel}>
-          <Text style={styles.panelTitle}>Add run-of-show item</Text>
+          <View style={styles.panelHeaderRow}>
+            <Text style={styles.panelTitle}>{editingID ? 'Edit run-of-show item' : 'Add run-of-show item'}</Text>
+            {editingID ? (
+              <Pressable onPress={stopEditing} style={styles.cancelEditButton}>
+                <X size={16} color="#737373" />
+              </Pressable>
+            ) : null}
+          </View>
           <TextInput
             value={form.title}
             onChangeText={(value) => setForm((current) => ({ ...current, title: value }))}
@@ -120,8 +156,8 @@ export default function RunOfShowScreen() {
             style={styles.input}
           />
           <View style={styles.kindRow}>
-            <KindButton label="Task" selected={form.kind === 'task'} onPress={() => setForm((current) => ({ ...current, kind: 'task' }))} />
-            <KindButton label="Shift" selected={form.kind === 'shift'} onPress={() => setForm((current) => ({ ...current, kind: 'shift' }))} />
+            <KindButton label="Task" selected={form.kind === 'task'} disabled={Boolean(editingID)} onPress={() => setForm((current) => ({ ...current, kind: 'task' }))} />
+            <KindButton label="Shift" selected={form.kind === 'shift'} disabled={Boolean(editingID)} onPress={() => setForm((current) => ({ ...current, kind: 'shift' }))} />
           </View>
           <View style={styles.timeInputsRow}>
             <TextInput
@@ -147,11 +183,11 @@ export default function RunOfShowScreen() {
             multiline
             style={[styles.input, styles.notesInput]}
           />
-          <Pressable disabled={creating} onPress={() => void createItem()} style={[styles.createButton, creating && styles.createButtonDisabled]}>
+          <Pressable disabled={creating} onPress={() => void saveForm()} style={[styles.createButton, creating && styles.createButtonDisabled]}>
             <Plus size={18} color="#ffffff" />
-            <Text style={styles.createButtonText}>{creating ? 'Adding…' : 'Add item'}</Text>
+            <Text style={styles.createButtonText}>{creating ? 'Saving…' : editingID ? 'Save changes' : 'Add item'}</Text>
           </Pressable>
-          <Text style={styles.helpText}>Times are optional. Use local format like 2026-06-19 21:00.</Text>
+          <Text style={styles.helpText}>{editingID ? 'Kind cannot be changed after creation yet. Times are optional.' : 'Times are optional. Use local format like 2026-06-19 21:00.'}</Text>
         </View>
         {loading ? <Text style={styles.message}>Loading run of show…</Text> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -179,6 +215,9 @@ export default function RunOfShowScreen() {
                     <Text style={styles.actionButtonMutedText}>Cancel</Text>
                   </Pressable>
                 ) : null}
+                <Pressable disabled={updatingID === task.id} onPress={() => startEditing(task)} style={styles.actionButtonMuted}>
+                  <Text style={styles.actionButtonMutedText}>Edit</Text>
+                </Pressable>
               </View>
             </View>
           </View>
@@ -188,9 +227,9 @@ export default function RunOfShowScreen() {
   );
 }
 
-function KindButton({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+function KindButton({ label, selected, disabled, onPress }: { label: string; selected: boolean; disabled?: boolean; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={[styles.kindButton, selected && styles.kindButtonActive]}>
+    <Pressable disabled={disabled} onPress={onPress} style={[styles.kindButton, selected && styles.kindButtonActive, disabled && styles.kindButtonDisabled]}>
       <Text style={[styles.kindButtonText, selected && styles.kindButtonTextActive]}>{label}</Text>
     </Pressable>
   );
@@ -214,6 +253,14 @@ function parseOptionalDateTime(value: string): string | null | false {
   return date.toISOString();
 }
 
+function toLocalInput(value: string | null) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16).replace('T', ' ');
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#ffffff', padding: 24, paddingTop: 64 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 32 },
@@ -222,12 +269,15 @@ const styles = StyleSheet.create({
   scroller: { flex: 1 },
   timeline: { gap: 28, paddingBottom: 96 },
   createPanel: { backgroundColor: '#f5f5f5', borderRadius: 28, padding: 18, gap: 12 },
+  panelHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   panelTitle: { color: '#171717', fontSize: 20, fontWeight: '900', letterSpacing: -0.3 },
+  cancelEditButton: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
   input: { minHeight: 52, borderRadius: 16, backgroundColor: '#ffffff', color: '#171717', paddingHorizontal: 14, paddingVertical: 12, fontWeight: '700' },
   notesInput: { minHeight: 96, textAlignVertical: 'top', lineHeight: 20 },
   kindRow: { flexDirection: 'row', gap: 10 },
   kindButton: { flex: 1, borderRadius: 16, borderWidth: 1, borderColor: '#e5e5e5', backgroundColor: '#ffffff', paddingVertical: 13, alignItems: 'center' },
   kindButtonActive: { backgroundColor: '#171717', borderColor: '#171717' },
+  kindButtonDisabled: { opacity: 0.55 },
   kindButtonText: { color: '#171717', fontWeight: '900' },
   kindButtonTextActive: { color: '#ffffff' },
   timeInputsRow: { flexDirection: 'row', gap: 10 },

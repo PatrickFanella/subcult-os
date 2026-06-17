@@ -67,8 +67,22 @@ export function createEventStaffing(eventID: string, body: CreateEventStaffingPa
   return postJSON<EventStaffingItemDTO>(`/api/events/${encodeURIComponent(eventID)}/staffing`, body);
 }
 
+export interface UpdateEventStaffingPayload {
+  title?: string;
+  notes?: string;
+  startsAt?: string | null;
+  clearStartsAt?: boolean;
+  endsAt?: string | null;
+  clearEndsAt?: boolean;
+  status?: EventStaffingItemDTO['status'];
+}
+
+export function updateEventStaffing(eventID: string, staffingID: string, body: UpdateEventStaffingPayload) {
+  return patchJSON<EventStaffingItemDTO>(`/api/events/${encodeURIComponent(eventID)}/staffing/${encodeURIComponent(staffingID)}`, body);
+}
+
 export function updateEventStaffingStatus(eventID: string, staffingID: string, status: EventStaffingItemDTO['status']) {
-  return patchJSON<EventStaffingItemDTO>(`/api/events/${encodeURIComponent(eventID)}/staffing/${encodeURIComponent(staffingID)}`, { status });
+  return updateEventStaffing(eventID, staffingID, { status });
 }
 
 export function listEventRoles(eventID: string) {
