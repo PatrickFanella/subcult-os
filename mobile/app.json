@@ -37,8 +37,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow SUBCULT OS to scan ticket QR codes.",
-          "barcodeScannerEnabled": true
+          "cameraPermission": "Allow SUBCULT OS to scan ticket QR codes."
         }
       ]
     ]

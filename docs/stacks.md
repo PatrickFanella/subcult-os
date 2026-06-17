@@ -61,6 +61,10 @@ pnpm --dir web run lint
 The `mobile/` app is the phone-first authenticated client for event-time flows.
 Keep public/link-first surfaces in `web/` unless they become app-only flows.
 
+The app is intentionally pinned to Expo SDK 54 for compatibility with the App
+Store / Play Store version of Expo Go during real-device rehearsal. Revisit the
+latest Expo SDK after moving to development builds.
+
 Recommended commands:
 
 ```bash

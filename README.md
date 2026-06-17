@@ -71,6 +71,8 @@ If the app is already running, use the Workspace page to inspect development inv
 
 The Expo app in `mobile/` is the phone-first authenticated client for event-time flows. Public event pages, ticket links, invite links, and SEO-friendly discovery remain in the Vite web app.
 
+`mobile/` is currently pinned to Expo SDK 54 so it can run in the App Store / Play Store version of Expo Go during fake-event and real-device testing. Revisit upgrading after switching to development builds.
+
 Mobile styling uses Uniwind with Tailwind v4-compatible semantic tokens. Keep class names semantic (`bg-surface-panel`, `text-fg-primary`, `btn-primary`, `panel`) instead of hard-coding palette utilities in screens.
 
 Start the API/web stack, then run Expo:
