@@ -35,6 +35,13 @@
         }
       ],
       [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow SUBCULT OS to save ticket images to your photo library.",
+          "savePhotosPermission": "Allow SUBCULT OS to save ticket images to your photo library."
+        }
+      ],
+      [
         "expo-camera",
         {
           "cameraPermission": "Allow SUBCULT OS to scan ticket QR codes."

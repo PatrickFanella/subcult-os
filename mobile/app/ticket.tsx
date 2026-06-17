@@ -1,8 +1,11 @@
 import { useLocalSearchParams } from 'expo-router';
-import { Calendar, ChevronLeft, MapPin, Share2 } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import * as MediaLibrary from 'expo-media-library';
+import * as Sharing from 'expo-sharing';
+import { Calendar, ChevronLeft, Download, ImageDown, MapPin, Share2 } from 'lucide-react-native';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
+import { captureRef } from 'react-native-view-shot';
 
 import { getTicket } from '@/api/tickets';
 import type { TicketDTO } from '@/api/types';
@@ -16,6 +19,9 @@ export default function TicketScreen() {
   const [ticket, setTicket] = useState<TicketDTO | null>(null);
   const [loading, setLoading] = useState(Boolean(code));
   const [error, setError] = useState<string | null>(code ? null : 'Enter a ticket code from the Tickets tab.');
+  const [notice, setNotice] = useState<string | null>(null);
+  const [savingImage, setSavingImage] = useState(false);
+  const passRef = useRef<View>(null);
 
   async function loadTicket() {
     if (!code) {
@@ -88,6 +94,56 @@ export default function TicketScreen() {
     });
   }
 
+  async function captureTicketImage() {
+    if (!ticket || !passRef.current) return null;
+    return captureRef(passRef, {
+      format: 'png',
+      quality: 1,
+      result: 'tmpfile',
+    });
+  }
+
+  async function shareTicketImage() {
+    setNotice(null);
+    setError(null);
+    try {
+      const uri = await captureTicketImage();
+      if (!uri) return;
+      if (!(await Sharing.isAvailableAsync())) {
+        setError('Image sharing is not available on this device.');
+        return;
+      }
+      await Sharing.shareAsync(uri, {
+        mimeType: 'image/png',
+        dialogTitle: `Share ticket ${ticket?.code ?? ''}`,
+        UTI: 'public.png',
+      });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to share ticket image');
+    }
+  }
+
+  async function saveTicketImage() {
+    setSavingImage(true);
+    setNotice(null);
+    setError(null);
+    try {
+      const uri = await captureTicketImage();
+      if (!uri) return;
+      const permission = await MediaLibrary.requestPermissionsAsync();
+      if (!permission.granted) {
+        setError('Photo library permission is required to save the ticket image.');
+        return;
+      }
+      await MediaLibrary.saveToLibraryAsync(uri);
+      setNotice('Ticket image saved to your photo library.');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to save ticket image');
+    } finally {
+      setSavingImage(false);
+    }
+  }
+
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
@@ -100,10 +156,11 @@ export default function TicketScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {loading ? <Text style={styles.stateText}>Loading ticket…</Text> : null}
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {notice ? <Text style={styles.successText}>{notice}</Text> : null}
         {checkoutState === 'success' ? <Text style={styles.successText}>Checkout complete. If payment still shows pending, refresh in a moment while Stripe confirms.</Text> : null}
         {checkoutState === 'cancelled' ? <Text style={styles.errorText}>Checkout was cancelled. Your ticket is not paid yet.</Text> : null}
 
-        <View style={styles.ticketCard}>
+        <View ref={passRef} collapsable={false} style={styles.ticketCard}>
           <View style={styles.cardHeader}>
             <Text style={styles.statusPill}>{ticket?.status === 'checked_in' ? 'Checked in' : 'Admit one'}</Text>
             <Pressable disabled={!ticket?.ticketUrl} onPress={() => void shareTicket()} style={styles.circleBadge}><Share2 size={22} color="#171717" /></Pressable>
@@ -129,7 +186,13 @@ export default function TicketScreen() {
         <View style={styles.notesCard}>
           <Text style={styles.notesTitle}>Arrival notes</Text>
           <Text style={styles.notesText}>{ticket?.paymentStatus === 'pending' ? 'Payment is still pending. Refresh after checkout completes; the door will only accept paid/free tickets.' : 'Show this QR code or ticket code at the door. Staff scanners read the ticket code embedded in the QR pass.'}</Text>
-          {ticket ? <Pressable onPress={() => void loadTicket()} style={styles.refreshButton}><Text style={styles.refreshButtonText}>Refresh ticket</Text></Pressable> : null}
+          {ticket ? (
+            <View style={styles.ticketActions}>
+              <Pressable onPress={() => void loadTicket()} style={styles.refreshButton}><Text style={styles.refreshButtonText}>Refresh ticket</Text></Pressable>
+              <Pressable onPress={() => void shareTicketImage()} style={styles.secondaryButton}><ImageDown size={16} color="#171717" /><Text style={styles.secondaryButtonText}>Share image</Text></Pressable>
+              <Pressable disabled={savingImage} onPress={() => void saveTicketImage()} style={[styles.secondaryButton, savingImage && styles.disabledButton]}><Download size={16} color="#171717" /><Text style={styles.secondaryButtonText}>{savingImage ? 'Saving…' : 'Save image'}</Text></Pressable>
+            </View>
+          ) : null}
         </View>
       </ScrollView>
     </View>
@@ -162,6 +225,10 @@ const styles = StyleSheet.create({
   notesCard: { backgroundColor: '#ffffff', borderRadius: 22, padding: 20 },
   notesTitle: { color: '#171717', fontSize: 20, fontWeight: '800', marginBottom: 8 },
   notesText: { color: '#525252', lineHeight: 22 },
-  refreshButton: { alignSelf: 'flex-start', marginTop: 14, backgroundColor: '#171717', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12 },
+  ticketActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 },
+  refreshButton: { alignSelf: 'flex-start', backgroundColor: '#171717', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12 },
   refreshButtonText: { color: '#ffffff', fontWeight: '900' },
+  secondaryButton: { alignSelf: 'flex-start', backgroundColor: '#f5f5f5', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  secondaryButtonText: { color: '#171717', fontWeight: '900' },
+  disabledButton: { opacity: 0.45 },
 });
