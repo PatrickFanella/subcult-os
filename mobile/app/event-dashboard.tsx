@@ -1,7 +1,7 @@
 import { Link, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft, Pencil, ShieldCheck, Ticket, Users } from 'lucide-react-native';
+import { ChevronLeft, ClipboardCheck, ExternalLink, Pencil, ShieldCheck, Ticket, Users } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { formatDate, formatTime } from '@/api/format';
 import { getEvent } from '@/api/staff';
@@ -62,9 +62,19 @@ export default function EventDashboardScreen() {
           <Text style={styles.eventTitle}>{event?.title ?? 'No event loaded'}</Text>
           <Text style={styles.eventMeta}>{event ? `${formatDate(event.startsAt)} • ${formatTime(event.startsAt)} · ${event.locationDisplay}` : 'Open from Staff mode'}</Text>
           {event ? (
-            <Link href={{ pathname: '/event-edit', params: { eventId: event.id, workspaceId: event.workspaceId } }} style={styles.editButton}>
-              <View style={styles.editButtonInner}><Pencil size={16} color="#ffffff" /><Text style={styles.editButtonText}>Edit event</Text></View>
-            </Link>
+            <View style={styles.actionRow}>
+              <Link href={{ pathname: '/event-edit', params: { eventId: event.id, workspaceId: event.workspaceId } }} style={styles.editButton}>
+                <View style={styles.editButtonInner}><Pencil size={16} color="#ffffff" /><Text style={styles.editButtonText}>Edit event</Text></View>
+              </Link>
+              <Link href={{ pathname: '/readiness', params: { eventId: event.id } }} style={styles.lightButton}>
+                <View style={styles.lightButtonInner}><ClipboardCheck size={16} color="#2563eb" /><Text style={styles.lightButtonText}>Readiness</Text></View>
+              </Link>
+              {event.publicUrl ? (
+                <Pressable onPress={() => void Linking.openURL(event.publicUrl!)} style={styles.lightButton}>
+                  <View style={styles.lightButtonInner}><ExternalLink size={16} color="#2563eb" /><Text style={styles.lightButtonText}>Preview</Text></View>
+                </Pressable>
+              ) : null}
+            </View>
           ) : null}
         </View>
 
@@ -103,9 +113,13 @@ const styles = StyleSheet.create({
   heroLabel: { color: '#737373', fontSize: 12, fontWeight: '700', marginBottom: 8 },
   eventTitle: { color: '#171717', fontSize: 24, fontWeight: '800', letterSpacing: -0.6 },
   eventMeta: { color: '#737373', marginTop: 6 },
-  editButton: { alignSelf: 'flex-start', marginTop: 16, backgroundColor: '#171717', borderRadius: 16, overflow: 'hidden', paddingHorizontal: 16, paddingVertical: 12 },
+  actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
+  editButton: { alignSelf: 'flex-start', backgroundColor: '#171717', borderRadius: 16, overflow: 'hidden', paddingHorizontal: 16, paddingVertical: 12 },
   editButtonInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   editButtonText: { color: '#ffffff', fontWeight: '900' },
+  lightButton: { alignSelf: 'flex-start', backgroundColor: '#eff6ff', borderRadius: 16, overflow: 'hidden', paddingHorizontal: 16, paddingVertical: 12 },
+  lightButtonInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  lightButtonText: { color: '#2563eb', fontWeight: '900' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
   statCard: { width: '47.5%', backgroundColor: '#ffffff', borderRadius: 22, borderWidth: 1, borderColor: '#f0f0f0', padding: 18, boxShadow: '0 3px 8px rgba(0,0,0,0.05)', elevation: 1 },
   iconBubble: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },

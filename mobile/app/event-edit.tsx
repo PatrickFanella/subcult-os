@@ -1,9 +1,9 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, ClipboardCheck, ExternalLink } from 'lucide-react-native';
 import type { ComponentProps } from 'react';
 import { useEffect, useMemo, useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { createEvent, getEvent, publishEvent, updateEvent, uploadEventImage, type EventWritePayload } from '@/api/staff';
 import type { EventDTO, PricingMode } from '@/api/types';
@@ -54,6 +54,7 @@ export default function EventEditScreen() {
   const targetWorkspaceID = workspaceID || event?.workspaceId || user?.workspaces[0]?.id || '';
   const workspace = user?.workspaces.find((candidate) => candidate.id === targetWorkspaceID) ?? user?.workspaces[0] ?? null;
   const canPublish = event?.status === 'draft';
+  const publishWarnings = useMemo(() => readinessWarnings(form, event), [form, event]);
 
   useEffect(() => {
     let cancelled = false;
@@ -167,6 +168,20 @@ export default function EventEditScreen() {
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {notice ? <Text style={styles.notice}>{notice}</Text> : null}
 
+        {event ? (
+          <View style={styles.linkRow}>
+            <Link href={{ pathname: '/readiness', params: { eventId: event.id } }} style={styles.linkPill}>
+              <View style={styles.linkPillInner}><ClipboardCheck size={15} color="#2563eb" /><Text style={styles.linkPillText}>Readiness</Text></View>
+            </Link>
+            {event.publicSlug ? <Link href={{ pathname: '/event-detail', params: { slug: event.publicSlug } }} style={styles.linkPill}>Mobile preview</Link> : null}
+            {event.publicUrl ? (
+              <Pressable onPress={() => void Linking.openURL(event.publicUrl!)} style={styles.linkPillButton}>
+                <ExternalLink size={15} color="#2563eb" /><Text style={styles.linkPillText}>Web preview</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+
         <View style={styles.panel}>
           <Text style={styles.sectionTitle}>Public basics</Text>
           <LabeledInput label="Title" value={form.title} onChangeText={(value) => updateField('title', value)} placeholder="Warehouse Frequencies" />
@@ -196,6 +211,10 @@ export default function EventEditScreen() {
         </View>
 
         <View style={styles.actionBar}>
+          <View style={styles.publishHint}>
+            <Text style={styles.publishHintTitle}>{publishWarnings.length === 0 ? 'Ready to publish' : 'Before publishing'}</Text>
+            {publishWarnings.length === 0 ? <Text style={styles.publishHintBody}>This event has the core fields needed for the fake-event rehearsal.</Text> : publishWarnings.map((warning) => <Text key={warning} style={styles.publishHintBody}>• {warning}</Text>)}
+          </View>
           <Pressable onPress={() => void save()} disabled={saving || publishing} style={[styles.primaryButton, (saving || publishing) && styles.disabledButton]}>
             <Text style={styles.primaryButtonText}>{saving ? 'Saving…' : 'Save draft'}</Text>
           </Pressable>
@@ -280,6 +299,19 @@ function requirePayload(form: FormState): EventWritePayload {
   return payload;
 }
 
+function readinessWarnings(form: FormState, event: EventDTO | null) {
+  const warnings: string[] = [];
+  const payload = buildPayload(form);
+  if (!payload?.title) warnings.push('Add an event title.');
+  if (!payload?.startsAt) warnings.push('Use a valid start date/time.');
+  if (!payload?.locationDisplay) warnings.push('Add a public location.');
+  if (!payload?.publicDescription) warnings.push('Add an attendee-facing description.');
+  if (!payload || payload.ticketAllocation <= 0) warnings.push('Set ticket capacity greater than zero.');
+  if (payload?.pricingMode === 'fixed' && payload.ticketPriceCents <= 0) warnings.push('Set a paid ticket price greater than zero.');
+  if (!form.imageUrl.trim() && !event?.imageUrl) warnings.push('Add a hero image for the public page.');
+  return warnings;
+}
+
 function parseStartsAt(value: string) {
   const normalized = value.trim().replace(' ', 'T');
   const date = new Date(normalized);
@@ -308,6 +340,11 @@ const styles = StyleSheet.create({
   title: { fontSize: 32, fontWeight: '800', letterSpacing: -1, color: '#171717', marginTop: 6 },
   subtitle: { color: '#737373', fontWeight: '700', marginTop: 4 },
   content: { gap: 18, padding: 24, paddingTop: 8, paddingBottom: 40 },
+  linkRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  linkPill: { backgroundColor: '#eff6ff', color: '#2563eb', borderRadius: 999, overflow: 'hidden', paddingHorizontal: 14, paddingVertical: 10, fontWeight: '900' },
+  linkPillInner: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  linkPillButton: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#eff6ff', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10 },
+  linkPillText: { color: '#2563eb', fontWeight: '900' },
   panel: { backgroundColor: '#fafafa', borderRadius: 28, padding: 20, gap: 14 },
   sectionTitle: { color: '#171717', fontSize: 20, fontWeight: '800' },
   imagePickerBlock: { gap: 10 },
@@ -327,6 +364,9 @@ const styles = StyleSheet.create({
   segmentButtonTextActive: { color: '#ffffff' },
   previewText: { color: '#525252', fontWeight: '700', lineHeight: 20 },
   actionBar: { gap: 12 },
+  publishHint: { backgroundColor: '#f5f5f5', borderRadius: 18, padding: 16, gap: 5 },
+  publishHintTitle: { color: '#171717', fontWeight: '900' },
+  publishHintBody: { color: '#737373', fontWeight: '700', lineHeight: 20 },
   primaryButton: { minHeight: 56, borderRadius: 18, backgroundColor: '#171717', alignItems: 'center', justifyContent: 'center' },
   primaryButtonText: { color: '#ffffff', fontWeight: '900', fontSize: 16 },
   secondaryButton: { minHeight: 56, borderRadius: 18, backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center' },

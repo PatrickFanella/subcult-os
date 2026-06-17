@@ -24,10 +24,12 @@ export default function RootLayout() {
         <Stack.Screen name="scanner" options={{ headerShown: false }} />
         <Stack.Screen name="event-dashboard" options={{ headerShown: false }} />
         <Stack.Screen name="event-edit" options={{ headerShown: false }} />
+        <Stack.Screen name="readiness" options={{ headerShown: false }} />
         <Stack.Screen name="door" options={{ headerShown: false }} />
         <Stack.Screen name="ticket" options={{ headerShown: false }} />
         <Stack.Screen name="tickets" options={{ headerShown: false }} />
         <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Screen name="workspace-create" options={{ headerShown: false }} />
       </Stack>
     </AuthProvider>
   );

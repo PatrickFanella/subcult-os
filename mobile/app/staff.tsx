@@ -1,5 +1,5 @@
 import { Link, type Href } from 'expo-router';
-import { CalendarPlus, ListChecks, Mic2, Pencil, QrCode, ShieldCheck, UserPlus, Users } from 'lucide-react-native';
+import { Building2, CalendarPlus, ClipboardCheck, ListChecks, Mic2, Pencil, QrCode, ShieldCheck, UserPlus, Users } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -104,7 +104,8 @@ export default function StaffScreen() {
       <AppChrome>
         <View style={styles.authGate}>
           <Text style={styles.emptyTitle}>No workspace found</Text>
-          <Text style={styles.emptyBody}>Create or join a workspace on web before using staff tools.</Text>
+          <Text style={styles.emptyBody}>Create a workspace to start drafting fake events, roles, and run-of-show items.</Text>
+          <Link href={{ pathname: '/workspace-create', params: { next: '/staff' } }} style={styles.authButton}>Create workspace</Link>
           <Text onPress={() => void signOut()} style={styles.signOut}>Sign out {user.email}</Text>
         </View>
       </AppChrome>
@@ -143,6 +144,12 @@ export default function StaffScreen() {
                 }}
               />
             ))}
+            <Link href={{ pathname: '/workspace-create', params: { next: '/staff' } }} style={styles.createWorkspaceChip}>
+              <View style={styles.createWorkspaceInner}>
+                <Building2 size={18} color="#2563eb" />
+                <Text style={styles.createWorkspaceText}>New workspace</Text>
+              </View>
+            </Link>
           </ScrollView>
         </View>
 
@@ -177,6 +184,7 @@ export default function StaffScreen() {
         <View style={styles.grid}>
           <DashboardCard to={{ pathname: '/event-edit', params: { workspaceId: workspace.id } }} icon={<CalendarPlus size={24} color="#ffffff" />} title="Create Event" subtitle="Draft & publish" primary />
           <DashboardCard to={activeEvent ? { pathname: '/event-edit', params: { eventId: activeEvent.id, workspaceId: workspace.id } } : { pathname: '/event-edit', params: { workspaceId: workspace.id } }} icon={<Pencil size={24} color="#171717" />} title="Edit Event" subtitle="Basics & tickets" />
+          <DashboardCard to={activeEvent ? { pathname: '/readiness', params: { eventId: activeEvent.id } } : '/staff'} icon={<ClipboardCheck size={24} color="#ffffff" />} title="Readiness" subtitle="Setup checklist" primary />
           <DashboardCard to={activeEvent ? { pathname: '/scanner', params: { eventId: activeEvent.id } } : '/staff'} icon={<QrCode size={24} color="#ffffff" />} title="Scan Tickets" subtitle="Run the door" primary />
           <DashboardCard to={activeEvent ? { pathname: '/run-of-show', params: { eventId: activeEvent.id } } : '/staff'} icon={<ListChecks size={24} color="#171717" />} title="Run of Show" subtitle="Event timeline" />
           <DashboardCard to={activeEvent ? { pathname: '/roles', params: { eventId: activeEvent.id } } : '/staff'} icon={<UserPlus size={24} color="#171717" />} title="Roles" subtitle="Applicants" />
@@ -257,6 +265,9 @@ const styles = StyleSheet.create({
   workspaceChipTitleActive: { color: '#ffffff' },
   workspaceChipMeta: { color: '#737373', fontSize: 12, fontWeight: '700', marginTop: 6, textTransform: 'uppercase', letterSpacing: 1 },
   workspaceChipMetaActive: { color: 'rgba(255,255,255,0.65)' },
+  createWorkspaceChip: { minWidth: 180, borderRadius: 20, borderWidth: 1, borderColor: '#bfdbfe', backgroundColor: '#eff6ff', padding: 14, overflow: 'hidden' },
+  createWorkspaceInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  createWorkspaceText: { color: '#2563eb', fontWeight: '900' },
   eventChip: { width: 190, borderRadius: 20, backgroundColor: '#f5f5f5', padding: 14 },
   eventChipActive: { backgroundColor: '#171717' },
   eventChipTitle: { color: '#171717', fontWeight: '800' },
