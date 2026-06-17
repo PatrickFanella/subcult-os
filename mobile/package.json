@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
+    "@expo/metro-runtime": "^6.1.2",
     "expo": "~54.0.34",
     "expo-camera": "~17.0.10",
     "expo-constants": "~18.0.13",
