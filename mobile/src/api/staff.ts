@@ -1,5 +1,5 @@
 import { api, patchJSON, postForm, postJSON } from '@/api/client';
-import type { EventDTO, EventRoleApplicationDTO, EventRoleApplicationStatus, EventRoleDTO, EventStaffingItemDTO } from '@/api/types';
+import type { EventDTO, EventRoleApplicationDTO, EventRoleApplicationStatus, EventRoleDTO, EventStaffingItemDTO, TicketDTO } from '@/api/types';
 
 export interface EventWritePayload {
   title: string;
@@ -31,6 +31,10 @@ export function updateEvent(eventID: string, body: EventWritePayload) {
 
 export function publishEvent(eventID: string) {
   return postJSON<EventDTO>(`/api/events/${encodeURIComponent(eventID)}/publish`, {});
+}
+
+export function createTestTicket(eventID: string, body: { email?: string; displayName?: string } = {}) {
+  return postJSON<TicketDTO>(`/api/events/${encodeURIComponent(eventID)}/test-ticket`, body);
 }
 
 export function uploadEventImage(eventID: string, image: { uri: string; fileName?: string | null; mimeType?: string | null; file?: Blob | null }) {

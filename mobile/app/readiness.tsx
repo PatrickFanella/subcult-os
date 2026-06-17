@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { formatDate, formatTime } from '@/api/format';
-import { getEvent, listEventRoles, listEventStaffing } from '@/api/staff';
+import { createTestTicket, getEvent, listEventRoles, listEventStaffing } from '@/api/staff';
 import type { EventDTO, EventRoleDTO, EventStaffingItemDTO } from '@/api/types';
 import { safeBack } from '@/navigation/safeBack';
+import { saveTicketToWallet } from '@/tickets/walletStore';
 
 type ChecklistItem = {
   key: string;
@@ -26,7 +27,9 @@ export default function ReadinessScreen() {
   const [roles, setRoles] = useState<EventRoleDTO[]>([]);
   const [staffing, setStaffing] = useState<EventStaffingItemDTO[]>([]);
   const [loading, setLoading] = useState(Boolean(eventID));
+  const [creatingTicket, setCreatingTicket] = useState(false);
   const [error, setError] = useState<string | null>(eventID ? null : 'Missing event ID. Open readiness from Staff mode.');
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,6 +64,24 @@ export default function ReadinessScreen() {
   const doneCount = checklist.filter((item) => item.done).length;
   const readinessPercent = checklist.length > 0 ? Math.round((doneCount / checklist.length) * 100) : 0;
 
+  async function reserveTestTicket() {
+    if (!event) return;
+    setCreatingTicket(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const ticket = await createTestTicket(event.id);
+      await saveTicketToWallet(ticket);
+      const refreshed = await getEvent(event.id);
+      setEvent(refreshed);
+      setNotice(`Test ticket created: ${ticket.code}`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to create test ticket');
+    } finally {
+      setCreatingTicket(false);
+    }
+  }
+
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
@@ -77,6 +98,7 @@ export default function ReadinessScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {loading ? <Text style={styles.message}>Loading checklist…</Text> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
+        {notice ? <Text style={styles.notice}>{notice}</Text> : null}
 
         <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>Setup score</Text>
@@ -90,6 +112,9 @@ export default function ReadinessScreen() {
           {event ? (
             <>
               <Link href={{ pathname: '/event-edit', params: { eventId: event.id, workspaceId: event.workspaceId } }} style={styles.quickAction}>Edit event</Link>
+              <Pressable disabled={creatingTicket} onPress={() => void reserveTestTicket()} style={[styles.quickActionButton, creatingTicket && styles.disabledButton]}>
+                <Text style={styles.quickActionButtonText}>{creatingTicket ? 'Creating…' : 'Create test ticket'}</Text>
+              </Pressable>
               {event.publicSlug ? <Link href={{ pathname: '/event-detail', params: { slug: event.publicSlug } }} style={styles.quickAction}>Mobile preview</Link> : null}
               {event.publicUrl ? <Text onPress={() => void Linking.openURL(event.publicUrl!)} style={styles.quickAction}>Web preview</Text> : null}
             </>
@@ -189,9 +214,9 @@ function buildChecklist(event: EventDTO | null, roles: EventRoleDTO[], staffing:
     {
       key: 'test-ticket',
       label: 'Test ticket reserved',
-      detail: hasTestTicket ? `${event?.reservedCount ?? 0} ticket(s) reserved for this event.` : 'Reserve one ticket from the public page to rehearse attendee flow.',
+      detail: hasTestTicket ? `${event?.reservedCount ?? 0} ticket(s) reserved for this event.` : 'Create a rehearsal ticket here or reserve from the public page.',
       done: hasTestTicket,
-      actionLabel: event?.publicSlug ? 'Reserve test ticket' : 'Publish first',
+      actionLabel: event?.publicSlug ? 'Open attendee flow' : 'Publish first',
       href: event?.publicSlug ? { pathname: '/event-detail', params: { slug: event.publicSlug } } : editHref,
       icon: hasTestTicket ? CircleCheck : Ticket,
     },
@@ -236,6 +261,7 @@ const styles = StyleSheet.create({
   content: { gap: 18, padding: 24, paddingTop: 8, paddingBottom: 40 },
   message: { color: '#737373', fontWeight: '700' },
   error: { color: '#dc2626', fontWeight: '800', lineHeight: 20 },
+  notice: { color: '#16a34a', fontWeight: '800', lineHeight: 20 },
   summaryCard: { backgroundColor: '#171717', borderRadius: 28, padding: 22, gap: 10 },
   summaryLabel: { color: 'rgba(255,255,255,0.65)', fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1.2 },
   summaryValue: { color: '#ffffff', fontSize: 48, fontWeight: '900', letterSpacing: -2 },
@@ -245,6 +271,9 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', borderRadius: 999, backgroundColor: '#22c55e' },
   quickActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   quickAction: { backgroundColor: '#eff6ff', color: '#2563eb', borderRadius: 999, overflow: 'hidden', paddingHorizontal: 14, paddingVertical: 10, fontWeight: '900' },
+  quickActionButton: { backgroundColor: '#171717', borderRadius: 999, overflow: 'hidden', paddingHorizontal: 14, paddingVertical: 10 },
+  quickActionButtonText: { color: '#ffffff', fontWeight: '900' },
+  disabledButton: { opacity: 0.45 },
   panel: { backgroundColor: '#fafafa', borderRadius: 28, padding: 20, gap: 16 },
   sectionTitle: { color: '#171717', fontSize: 20, fontWeight: '800' },
   bodyText: { color: '#525252', lineHeight: 22, fontWeight: '600' },

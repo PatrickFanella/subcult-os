@@ -39,6 +39,11 @@ type reserveTicketRequest struct {
 	DisplayName *string `json:"displayName"`
 }
 
+type createTestTicketRequest struct {
+	Email       string  `json:"email"`
+	DisplayName *string `json:"displayName"`
+}
+
 type ticketRow struct {
 	ID            string
 	EventID       string
@@ -315,6 +320,97 @@ func (a *App) handleGetTicket(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not load ticket")
 		return
 	}
+	writeJSON(w, http.StatusOK, a.ticketDTOFromRow(ticket))
+}
+
+func (a *App) handleCreateTestTicket(w http.ResponseWriter, r *http.Request) {
+	if a.db == nil {
+		writeError(w, http.StatusInternalServerError, "database unavailable")
+		return
+	}
+
+	var req createTestTicketRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	email := normalizeEmail(req.Email)
+	if email == "" {
+		email = "test-ticket@subcult.local"
+	}
+	if !strings.Contains(email, "@") {
+		writeError(w, http.StatusBadRequest, "email must be valid")
+		return
+	}
+	displayName := normalizeDisplayName(req.DisplayName)
+	if displayName == nil {
+		value := "Test Ticket"
+		displayName = &value
+	}
+
+	tx, err := a.db.Begin(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not start transaction")
+		return
+	}
+	defer func() { _ = tx.Rollback(r.Context()) }()
+
+	var event eventRow
+	err = tx.QueryRow(r.Context(), `
+		select e.id, e.workspace_id, e.title, e.starts_at, e.public_description, e.location_display,
+		       e.ticket_allocation, e.pricing_mode, e.ticket_price_cents, e.ticket_currency, e.status, e.public_slug,
+		       (select count(*) from tickets t where t.event_id = e.id and t.payment_status <> 'cancelled') as reserved_count,
+		       (select count(*) from tickets t where t.event_id = e.id and t.status = 'checked_in' and t.payment_status <> 'cancelled') as checked_in_count
+		from events e
+		where e.id = $1
+		for update
+	`, r.PathValue("eventID")).Scan(&event.ID, &event.WorkspaceID, &event.Title, &event.StartsAt, &event.PublicDescription, &event.LocationDisplay, &event.TicketAllocation, &event.PricingMode, &event.TicketPriceCents, &event.TicketCurrency, &event.Status, &event.PublicSlug, &event.ReservedCount, &event.CheckedInCount)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "event not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "could not load event")
+		return
+	}
+	actorID, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner", "member")
+	if !ok {
+		writeError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+	if event.ReservedCount >= event.TicketAllocation {
+		writeError(w, http.StatusConflict, "event is full")
+		return
+	}
+
+	code, err := newTicketCode()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not create ticket code")
+		return
+	}
+	var ticket ticketRow
+	if err := tx.QueryRow(r.Context(), `
+		insert into tickets (event_id, email, display_name, code, status, payment_status, amount_cents, currency)
+		values ($1, $2, $3, $4, 'reserved', 'free', 0, $5)
+		returning id, event_id, email, display_name, code, status, payment_status, amount_cents, currency, checked_in_at
+	`, event.ID, email, displayName, code, event.TicketCurrency).Scan(&ticket.ID, &ticket.EventID, &ticket.Email, &ticket.DisplayName, &ticket.Code, &ticket.Status, &ticket.PaymentStatus, &ticket.AmountCents, &ticket.Currency, &ticket.CheckedInAt); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not create test ticket")
+		return
+	}
+	txCtx := context.WithValue(r.Context(), txContextKey{}, tx)
+	if err := a.audit(txCtx, actorID, "ticket.test_created", "ticket", ticket.ID, map[string]any{
+		"eventId": event.ID,
+		"email":   email,
+		"code":    ticket.Code,
+	}); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not record audit")
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not save test ticket")
+		return
+	}
+
 	writeJSON(w, http.StatusOK, a.ticketDTOFromRow(ticket))
 }
 

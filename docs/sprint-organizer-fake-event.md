@@ -32,6 +32,7 @@ Organizer can:
 - Event edit screen explains what is missing before publish/rehearsal.
 - Readiness screen summarizes setup progress and links to the right setup screens.
 - Readiness checks cover event details, hero image, ticket settings, publish status, test ticket, roles, run-of-show, and door rehearsal.
+- Readiness can create a rehearsal ticket directly, without leaving organizer mode.
 - Existing verification still passes: `make verify` and Expo web export.
 
 ## Rehearsal checklist
@@ -46,7 +47,7 @@ Use seeded organizer credentials or create a new account locally.
 6. Upload/select a hero image.
 7. Save and publish.
 8. Open Readiness.
-9. Use preview to reserve a ticket.
+9. Use Readiness to create a rehearsal ticket, or use preview to reserve a public ticket.
 10. Return to Readiness and confirm test-ticket/door checks update.
 11. Add one role and one run-of-show item.
 12. Open Door or Scanner and find the ticket.
