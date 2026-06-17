@@ -30,8 +30,13 @@ logs/
 
 # Docker / local data
 data/
+!mobile/src/data/
+!mobile/src/data/**
 tmp/
 .cache/
+
+# Imported design references kept out of the application repo
+Event Management Mobile App/
 
 # Node / TypeScript / React / Vite / Tailwind
 node_modules/
@@ -44,6 +49,12 @@ coverage/
 *.tsbuildinfo
 vite.config.*.timestamp-*
 vite.config.*.mjs
+
+# Expo / React Native
+.expo/
+.expo-shared/
+android/
+ios/
 
 # Python
 __pycache__/

@@ -5,13 +5,18 @@ PROJECT_NAME := subcult-os
 COMPOSE_PROJECT_NAME ?= $(PROJECT_NAME)
 BACKEND_BIN ?= bin/$(PROJECT_NAME)
 
-.PHONY: help deps verify quick fmt lint test test-backend test-web build build-backend build-web run-backend dev up up-build down reset-db restart logs ps urls smoke alpha-qa alpha-qa-paid compose-config db-shell migrate migrate-status migrate-reset clean open-pilot-check
+.PHONY: help deps deps-web deps-mobile verify quick fmt lint lint-mobile test test-backend test-web build build-backend build-web run-backend dev dev-mobile up up-build down reset-db restart logs ps urls smoke alpha-qa alpha-qa-paid compose-config db-shell migrate migrate-status migrate-reset clean open-pilot-check
 
 help:
 	@awk 'BEGIN {FS = ":.*##"; printf "$(PROJECT_NAME) commands:\n"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-deps: ## Install frontend dependencies
+deps: deps-web deps-mobile ## Install web and mobile dependencies
+
+deps-web: ## Install web dependencies
 	pnpm --dir web install --frozen-lockfile
+
+deps-mobile: ## Install mobile dependencies
+	pnpm --dir mobile install --frozen-lockfile
 
 verify: deps fmt lint test build compose-config open-pilot-check ## Run all checks
 
@@ -24,6 +29,10 @@ fmt: ## Format/check Go and TypeScript sources
 lint: ## Run Go vet and frontend lint
 	cd backend && go vet ./...
 	pnpm --dir web run lint
+	pnpm --dir mobile run lint
+
+lint-mobile: ## Type-check the Expo mobile app
+	pnpm --dir mobile run lint
 
 test: test-backend test-web ## Run backend and frontend tests
 
@@ -44,6 +53,9 @@ build-web: ## Build the frontend assets
 
 run-backend: build-backend ## Run the local backend binary
 	./$(BACKEND_BIN)
+
+dev-mobile: ## Start the Expo mobile app
+	pnpm --dir mobile run start
 
 dev: ## Start the full subcult-os stack
 	docker compose -p $(COMPOSE_PROJECT_NAME) up
@@ -101,7 +113,7 @@ migrate-status: ## Show local Postgres tables and applied alpha schema objects
 migrate-reset: reset-db migrate ## Reset local Postgres data, restart stack, and apply schema.sql
 
 clean: ## Remove local build outputs
-	rm -rf bin web/dist
+	rm -rf bin web/dist mobile/.expo mobile/dist
 
 open-pilot-check: ## Verify Open Pilot issue template exists
 	@test -f .gitea/ISSUE_TEMPLATE/open-pilot-task.yaml

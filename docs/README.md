@@ -12,5 +12,6 @@ This directory is the current project knowledge base.
 - `open-pilot.md` — how to prepare issues for Open Pilot
 - `stacks.md` — stack conventions used by this project
 - `project-maintenance.md` — how to maintain this project and propagate useful changes
+- `sprint-closeout-mobile-mvp.md` — current mobile MVP closeout, verification checklist, and next-sprint backlog
 
 Keep docs current, concise, and linked from this hub.

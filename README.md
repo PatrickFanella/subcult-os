@@ -1,6 +1,6 @@
 # subcult-os
 
-Full-stack SUBCULT OS project with a Go backend, Vite React TypeScript Tailwind frontend, Postgres, Docker Compose, and Open Pilot conventions.
+Full-stack SUBCULT OS project with a Go backend, Vite React TypeScript Tailwind public web frontend, Expo React Native mobile app, Postgres, Docker Compose, and Open Pilot conventions.
 
 Bootstrapped from `subculture-collective/project-template`.
 
@@ -22,6 +22,7 @@ make alpha-qa
 make logs
 make down
 make reset-db
+make dev-mobile
 ```
 
 ## First lifecycle slice
@@ -66,6 +67,33 @@ make verify
 
 If the app is already running, use the Workspace page to inspect development invite/ticket emails instead of connecting to Postgres directly.
 
+## Mobile app
+
+The Expo app in `mobile/` is the phone-first authenticated client for event-time flows. Public event pages, ticket links, invite links, and SEO-friendly discovery remain in the Vite web app.
+
+Mobile styling uses Uniwind with Tailwind v4-compatible semantic tokens. Keep class names semantic (`bg-surface-panel`, `text-fg-primary`, `btn-primary`, `panel`) instead of hard-coding palette utilities in screens.
+
+Start the API/web stack, then run Expo:
+
+```bash
+make up-build
+make dev-mobile
+```
+
+For physical-device testing, point Expo at a backend URL reachable from your phone:
+
+```bash
+EXPO_PUBLIC_API_URL=http://<your-lan-ip>:38080 pnpm --dir mobile run start
+```
+
+Current mobile app routes include:
+
+- attendee discovery, event detail, reservations, ticket lookup, and ticket wallet
+- staff dashboard, workspace/event selector, scanner, door search/check-in, run-of-show, and live dashboard
+- organizer event create/edit/publish with event image upload when S3-compatible media storage is configured
+
+Event image uploads are backend-proxied to S3-compatible storage such as MinIO. Configure `MEDIA_S3_ENDPOINT`, `MEDIA_S3_ACCESS_KEY`, `MEDIA_S3_SECRET_KEY`, `MEDIA_S3_BUCKET`, and `MEDIA_PUBLIC_BASE_URL`; keep secrets out of git.
+
 ## Current alpha security notes
 
 - Passwords are stored with bcrypt. Legacy local SHA-256 password hashes are upgraded on successful login.
@@ -82,6 +110,7 @@ If the app is already running, use the Workspace page to inspect development inv
 - Set a non-default `SESSION_SECRET` with at least 24 characters.
 - Set `PUBLIC_WEB_URL` to the HTTPS web origin used by browsers.
 - Stripe paid ticketing is optional until an Event uses paid pricing; when enabled, set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`.
+- For event image uploads, configure S3-compatible media storage and expose `MEDIA_PUBLIC_BASE_URL` without auth so attendee/mobile clients can render images.
 - Use `/api/health` for process health and `/api/ready` for DB-backed readiness.
 - Review `docs/runbooks/database-migrations.md` before changing persisted schema.
 - Review `docs/runbooks/deployment-checklist.md` before running outside local development.
