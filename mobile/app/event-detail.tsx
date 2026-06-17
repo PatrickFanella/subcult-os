@@ -129,7 +129,6 @@ export default function EventDetailScreen() {
         <View style={styles.hero}>
           <Image source={{ uri: event.imageUrl || eventArtwork(event.publicSlug ?? event.id) }} style={styles.heroImage} resizeMode="cover" />
           <View style={styles.heroOverlay} />
-          <View style={styles.heroBottomShade} />
           <View style={styles.topBar}>
             <Pressable onPress={() => safeBack('/')} style={styles.roundButton}>
               <ChevronLeft size={24} color="#ffffff" />
@@ -218,8 +217,7 @@ const styles = StyleSheet.create({
   scrollContent: {},
   hero: { width: '100%', height: '45%', minHeight: 350, position: 'relative' },
   heroImage: { width: '100%', height: '100%' },
-  heroOverlay: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(0,0,0,0.20)' },
-  heroBottomShade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 180, backgroundColor: 'rgba(0,0,0,0.48)' },
+  heroOverlay: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(0,0,0,0.08)' },
   topBar: { position: 'absolute', top: 48, left: 0, right: 0, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', zIndex: 10 },
   roundButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.20)', alignItems: 'center', justifyContent: 'center' },
   content: { flex: 1, paddingHorizontal: 20, marginTop: -72, zIndex: 10, paddingBottom: 32 },
