@@ -1,0 +1,126 @@
+@import 'tailwindcss';
+@import 'uniwind';
+
+@theme {
+  --color-surface-canvas: #09090b;
+  --color-surface-panel: #18181b;
+  --color-surface-elevated: #27272a;
+  --color-surface-inset: #0f1115;
+  --color-surface-scrim: rgba(0, 0, 0, 0.62);
+
+  --color-fg-primary: #fafafa;
+  --color-fg-secondary: #d4d4d8;
+  --color-fg-muted: #a1a1aa;
+  --color-fg-inverse: #09090b;
+  --color-fg-accent: #fbbf24;
+
+  --color-stroke-subtle: rgba(255, 255, 255, 0.1);
+  --color-stroke-strong: rgba(255, 255, 255, 0.18);
+  --color-stroke-focus: #fbbf24;
+
+  --color-action-primary: #fbbf24;
+  --color-action-secondary: #22d3ee;
+  --color-action-brand: #d946ef;
+
+  --color-status-success: #34d399;
+  --color-status-warning: #fbbf24;
+  --color-status-danger: #fb7185;
+  --color-status-info: #38bdf8;
+
+  --radius-card: 22px;
+  --radius-panel: 30px;
+  --radius-pill: 999px;
+
+  --spacing-touch: 48px;
+  --spacing-field: 56px;
+
+  --text-label: 11px;
+  --text-body: 15px;
+  --text-body-lg: 17px;
+  --text-title: 28px;
+  --text-display: 36px;
+}
+
+@utility screen {
+  flex: 1;
+  background-color: var(--color-surface-canvas);
+}
+
+@utility screen-content {
+  gap: 24px;
+  padding: 24px;
+}
+
+@utility panel {
+  border-color: var(--color-stroke-subtle);
+  border-radius: var(--radius-panel);
+  border-width: 1px;
+  background-color: var(--color-surface-panel);
+}
+
+@utility panel-inner {
+  gap: 12px;
+  padding: 24px;
+}
+
+@utility field {
+  min-height: var(--spacing-field);
+  border-color: var(--color-stroke-strong);
+  border-radius: var(--radius-card);
+  border-width: 1px;
+  background-color: var(--color-surface-inset);
+  color: var(--color-fg-primary);
+  font-size: 17px;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+@utility btn-primary {
+  align-items: center;
+  justify-content: center;
+  min-height: var(--spacing-touch);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-action-primary);
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+@utility chip {
+  align-self: flex-start;
+  border-color: var(--color-stroke-subtle);
+  border-radius: var(--radius-pill);
+  border-width: 1px;
+  color: var(--color-fg-muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 1.2px;
+  padding: 8px 12px;
+  text-transform: uppercase;
+}
+
+@utility heading-1 {
+  color: var(--color-fg-primary);
+  font-size: 36px;
+  font-weight: 900;
+  letter-spacing: -1.2px;
+  line-height: 38px;
+}
+
+@utility heading-2 {
+  color: var(--color-fg-primary);
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 31px;
+}
+
+@utility body-copy {
+  color: var(--color-fg-secondary);
+  font-size: 15px;
+  line-height: 22px;
+}
+
+@utility body-small {
+  color: var(--color-fg-muted);
+  font-size: 13px;
+  line-height: 19px;
+}

@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "SUBCULT OS",
+    "slug": "subcult-os-mobile",
+    "scheme": "subcultos",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "tv.clpr.subcultos",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "tv.clpr.subcultos",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow SUBCULT OS to choose event images."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow SUBCULT OS to scan ticket QR codes.",
+          "barcodeScannerEnabled": true
+        }
+      ]
+    ]
+  }
+}
