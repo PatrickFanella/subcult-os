@@ -35,6 +35,7 @@ Organizer can:
 - Readiness checks cover event details, hero image, ticket settings, publish status, test ticket, roles, run-of-show, and door rehearsal.
 - Readiness can create a rehearsal ticket directly, without leaving organizer mode.
 - Run-of-show items can be edited for fake-event setup corrections.
+- Role creation supports public/private visibility so fake-event roles can be attendee-facing or internal.
 - Existing verification still passes: `make verify` and Expo web export.
 
 ## Rehearsal checklist

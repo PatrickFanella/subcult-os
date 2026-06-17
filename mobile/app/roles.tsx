@@ -25,6 +25,7 @@ export default function RolesScreen() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [capacity, setCapacity] = useState('1');
+  const [isPublic, setIsPublic] = useState(true);
   const [creating, setCreating] = useState(false);
   const [updatingID, setUpdatingID] = useState<string | null>(null);
 
@@ -66,11 +67,12 @@ export default function RolesScreen() {
     setCreating(true);
     setError(null);
     try {
-      const created = await createEventRole(eventID, { name: trimmedName, description: description.trim(), capacity: nextCapacity, public: true });
+      const created = await createEventRole(eventID, { name: trimmedName, description: description.trim(), capacity: nextCapacity, public: isPublic });
       setRoles((current) => [created, ...current]);
       setName('');
       setDescription('');
       setCapacity('1');
+      setIsPublic(true);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to create role');
     } finally {
@@ -116,6 +118,11 @@ export default function RolesScreen() {
           <Text style={styles.panelTitle}>Create public role</Text>
           <TextInput value={name} onChangeText={setName} placeholder="Door volunteer, performer, vendor…" placeholderTextColor="#a3a3a3" style={styles.input} />
           <TextInput value={capacity} onChangeText={(value) => setCapacity(value.replace(/[^0-9]/g, ''))} placeholder="Capacity" placeholderTextColor="#a3a3a3" keyboardType="number-pad" style={styles.input} />
+          <View style={styles.visibilityRow}>
+            <VisibilityButton label="Public" selected={isPublic} onPress={() => setIsPublic(true)} />
+            <VisibilityButton label="Private" selected={!isPublic} onPress={() => setIsPublic(false)} />
+          </View>
+          <Text style={styles.helpText}>{isPublic ? 'Public roles can appear on the attendee-facing event page.' : 'Private roles stay internal for organizer planning.'}</Text>
           <TextInput value={description} onChangeText={setDescription} placeholder="What should applicants know?" placeholderTextColor="#a3a3a3" multiline style={[styles.input, styles.textArea]} />
           <Pressable disabled={creating} onPress={() => void createRole()} style={[styles.primaryButton, creating && styles.disabled]}>
             <Plus size={18} color="#ffffff" /><Text style={styles.primaryButtonText}>{creating ? 'Creating…' : 'Create role'}</Text>
@@ -165,6 +172,14 @@ export default function RolesScreen() {
   );
 }
 
+function VisibilityButton({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={[styles.visibilityButton, selected && styles.visibilityButtonActive]}>
+      <Text style={[styles.visibilityButtonText, selected && styles.visibilityButtonTextActive]}>{label}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#ffffff', padding: 24, paddingTop: 56 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 24 },
@@ -176,6 +191,12 @@ const styles = StyleSheet.create({
   panelTitle: { color: '#171717', fontSize: 20, fontWeight: '900' },
   input: { minHeight: 52, borderRadius: 16, backgroundColor: '#ffffff', color: '#171717', paddingHorizontal: 14, paddingVertical: 12, fontWeight: '700' },
   textArea: { minHeight: 104, textAlignVertical: 'top', lineHeight: 20 },
+  visibilityRow: { flexDirection: 'row', gap: 10 },
+  visibilityButton: { flex: 1, borderRadius: 16, borderWidth: 1, borderColor: '#e5e5e5', backgroundColor: '#ffffff', paddingVertical: 13, alignItems: 'center' },
+  visibilityButtonActive: { backgroundColor: '#171717', borderColor: '#171717' },
+  visibilityButtonText: { color: '#171717', fontWeight: '900' },
+  visibilityButtonTextActive: { color: '#ffffff' },
+  helpText: { color: '#737373', fontSize: 12, lineHeight: 18, fontWeight: '600' },
   primaryButton: { minHeight: 52, borderRadius: 16, backgroundColor: '#171717', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
   primaryButtonText: { color: '#ffffff', fontWeight: '900' },
   disabled: { opacity: 0.45 },
