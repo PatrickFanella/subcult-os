@@ -1,7 +1,7 @@
 import { Link } from 'expo-router';
 import { Calendar, MapPin } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { Dimensions, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { formatDate, formatTime, pricingLabel } from '@/api/format';
 import { listPublicEvents } from '@/api/events';
@@ -9,12 +9,11 @@ import type { PublicEventSummaryDTO } from '@/api/types';
 import { eventArtwork } from '@/data/eventArtwork';
 import { AppChrome } from '@/ui/AppChrome';
 
-const { height } = Dimensions.get('window');
-
 export default function DiscoveryFeedScreen() {
   const [events, setEvents] = useState<PublicEventSummaryDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [viewportHeight, setViewportHeight] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,9 +80,14 @@ export default function DiscoveryFeedScreen() {
 
   return (
     <AppChrome>
-      <ScrollView pagingEnabled showsVerticalScrollIndicator={false} style={styles.scroll}>
+      <ScrollView
+        pagingEnabled
+        showsVerticalScrollIndicator={false}
+        style={styles.scroll}
+        onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
+      >
         {events.map((event) => (
-          <View key={event.id} style={[styles.slide, { height: height - 126 }]}> 
+          <View key={event.id} style={[styles.slide, viewportHeight ? { height: viewportHeight } : styles.slideFallback]}> 
             <Image source={{ uri: event.imageUrl || eventArtwork(event.publicSlug) }} style={styles.image} resizeMode="cover" />
             <View style={styles.gradient} />
             <View style={styles.copy}>
@@ -117,6 +121,7 @@ export default function DiscoveryFeedScreen() {
 const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: '#000000' },
   slide: { position: 'relative', width: '100%', backgroundColor: '#000000' },
+  slideFallback: { minHeight: 640 },
   image: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, width: '100%', height: '100%' },
   gradient: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(0,0,0,0.38)' },
   copy: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 24, paddingBottom: 48 },
