@@ -36,6 +36,7 @@ Organizer can:
 - Readiness can create a rehearsal ticket directly, without leaving organizer mode.
 - Run-of-show items can be edited for fake-event setup corrections.
 - Role creation supports public/private visibility so fake-event roles can be attendee-facing or internal.
+- Roles can be edited and deactivated/reactivated during setup without recreating them.
 - Existing verification still passes: `make verify` and Expo web export.
 
 ## Rehearsal checklist
@@ -59,5 +60,5 @@ Use seeded organizer credentials or create a new account locally.
 
 - Offline scanner cache/queued check-ins.
 - Full `event_media` table/object lifecycle.
-- Role edit/delete and staffing edit/delete.
+- Role delete and staffing delete.
 - Production deep links from Stripe/public web back into mobile.

@@ -1,9 +1,9 @@
 import { useLocalSearchParams } from 'expo-router';
-import { ChevronLeft, Plus, Users } from 'lucide-react-native';
+import { ChevronLeft, Plus, Users, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { createEventRole, listEventRoleApplications, listEventRoles, reviewEventRoleApplication } from '@/api/staff';
+import { createEventRole, listEventRoleApplications, listEventRoles, reviewEventRoleApplication, updateEventRole } from '@/api/staff';
 import type { EventRoleApplicationDTO, EventRoleApplicationStatus, EventRoleDTO } from '@/api/types';
 import { safeBack } from '@/navigation/safeBack';
 
@@ -26,6 +26,8 @@ export default function RolesScreen() {
   const [description, setDescription] = useState('');
   const [capacity, setCapacity] = useState('1');
   const [isPublic, setIsPublic] = useState(true);
+  const [isActive, setIsActive] = useState(true);
+  const [editingRoleID, setEditingRoleID] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [updatingID, setUpdatingID] = useState<string | null>(null);
 
@@ -53,7 +55,7 @@ export default function RolesScreen() {
     };
   }, [eventID]);
 
-  async function createRole() {
+  async function saveRole() {
     const trimmedName = name.trim();
     const nextCapacity = Number.parseInt(capacity, 10);
     if (!trimmedName) {
@@ -67,17 +69,43 @@ export default function RolesScreen() {
     setCreating(true);
     setError(null);
     try {
-      const created = await createEventRole(eventID, { name: trimmedName, description: description.trim(), capacity: nextCapacity, public: isPublic });
-      setRoles((current) => [created, ...current]);
-      setName('');
-      setDescription('');
-      setCapacity('1');
-      setIsPublic(true);
+      if (editingRoleID) {
+        const updated = await updateEventRole(eventID, editingRoleID, { name: trimmedName, description: description.trim(), capacity: nextCapacity, public: isPublic, active: isActive });
+        setRoles((current) => current.map((role) => (role.id === updated.id ? updated : role)));
+        stopEditingRole();
+      } else {
+        const created = await createEventRole(eventID, { name: trimmedName, description: description.trim(), capacity: nextCapacity, public: isPublic });
+        setRoles((current) => [created, ...current]);
+        resetRoleForm();
+      }
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Unable to create role');
+      setError(caught instanceof Error ? caught.message : 'Unable to save role');
     } finally {
       setCreating(false);
     }
+  }
+
+  function startEditingRole(role: EventRoleDTO) {
+    setEditingRoleID(role.id);
+    setName(role.name);
+    setDescription(role.description);
+    setCapacity(String(role.capacity));
+    setIsPublic(role.public);
+    setIsActive(role.active);
+    setError(null);
+  }
+
+  function stopEditingRole() {
+    setEditingRoleID(null);
+    resetRoleForm();
+  }
+
+  function resetRoleForm() {
+    setName('');
+    setDescription('');
+    setCapacity('1');
+    setIsPublic(true);
+    setIsActive(true);
   }
 
   async function review(application: EventRoleApplicationDTO, status: EventRoleApplicationStatus) {
@@ -115,7 +143,12 @@ export default function RolesScreen() {
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <View style={styles.panel}>
-          <Text style={styles.panelTitle}>Create public role</Text>
+          <View style={styles.panelHeaderRow}>
+            <Text style={styles.panelTitle}>{editingRoleID ? 'Edit role' : 'Create role'}</Text>
+            {editingRoleID ? (
+              <Pressable onPress={stopEditingRole} style={styles.cancelEditButton}><X size={16} color="#737373" /></Pressable>
+            ) : null}
+          </View>
           <TextInput value={name} onChangeText={setName} placeholder="Door volunteer, performer, vendor…" placeholderTextColor="#a3a3a3" style={styles.input} />
           <TextInput value={capacity} onChangeText={(value) => setCapacity(value.replace(/[^0-9]/g, ''))} placeholder="Capacity" placeholderTextColor="#a3a3a3" keyboardType="number-pad" style={styles.input} />
           <View style={styles.visibilityRow}>
@@ -123,9 +156,18 @@ export default function RolesScreen() {
             <VisibilityButton label="Private" selected={!isPublic} onPress={() => setIsPublic(false)} />
           </View>
           <Text style={styles.helpText}>{isPublic ? 'Public roles can appear on the attendee-facing event page.' : 'Private roles stay internal for organizer planning.'}</Text>
+          {editingRoleID ? (
+            <>
+              <View style={styles.visibilityRow}>
+                <VisibilityButton label="Active" selected={isActive} onPress={() => setIsActive(true)} />
+                <VisibilityButton label="Inactive" selected={!isActive} onPress={() => setIsActive(false)} />
+              </View>
+              <Text style={styles.helpText}>{isActive ? 'Active roles can receive applications if public.' : 'Inactive roles stay in organizer history but are hidden from public application flow.'}</Text>
+            </>
+          ) : null}
           <TextInput value={description} onChangeText={setDescription} placeholder="What should applicants know?" placeholderTextColor="#a3a3a3" multiline style={[styles.input, styles.textArea]} />
-          <Pressable disabled={creating} onPress={() => void createRole()} style={[styles.primaryButton, creating && styles.disabled]}>
-            <Plus size={18} color="#ffffff" /><Text style={styles.primaryButtonText}>{creating ? 'Creating…' : 'Create role'}</Text>
+          <Pressable disabled={creating} onPress={() => void saveRole()} style={[styles.primaryButton, creating && styles.disabled]}>
+            <Plus size={18} color="#ffffff" /><Text style={styles.primaryButtonText}>{creating ? 'Saving…' : editingRoleID ? 'Save role' : 'Create role'}</Text>
           </Pressable>
         </View>
 
@@ -139,6 +181,9 @@ export default function RolesScreen() {
                 <Text style={styles.roleName}>{role.name}</Text>
                 <Text style={styles.roleMeta}>{role.capacity} spots · {role.public ? 'public' : 'private'} · {role.active ? 'active' : 'inactive'}</Text>
                 {role.description ? <Text style={styles.roleDescription}>{role.description}</Text> : null}
+                <Pressable onPress={() => startEditingRole(role)} style={styles.editRoleButton}>
+                  <Text style={styles.editRoleButtonText}>Edit role</Text>
+                </Pressable>
               </View>
             </View>
           ))}
@@ -188,7 +233,9 @@ const styles = StyleSheet.create({
   title: { fontSize: 32, fontWeight: '900', letterSpacing: -1, color: '#171717', marginTop: 6 },
   content: { gap: 22, paddingBottom: 48 },
   panel: { backgroundColor: '#f5f5f5', borderRadius: 28, padding: 18, gap: 12 },
+  panelHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   panelTitle: { color: '#171717', fontSize: 20, fontWeight: '900' },
+  cancelEditButton: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
   input: { minHeight: 52, borderRadius: 16, backgroundColor: '#ffffff', color: '#171717', paddingHorizontal: 14, paddingVertical: 12, fontWeight: '700' },
   textArea: { minHeight: 104, textAlignVertical: 'top', lineHeight: 20 },
   visibilityRow: { flexDirection: 'row', gap: 10 },
@@ -210,6 +257,8 @@ const styles = StyleSheet.create({
   roleName: { color: '#171717', fontSize: 18, fontWeight: '900' },
   roleMeta: { color: '#737373', fontSize: 12, fontWeight: '700', marginTop: 3 },
   roleDescription: { color: '#525252', lineHeight: 20, marginTop: 8 },
+  editRoleButton: { alignSelf: 'flex-start', marginTop: 10, borderRadius: 999, borderWidth: 1, borderColor: '#e5e5e5', backgroundColor: '#ffffff', paddingHorizontal: 12, paddingVertical: 8 },
+  editRoleButtonText: { color: '#171717', fontSize: 12, fontWeight: '900' },
   applicationCard: { backgroundColor: '#fafafa', borderRadius: 22, padding: 16, gap: 12 },
   applicationHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
   applicantName: { color: '#171717', fontSize: 18, fontWeight: '900' },

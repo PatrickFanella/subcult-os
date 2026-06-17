@@ -93,6 +93,10 @@ export function createEventRole(eventID: string, body: { name: string; descripti
   return postJSON<EventRoleDTO>(`/api/events/${encodeURIComponent(eventID)}/roles`, body);
 }
 
+export function updateEventRole(eventID: string, roleID: string, body: { name?: string; description?: string; capacity?: number; public?: boolean; active?: boolean }) {
+  return patchJSON<EventRoleDTO>(`/api/events/${encodeURIComponent(eventID)}/roles/${encodeURIComponent(roleID)}`, body);
+}
+
 export function listEventRoleApplications(eventID: string) {
   return api<EventRoleApplicationDTO[]>(`/api/events/${encodeURIComponent(eventID)}/role-applications`);
 }

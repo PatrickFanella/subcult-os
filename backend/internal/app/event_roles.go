@@ -45,6 +45,14 @@ type createEventRoleRequest struct {
 	Public      *bool  `json:"public"`
 }
 
+type updateEventRoleRequest struct {
+	Name        *string `json:"name"`
+	Description *string `json:"description"`
+	Capacity    *int    `json:"capacity"`
+	Public      *bool   `json:"public"`
+	Active      *bool   `json:"active"`
+}
+
 type eventRoleApplicationDTO struct {
 	ID                 string  `json:"id"`
 	EventID            string  `json:"eventId"`
@@ -183,6 +191,166 @@ func (a *App) handleCreateEventRole(w http.ResponseWriter, r *http.Request) {
 		returning id, event_id, name, description, capacity, "public", active, created_by_person_id, created_at, updated_at
 	`, event.ID, name, description, req.Capacity, rolePublic, actorID).Scan(&role.ID, &role.EventID, &role.Name, &role.Description, &role.Capacity, &role.Public, &role.Active, &role.CreatedByPersonID, &role.CreatedAt, &role.UpdatedAt); err != nil {
 		writeError(w, http.StatusInternalServerError, "could not create role")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, eventRoleDTOFromRow(role))
+}
+
+func (a *App) handleUpdateEventRole(w http.ResponseWriter, r *http.Request) {
+	if a.db == nil {
+		writeError(w, http.StatusInternalServerError, "database unavailable")
+		return
+	}
+	actorID, ok := a.requirePersonID(r)
+	if !ok {
+		writeError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
+	var req updateEventRoleRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if req.Name == nil && req.Description == nil && req.Capacity == nil && req.Public == nil && req.Active == nil {
+		writeError(w, http.StatusBadRequest, "no changes provided")
+		return
+	}
+
+	var requestedName *string
+	if req.Name != nil {
+		name := strings.TrimSpace(*req.Name)
+		if name == "" {
+			writeError(w, http.StatusBadRequest, "name is required")
+			return
+		}
+		requestedName = &name
+	}
+	var requestedDescription *string
+	if req.Description != nil {
+		description := strings.TrimSpace(*req.Description)
+		if utf8.RuneCountInString(description) > 2000 {
+			writeError(w, http.StatusBadRequest, "description must be 2000 characters or fewer")
+			return
+		}
+		requestedDescription = &description
+	}
+	if req.Capacity != nil && *req.Capacity < 0 {
+		writeError(w, http.StatusBadRequest, "capacity must be non-negative")
+		return
+	}
+
+	tx, err := a.db.Begin(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not start transaction")
+		return
+	}
+	defer func() { _ = tx.Rollback(r.Context()) }()
+
+	var role eventRoleRow
+	var workspaceID, eventStatus string
+	if err := tx.QueryRow(r.Context(), `
+		select r.id, r.event_id, r.name, r.description, r.capacity, r."public", r.active,
+		       r.created_by_person_id, r.created_at, r.updated_at, e.workspace_id, e.status
+		from event_roles r
+		join events e on e.id = r.event_id
+		where e.id = $1
+		  and r.id = $2
+		for update of r
+	`, r.PathValue("eventID"), r.PathValue("roleID")).Scan(&role.ID, &role.EventID, &role.Name, &role.Description, &role.Capacity, &role.Public, &role.Active, &role.CreatedByPersonID, &role.CreatedAt, &role.UpdatedAt, &workspaceID, &eventStatus); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "role not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "could not load role")
+		return
+	}
+
+	var membershipRole string
+	if err := tx.QueryRow(r.Context(), `
+		select role
+		from workspace_members
+		where workspace_id = $1
+		  and person_id = $2
+		  and removed_at is null
+	`, workspaceID, actorID).Scan(&membershipRole); err != nil || membershipRole != "owner" {
+		writeError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+	if eventStatus == "end_of_night" {
+		writeError(w, http.StatusConflict, "event is closed")
+		return
+	}
+
+	nextName := role.Name
+	if requestedName != nil {
+		nextName = *requestedName
+	}
+	nextDescription := role.Description
+	if requestedDescription != nil {
+		nextDescription = *requestedDescription
+	}
+	nextCapacity := role.Capacity
+	if req.Capacity != nil {
+		nextCapacity = *req.Capacity
+	}
+	nextPublic := role.Public
+	if req.Public != nil {
+		nextPublic = *req.Public
+	}
+	nextActive := role.Active
+	if req.Active != nil {
+		nextActive = *req.Active
+	}
+
+	if nextCapacity < role.Capacity {
+		var activeCount int
+		if err := tx.QueryRow(r.Context(), `
+			select count(*)
+			from event_role_applications
+			where role_id = $1
+			  and status in ('accepted', 'confirmed')
+		`, role.ID).Scan(&activeCount); err != nil {
+			writeError(w, http.StatusInternalServerError, "could not count applications")
+			return
+		}
+		if activeCount > nextCapacity {
+			writeError(w, http.StatusConflict, "capacity is below accepted applications")
+			return
+		}
+	}
+
+	if err := tx.QueryRow(r.Context(), `
+		update event_roles
+		set name = $3,
+		    description = $4,
+		    capacity = $5,
+		    "public" = $6,
+		    active = $7,
+		    updated_at = now()
+		where event_id = $1
+		  and id = $2
+		returning id, event_id, name, description, capacity, "public", active, created_by_person_id, created_at, updated_at
+	`, role.EventID, role.ID, nextName, nextDescription, nextCapacity, nextPublic, nextActive).Scan(&role.ID, &role.EventID, &role.Name, &role.Description, &role.Capacity, &role.Public, &role.Active, &role.CreatedByPersonID, &role.CreatedAt, &role.UpdatedAt); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not update role")
+		return
+	}
+
+	txCtx := context.WithValue(r.Context(), txContextKey{}, tx)
+	if err := a.audit(txCtx, actorID, "event_role.updated", "event_role", role.ID, map[string]any{
+		"eventId":  role.EventID,
+		"roleId":   role.ID,
+		"name":     role.Name,
+		"capacity": role.Capacity,
+		"public":   role.Public,
+		"active":   role.Active,
+	}); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not record audit")
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not save role")
 		return
 	}
 

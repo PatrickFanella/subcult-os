@@ -2085,6 +2085,14 @@ func TestEventRoleDefinitionsAPI(t *testing.T) {
 	if performerRole["eventId"] != eventID || performerRole["name"] != "Performer" || performerRole["description"] != "Play a 20-minute set." || int(performerRole["capacity"].(float64)) != 3 || performerRole["public"] != true || performerRole["active"] != true || performerRole["id"] == "" || performerRole["createdAt"] == "" || performerRole["updatedAt"] == "" {
 		t.Fatalf("unexpected role response: %#v", performerRole)
 	}
+	performerRoleID := mustString(t, performer.JSON, "id")
+	patchJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/roles/"+performerRoleID, map[string]any{"name": "Denied"}, http.StatusForbidden)
+	updatedPerformer := patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/roles/"+performerRoleID, map[string]any{"name": "Lead Performer", "description": "Updated notes.", "capacity": 2, "public": false, "active": false}, http.StatusOK)
+	updatedRole := mustObject(t, updatedPerformer.JSON)
+	if updatedRole["name"] != "Lead Performer" || updatedRole["description"] != "Updated notes." || int(updatedRole["capacity"].(float64)) != 2 || updatedRole["public"] != false || updatedRole["active"] != false {
+		t.Fatalf("unexpected updated role response: %#v", updatedRole)
+	}
+	patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/roles/"+performerRoleID, map[string]any{}, http.StatusBadRequest)
 
 	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/roles", map[string]any{"name": " Host ", "description": "Run the door", "capacity": 0}, http.StatusOK)
 	if _, err := fx.app.db.Exec(t.Context(), `
@@ -2112,10 +2120,10 @@ func TestEventRoleDefinitionsAPI(t *testing.T) {
 
 	publicRoles := getJSON(t, fx.app, nil, "/api/public/events/"+roleSlug+"/roles", http.StatusOK)
 	publicRoleList := publicRoles.JSON.([]any)
-	if len(publicRoleList) != 2 {
-		t.Fatalf("expected two public roles, got %#v", publicRoles.JSON)
+	if len(publicRoleList) != 1 {
+		t.Fatalf("expected one public role, got %#v", publicRoles.JSON)
 	}
-	if mustObject(t, publicRoleList[0])["name"] != "Performer" || mustObject(t, publicRoleList[1])["name"] != "Host" {
+	if mustObject(t, publicRoleList[0])["name"] != "Host" {
 		t.Fatalf("expected public roles ordered by creation, got %#v", publicRoles.JSON)
 	}
 
