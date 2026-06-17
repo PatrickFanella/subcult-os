@@ -37,6 +37,7 @@ Organizer can:
 - Run-of-show items can be edited for fake-event setup corrections.
 - Role creation supports public/private visibility so fake-event roles can be attendee-facing or internal.
 - Roles can be edited and deactivated/reactivated during setup without recreating them.
+- `make fake-event-qa` can rehearse the organizer setup path against a running local stack.
 - Existing verification still passes: `make verify` and Expo web export.
 
 ## Rehearsal checklist
@@ -55,6 +56,8 @@ Use seeded organizer credentials or create a new account locally.
 10. Return to Readiness and confirm test-ticket/door checks update.
 11. Add one role and one run-of-show item.
 12. Open Door or Scanner and find the ticket.
+
+For API-level rehearsal, run `make fake-event-qa` against the running stack.
 
 ## Deferred from this sprint start
 
