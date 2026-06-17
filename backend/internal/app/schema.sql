@@ -327,6 +327,7 @@ create index if not exists reminder_events_source_idx on reminder_events (source
 alter table events add column if not exists pricing_mode text not null default 'free' check (pricing_mode in ('free', 'fixed'));
 alter table events add column if not exists ticket_price_cents integer not null default 0 check (ticket_price_cents >= 0);
 alter table events add column if not exists ticket_currency text not null default 'usd';
+alter table events add column if not exists image_url text;
 
 alter table tickets add column if not exists payment_status text not null default 'free' check (payment_status in ('free', 'pending', 'paid', 'cancelled'));
 alter table tickets add column if not exists amount_cents integer not null default 0 check (amount_cents >= 0);

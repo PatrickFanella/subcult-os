@@ -40,6 +40,51 @@ func TestHealthThroughMiddleware(t *testing.T) {
 	}
 }
 
+func TestCORSAllowsConfiguredPublicWebOrigin(t *testing.T) {
+	app := NewTestApp(t)
+	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	req.Header.Set("Origin", "http://example.test")
+	rec := httptest.NewRecorder()
+	app.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "http://example.test" {
+		t.Fatalf("expected configured origin CORS header, got %q", got)
+	}
+	if got := rec.Header().Get("Access-Control-Allow-Credentials"); got != "true" {
+		t.Fatalf("expected credentialed CORS header, got %q", got)
+	}
+}
+
+func TestCORSAllowsLocalhostInDevelopment(t *testing.T) {
+	app := New(Config{AppEnv: "development", PublicWebURL: "http://localhost:5173", SessionSecret: "test-secret"}, nil)
+	req := httptest.NewRequest(http.MethodOptions, "/api/public/events", nil)
+	req.Header.Set("Origin", "http://localhost:8081")
+	rec := httptest.NewRecorder()
+	app.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("expected 204 preflight, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "http://localhost:8081" {
+		t.Fatalf("expected localhost CORS header, got %q", got)
+	}
+}
+
+func TestCORSRejectsUnconfiguredOrigin(t *testing.T) {
+	app := NewTestApp(t)
+	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	req.Header.Set("Origin", "http://evil.example")
+	rec := httptest.NewRecorder()
+	app.Handler().ServeHTTP(rec, req)
+
+	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "" {
+		t.Fatalf("expected no CORS header for unconfigured origin, got %q", got)
+	}
+}
+
 func TestStripeWebhookRejectsInvalidSignature(t *testing.T) {
 	app := New(Config{AppEnv: "test", PublicWebURL: "http://example.test", SessionSecret: "test-secret", StripeWebhookSecret: "whsec_test"}, nil)
 	req := httptest.NewRequest(http.MethodPost, "/api/stripe/webhook", strings.NewReader(`{"id":"evt_test","type":"checkout.session.completed","data":{"object":{"id":"cs_test","object":"checkout.session","metadata":{"ticket_id":"ticket_1"}}}}`))

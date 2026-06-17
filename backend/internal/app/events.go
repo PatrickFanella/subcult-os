@@ -20,6 +20,7 @@ type eventDTO struct {
 	StartsAt               string  `json:"startsAt"`
 	PublicDescription      string  `json:"publicDescription"`
 	LocationDisplay        string  `json:"locationDisplay"`
+	ImageURL               *string `json:"imageUrl"`
 	TicketAllocation       int     `json:"ticketAllocation"`
 	PricingMode            string  `json:"pricingMode"`
 	TicketPriceCents       int     `json:"ticketPriceCents"`
@@ -251,6 +252,7 @@ type eventRow struct {
 	StartsAt               time.Time
 	PublicDescription      string
 	LocationDisplay        string
+	ImageURL               sql.NullString
 	TicketAllocation       int
 	PricingMode            string
 	TicketPriceCents       int
@@ -275,6 +277,7 @@ type createEventRequest struct {
 	StartsAt          string `json:"startsAt"`
 	PublicDescription string `json:"publicDescription"`
 	LocationDisplay   string `json:"locationDisplay"`
+	ImageURL          string `json:"imageUrl"`
 	TicketAllocation  int    `json:"ticketAllocation"`
 	PricingMode       string `json:"pricingMode"`
 	TicketPriceCents  int    `json:"ticketPriceCents"`
@@ -286,6 +289,7 @@ type updateEventRequest struct {
 	StartsAt          *string `json:"startsAt"`
 	PublicDescription *string `json:"publicDescription"`
 	LocationDisplay   *string `json:"locationDisplay"`
+	ImageURL          *string `json:"imageUrl"`
 	TicketAllocation  *int    `json:"ticketAllocation"`
 	PricingMode       *string `json:"pricingMode"`
 	TicketPriceCents  *int    `json:"ticketPriceCents"`
@@ -304,7 +308,7 @@ func (a *App) handleListEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := a.db.Query(r.Context(), `
-		select e.id, e.workspace_id, e.title, e.starts_at, e.public_description, e.location_display,
+		select e.id, e.workspace_id, e.title, e.starts_at, e.public_description, e.location_display, e.image_url,
 		       e.ticket_allocation, e.pricing_mode, e.ticket_price_cents, e.ticket_currency, e.status, e.public_slug,
 		       (select count(*) from tickets t where t.event_id = e.id and t.payment_status <> 'cancelled') as reserved_count,
 		       (select count(*) from tickets t where t.event_id = e.id and t.status = 'checked_in' and t.payment_status <> 'cancelled') as checked_in_count,
@@ -334,7 +338,7 @@ func (a *App) handleListEvents(w http.ResponseWriter, r *http.Request) {
 	events := make([]eventDTO, 0)
 	for rows.Next() {
 		var row eventRow
-		if err := rows.Scan(&row.ID, &row.WorkspaceID, &row.Title, &row.StartsAt, &row.PublicDescription, &row.LocationDisplay, &row.TicketAllocation, &row.PricingMode, &row.TicketPriceCents, &row.TicketCurrency, &row.Status, &row.PublicSlug, &row.ReservedCount, &row.CheckedInCount, &row.StaffingOpenCount, &row.StaffingAssignedCount, &row.StaffingCompletedCount, &row.StaffingCancelledCount); err != nil {
+		if err := rows.Scan(&row.ID, &row.WorkspaceID, &row.Title, &row.StartsAt, &row.PublicDescription, &row.LocationDisplay, &row.ImageURL, &row.TicketAllocation, &row.PricingMode, &row.TicketPriceCents, &row.TicketCurrency, &row.Status, &row.PublicSlug, &row.ReservedCount, &row.CheckedInCount, &row.StaffingOpenCount, &row.StaffingAssignedCount, &row.StaffingCompletedCount, &row.StaffingCancelledCount); err != nil {
 			writeError(w, http.StatusInternalServerError, "could not load events")
 			return
 		}
@@ -368,6 +372,7 @@ func (a *App) handleCreateEvent(w http.ResponseWriter, r *http.Request) {
 	title := strings.TrimSpace(req.Title)
 	publicDescription := strings.TrimSpace(req.PublicDescription)
 	locationDisplay := strings.TrimSpace(req.LocationDisplay)
+	imageURL := strings.TrimSpace(req.ImageURL)
 	startsAt, err := parseRFC3339Time(req.StartsAt)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid startsAt")
@@ -396,10 +401,10 @@ func (a *App) handleCreateEvent(w http.ResponseWriter, r *http.Request) {
 
 	var eventID string
 	if err := tx.QueryRow(r.Context(), `
-		insert into events (workspace_id, title, starts_at, public_description, location_display, ticket_allocation, pricing_mode, ticket_price_cents, ticket_currency, status, created_by_person_id)
-		values ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'draft', $10)
+		insert into events (workspace_id, title, starts_at, public_description, location_display, image_url, ticket_allocation, pricing_mode, ticket_price_cents, ticket_currency, status, created_by_person_id)
+		values ($1, $2, $3, $4, $5, nullif($6, ''), $7, $8, $9, $10, 'draft', $11)
 		returning id
-	`, workspaceID, title, startsAt, publicDescription, locationDisplay, req.TicketAllocation, pricingMode, ticketPriceCents, ticketCurrency, actorID).Scan(&eventID); err != nil {
+	`, workspaceID, title, startsAt, publicDescription, locationDisplay, imageURL, req.TicketAllocation, pricingMode, ticketPriceCents, ticketCurrency, actorID).Scan(&eventID); err != nil {
 		writeError(w, http.StatusInternalServerError, "could not create event")
 		return
 	}
@@ -410,6 +415,7 @@ func (a *App) handleCreateEvent(w http.ResponseWriter, r *http.Request) {
 		"startsAt":          startsAt.UTC().Format(time.RFC3339Nano),
 		"publicDescription": publicDescription,
 		"locationDisplay":   locationDisplay,
+		"imageUrl":          imageURL,
 		"ticketAllocation":  req.TicketAllocation,
 		"pricingMode":       pricingMode,
 		"ticketPriceCents":  ticketPriceCents,
@@ -423,7 +429,7 @@ func (a *App) handleCreateEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	row := eventRow{ID: eventID, WorkspaceID: workspaceID, Title: title, StartsAt: startsAt, PublicDescription: publicDescription, LocationDisplay: locationDisplay, TicketAllocation: req.TicketAllocation, PricingMode: pricingMode, TicketPriceCents: ticketPriceCents, TicketCurrency: ticketCurrency, Status: "draft"}
+	row := eventRow{ID: eventID, WorkspaceID: workspaceID, Title: title, StartsAt: startsAt, PublicDescription: publicDescription, LocationDisplay: locationDisplay, ImageURL: sql.NullString{String: imageURL, Valid: imageURL != ""}, TicketAllocation: req.TicketAllocation, PricingMode: pricingMode, TicketPriceCents: ticketPriceCents, TicketCurrency: ticketCurrency, Status: "draft"}
 	writeJSON(w, http.StatusOK, a.eventDTOFromRow(row))
 }
 
@@ -473,7 +479,7 @@ func (a *App) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
-	if req.Title == nil && req.StartsAt == nil && req.PublicDescription == nil && req.LocationDisplay == nil && req.TicketAllocation == nil && req.PricingMode == nil && req.TicketPriceCents == nil && req.TicketCurrency == nil {
+	if req.Title == nil && req.StartsAt == nil && req.PublicDescription == nil && req.LocationDisplay == nil && req.ImageURL == nil && req.TicketAllocation == nil && req.PricingMode == nil && req.TicketPriceCents == nil && req.TicketCurrency == nil {
 		writeError(w, http.StatusBadRequest, "no changes provided")
 		return
 	}
@@ -486,6 +492,7 @@ func (a *App) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 	newStartsAt := event.StartsAt
 	newPublicDescription := event.PublicDescription
 	newLocationDisplay := event.LocationDisplay
+	newImageURL := event.ImageURL
 	newTicketAllocation := event.TicketAllocation
 	newPricingMode := event.PricingMode
 	newTicketPriceCents := event.TicketPriceCents
@@ -526,6 +533,13 @@ func (a *App) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 		}
 		if value != event.LocationDisplay {
 			newLocationDisplay = value
+			changed = true
+		}
+	}
+	if req.ImageURL != nil {
+		value := strings.TrimSpace(*req.ImageURL)
+		if value != event.ImageURL.String || (value == "") == event.ImageURL.Valid {
+			newImageURL = sql.NullString{String: value, Valid: value != ""}
 			changed = true
 		}
 	}
@@ -604,13 +618,14 @@ func (a *App) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 		    starts_at = $3,
 		    public_description = $4,
 		    location_display = $5,
-		    ticket_allocation = $6,
-		    pricing_mode = $7,
-		    ticket_price_cents = $8,
-		    ticket_currency = $9,
+		    image_url = $6,
+		    ticket_allocation = $7,
+		    pricing_mode = $8,
+		    ticket_price_cents = $9,
+		    ticket_currency = $10,
 		    updated_at = now()
 		where id = $1
-	`, event.ID, newTitle, newStartsAt, newPublicDescription, newLocationDisplay, newTicketAllocation, newPricingMode, newTicketPriceCents, newTicketCurrency); err != nil {
+	`, event.ID, newTitle, newStartsAt, newPublicDescription, newLocationDisplay, newImageURL, newTicketAllocation, newPricingMode, newTicketPriceCents, newTicketCurrency); err != nil {
 		writeError(w, http.StatusInternalServerError, "could not update event")
 		return
 	}
@@ -621,6 +636,7 @@ func (a *App) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 		"startsAt":          newStartsAt.UTC().Format(time.RFC3339Nano),
 		"publicDescription": newPublicDescription,
 		"locationDisplay":   newLocationDisplay,
+		"imageUrl":          nullableString(newImageURL),
 		"ticketAllocation":  newTicketAllocation,
 		"pricingMode":       newPricingMode,
 		"ticketPriceCents":  newTicketPriceCents,
@@ -638,6 +654,7 @@ func (a *App) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 	event.StartsAt = newStartsAt
 	event.PublicDescription = newPublicDescription
 	event.LocationDisplay = newLocationDisplay
+	event.ImageURL = newImageURL
 	event.TicketAllocation = newTicketAllocation
 	event.PricingMode = newPricingMode
 	event.TicketPriceCents = newTicketPriceCents
@@ -1669,13 +1686,13 @@ func (a *App) loadEventDetails(ctx context.Context, eventID string) (eventRow, e
 		return row, pgx.ErrNoRows
 	}
 	err := a.db.QueryRow(ctx, `
-		select e.id, e.workspace_id, e.title, e.starts_at, e.public_description, e.location_display,
+		select e.id, e.workspace_id, e.title, e.starts_at, e.public_description, e.location_display, e.image_url,
 		       e.ticket_allocation, e.pricing_mode, e.ticket_price_cents, e.ticket_currency, e.status, e.public_slug,
 		       (select count(*) from tickets t where t.event_id = e.id and t.payment_status <> 'cancelled') as reserved_count,
 		       (select count(*) from tickets t where t.event_id = e.id and t.status = 'checked_in' and t.payment_status <> 'cancelled') as checked_in_count
 		from events e
 		where e.id = $1
-	`, eventID).Scan(&row.ID, &row.WorkspaceID, &row.Title, &row.StartsAt, &row.PublicDescription, &row.LocationDisplay, &row.TicketAllocation, &row.PricingMode, &row.TicketPriceCents, &row.TicketCurrency, &row.Status, &row.PublicSlug, &row.ReservedCount, &row.CheckedInCount)
+	`, eventID).Scan(&row.ID, &row.WorkspaceID, &row.Title, &row.StartsAt, &row.PublicDescription, &row.LocationDisplay, &row.ImageURL, &row.TicketAllocation, &row.PricingMode, &row.TicketPriceCents, &row.TicketCurrency, &row.Status, &row.PublicSlug, &row.ReservedCount, &row.CheckedInCount)
 	if err != nil {
 		return eventRow{}, err
 	}
@@ -1696,7 +1713,7 @@ func (a *App) loadEventDetailsForUpdate(ctx context.Context, tx pgx.Tx, eventID 
 		return row, pgx.ErrNoRows
 	}
 	if err := tx.QueryRow(ctx, `
-		select e.id, e.workspace_id, e.title, e.starts_at, e.public_description, e.location_display,
+		select e.id, e.workspace_id, e.title, e.starts_at, e.public_description, e.location_display, e.image_url,
 		       e.ticket_allocation, e.pricing_mode, e.ticket_price_cents, e.ticket_currency, e.status, e.public_slug,
 		       (select count(*) from tickets t where t.event_id = e.id and t.payment_status <> 'cancelled') as reserved_count,
 		       (select count(*) from tickets t where t.event_id = e.id and t.status = 'checked_in' and t.payment_status <> 'cancelled') as checked_in_count,
@@ -1707,7 +1724,7 @@ func (a *App) loadEventDetailsForUpdate(ctx context.Context, tx pgx.Tx, eventID 
 		from events e
 		where e.id = $1
 		for update
-	`, eventID).Scan(&row.ID, &row.WorkspaceID, &row.Title, &row.StartsAt, &row.PublicDescription, &row.LocationDisplay, &row.TicketAllocation, &row.PricingMode, &row.TicketPriceCents, &row.TicketCurrency, &row.Status, &row.PublicSlug, &row.ReservedCount, &row.CheckedInCount, &row.StaffingOpenCount, &row.StaffingAssignedCount, &row.StaffingCompletedCount, &row.StaffingCancelledCount); err != nil {
+	`, eventID).Scan(&row.ID, &row.WorkspaceID, &row.Title, &row.StartsAt, &row.PublicDescription, &row.LocationDisplay, &row.ImageURL, &row.TicketAllocation, &row.PricingMode, &row.TicketPriceCents, &row.TicketCurrency, &row.Status, &row.PublicSlug, &row.ReservedCount, &row.CheckedInCount, &row.StaffingOpenCount, &row.StaffingAssignedCount, &row.StaffingCompletedCount, &row.StaffingCancelledCount); err != nil {
 		return eventRow{}, err
 	}
 	return row, nil
@@ -1721,6 +1738,7 @@ func (a *App) eventDTOFromRow(row eventRow) eventDTO {
 		StartsAt:               row.StartsAt.UTC().Format(time.RFC3339Nano),
 		PublicDescription:      row.PublicDescription,
 		LocationDisplay:        row.LocationDisplay,
+		ImageURL:               nullableString(row.ImageURL),
 		TicketAllocation:       row.TicketAllocation,
 		PricingMode:            row.PricingMode,
 		TicketPriceCents:       row.TicketPriceCents,

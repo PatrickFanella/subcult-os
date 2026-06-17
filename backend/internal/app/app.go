@@ -36,7 +36,7 @@ func New(config Config, db *pgxpool.Pool) *App {
 	return a
 }
 
-func (a *App) Handler() http.Handler { return a.requestLogger(a.originGuard(a.mux)) }
+func (a *App) Handler() http.Handler { return a.requestLogger(a.cors(a.originGuard(a.mux))) }
 
 func (a *App) routes() {
 	a.mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
@@ -72,6 +72,7 @@ func (a *App) routes() {
 	a.mux.HandleFunc("GET /api/events/{eventID}", a.handleGetEvent)
 	a.mux.HandleFunc("POST /api/events/{eventID}/apply-template", a.handleApplyEventTemplate)
 	a.mux.HandleFunc("PATCH /api/events/{eventID}", a.handleUpdateEvent)
+	a.mux.HandleFunc("POST /api/events/{eventID}/image", a.handleUploadEventImage)
 	a.mux.HandleFunc("POST /api/events/{eventID}/publish", a.handlePublishEvent)
 	a.mux.HandleFunc("GET /api/events/{eventID}/commitments", a.handleListEventCommitments)
 	a.mux.HandleFunc("GET /api/events/{eventID}/reminders", a.handleListEventReminders)
@@ -138,6 +139,23 @@ func (a *App) originGuard(next http.Handler) http.Handler {
 	})
 }
 
+func (a *App) cors(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if origin := strings.TrimSpace(r.Header.Get("Origin")); origin != "" && a.allowedOrigin(r) {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, POST, PATCH, DELETE, OPTIONS")
+			w.Header().Add("Vary", "Origin")
+		}
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 type statusRecorder struct {
 	http.ResponseWriter
 	status int
@@ -186,6 +204,9 @@ func (a *App) allowedOrigin(r *http.Request) bool {
 	if strings.EqualFold(parsed.Host, r.Host) {
 		return true
 	}
+	if a.isDevelopment() && isLocalDevOrigin(parsed) {
+		return true
+	}
 	publicWebURL := strings.TrimSpace(a.config.PublicWebURL)
 	if publicWebURL == "" {
 		return false
@@ -195,4 +216,16 @@ func (a *App) allowedOrigin(r *http.Request) bool {
 		return false
 	}
 	return strings.EqualFold(parsed.Scheme, publicParsed.Scheme) && strings.EqualFold(parsed.Host, publicParsed.Host)
+}
+
+func (a *App) isDevelopment() bool {
+	return strings.EqualFold(strings.TrimSpace(a.config.AppEnv), "development") || strings.TrimSpace(a.config.AppEnv) == ""
+}
+
+func isLocalDevOrigin(origin *url.URL) bool {
+	if origin.Scheme != "http" && origin.Scheme != "https" {
+		return false
+	}
+	hostname := strings.ToLower(origin.Hostname())
+	return hostname == "localhost" || hostname == "127.0.0.1" || hostname == "::1"
 }

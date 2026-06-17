@@ -26,6 +26,7 @@ type ticketDTO struct {
 	Email         string  `json:"email"`
 	DisplayName   *string `json:"displayName"`
 	Code          string  `json:"code"`
+	TicketURL     string  `json:"ticketUrl"`
 	Status        string  `json:"status"`
 	PaymentStatus string  `json:"paymentStatus"`
 	AmountCents   int     `json:"amountCents"`
@@ -58,6 +59,8 @@ type reservedTicketResponse struct {
 
 type paidReservationResponse struct {
 	TicketID          string `json:"ticketId"`
+	TicketCode        string `json:"ticketCode"`
+	TicketURL         string `json:"ticketUrl"`
 	CheckoutSessionID string `json:"checkoutSessionId"`
 	CheckoutURL       string `json:"checkoutUrl"`
 }
@@ -176,7 +179,7 @@ func (a *App) handleReserveTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, reservedTicketResponse{ticketDTO: ticketDTOFromRow(ticket), TicketURL: ticketURL})
+	writeJSON(w, http.StatusOK, reservedTicketResponse{ticketDTO: a.ticketDTOFromRow(ticket), TicketURL: ticketURL})
 }
 
 func (a *App) handleCreatePaidReservation(w http.ResponseWriter, r *http.Request) {
@@ -251,13 +254,14 @@ func (a *App) handleCreatePaidReservation(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	ticketURL := a.publicTicketURL(ticket.Code)
 	checkout, err := a.payments.CreateCheckoutSession(r.Context(), checkoutSessionRequest{
 		TicketID:    ticket.ID,
 		EventID:     event.ID,
 		EventTitle:  event.Title,
 		AmountCents: event.TicketPriceCents,
 		Currency:    event.TicketCurrency,
-		SuccessURL:  a.publicTicketURL(ticket.Code) + "?checkout=success",
+		SuccessURL:  ticketURL + "?checkout=success",
 		CancelURL:   a.publicEventURL(a.publicSlugValue(event)) + "?checkout=cancelled",
 	})
 	if err != nil {
@@ -294,7 +298,7 @@ func (a *App) handleCreatePaidReservation(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	writeJSON(w, http.StatusOK, paidReservationResponse{TicketID: ticket.ID, CheckoutSessionID: checkout.ID, CheckoutURL: checkout.URL})
+	writeJSON(w, http.StatusOK, paidReservationResponse{TicketID: ticket.ID, TicketCode: ticket.Code, TicketURL: ticketURL, CheckoutSessionID: checkout.ID, CheckoutURL: checkout.URL})
 }
 
 func (a *App) handleGetTicket(w http.ResponseWriter, r *http.Request) {
@@ -311,7 +315,7 @@ func (a *App) handleGetTicket(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not load ticket")
 		return
 	}
-	writeJSON(w, http.StatusOK, ticketDTOFromRow(ticket))
+	writeJSON(w, http.StatusOK, a.ticketDTOFromRow(ticket))
 }
 
 func (a *App) handleDoorTicketSearch(w http.ResponseWriter, r *http.Request) {
@@ -348,10 +352,10 @@ func (a *App) handleDoorTicketSearch(w http.ResponseWriter, r *http.Request) {
 		  and (
 			lower(email) like '%' || $2 || '%'
 			or lower(coalesce(display_name, '')) like '%' || $2 || '%'
-			or code = $3
+			or lower(code) like '%' || $2 || '%'
 		  )
 		order by created_at desc
-	`, event.ID, query, strings.TrimSpace(r.URL.Query().Get("query")))
+	`, event.ID, query)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not search tickets")
 		return
@@ -365,7 +369,7 @@ func (a *App) handleDoorTicketSearch(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, "could not search tickets")
 			return
 		}
-		tickets = append(tickets, ticketDTOFromRow(ticket))
+		tickets = append(tickets, a.ticketDTOFromRow(ticket))
 	}
 	if err := rows.Err(); err != nil {
 		writeError(w, http.StatusInternalServerError, "could not search tickets")
@@ -443,7 +447,7 @@ func (a *App) handleDoorCheckIn(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, "could not save check-in")
 			return
 		}
-		writeJSON(w, http.StatusOK, ticketDTOFromRow(ticket))
+		writeJSON(w, http.StatusOK, a.ticketDTOFromRow(ticket))
 		return
 	}
 
@@ -478,7 +482,7 @@ func (a *App) handleDoorCheckIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, ticketDTOFromRow(ticket))
+	writeJSON(w, http.StatusOK, a.ticketDTOFromRow(ticket))
 }
 
 func (a *App) loadPublishedEventBySlug(ctx context.Context, slug string) (eventRow, error) {
@@ -523,12 +527,13 @@ func (a *App) publicTicketURL(code string) string {
 	return base + "/tickets/" + code
 }
 
-func ticketDTOFromRow(row ticketRow) ticketDTO {
+func (a *App) ticketDTOFromRow(row ticketRow) ticketDTO {
 	dto := ticketDTO{
 		ID:            row.ID,
 		EventID:       row.EventID,
 		Email:         row.Email,
 		Code:          row.Code,
+		TicketURL:     a.publicTicketURL(row.Code),
 		Status:        row.Status,
 		PaymentStatus: row.PaymentStatus,
 		AmountCents:   row.AmountCents,

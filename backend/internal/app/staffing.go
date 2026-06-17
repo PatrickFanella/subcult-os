@@ -664,7 +664,7 @@ func loadEventStaffingItemRow(ctx context.Context, q staffingRowQuerier, eventID
 		left join event_role_applications era on era.id = esi.assigned_application_id
 		where esi.event_id = $1
 		  and esi.id = $2
-		for update
+		for update of esi
 	`, eventID, staffingID).Scan(&row.ID, &row.EventID, &row.Title, &row.Kind, &row.Notes, &row.StartsAt, &row.EndsAt, &row.AssignedPersonID, &row.AssignedApplicationID, &row.AssigneeName, &row.Status, &row.CreatedAt, &row.UpdatedAt, &row.CompletedAt, &row.CompletedByPersonID); err != nil {
 		return eventStaffingItemRow{}, err
 	}
