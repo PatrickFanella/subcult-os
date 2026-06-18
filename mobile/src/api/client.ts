@@ -77,10 +77,15 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     headers.set('Authorization', `Bearer ${bearerToken}`);
   }
 
+  const headerObject: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    headerObject[key] = value;
+  });
+
   const response = await fetch(apiUrl(path), {
     ...options,
     credentials: 'include',
-    headers,
+    headers: headerObject,
   });
 
   await setSessionCookieFromHeader(response.headers.get('set-cookie'));
