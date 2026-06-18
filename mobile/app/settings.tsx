@@ -3,7 +3,7 @@ import { ChevronLeft, RefreshCcw, Settings } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { getMe } from '@/api/auth';
+import { getMe, getMobileAuthDebug } from '@/api/auth';
 import { getSessionDebugState } from '@/api/client';
 import { listWorkspaceEvents } from '@/api/staff';
 import { apiConfig } from '@/config/api';
@@ -20,6 +20,7 @@ export default function SettingsScreen() {
     setDebugging(true);
     setDebugOutput('Checking…');
     try {
+      const serverDebug = await getMobileAuthDebug();
       const current = await getMe();
       const storedSession = await loadStoredSessionCookie();
       const sessionState = await getSessionDebugState();
@@ -28,6 +29,11 @@ export default function SettingsScreen() {
         `memory session: ${sessionState.hasSessionCookie ? 'yes' : 'no'}`,
         `bearer token: ${sessionState.hasBearerToken ? 'yes' : 'no'}`,
         `cookie prefix: ${sessionState.sessionCookiePrefix || 'none'}`,
+        `server cookie: ${serverDebug.hasCookie ? 'yes' : 'no'}`,
+        `server auth header: ${serverDebug.hasAuthorization ? 'yes' : 'no'}`,
+        `server session header: ${serverDebug.hasSessionHeader ? 'yes' : 'no'}`,
+        `server token header: ${serverDebug.hasTokenHeader ? 'yes' : 'no'}`,
+        `server token recognized: ${serverDebug.recognized ? 'yes' : 'no'}`,
         `/api/me: ${current.email}`,
         `workspaces: ${current.workspaces.length}`,
       ];
@@ -43,11 +49,25 @@ export default function SettingsScreen() {
     } catch (caught) {
       const storedSession = await loadStoredSessionCookie();
       const sessionState = await getSessionDebugState();
+      let serverLines: string[] = [];
+      try {
+        const serverDebug = await getMobileAuthDebug();
+        serverLines = [
+          `server cookie: ${serverDebug.hasCookie ? 'yes' : 'no'}`,
+          `server auth header: ${serverDebug.hasAuthorization ? 'yes' : 'no'}`,
+          `server session header: ${serverDebug.hasSessionHeader ? 'yes' : 'no'}`,
+          `server token header: ${serverDebug.hasTokenHeader ? 'yes' : 'no'}`,
+          `server token recognized: ${serverDebug.recognized ? 'yes' : 'no'}`,
+        ];
+      } catch (debugError) {
+        serverLines = [`server debug failed: ${debugError instanceof Error ? debugError.message : 'unknown error'}`];
+      }
       setDebugOutput([
         `stored session: ${storedSession ? 'yes' : 'no'}`,
         `memory session: ${sessionState.hasSessionCookie ? 'yes' : 'no'}`,
         `bearer token: ${sessionState.hasBearerToken ? 'yes' : 'no'}`,
         `cookie prefix: ${sessionState.sessionCookiePrefix || 'none'}`,
+        ...serverLines,
         `/api/me failed: ${caught instanceof Error ? caught.message : 'unknown error'}`,
       ].join('\n'));
     } finally {

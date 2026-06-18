@@ -5,6 +5,20 @@ export function getMe() {
   return api<CurrentUserDTO>('/api/me');
 }
 
+export interface MobileAuthDebugDTO {
+  hasCookie: boolean;
+  hasAuthorization: boolean;
+  hasSessionHeader: boolean;
+  hasTokenHeader: boolean;
+  hasToken: boolean;
+  recognized: boolean;
+  personId: string;
+}
+
+export function getMobileAuthDebug() {
+  return api<MobileAuthDebugDTO>('/api/debug/mobile-auth');
+}
+
 export async function login(body: { email: string; password: string }) {
   const user = await postJSON<CurrentUserDTO>('/api/auth/login', body);
   await setSessionCookieFromHeader(user.sessionCookie ?? null);

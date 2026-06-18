@@ -262,6 +262,31 @@ func (a *App) handleMe(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, user)
 }
 
+func (a *App) handleMobileAuthDebug(w http.ResponseWriter, r *http.Request) {
+	token := sessionTokenFromRequest(r)
+	personID := ""
+	recognized := false
+	if token != "" && a.db != nil {
+		err := a.db.QueryRow(r.Context(), `
+			select person_id
+			from sessions
+			where token_hash = $1
+			  and expires_at > now()
+		`, tokenHash(token)).Scan(&personID)
+		recognized = err == nil
+	}
+	_, cookieErr := r.Cookie(authCookieName)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"hasCookie":        cookieErr == nil,
+		"hasAuthorization": strings.TrimSpace(r.Header.Get("Authorization")) != "",
+		"hasSessionHeader": strings.TrimSpace(r.Header.Get(authSessionHeader)) != "",
+		"hasTokenHeader":   strings.TrimSpace(r.Header.Get(authTokenHeader)) != "",
+		"hasToken":         token != "",
+		"recognized":       recognized,
+		"personId":         personID,
+	})
+}
+
 func (a *App) requirePersonID(r *http.Request) (string, bool) {
 	if a.db == nil {
 		return "", false
