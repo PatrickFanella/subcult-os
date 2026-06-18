@@ -23,6 +23,7 @@ import (
 const (
 	authCookieName     = "subcult_session"
 	authSessionHeader  = "X-Subcult-Session"
+	authTokenHeader    = "X-Subcult-Session-Token"
 	sessionLifetime    = 30 * 24 * time.Hour
 	passwordScheme     = "bcrypt"
 	legacySHA256Scheme = "sha256"
@@ -291,6 +292,9 @@ func sessionTokenFromRequest(r *http.Request) string {
 		if ok && strings.EqualFold(scheme, "Bearer") && strings.TrimSpace(token) != "" {
 			return strings.TrimSpace(token)
 		}
+	}
+	if token := strings.TrimSpace(r.Header.Get(authTokenHeader)); token != "" {
+		return token
 	}
 	header := strings.TrimSpace(r.Header.Get(authSessionHeader))
 	if header == "" {

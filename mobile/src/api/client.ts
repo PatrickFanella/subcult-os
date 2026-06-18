@@ -59,6 +59,9 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     headers.set('X-Subcult-Session', sessionCookie);
   }
   const bearerToken = sessionCookie?.startsWith('subcult_session=') ? sessionCookie.slice('subcult_session='.length) : null;
+  if (bearerToken && !headers.has('X-Subcult-Session-Token')) {
+    headers.set('X-Subcult-Session-Token', bearerToken);
+  }
   if (bearerToken && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${bearerToken}`);
   }
