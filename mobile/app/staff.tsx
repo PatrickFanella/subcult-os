@@ -8,7 +8,7 @@ import { listWorkspaceEvents } from '@/api/staff';
 import type { EventDTO, WorkspaceSummaryDTO } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { eventArtwork } from '@/data/eventArtwork';
-import { loadStaffSelection, storeSelectedEventID, storeSelectedWorkspaceID } from '@/staff/selectionStore';
+import { clearSelectedEventID, loadStaffSelection, storeSelectedEventID, storeSelectedWorkspaceID } from '@/staff/selectionStore';
 import { AppChrome } from '@/ui/AppChrome';
 
 export default function StaffScreen() {
@@ -17,12 +17,15 @@ export default function StaffScreen() {
   const [events, setEvents] = useState<EventDTO[]>([]);
   const [selectedEventID, setSelectedEventID] = useState<string | null>(null);
   const [loadingEvents, setLoadingEvents] = useState(false);
+  const [hydratingSelection, setHydratingSelection] = useState(true);
   const [eventError, setEventError] = useState<string | null>(null);
 
-  const workspace = user?.workspaces.find((candidate) => candidate.id === selectedWorkspaceID) ?? user?.workspaces[0] ?? null;
+  const workspaceKey = user?.workspaces.map((workspace) => workspace.id).join('|') ?? '';
+  const workspace = selectedWorkspaceID ? user?.workspaces.find((candidate) => candidate.id === selectedWorkspaceID) ?? null : null;
 
   useEffect(() => {
     if (!user) {
+      setHydratingSelection(false);
       setSelectedWorkspaceID(null);
       setSelectedEventID(null);
       setEvents([]);
@@ -33,6 +36,7 @@ export default function StaffScreen() {
     const workspaces = user.workspaces;
 
     async function hydrateSelection() {
+      setHydratingSelection(true);
       const stored = await loadStaffSelection();
       if (cancelled) return;
 
@@ -41,6 +45,7 @@ export default function StaffScreen() {
 
       setSelectedWorkspaceID(nextWorkspaceID);
       setSelectedEventID(stored.eventID);
+      setHydratingSelection(false);
     }
 
     void hydrateSelection();
@@ -48,10 +53,16 @@ export default function StaffScreen() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user?.id, workspaceKey]);
 
   useEffect(() => {
-    if (!workspace) return;
+    if (hydratingSelection) return;
+    if (!workspace) {
+      setEvents([]);
+      setSelectedEventID(null);
+      setLoadingEvents(false);
+      return;
+    }
     const workspaceID = workspace.id;
     let cancelled = false;
 
@@ -71,17 +82,10 @@ export default function StaffScreen() {
       } catch (caught) {
         if (!cancelled) {
           const message = caught instanceof Error ? caught.message : 'Unable to load workspace events';
-          const fallbackWorkspace = message.toLowerCase().includes('forbidden') ? user?.workspaces.find((candidate) => candidate.id !== workspaceID) : null;
-          if (fallbackWorkspace) {
-            setSelectedWorkspaceID(fallbackWorkspace.id);
-            setSelectedEventID(null);
-            setEvents([]);
-            void storeSelectedWorkspaceID(fallbackWorkspace.id);
-            return;
-          }
-          setEventError(message);
+          setEventError(message.toLowerCase().includes('forbidden') ? 'Forbidden: this account cannot load events for the selected workspace. Try another workspace or sign in again.' : message);
           setEvents([]);
           setSelectedEventID(null);
+          void clearSelectedEventID();
         }
       } finally {
         if (!cancelled) setLoadingEvents(false);
@@ -92,9 +96,9 @@ export default function StaffScreen() {
     return () => {
       cancelled = true;
     };
-  }, [workspace?.id]);
+  }, [workspace?.id, hydratingSelection]);
 
-  if (authLoading) return <CenteredStaffState title="Checking session…" />;
+  if (authLoading || hydratingSelection) return <CenteredStaffState title="Checking dashboard…" />;
 
   if (!user) {
     return (
@@ -149,7 +153,9 @@ export default function StaffScreen() {
                   setSelectedWorkspaceID(candidate.id);
                   setSelectedEventID(null);
                   setEvents([]);
+                  setEventError(null);
                   void storeSelectedWorkspaceID(candidate.id);
+                  void clearSelectedEventID();
                 }}
               />
             ))}
@@ -193,12 +199,12 @@ export default function StaffScreen() {
         <View style={styles.grid}>
           <DashboardCard to={{ pathname: '/event-edit', params: { workspaceId: workspace.id } }} icon={<CalendarPlus size={24} color="#ffffff" />} title="Create Event" subtitle="Draft & publish" primary />
           <DashboardCard to={activeEvent ? { pathname: '/event-edit', params: { eventId: activeEvent.id, workspaceId: workspace.id } } : { pathname: '/event-edit', params: { workspaceId: workspace.id } }} icon={<Pencil size={24} color="#171717" />} title="Edit Event" subtitle="Basics & tickets" />
-          <DashboardCard to={activeEvent ? { pathname: '/readiness', params: { eventId: activeEvent.id } } : '/staff'} icon={<ClipboardCheck size={24} color="#ffffff" />} title="Readiness" subtitle="Setup checklist" primary />
-          <DashboardCard to={activeEvent ? { pathname: '/scanner', params: { eventId: activeEvent.id } } : '/staff'} icon={<QrCode size={24} color="#ffffff" />} title="Scan Tickets" subtitle="Run the door" primary />
-          <DashboardCard to={activeEvent ? { pathname: '/run-of-show', params: { eventId: activeEvent.id } } : '/staff'} icon={<ListChecks size={24} color="#171717" />} title="Run of Show" subtitle="Event timeline" />
-          <DashboardCard to={activeEvent ? { pathname: '/roles', params: { eventId: activeEvent.id } } : '/staff'} icon={<UserPlus size={24} color="#171717" />} title="Roles" subtitle="Applicants" />
-          <DashboardCard to={activeEvent ? { pathname: '/door', params: { eventId: activeEvent.id } } : '/staff'} icon={<Users size={24} color="#171717" />} title="Guest List" subtitle="VIP & Comp" />
-          <DashboardCard to={activeEvent ? { pathname: '/event-dashboard', params: { eventId: activeEvent.id } } : '/staff'} icon={<Mic2 size={24} color="#171717" />} title="Live Event" subtitle="Counters" />
+          <DashboardCard disabled={!activeEvent} to={activeEvent ? { pathname: '/readiness', params: { eventId: activeEvent.id } } : '/staff'} icon={<ClipboardCheck size={24} color="#ffffff" />} title="Readiness" subtitle="Setup checklist" primary />
+          <DashboardCard disabled={!activeEvent} to={activeEvent ? { pathname: '/scanner', params: { eventId: activeEvent.id } } : '/staff'} icon={<QrCode size={24} color="#ffffff" />} title="Scan Tickets" subtitle="Run the door" primary />
+          <DashboardCard disabled={!activeEvent} to={activeEvent ? { pathname: '/run-of-show', params: { eventId: activeEvent.id } } : '/staff'} icon={<ListChecks size={24} color="#171717" />} title="Run of Show" subtitle="Event timeline" />
+          <DashboardCard disabled={!activeEvent} to={activeEvent ? { pathname: '/roles', params: { eventId: activeEvent.id } } : '/staff'} icon={<UserPlus size={24} color="#171717" />} title="Roles" subtitle="Applicants" />
+          <DashboardCard disabled={!activeEvent} to={activeEvent ? { pathname: '/door', params: { eventId: activeEvent.id } } : '/staff'} icon={<Users size={24} color="#171717" />} title="Guest List" subtitle="VIP & Comp" />
+          <DashboardCard disabled={!activeEvent} to={activeEvent ? { pathname: '/event-dashboard', params: { eventId: activeEvent.id } } : '/staff'} icon={<Mic2 size={24} color="#171717" />} title="Live Event" subtitle="Counters" />
         </View>
 
         <View style={styles.statsSection}>
@@ -235,10 +241,10 @@ function CenteredStaffState({ title }: { title: string }) {
   );
 }
 
-function DashboardCard({ to, icon, title, subtitle, primary }: { to: Href; icon: React.ReactNode; title: string; subtitle: string; primary?: boolean }) {
+function DashboardCard({ to, icon, title, subtitle, primary, disabled }: { to: Href; icon: React.ReactNode; title: string; subtitle: string; primary?: boolean; disabled?: boolean }) {
   return (
     <Link href={to} asChild>
-      <Pressable style={[styles.dashboardCard, primary ? styles.dashboardCardPrimary : styles.dashboardCardNeutral]}>
+      <Pressable disabled={disabled} style={[styles.dashboardCard, primary ? styles.dashboardCardPrimary : styles.dashboardCardNeutral, disabled && styles.dashboardCardDisabled]}>
         <View style={styles.cardIcon}>{icon}</View>
         <View>
           <Text style={[styles.cardTitle, primary && styles.cardTitlePrimary]}>{title}</Text>
@@ -287,6 +293,7 @@ const styles = StyleSheet.create({
   eventChipMetaActive: { color: 'rgba(255,255,255,0.65)' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginBottom: 32 },
   dashboardCard: { width: '47.5%', height: 160, borderRadius: 24, padding: 20, justifyContent: 'space-between', overflow: 'hidden' },
+  dashboardCardDisabled: { opacity: 0.42 },
   dashboardCardPrimary: { backgroundColor: '#000000' },
   dashboardCardNeutral: { backgroundColor: '#f5f5f5' },
   cardIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.20)', alignItems: 'center', justifyContent: 'center' },

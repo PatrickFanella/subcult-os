@@ -21,6 +21,15 @@ async function storeValue(key: string, value: string) {
   await SecureStore.setItemAsync(key, value);
 }
 
+async function deleteValue(key: string) {
+  if (Platform.OS === 'web') {
+    globalThis.localStorage?.removeItem(key);
+    return;
+  }
+
+  await SecureStore.deleteItemAsync(key);
+}
+
 export async function loadStaffSelection() {
   const [workspaceID, eventID] = await Promise.all([
     loadValue(selectedWorkspaceKey),
@@ -36,4 +45,8 @@ export async function storeSelectedWorkspaceID(workspaceID: string) {
 
 export async function storeSelectedEventID(eventID: string) {
   await storeValue(selectedEventKey, eventID);
+}
+
+export async function clearSelectedEventID() {
+  await deleteValue(selectedEventKey);
 }
