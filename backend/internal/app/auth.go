@@ -259,21 +259,38 @@ func (a *App) requirePersonID(r *http.Request) (string, bool) {
 	if a.db == nil {
 		return "", false
 	}
-	cookie, err := r.Cookie(authCookieName)
-	if err != nil || cookie.Value == "" {
+	token := sessionTokenFromRequest(r)
+	if token == "" {
 		return "", false
 	}
 	var personID string
-	err = a.db.QueryRow(r.Context(), `
+	err := a.db.QueryRow(r.Context(), `
 		select person_id
 		from sessions
 		where token_hash = $1
 		  and expires_at > now()
-	`, tokenHash(cookie.Value)).Scan(&personID)
+	`, tokenHash(token)).Scan(&personID)
 	if err != nil {
 		return "", false
 	}
 	return personID, true
+}
+
+func sessionTokenFromRequest(r *http.Request) string {
+	if cookie, err := r.Cookie(authCookieName); err == nil && cookie.Value != "" {
+		return cookie.Value
+	}
+	header := strings.TrimSpace(r.Header.Get(authSessionHeader))
+	if header == "" {
+		return ""
+	}
+	for _, part := range strings.Split(header, ";") {
+		name, value, ok := strings.Cut(strings.TrimSpace(part), "=")
+		if ok && name == authCookieName && value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func hashPassword(password string) (string, error) {

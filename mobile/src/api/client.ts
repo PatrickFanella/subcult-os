@@ -55,6 +55,9 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   if (sessionCookie && !headers.has('Cookie')) {
     headers.set('Cookie', sessionCookie);
   }
+  if (sessionCookie && !headers.has('X-Subcult-Session')) {
+    headers.set('X-Subcult-Session', sessionCookie);
+  }
 
   const response = await fetch(apiUrl(path), {
     ...options,
