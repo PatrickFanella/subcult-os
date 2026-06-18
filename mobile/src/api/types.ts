@@ -85,6 +85,7 @@ export interface CurrentUserDTO {
   email: string;
   displayName: string | null;
   workspaces: WorkspaceSummaryDTO[];
+  sessionCookie?: string;
 }
 
 export interface EventDTO {

@@ -1,13 +1,40 @@
 import { Link } from 'expo-router';
 import { ChevronLeft, RefreshCcw, Settings } from 'lucide-react-native';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { getMe } from '@/api/auth';
+import { listWorkspaceEvents } from '@/api/staff';
 import { apiConfig } from '@/config/api';
 import { useAuth } from '@/auth/AuthContext';
 import { safeBack } from '@/navigation/safeBack';
 
 export default function SettingsScreen() {
   const { user, refresh } = useAuth();
+  const [debugOutput, setDebugOutput] = useState<string>('');
+  const [debugging, setDebugging] = useState(false);
+
+  async function runAuthDebug() {
+    setDebugging(true);
+    setDebugOutput('Checking…');
+    try {
+      const current = await getMe();
+      const lines = [`/api/me: ${current.email}`, `workspaces: ${current.workspaces.length}`];
+      for (const workspace of current.workspaces) {
+        try {
+          const events = await listWorkspaceEvents(workspace.id);
+          lines.push(`${workspace.name}: ${events.length} event(s)`);
+        } catch (caught) {
+          lines.push(`${workspace.name}: ${caught instanceof Error ? caught.message : 'failed'}`);
+        }
+      }
+      setDebugOutput(lines.join('\n'));
+    } catch (caught) {
+      setDebugOutput(`/api/me failed: ${caught instanceof Error ? caught.message : 'unknown error'}`);
+    } finally {
+      setDebugging(false);
+    }
+  }
 
   return (
     <View style={styles.screen}>
@@ -27,6 +54,13 @@ export default function SettingsScreen() {
           <Text style={styles.panelTitle}>Session</Text>
           <Text style={styles.body}>{user ? `Signed in as ${user.email}` : 'Not signed in.'}</Text>
           <Pressable onPress={() => void refresh()} style={styles.actionButton}><RefreshCcw size={18} color="#ffffff" /><Text style={styles.actionButtonText}>Refresh session</Text></Pressable>
+        </View>
+
+        <View style={styles.panel}>
+          <Text style={styles.panelTitle}>Auth debug</Text>
+          <Text style={styles.body}>Checks `/api/me` and event access for each workspace using the same mobile session as Staff.</Text>
+          <Pressable onPress={() => void runAuthDebug()} style={styles.actionButton}><RefreshCcw size={18} color="#ffffff" /><Text style={styles.actionButtonText}>{debugging ? 'Checking…' : 'Run auth check'}</Text></Pressable>
+          {debugOutput ? <Text style={styles.debugBox}>{debugOutput}</Text> : null}
         </View>
 
         <View style={styles.panel}>
@@ -54,5 +88,6 @@ const styles = StyleSheet.create({
   body: { color: '#525252', lineHeight: 21, fontWeight: '600' },
   actionButton: { alignSelf: 'flex-start', backgroundColor: '#171717', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
   actionButtonText: { color: '#ffffff', fontWeight: '900' },
+  debugBox: { backgroundColor: '#ffffff', borderRadius: 14, padding: 12, color: '#171717', fontFamily: 'monospace', lineHeight: 20 },
   linkText: { color: '#2563eb', fontWeight: '900' },
 });

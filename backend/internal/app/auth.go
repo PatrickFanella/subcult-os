@@ -71,10 +71,11 @@ type workspaceSummaryRow struct {
 }
 
 type CurrentUserDTO struct {
-	ID          string                `json:"id"`
-	Email       string                `json:"email"`
-	DisplayName *string               `json:"displayName"`
-	Workspaces  []WorkspaceSummaryDTO `json:"workspaces"`
+	ID            string                `json:"id"`
+	Email         string                `json:"email"`
+	DisplayName   *string               `json:"displayName"`
+	Workspaces    []WorkspaceSummaryDTO `json:"workspaces"`
+	SessionCookie string                `json:"sessionCookie,omitempty"`
 }
 
 type WorkspaceSummaryDTO struct {
@@ -145,7 +146,7 @@ func (a *App) handleSignup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.setSession(w, token, expiresAt)
-	user := CurrentUserDTO{ID: personID, Email: email, DisplayName: displayName, Workspaces: []WorkspaceSummaryDTO{}}
+	user := CurrentUserDTO{ID: personID, Email: email, DisplayName: displayName, Workspaces: []WorkspaceSummaryDTO{}, SessionCookie: sessionCookieValue(token)}
 	if displayName == nil {
 		user.DisplayName = nil
 	}
@@ -219,6 +220,7 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not load current user")
 		return
 	}
+	user.SessionCookie = sessionCookieValue(token)
 	writeJSON(w, http.StatusOK, user)
 }
 
@@ -233,8 +235,12 @@ func (a *App) handleLogout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) setSession(w http.ResponseWriter, token string, expiresAt time.Time) {
-	w.Header().Set(authSessionHeader, authCookieName+"="+token)
+	w.Header().Set(authSessionHeader, sessionCookieValue(token))
 	http.SetCookie(w, sessionCookie(token, expiresAt, a.cookieSecure()))
+}
+
+func sessionCookieValue(token string) string {
+	return authCookieName + "=" + token
 }
 
 func (a *App) handleMe(w http.ResponseWriter, r *http.Request) {
