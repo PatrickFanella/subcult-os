@@ -280,6 +280,12 @@ func sessionTokenFromRequest(r *http.Request) string {
 	if cookie, err := r.Cookie(authCookieName); err == nil && cookie.Value != "" {
 		return cookie.Value
 	}
+	if auth := strings.TrimSpace(r.Header.Get("Authorization")); auth != "" {
+		scheme, token, ok := strings.Cut(auth, " ")
+		if ok && strings.EqualFold(scheme, "Bearer") && strings.TrimSpace(token) != "" {
+			return strings.TrimSpace(token)
+		}
+	}
 	header := strings.TrimSpace(r.Header.Get(authSessionHeader))
 	if header == "" {
 		return ""

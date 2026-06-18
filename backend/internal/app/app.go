@@ -146,7 +146,7 @@ func (a *App) cors(next http.Handler) http.Handler {
 		if origin := strings.TrimSpace(r.Header.Get("Origin")); origin != "" && a.allowedOrigin(r) {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, "+authSessionHeader)
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, "+authSessionHeader)
 			w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, POST, PATCH, DELETE, OPTIONS")
 			w.Header().Set("Access-Control-Expose-Headers", authSessionHeader)
 			w.Header().Add("Vary", "Origin")
@@ -189,7 +189,7 @@ func requestNeedsOriginCheck(r *http.Request) bool {
 	if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
 		return false
 	}
-	if _, err := r.Cookie(authCookieName); err != nil && strings.TrimSpace(r.Header.Get(authSessionHeader)) == "" {
+	if _, err := r.Cookie(authCookieName); err != nil && strings.TrimSpace(r.Header.Get(authSessionHeader)) == "" && strings.TrimSpace(r.Header.Get("Authorization")) == "" {
 		return false
 	}
 	return r.Header.Get("Origin") != ""

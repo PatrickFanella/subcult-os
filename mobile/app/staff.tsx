@@ -1,4 +1,4 @@
-import { Link, type Href } from 'expo-router';
+import { Link, router, type Href } from 'expo-router';
 import { Building2, CalendarPlus, ClipboardCheck, ListChecks, Mic2, Pencil, QrCode, ShieldCheck, UserPlus, Users } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -243,15 +243,13 @@ function CenteredStaffState({ title }: { title: string }) {
 
 function DashboardCard({ to, icon, title, subtitle, primary, disabled }: { to: Href; icon: React.ReactNode; title: string; subtitle: string; primary?: boolean; disabled?: boolean }) {
   return (
-    <Link href={to} asChild>
-      <Pressable disabled={disabled} style={[styles.dashboardCard, primary ? styles.dashboardCardPrimary : styles.dashboardCardNeutral, disabled && styles.dashboardCardDisabled]}>
-        <View style={styles.cardIcon}>{icon}</View>
-        <View>
-          <Text style={[styles.cardTitle, primary && styles.cardTitlePrimary, disabled && styles.cardTextDisabled]}>{title}</Text>
-          <Text style={[styles.cardSubtitle, primary && styles.cardSubtitlePrimary, disabled && styles.cardTextDisabled]}>{disabled ? 'Select an event first' : subtitle}</Text>
-        </View>
-      </Pressable>
-    </Link>
+    <Pressable disabled={disabled} onPress={() => router.push(to)} style={[styles.dashboardCard, primary ? styles.dashboardCardPrimary : styles.dashboardCardNeutral, disabled && styles.dashboardCardDisabled]}>
+      <View style={[styles.cardIcon, primary && styles.cardIconPrimary]}>{icon}</View>
+      <View>
+        <Text style={[styles.cardTitle, primary && styles.cardTitlePrimary, disabled && styles.cardTextDisabled]}>{title}</Text>
+        <Text style={[styles.cardSubtitle, primary && styles.cardSubtitlePrimary, disabled && styles.cardTextDisabled]}>{disabled ? 'Select an event first' : subtitle}</Text>
+      </View>
+    </Pressable>
   );
 }
 
@@ -297,6 +295,7 @@ const styles = StyleSheet.create({
   dashboardCardPrimary: { backgroundColor: '#000000' },
   dashboardCardNeutral: { backgroundColor: '#f5f5f5' },
   cardIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.20)', alignItems: 'center', justifyContent: 'center' },
+  cardIconPrimary: { backgroundColor: 'rgba(255,255,255,0.18)' },
   cardTitle: { fontSize: 18, fontWeight: '800', color: '#171717', lineHeight: 22 },
   cardTitlePrimary: { color: '#ffffff' },
   cardSubtitle: { fontSize: 12, opacity: 0.7, marginTop: 4, color: '#171717' },

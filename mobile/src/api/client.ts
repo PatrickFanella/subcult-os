@@ -58,6 +58,10 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   if (sessionCookie && !headers.has('X-Subcult-Session')) {
     headers.set('X-Subcult-Session', sessionCookie);
   }
+  const bearerToken = sessionCookie?.startsWith('subcult_session=') ? sessionCookie.slice('subcult_session='.length) : null;
+  if (bearerToken && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${bearerToken}`);
+  }
 
   const response = await fetch(apiUrl(path), {
     ...options,
