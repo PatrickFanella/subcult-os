@@ -309,8 +309,8 @@ func (a *App) requirePersonID(r *http.Request) (string, bool) {
 }
 
 func sessionTokenFromRequest(r *http.Request) string {
-	if cookie, err := r.Cookie(authCookieName); err == nil && cookie.Value != "" {
-		return cookie.Value
+	if token := strings.TrimSpace(r.Header.Get(authTokenHeader)); token != "" {
+		return token
 	}
 	if auth := strings.TrimSpace(r.Header.Get("Authorization")); auth != "" {
 		scheme, token, ok := strings.Cut(auth, " ")
@@ -318,18 +318,17 @@ func sessionTokenFromRequest(r *http.Request) string {
 			return strings.TrimSpace(token)
 		}
 	}
-	if token := strings.TrimSpace(r.Header.Get(authTokenHeader)); token != "" {
-		return token
-	}
 	header := strings.TrimSpace(r.Header.Get(authSessionHeader))
-	if header == "" {
-		return ""
-	}
-	for _, part := range strings.Split(header, ";") {
-		name, value, ok := strings.Cut(strings.TrimSpace(part), "=")
-		if ok && name == authCookieName && value != "" {
-			return value
+	if header != "" {
+		for _, part := range strings.Split(header, ";") {
+			name, value, ok := strings.Cut(strings.TrimSpace(part), "=")
+			if ok && name == authCookieName && value != "" {
+				return value
+			}
 		}
+	}
+	if cookie, err := r.Cookie(authCookieName); err == nil && cookie.Value != "" {
+		return cookie.Value
 	}
 	return ""
 }
