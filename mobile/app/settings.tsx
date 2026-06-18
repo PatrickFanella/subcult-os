@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { getMe } from '@/api/auth';
+import { getSessionDebugState } from '@/api/client';
 import { listWorkspaceEvents } from '@/api/staff';
 import { apiConfig } from '@/config/api';
 import { useAuth } from '@/auth/AuthContext';
@@ -21,7 +22,15 @@ export default function SettingsScreen() {
     try {
       const current = await getMe();
       const storedSession = await loadStoredSessionCookie();
-      const lines = [`stored session: ${storedSession ? 'yes' : 'no'}`, `/api/me: ${current.email}`, `workspaces: ${current.workspaces.length}`];
+      const sessionState = await getSessionDebugState();
+      const lines = [
+        `stored session: ${storedSession ? 'yes' : 'no'}`,
+        `memory session: ${sessionState.hasSessionCookie ? 'yes' : 'no'}`,
+        `bearer token: ${sessionState.hasBearerToken ? 'yes' : 'no'}`,
+        `cookie prefix: ${sessionState.sessionCookiePrefix || 'none'}`,
+        `/api/me: ${current.email}`,
+        `workspaces: ${current.workspaces.length}`,
+      ];
       for (const workspace of current.workspaces) {
         try {
           const events = await listWorkspaceEvents(workspace.id);
@@ -33,7 +42,14 @@ export default function SettingsScreen() {
       setDebugOutput(lines.join('\n'));
     } catch (caught) {
       const storedSession = await loadStoredSessionCookie();
-      setDebugOutput(`stored session: ${storedSession ? 'yes' : 'no'}\n/api/me failed: ${caught instanceof Error ? caught.message : 'unknown error'}`);
+      const sessionState = await getSessionDebugState();
+      setDebugOutput([
+        `stored session: ${storedSession ? 'yes' : 'no'}`,
+        `memory session: ${sessionState.hasSessionCookie ? 'yes' : 'no'}`,
+        `bearer token: ${sessionState.hasBearerToken ? 'yes' : 'no'}`,
+        `cookie prefix: ${sessionState.sessionCookiePrefix || 'none'}`,
+        `/api/me failed: ${caught instanceof Error ? caught.message : 'unknown error'}`,
+      ].join('\n'));
     } finally {
       setDebugging(false);
     }

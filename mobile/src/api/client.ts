@@ -32,6 +32,17 @@ export async function clearSessionCookie() {
   await removeStoredSessionCookie();
 }
 
+export async function getSessionDebugState() {
+  await ensureStoredCookieLoaded();
+  const token = sessionCookie?.startsWith('subcult_session=') ? sessionCookie.slice('subcult_session='.length) : '';
+  return {
+    loadedStoredCookie,
+    hasSessionCookie: Boolean(sessionCookie),
+    hasBearerToken: Boolean(token),
+    sessionCookiePrefix: sessionCookie ? sessionCookie.slice(0, 'subcult_session='.length) : '',
+  };
+}
+
 export class ApiError extends Error {
   status: number;
   data: unknown;
