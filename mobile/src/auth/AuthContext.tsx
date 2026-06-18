@@ -41,7 +41,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setLoading(true);
     setError(null);
     try {
-      setUser(await authAPI.login({ email, password }));
+      await authAPI.login({ email, password });
+      setUser(await authAPI.getMe());
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : 'Unable to sign in';
       setError(message);
@@ -55,7 +56,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setLoading(true);
     setError(null);
     try {
-      setUser(await authAPI.signup({ email, password, displayName }));
+      await authAPI.signup({ email, password, displayName });
+      setUser(await authAPI.getMe());
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : 'Unable to create account';
       setError(message);

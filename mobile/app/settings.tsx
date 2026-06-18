@@ -7,6 +7,7 @@ import { getMe } from '@/api/auth';
 import { listWorkspaceEvents } from '@/api/staff';
 import { apiConfig } from '@/config/api';
 import { useAuth } from '@/auth/AuthContext';
+import { loadStoredSessionCookie } from '@/auth/sessionCookieStore';
 import { safeBack } from '@/navigation/safeBack';
 
 export default function SettingsScreen() {
@@ -19,7 +20,8 @@ export default function SettingsScreen() {
     setDebugOutput('Checking…');
     try {
       const current = await getMe();
-      const lines = [`/api/me: ${current.email}`, `workspaces: ${current.workspaces.length}`];
+      const storedSession = await loadStoredSessionCookie();
+      const lines = [`stored session: ${storedSession ? 'yes' : 'no'}`, `/api/me: ${current.email}`, `workspaces: ${current.workspaces.length}`];
       for (const workspace of current.workspaces) {
         try {
           const events = await listWorkspaceEvents(workspace.id);
@@ -30,7 +32,8 @@ export default function SettingsScreen() {
       }
       setDebugOutput(lines.join('\n'));
     } catch (caught) {
-      setDebugOutput(`/api/me failed: ${caught instanceof Error ? caught.message : 'unknown error'}`);
+      const storedSession = await loadStoredSessionCookie();
+      setDebugOutput(`stored session: ${storedSession ? 'yes' : 'no'}\n/api/me failed: ${caught instanceof Error ? caught.message : 'unknown error'}`);
     } finally {
       setDebugging(false);
     }
