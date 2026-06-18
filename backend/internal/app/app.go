@@ -148,6 +148,7 @@ func (a *App) cors(next http.Handler) http.Handler {
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 			w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, POST, PATCH, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Expose-Headers", authSessionHeader)
 			w.Header().Add("Vary", "Origin")
 		}
 		if r.Method == http.MethodOptions {

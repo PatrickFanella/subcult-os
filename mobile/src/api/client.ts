@@ -63,6 +63,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   });
 
   await setSessionCookieFromHeader(response.headers.get('set-cookie'));
+  await setSessionCookieFromHeader(response.headers.get('x-subcult-session'));
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {

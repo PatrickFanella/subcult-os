@@ -22,6 +22,7 @@ import (
 
 const (
 	authCookieName     = "subcult_session"
+	authSessionHeader  = "X-Subcult-Session"
 	sessionLifetime    = 30 * 24 * time.Hour
 	passwordScheme     = "bcrypt"
 	legacySHA256Scheme = "sha256"
@@ -143,7 +144,7 @@ func (a *App) handleSignup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.SetCookie(w, sessionCookie(token, expiresAt, a.cookieSecure()))
+	a.setSession(w, token, expiresAt)
 	user := CurrentUserDTO{ID: personID, Email: email, DisplayName: displayName, Workspaces: []WorkspaceSummaryDTO{}}
 	if displayName == nil {
 		user.DisplayName = nil
@@ -212,7 +213,7 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.SetCookie(w, sessionCookie(token, expiresAt, a.cookieSecure()))
+	a.setSession(w, token, expiresAt)
 	user, err := a.loadCurrentUser(r.Context(), person.ID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not load current user")
@@ -229,6 +230,11 @@ func (a *App) handleLogout(w http.ResponseWriter, r *http.Request) {
 	}
 	http.SetCookie(w, expiredSessionCookie(a.cookieSecure()))
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+func (a *App) setSession(w http.ResponseWriter, token string, expiresAt time.Time) {
+	w.Header().Set(authSessionHeader, authCookieName+"="+token)
+	http.SetCookie(w, sessionCookie(token, expiresAt, a.cookieSecure()))
 }
 
 func (a *App) handleMe(w http.ResponseWriter, r *http.Request) {

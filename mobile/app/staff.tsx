@@ -247,8 +247,8 @@ function DashboardCard({ to, icon, title, subtitle, primary, disabled }: { to: H
       <Pressable disabled={disabled} style={[styles.dashboardCard, primary ? styles.dashboardCardPrimary : styles.dashboardCardNeutral, disabled && styles.dashboardCardDisabled]}>
         <View style={styles.cardIcon}>{icon}</View>
         <View>
-          <Text style={[styles.cardTitle, primary && styles.cardTitlePrimary]}>{title}</Text>
-          <Text style={[styles.cardSubtitle, primary && styles.cardSubtitlePrimary]}>{subtitle}</Text>
+          <Text style={[styles.cardTitle, primary && styles.cardTitlePrimary, disabled && styles.cardTextDisabled]}>{title}</Text>
+          <Text style={[styles.cardSubtitle, primary && styles.cardSubtitlePrimary, disabled && styles.cardTextDisabled]}>{disabled ? 'Select an event first' : subtitle}</Text>
         </View>
       </Pressable>
     </Link>
@@ -292,8 +292,8 @@ const styles = StyleSheet.create({
   eventChipMeta: { color: '#737373', fontSize: 12, fontWeight: '600', marginTop: 6 },
   eventChipMetaActive: { color: 'rgba(255,255,255,0.65)' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginBottom: 32 },
-  dashboardCard: { width: '47.5%', height: 160, borderRadius: 24, padding: 20, justifyContent: 'space-between', overflow: 'hidden' },
-  dashboardCardDisabled: { opacity: 0.42 },
+  dashboardCard: { width: '47.5%', height: 160, borderRadius: 24, padding: 20, justifyContent: 'space-between', overflow: 'hidden', borderWidth: 1, borderColor: 'transparent' },
+  dashboardCardDisabled: { opacity: 1, backgroundColor: '#fafafa', borderColor: '#e5e5e5' },
   dashboardCardPrimary: { backgroundColor: '#000000' },
   dashboardCardNeutral: { backgroundColor: '#f5f5f5' },
   cardIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.20)', alignItems: 'center', justifyContent: 'center' },
@@ -301,6 +301,7 @@ const styles = StyleSheet.create({
   cardTitlePrimary: { color: '#ffffff' },
   cardSubtitle: { fontSize: 12, opacity: 0.7, marginTop: 4, color: '#171717' },
   cardSubtitlePrimary: { color: '#ffffff' },
+  cardTextDisabled: { color: '#a3a3a3' },
   statsSection: { borderTopWidth: 1, borderTopColor: '#f5f5f5', paddingTop: 32 },
   sectionLabel: { fontSize: 14, fontWeight: '800', color: '#a3a3a3', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 16 },
   statBox: { backgroundColor: '#fafafa', padding: 20, borderRadius: 16, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
