@@ -1,9 +1,9 @@
 import { useLocalSearchParams } from 'expo-router';
 import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
-import { Calendar, ChevronLeft, Download, ImageDown, MapPin, Share2 } from 'lucide-react-native';
+import { Calendar, ChevronLeft, MapPin, Share2 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { captureRef } from 'react-native-view-shot';
 
@@ -94,6 +94,16 @@ export default function TicketScreen() {
     });
   }
 
+  function openShareMenu() {
+    if (!ticket) return;
+    Alert.alert('Share ticket', `Ticket ${ticket.code}`, [
+      { text: 'Share link', onPress: () => void shareTicket() },
+      { text: 'Share image', onPress: () => void shareTicketImage() },
+      { text: savingImage ? 'Saving…' : 'Save image', onPress: () => void saveTicketImage() },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }
+
   async function captureTicketImage() {
     if (!ticket || !passRef.current) return null;
     return captureRef(passRef, {
@@ -163,7 +173,7 @@ export default function TicketScreen() {
         <View ref={passRef} collapsable={false} style={styles.ticketCard}>
           <View style={styles.cardHeader}>
             <Text style={styles.statusPill}>{ticket?.status === 'checked_in' ? 'Checked in' : 'Admit one'}</Text>
-            <Pressable disabled={!ticket?.ticketUrl} onPress={() => void shareTicket()} style={styles.circleBadge}><Share2 size={22} color="#171717" /></Pressable>
+            <Pressable disabled={!ticket} onPress={openShareMenu} style={styles.circleBadge}><Share2 size={22} color="#171717" /></Pressable>
           </View>
           <Text style={styles.eventTitle}>{ticket ? `Ticket ${ticket.code}` : 'Ticket lookup'}</Text>
           <Text style={styles.subtitle}>{ticket?.displayName || ticket?.email || 'Load a ticket by code'}</Text>
@@ -189,8 +199,6 @@ export default function TicketScreen() {
           {ticket ? (
             <View style={styles.ticketActions}>
               <Pressable onPress={() => void loadTicket()} style={styles.refreshButton}><Text style={styles.refreshButtonText}>Refresh ticket</Text></Pressable>
-              <Pressable onPress={() => void shareTicketImage()} style={styles.secondaryButton}><ImageDown size={16} color="#171717" /><Text style={styles.secondaryButtonText}>Share image</Text></Pressable>
-              <Pressable disabled={savingImage} onPress={() => void saveTicketImage()} style={[styles.secondaryButton, savingImage && styles.disabledButton]}><Download size={16} color="#171717" /><Text style={styles.secondaryButtonText}>{savingImage ? 'Saving…' : 'Save image'}</Text></Pressable>
             </View>
           ) : null}
         </View>
@@ -228,7 +236,4 @@ const styles = StyleSheet.create({
   ticketActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 },
   refreshButton: { alignSelf: 'flex-start', backgroundColor: '#171717', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12 },
   refreshButtonText: { color: '#ffffff', fontWeight: '900' },
-  secondaryButton: { alignSelf: 'flex-start', backgroundColor: '#f5f5f5', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  secondaryButtonText: { color: '#171717', fontWeight: '900' },
-  disabledButton: { opacity: 0.45 },
 });

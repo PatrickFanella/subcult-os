@@ -1,5 +1,5 @@
 import { Link, usePathname } from 'expo-router';
-import { Briefcase, Compass, Ticket } from 'lucide-react-native';
+import { Briefcase, Compass, Ticket, UserCircle } from 'lucide-react-native';
 import type { PropsWithChildren } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ const navItems = [
   { href: '/' as const, icon: Compass, label: 'Discover' },
   { href: '/tickets' as const, icon: Ticket, label: 'Tickets' },
   { href: '/staff' as const, icon: Briefcase, label: 'Staff' },
+  { href: '/profile' as const, icon: UserCircle, label: 'Profile' },
 ];
 
 export function AppChrome({ children }: PropsWithChildren) {
@@ -34,7 +35,7 @@ export function AppChrome({ children }: PropsWithChildren) {
 }
 
 function BottomNavItem({ href, icon: Icon, label, pathname }: (typeof navItems)[number] & { pathname: string }) {
-  const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
+  const active = href === '/' ? pathname === '/' : pathname.startsWith(href) || (href === '/profile' && pathname.startsWith('/settings'));
 
   return (
     <Link href={href} asChild>
@@ -57,8 +58,8 @@ const styles = StyleSheet.create({
     borderTopColor: '#f5f5f5',
     zIndex: 40,
   },
-  nav: { height: 68, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
-  navItem: { width: 80, height: 58, alignItems: 'center', justifyContent: 'center', gap: 3 },
+  nav: { height: 68, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
+  navItem: { width: 72, height: 58, alignItems: 'center', justifyContent: 'center', gap: 3 },
   navLabel: { fontSize: 10, fontWeight: '500', letterSpacing: 0.2, color: '#a3a3a3' },
   navLabelActive: { color: '#171717' },
   navDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: 'transparent', marginTop: 2 },

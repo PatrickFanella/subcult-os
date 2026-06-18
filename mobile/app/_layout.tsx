@@ -30,6 +30,8 @@ export default function RootLayout() {
           <Stack.Screen name="door" options={{ headerShown: false }} />
           <Stack.Screen name="ticket" options={{ headerShown: false }} />
           <Stack.Screen name="tickets" options={{ headerShown: false }} />
+          <Stack.Screen name="profile" options={{ headerShown: false }} />
+          <Stack.Screen name="settings" options={{ headerShown: false }} />
           <Stack.Screen name="login" options={{ headerShown: false }} />
           <Stack.Screen name="workspace-create" options={{ headerShown: false }} />
         </Stack>

@@ -66,7 +66,7 @@ export default function TicketsScreen() {
             </View>
           ) : savedTickets.map((ticket) => (
             <Pressable key={ticket.code} onPress={() => router.push({ pathname: '/ticket', params: { code: ticket.code } })} style={styles.savedTicketCard}>
-              <View>
+              <View style={styles.savedTicketCopy}>
                 <Text style={styles.savedTicketName}>{ticket.displayName || ticket.email}</Text>
                 <Text style={styles.savedTicketCode}>{ticket.code}</Text>
               </View>
@@ -95,11 +95,12 @@ const styles = StyleSheet.create({
   primaryButtonText: { color: '#ffffff', fontWeight: '800', fontSize: 16 },
   walletSection: { gap: 12 },
   sectionTitle: { color: '#171717', fontSize: 20, fontWeight: '800', marginTop: 6 },
-  savedTicketCard: { backgroundColor: '#ffffff', borderRadius: 22, padding: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  savedTicketCard: { backgroundColor: '#ffffff', borderRadius: 22, padding: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, overflow: 'hidden' },
+  savedTicketCopy: { flex: 1, minWidth: 0 },
   savedTicketName: { color: '#171717', fontSize: 17, fontWeight: '800', marginBottom: 4 },
   savedTicketCode: { color: '#737373', fontFamily: 'monospace', letterSpacing: 1.5 },
-  savedTicketMetaBlock: { alignItems: 'flex-end', gap: 4 },
-  savedTicketStatus: { color: '#22c55e', backgroundColor: '#ecfdf5', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, overflow: 'hidden', fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
+  savedTicketMetaBlock: { alignItems: 'flex-end', gap: 4, flexShrink: 0, maxWidth: 132 },
+  savedTicketStatus: { color: '#22c55e', backgroundColor: '#ecfdf5', paddingHorizontal: 9, paddingVertical: 6, borderRadius: 999, overflow: 'hidden', fontSize: 11, fontWeight: '800', textTransform: 'uppercase', textAlign: 'center' },
   savedTicketStatusPending: { color: '#d97706', backgroundColor: '#fffbeb' },
   pendingHint: { color: '#a3a3a3', fontSize: 11, fontWeight: '700' },
   emptyCard: { backgroundColor: '#ffffff', borderRadius: 28, padding: 24, alignItems: 'center', gap: 10 },

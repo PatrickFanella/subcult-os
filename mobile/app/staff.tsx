@@ -70,7 +70,16 @@ export default function StaffScreen() {
         }
       } catch (caught) {
         if (!cancelled) {
-          setEventError(caught instanceof Error ? caught.message : 'Unable to load workspace events');
+          const message = caught instanceof Error ? caught.message : 'Unable to load workspace events';
+          const fallbackWorkspace = message.toLowerCase().includes('forbidden') ? user?.workspaces.find((candidate) => candidate.id !== workspaceID) : null;
+          if (fallbackWorkspace) {
+            setSelectedWorkspaceID(fallbackWorkspace.id);
+            setSelectedEventID(null);
+            setEvents([]);
+            void storeSelectedWorkspaceID(fallbackWorkspace.id);
+            return;
+          }
+          setEventError(message);
           setEvents([]);
           setSelectedEventID(null);
         }
@@ -125,7 +134,7 @@ export default function StaffScreen() {
             <Text style={styles.staffPill}>{workspace.name}</Text>
             <Text style={styles.title}>Dashboard</Text>
           </View>
-          <View style={styles.avatar}><Text style={styles.avatarText}>{initials}</Text></View>
+          <Link href="/profile" asChild><Pressable style={styles.avatar}><Text style={styles.avatarText}>{initials}</Text></Pressable></Link>
         </View>
 
         <View style={styles.selectorSection}>
@@ -228,12 +237,14 @@ function CenteredStaffState({ title }: { title: string }) {
 
 function DashboardCard({ to, icon, title, subtitle, primary }: { to: Href; icon: React.ReactNode; title: string; subtitle: string; primary?: boolean }) {
   return (
-    <Link href={to} style={[styles.dashboardCard, primary ? styles.dashboardCardPrimary : styles.dashboardCardNeutral]}>
-      <View style={styles.cardIcon}>{icon}</View>
-      <View>
-        <Text style={[styles.cardTitle, primary && styles.cardTitlePrimary]}>{title}</Text>
-        <Text style={[styles.cardSubtitle, primary && styles.cardSubtitlePrimary]}>{subtitle}</Text>
-      </View>
+    <Link href={to} asChild>
+      <Pressable style={[styles.dashboardCard, primary ? styles.dashboardCardPrimary : styles.dashboardCardNeutral]}>
+        <View style={styles.cardIcon}>{icon}</View>
+        <View>
+          <Text style={[styles.cardTitle, primary && styles.cardTitlePrimary]}>{title}</Text>
+          <Text style={[styles.cardSubtitle, primary && styles.cardSubtitlePrimary]}>{subtitle}</Text>
+        </View>
+      </Pressable>
     </Link>
   );
 }
