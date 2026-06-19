@@ -874,31 +874,15 @@ func (a *App) handleEndOfNight(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, "pending paid tickets must settle or expire before end of night")
 		return
 	}
-	report := eventReportDTO{
-		ID:               "",
-		EventID:          event.ID,
-		Title:            event.Title,
-		StartsAt:         event.StartsAt.UTC().Format(time.RFC3339Nano),
-		PublicURL:        a.publicEventURL(a.publicSlugValue(event)),
-		TicketAllocation: event.TicketAllocation,
-		TicketsReserved:  int(reservedCount),
-		TicketsCheckedIn: int(checkedInCount),
-		NoShows:          int(reservedCount - checkedInCount),
-		SettlementSummary: &eventSettlementSummaryDTO{
-			Currency:              event.TicketCurrency,
-			GrossPaidRevenueCents: int(grossPaidRevenueCents),
-			PaidTicketCount:       int(paidTicketCount),
-			PendingTicketCount:    int(pendingTicketCount),
-			CancelledTicketCount:  int(cancelledTicketCount),
-			FreeTicketCount:       int(freeTicketCount),
-			ReservedCount:         int(reservedCount),
-		},
-		GeneratedAt:            generatedAt.Format(time.RFC3339Nano),
-		GeneratedByMemberEmail: actorEmail,
-	}
-	if report.NoShows < 0 {
-		report.NoShows = 0
-	}
+	report := settlementReportFromCounts(a.publicEventURL(a.publicSlugValue(event)), event, settlementTicketCounts{
+		GrossPaidRevenueCents: grossPaidRevenueCents,
+		PaidTicketCount:       paidTicketCount,
+		PendingTicketCount:    pendingTicketCount,
+		CancelledTicketCount:  cancelledTicketCount,
+		FreeTicketCount:       freeTicketCount,
+		ReservedCount:         reservedCount,
+		CheckedInCount:        checkedInCount,
+	}, generatedAt, actorEmail)
 	payload, err := json.Marshal(report)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not encode report")
@@ -1522,13 +1506,11 @@ func (a *App) loadSettlementDTO(ctx context.Context, eventID string) (eventSettl
 	defer rows.Close()
 
 	adjustments := make([]eventSettlementAdjustmentDTO, 0)
-	var adjustmentTotalCents int64
 	for rows.Next() {
 		var adjustment eventSettlementAdjustmentRow
 		if err := rows.Scan(&adjustment.ID, &adjustment.SettlementID, &adjustment.AmountCents, &adjustment.Label, &adjustment.Reason, &adjustment.CreatedByPersonID, &adjustment.CreatedAt); err != nil {
 			return eventSettlementDTO{}, err
 		}
-		adjustmentTotalCents += int64(adjustment.AmountCents)
 		adjustments = append(adjustments, eventSettlementAdjustmentDTO{
 			ID:                adjustment.ID,
 			SettlementID:      adjustment.SettlementID,
@@ -1542,6 +1524,7 @@ func (a *App) loadSettlementDTO(ctx context.Context, eventID string) (eventSettl
 	if err := rows.Err(); err != nil {
 		return eventSettlementDTO{}, err
 	}
+	adjustmentTotalCents := settlementAdjustmentTotalCents(adjustments)
 
 	return eventSettlementDTO{
 		ID:                    row.ID,
@@ -1553,8 +1536,8 @@ func (a *App) loadSettlementDTO(ctx context.Context, eventID string) (eventSettl
 		CancelledTicketCount:  row.CancelledTicketCount,
 		FreeTicketCount:       row.FreeTicketCount,
 		ReservedCount:         row.ReservedCount,
-		AdjustmentTotalCents:  int(adjustmentTotalCents),
-		NetTotalCents:         row.GrossPaidRevenueCents + int(adjustmentTotalCents),
+		AdjustmentTotalCents:  adjustmentTotalCents,
+		NetTotalCents:         settlementNetTotalCents(row.GrossPaidRevenueCents, adjustmentTotalCents),
 		Status:                row.Status,
 		GeneratedAt:           row.GeneratedAt.UTC().Format(time.RFC3339Nano),
 		FinalizedAt:           nullableTimeString(row.FinalizedAt),

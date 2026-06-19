@@ -194,6 +194,26 @@ export function pricingSummary(event: EventDTO | null) {
 	return formatMoney(event.ticketPriceCents, event.ticketCurrency);
 }
 
+export function reportEndOfNightCopy() {
+	return 'This is the end-of-night snapshot for the event.';
+}
+
+export function settlementStatusLabel(status: 'open' | 'finalized') {
+	return status === 'finalized' ? 'finalized (locked)' : 'open';
+}
+
+export function settlementLockedCopy(finalizedAt: string | null | undefined, finalizedByPersonId: string | null | undefined) {
+	return `Finalized${finalizedAt ? ` on ${formatDateTime(finalizedAt)}` : ''}${finalizedByPersonId ? ` by ${finalizedByPersonId}` : ''}.`;
+}
+
+export function settlementAdjustmentsEmptyCopy() {
+	return 'No adjustments yet.';
+}
+
+export function settlementAdjustmentsLockedCopy() {
+	return 'Adjustments are locked after settlement finalization.';
+}
+
 export function buildPayload(form: FormState) {
 	return {
 		title: form.title.trim(),

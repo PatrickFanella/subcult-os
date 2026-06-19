@@ -81,6 +81,10 @@ export function sortRunOfShowItems(items: EventStaffingItemDTO[]) {
 	return [...items].sort(compareRunOfShowItems);
 }
 
+export function applyRunOfShowStatusUpdate(items: EventStaffingItemDTO[], updatedItem: EventStaffingItemDTO) {
+	return sortRunOfShowItems(items.map((item) => (item.id === updatedItem.id ? updatedItem : item)));
+}
+
 export function staffingStatusLabel(status: EventStaffingItemDTO['status']) {
 	switch (status) {
 		case 'open':

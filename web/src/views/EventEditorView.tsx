@@ -32,6 +32,11 @@ import {
 	isNewEvent,
 	pricingSummary,
 	priceInCents,
+	reportEndOfNightCopy,
+	settlementAdjustmentsEmptyCopy,
+	settlementAdjustmentsLockedCopy,
+	settlementLockedCopy,
+	settlementStatusLabel,
 	sortCommitments,
 	sortTemplates,
 	toRfc3339DateTime,
@@ -1344,7 +1349,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                   <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Report summary</p>
                   <h2 className="mt-2 text-2xl font-semibold text-white">{report.title}</h2>
                   <p className="mt-2 text-sm text-zinc-400">Generated {formatDateTime(report.generatedAt)} by {report.generatedByMemberEmail}</p>
-                  <p className="mt-3 text-sm leading-6 text-zinc-300">This is the end-of-night snapshot for the event.</p>
+                  <p className="mt-3 text-sm leading-6 text-zinc-300">{reportEndOfNightCopy()}</p>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                       <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Reserved</p>
@@ -1411,15 +1416,12 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                 <section className="rounded-[1.75rem] border border-cyan-400/20 bg-zinc-950/95 p-6 shadow-2xl shadow-black/30">
                   <p className="text-xs uppercase tracking-[0.3em] text-cyan-300">Settlement closeout</p>
                   <h2 className="mt-2 text-2xl font-semibold text-white">Review adjustments</h2>
-                  <p className="mt-2 text-sm text-zinc-400">Status: {settlementFinalized ? 'finalized (locked)' : 'open'}</p>
+                  <p className="mt-2 text-sm text-zinc-400">Status: {settlementStatusLabel(settlementFinalized ? 'finalized' : 'open')}</p>
 
                   {settlementFinalized ? (
                     <div className="mt-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm text-emerald-100">
                       <p className="font-medium">Settlement locked</p>
-                      <p className="mt-2 leading-6">
-                        Finalized{settlement.finalizedAt ? ` on ${formatDateTime(settlement.finalizedAt)}` : ''}
-                        {settlement.finalizedByPersonId ? ` by ${settlement.finalizedByPersonId}` : ''}.
-                      </p>
+                      <p className="mt-2 leading-6">{settlementLockedCopy(settlement.finalizedAt, settlement.finalizedByPersonId)}</p>
                     </div>
                   ) : null}
 
@@ -1455,7 +1457,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                         ))}
                       </div>
                     ) : (
-                      <p className="mt-3 text-sm leading-6 text-zinc-400">No adjustments yet.</p>
+                      <p className="mt-3 text-sm leading-6 text-zinc-400">{settlementAdjustmentsEmptyCopy()}</p>
                     )}
                   </div>
 
@@ -1514,7 +1516,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                       </button>
                     </form>
                   ) : (
-                    <p className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-zinc-400">Adjustments are locked after settlement finalization.</p>
+                    <p className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-zinc-400">{settlementAdjustmentsLockedCopy()}</p>
                   )}
                 </section>
               ) : null}

@@ -5,18 +5,23 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 
 import { loadSavedTickets, type SavedTicket } from '@/tickets/walletStore';
 import { AppChrome } from '@/ui/AppChrome';
-import { ticketJourneySavedTicketStatus } from '@/modules/tickets/ticketJourney';
+import { ticketJourneySavedTicketStatus, ticketWalletEmptyCopy } from '@/modules/tickets/ticketJourney';
 
 export default function TicketsScreen() {
   const [code, setCode] = useState('');
   const [savedTickets, setSavedTickets] = useState<SavedTicket[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const normalizedCode = code.trim();
 
   useEffect(() => {
     let cancelled = false;
     async function loadWallet() {
-      const loaded = await loadSavedTickets();
-      if (!cancelled) setSavedTickets(loaded);
+      try {
+        const loaded = await loadSavedTickets();
+        if (!cancelled) setSavedTickets(loaded);
+      } finally {
+        if (!cancelled) setLoaded(true);
+      }
     }
     void loadWallet();
     return () => {
@@ -62,8 +67,8 @@ export default function TicketsScreen() {
           {savedTickets.length === 0 ? (
             <View style={styles.emptyCard}>
               <View style={styles.emptyIcon}><Ticket size={30} color="#171717" /></View>
-              <Text style={styles.emptyTitle}>No saved tickets yet</Text>
-              <Text style={styles.emptyBody}>Reserve or look up a ticket and it will stay here for fast access.</Text>
+              <Text style={styles.emptyTitle}>{ticketWalletEmptyCopy(loaded)}</Text>
+              <Text style={styles.emptyBody}>{loaded ? 'Reserve or look up a ticket and it will stay here for fast access.' : 'Loading saved tickets…'}</Text>
             </View>
           ) : savedTickets.map((ticket) => (
             <Pressable key={ticket.code} onPress={() => router.push({ pathname: '/ticket', params: { code: ticket.code } })} style={styles.savedTicketCard}>

@@ -14,11 +14,12 @@ import { saveTicketToWallet } from '@/tickets/walletStore';
 import {
   ticketJourneyArrivalNotes,
   ticketJourneyTicketBadge,
+  ticketLookupInput,
 } from '@/modules/tickets/ticketJourney';
 
 export default function TicketScreen() {
   const params = useLocalSearchParams<{ code?: string; checkout?: string }>();
-  const code = typeof params.code === 'string' ? params.code.trim() : '';
+  const code = typeof params.code === 'string' ? ticketLookupInput(params.code) : '';
   const checkoutState = typeof params.checkout === 'string' ? params.checkout : '';
   const [ticket, setTicket] = useState<TicketDTO | null>(null);
   const [loading, setLoading] = useState(Boolean(code));

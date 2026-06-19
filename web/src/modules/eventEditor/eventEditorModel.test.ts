@@ -11,7 +11,13 @@ import {
 	formFromEvent,
 	formsMatch,
 	fromInputValue,
+	formatDateTime,
 	pricingSummary,
+	reportEndOfNightCopy,
+	settlementAdjustmentsEmptyCopy,
+	settlementAdjustmentsLockedCopy,
+	settlementLockedCopy,
+	settlementStatusLabel,
 	sortCommitments,
 	sortTemplates,
 	toInputValue,
@@ -124,6 +130,16 @@ describe('event editor model helpers', () => {
 		expect(emptyForm().pricingMode).toBe('free');
 		expect(toInputValue(source.startsAt)).toBe(form.startsAt);
 		expect(pricingSummary(source)).toContain('USD');
+		expect(reportEndOfNightCopy()).toBe('This is the end-of-night snapshot for the event.');
+	});
+
+	it('keeps settlement and report display copy stable', () => {
+		expect(settlementStatusLabel('open')).toBe('open');
+		expect(settlementStatusLabel('finalized')).toBe('finalized (locked)');
+		expect(settlementLockedCopy('2026-06-18T12:00:00.000Z', 'person-1')).toBe(`Finalized on ${formatDateTime('2026-06-18T12:00:00.000Z')} by person-1.`);
+		expect(settlementLockedCopy(null, null)).toBe('Finalized.');
+		expect(settlementAdjustmentsEmptyCopy()).toBe('No adjustments yet.');
+		expect(settlementAdjustmentsLockedCopy()).toBe('Adjustments are locked after settlement finalization.');
 	});
 
 	it('derives role, staffing, and commitment summaries', () => {

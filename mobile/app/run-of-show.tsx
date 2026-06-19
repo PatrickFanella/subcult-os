@@ -8,6 +8,7 @@ import { createEventStaffing, listEventStaffing, updateEventStaffing, updateEven
 import type { EventStaffingItemDTO } from '@/api/types';
 import { safeBack } from '@/navigation/safeBack';
 import {
+	applyRunOfShowStatusUpdate,
 	buildCreateRunOfShowPayload,
 	buildUpdateRunOfShowPayload,
 	emptyRunOfShowForm,
@@ -57,7 +58,7 @@ export default function RunOfShowScreen() {
     setError(null);
     try {
       const updated = await updateEventStaffingStatus(eventID, item.id, status);
-      setItems((current) => sortRunOfShowItems(current.map((candidate) => (candidate.id === updated.id ? updated : candidate))));
+      setItems((current) => applyRunOfShowStatusUpdate(current, updated));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to update staffing item');
     } finally {

@@ -7,6 +7,7 @@ import { formatDate, formatTime } from '@/api/format';
 import { getEvent } from '@/api/staff';
 import type { EventDTO } from '@/api/types';
 import { safeBack } from '@/navigation/safeBack';
+import { mobileCloseoutHandoffCopy, mobileCloseoutStatusLabel } from '@/modules/settlement/settlementModel';
 
 export default function EventDashboardScreen() {
   const params = useLocalSearchParams<{ eventId?: string }>();
@@ -61,6 +62,7 @@ export default function EventDashboardScreen() {
           <Text style={styles.heroLabel}>Active Event</Text>
           <Text style={styles.eventTitle}>{event?.title ?? 'No event loaded'}</Text>
           <Text style={styles.eventMeta}>{event ? `${formatDate(event.startsAt)} • ${formatTime(event.startsAt)} · ${event.locationDisplay}` : 'Open from Staff mode'}</Text>
+          {event?.status === 'end_of_night' ? <Text style={styles.closeoutCue}>{mobileCloseoutStatusLabel(event.status)} · {mobileCloseoutHandoffCopy(event.status)}</Text> : null}
           {event ? (
             <View style={styles.actionRow}>
               <Link href={{ pathname: '/event-edit', params: { eventId: event.id, workspaceId: event.workspaceId } }} style={styles.editButton}>
@@ -113,6 +115,7 @@ const styles = StyleSheet.create({
   heroLabel: { color: '#737373', fontSize: 12, fontWeight: '700', marginBottom: 8 },
   eventTitle: { color: '#171717', fontSize: 24, fontWeight: '800', letterSpacing: -0.6 },
   eventMeta: { color: '#737373', marginTop: 6 },
+  closeoutCue: { color: '#166534', backgroundColor: '#f0fdf4', borderRadius: 14, marginTop: 12, paddingHorizontal: 12, paddingVertical: 10, fontWeight: '700', lineHeight: 20 },
   actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
   editButton: { alignSelf: 'flex-start', backgroundColor: '#171717', borderRadius: 16, overflow: 'hidden', paddingHorizontal: 16, paddingVertical: 12 },
   editButtonInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },

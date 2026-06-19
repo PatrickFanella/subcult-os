@@ -11,6 +11,7 @@ import {
   ticketJourneyDisplayName,
   ticketJourneyDoorBadge,
   ticketJourneyDoorResultLabel,
+  doorCheckInButtonLabel,
 } from '@/modules/tickets/ticketJourney';
 
 export default function DoorScreen() {
@@ -124,7 +125,7 @@ export default function DoorScreen() {
             <View style={styles.divider} />
             <Pressable disabled={checkingIn === ticket.code} onPress={() => void checkIn(ticket)} style={styles.primaryButton}>
               <UserCheck size={20} color="#ffffff" />
-              <Text style={styles.primaryButtonText}>{checkingIn === ticket.code ? 'Checking in…' : ticket.status === 'checked_in' ? 'Confirm checked in' : 'Check in guest'}</Text>
+              <Text style={styles.primaryButtonText}>{doorCheckInButtonLabel(checkingIn === ticket.code, ticket.status === 'checked_in')}</Text>
             </Pressable>
           </View>
         ))}

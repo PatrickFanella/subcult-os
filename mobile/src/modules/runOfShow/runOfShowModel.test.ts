@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import type { EventStaffingItemDTO } from '@/api/types';
 
 import {
+	applyRunOfShowStatusUpdate,
 	buildCreateRunOfShowPayload,
 	buildUpdateRunOfShowPayload,
 	isRunOfShowTimeRangeValid,
@@ -24,6 +26,17 @@ describe('runOfShowModel', () => {
 		]);
 
 		expect(items.map((item) => item.id)).toEqual(['a', 'b']);
+	});
+
+	it('applies status updates and re-sorts staffing items', () => {
+		const items: EventStaffingItemDTO[] = [
+			{ id: 'late', eventId: 'event-1', title: 'Late', kind: 'task', notes: '', startsAt: '2026-06-18T12:00:00.000Z', endsAt: null, assignedPersonId: null, assignedApplicationId: null, assigneeName: null, status: 'open', createdAt: '2026-06-18T09:00:00.000Z', updatedAt: '2026-06-18T09:00:00.000Z', completedAt: null, completedByPersonId: null },
+			{ id: 'early', eventId: 'event-1', title: 'Early', kind: 'task', notes: '', startsAt: '2026-06-18T10:00:00.000Z', endsAt: null, assignedPersonId: null, assignedApplicationId: null, assigneeName: null, status: 'assigned', createdAt: '2026-06-18T09:00:00.000Z', updatedAt: '2026-06-18T09:00:00.000Z', completedAt: null, completedByPersonId: null },
+		];
+		const updated = applyRunOfShowStatusUpdate(items, { ...items[0], status: 'completed', updatedAt: '2026-06-18T10:00:00.000Z' });
+
+		expect(updated.map((item) => item.id)).toEqual(['early', 'late']);
+		expect(updated[1].status).toBe('completed');
 	});
 
 	it('builds create and update payloads', () => {

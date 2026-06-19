@@ -56,3 +56,19 @@ export function ticketJourneyArrivalNotes(paymentStatus: string) {
 export function ticketJourneySavedTicketStatus(ticket: Pick<TicketWalletSnapshotInput, 'status' | 'paymentStatus'>) {
 	return ticket.paymentStatus === 'pending' ? 'payment pending' : ticket.status;
 }
+
+export function ticketLookupInput(value: string) {
+	return value.trim();
+}
+
+export function doorCheckInButtonLabel(checkingIn: boolean, checkedIn: boolean) {
+	if (checkingIn) return 'Checking in…';
+	if (checkedIn) return 'Checked in';
+	return 'Check in';
+}
+
+export function ticketWalletEmptyCopy(hasLoaded: boolean) {
+	return hasLoaded
+		? 'No saved tickets yet'
+		: 'Loading saved tickets…';
+}
