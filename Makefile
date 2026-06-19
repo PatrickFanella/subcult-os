@@ -5,7 +5,7 @@ PROJECT_NAME := subcult-os
 COMPOSE_PROJECT_NAME ?= $(PROJECT_NAME)
 BACKEND_BIN ?= bin/$(PROJECT_NAME)
 
-.PHONY: help deps deps-web deps-mobile verify quick fmt lint lint-mobile test test-backend test-web build build-backend build-web run-backend dev dev-mobile up up-build down reset-db restart logs ps urls smoke alpha-qa alpha-qa-paid fake-event-qa compose-config db-shell migrate migrate-status migrate-reset clean open-pilot-check
+.PHONY: help deps deps-web deps-mobile verify quick fmt lint lint-mobile test test-backend test-web build build-backend build-web run-backend dev dev-mobile up up-build down reset-db restart logs ps urls smoke alpha-qa alpha-qa-paid fake-event-qa compose-config db-shell migrate migrate-status migrate-reset clean open-pilot-check check-contracts
 
 help:
 	@awk 'BEGIN {FS = ":.*##"; printf "$(PROJECT_NAME) commands:\n"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -18,7 +18,7 @@ deps-web: ## Install web dependencies
 deps-mobile: ## Install mobile dependencies
 	pnpm --dir mobile install --frozen-lockfile
 
-verify: deps fmt lint test build compose-config open-pilot-check ## Run all checks
+verify: deps fmt lint check-contracts test build compose-config open-pilot-check ## Run all checks
 
 quick: fmt lint test ## Run fast local checks without Docker config or production builds
 
@@ -42,6 +42,9 @@ test-backend: ## Run Go tests
 test-web: ## Run frontend tests
 	pnpm --dir web run test
 
+check-contracts: ## Check shared API contracts
+	node scripts/check-contracts.mjs
+
 build: build-backend build-web ## Build backend binary and frontend assets
 
 build-backend: ## Build the subcult-os backend binary
@@ -55,7 +58,7 @@ run-backend: build-backend ## Run the local backend binary
 	./$(BACKEND_BIN)
 
 dev-mobile: ## Start the Expo mobile app
-	pnpm --dir mobile run start
+	EXPO_PUBLIC_API_URL=http://10.0.0.50:38080 pnpm --dir mobile run start --clear
 
 dev: ## Start the full subcult-os stack
 	docker compose -p $(COMPOSE_PROJECT_NAME) up

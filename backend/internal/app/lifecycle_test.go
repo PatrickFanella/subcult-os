@@ -3124,6 +3124,74 @@ func TestFirstEventLifecycleFixedPriceCreate(t *testing.T) {
 	}
 }
 
+func TestFirstEventLifecycleCurrentCreatePublishFreeDoorEndOfNightFlow(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 2)
+	eventID := mustString(t, event, "id")
+	slug := mustString(t, publishEvent(t, fx, eventID), "publicSlug")
+
+	reservation := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/reservations", map[string]any{"email": fx.email("guest"), "displayName": "Guest"}, http.StatusOK)
+	if mustString(t, reservation.JSON, "status") != "reserved" {
+		t.Fatalf("unexpected reservation response: %#v", reservation.JSON)
+	}
+
+	code := mustString(t, reservation.JSON, "code")
+	firstCheckIn := postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/door/check-ins", map[string]any{"code": code}, http.StatusOK)
+	secondCheckIn := postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/door/check-ins", map[string]any{"code": code}, http.StatusOK)
+	first := mustObject(t, firstCheckIn.JSON)
+	second := mustObject(t, secondCheckIn.JSON)
+	if first["status"] != "checked_in" || second["status"] != "checked_in" || first["checkedInAt"] != second["checkedInAt"] {
+		t.Fatalf("unexpected duplicate check-in behavior: first=%#v second=%#v", firstCheckIn.JSON, secondCheckIn.JSON)
+	}
+
+	report := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
+	reportObj := mustObject(t, report.JSON)
+	if int(reportObj["ticketsReserved"].(float64)) != 1 || int(reportObj["ticketsCheckedIn"].(float64)) != 1 || int(reportObj["noShows"].(float64)) != 0 {
+		t.Fatalf("unexpected end-of-night report: %#v", report.JSON)
+	}
+
+	var status string
+	if err := fx.app.db.QueryRow(t.Context(), `select status from events where id = $1`, eventID).Scan(&status); err != nil {
+		t.Fatal(err)
+	}
+	if status != "end_of_night" {
+		t.Fatalf("expected event to close out, got %s", status)
+	}
+
+	var settlementCount, archiveCount int
+	if err := fx.app.db.QueryRow(t.Context(), `select count(*) from event_settlements where event_id = $1`, eventID).Scan(&settlementCount); err != nil {
+		t.Fatal(err)
+	}
+	if err := fx.app.db.QueryRow(t.Context(), `select count(*) from event_archives where event_id = $1`, eventID).Scan(&archiveCount); err != nil {
+		t.Fatal(err)
+	}
+	if settlementCount != 1 || archiveCount != 1 {
+		t.Fatalf("expected one settlement and one archive, got settlements=%d archives=%d", settlementCount, archiveCount)
+	}
+}
+
+func TestTicketReservationCurrentCapacityAndDoorRules(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	event := createEvent(t, fx, "Night Market", 1)
+	eventID := mustString(t, event, "id")
+	slug := mustString(t, publishEvent(t, fx, eventID), "publicSlug")
+
+	firstReservation := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/reservations", map[string]any{"email": fx.email("guest-a"), "displayName": "Guest One"}, http.StatusOK)
+	postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/reservations", map[string]any{"email": fx.email("guest-b"), "displayName": "Guest Two"}, http.StatusConflict)
+
+	code := mustString(t, firstReservation.JSON, "code")
+	firstCheckIn := postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/door/check-ins", map[string]any{"code": code}, http.StatusOK)
+	secondCheckIn := postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/door/check-ins", map[string]any{"code": code}, http.StatusOK)
+	if mustString(t, firstCheckIn.JSON, "status") != "checked_in" || mustString(t, secondCheckIn.JSON, "status") != "checked_in" || mustString(t, firstCheckIn.JSON, "checkedInAt") != mustString(t, secondCheckIn.JSON, "checkedInAt") {
+		t.Fatalf("unexpected duplicate check-in response: first=%#v second=%#v", firstCheckIn.JSON, secondCheckIn.JSON)
+	}
+
+	publicEvent := getJSON(t, fx.app, nil, "/api/public/events/"+slug, http.StatusOK).JSON.(map[string]any)
+	if int(publicEvent["reservedCount"].(float64)) != 1 || int(publicEvent["remainingTickets"].(float64)) != 0 || !publicEvent["isFull"].(bool) {
+		t.Fatalf("expected event to stay full after one reservation: %#v", publicEvent)
+	}
+}
+
 func TestFirstEventLifecycleRejectsLowFixedPrice(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/events", map[string]any{
@@ -3638,6 +3706,36 @@ func newLifecycleFixture(t *testing.T) lifecycleFixture {
 	postJSON(t, app, memberCookie, "/api/invitations/"+mustString(t, invite.JSON, "token")+"/accept", map[string]any{}, http.StatusOK)
 
 	return lifecycleFixture{app: app, ownerCookie: ownerCookie, memberCookie: memberCookie, workspaceID: workspaceID, suffix: suffix}
+}
+
+func TestRunMigrationsCreatesEventsTable(t *testing.T) {
+	if os.Getenv("TEST_DATABASE_URL") == "" {
+		t.Skip("set TEST_DATABASE_URL to run lifecycle acceptance test")
+	}
+
+	ctx := t.Context()
+	db, err := OpenDB(ctx, os.Getenv("TEST_DATABASE_URL"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(db.Close)
+	if err := RunMigrations(ctx, db); err != nil {
+		t.Fatal(err)
+	}
+
+	var exists bool
+	if err := db.QueryRow(ctx, `
+		select exists (
+			select 1
+			from information_schema.tables
+			where table_schema = 'public' and table_name = 'events'
+		)
+	`).Scan(&exists); err != nil {
+		t.Fatal(err)
+	}
+	if !exists {
+		t.Fatal("expected events table to exist after RunMigrations")
+	}
 }
 
 type fakePaymentProvider struct {

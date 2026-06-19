@@ -2,9 +2,7 @@ package app
 
 import (
 	"net/http"
-	"strings"
 	"time"
-	"unicode/utf8"
 )
 
 type publicEventSummaryDTO struct {
@@ -31,9 +29,13 @@ func (a *App) handleListPublicEvents(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, []publicEventSummaryDTO{})
 		return
 	}
+	if !a.discovery.enabled() {
+		writeJSON(w, http.StatusOK, []publicEventSummaryDTO{})
+		return
+	}
 
-	query := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q")))
-	if utf8.RuneCountInString(query) > 120 {
+	query, err := a.discovery.normalizeSearchQuery(r.URL.Query().Get("q"))
+	if err != nil {
 		writeError(w, http.StatusBadRequest, "search query is too long")
 		return
 	}

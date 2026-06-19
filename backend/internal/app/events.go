@@ -429,7 +429,7 @@ func (a *App) handleCreateEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	row := eventRow{ID: eventID, WorkspaceID: workspaceID, Title: title, StartsAt: startsAt, PublicDescription: publicDescription, LocationDisplay: locationDisplay, ImageURL: sql.NullString{String: imageURL, Valid: imageURL != ""}, TicketAllocation: req.TicketAllocation, PricingMode: pricingMode, TicketPriceCents: ticketPriceCents, TicketCurrency: ticketCurrency, Status: "draft"}
+	row := eventRow{ID: eventID, WorkspaceID: workspaceID, Title: title, StartsAt: startsAt, PublicDescription: publicDescription, LocationDisplay: locationDisplay, ImageURL: sql.NullString{String: imageURL, Valid: imageURL != ""}, TicketAllocation: req.TicketAllocation, PricingMode: pricingMode, TicketPriceCents: ticketPriceCents, TicketCurrency: ticketCurrency, Status: eventStatusDraft}
 	writeJSON(w, http.StatusOK, a.eventDTOFromRow(row))
 }
 
@@ -473,6 +473,7 @@ func (a *App) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
+	lifecycle := lifecycleFromEventRow(event)
 
 	var req updateEventRequest
 	if err := decodeJSON(r, &req); err != nil {
@@ -483,7 +484,7 @@ func (a *App) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "no changes provided")
 		return
 	}
-	if event.Status == "end_of_night" {
+	if !lifecycle.CanEdit() {
 		writeError(w, http.StatusConflict, "event is closed")
 		return
 	}
@@ -505,7 +506,7 @@ func (a *App) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusBadRequest, "title is required")
 			return
 		}
-		if event.Status != "draft" && title != event.Title {
+		if !lifecycle.CanChangeTitle(title) {
 			writeError(w, http.StatusConflict, "title cannot change after publish")
 			return
 		}
@@ -549,7 +550,7 @@ func (a *App) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusBadRequest, "invalid startsAt")
 			return
 		}
-		if event.Status != "draft" && !value.Equal(event.StartsAt) && event.ReservedCount > 0 {
+		if !lifecycle.CanChangeStartsAt(value) {
 			writeError(w, http.StatusConflict, "cannot change startsAt after reservations exist")
 			return
 		}
@@ -563,7 +564,7 @@ func (a *App) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusBadRequest, "ticketAllocation must be non-negative")
 			return
 		}
-		if event.Status != "draft" && *req.TicketAllocation < event.ReservedCount {
+		if !lifecycle.CanChangeTicketAllocation(*req.TicketAllocation) {
 			writeError(w, http.StatusConflict, "ticket allocation cannot go below reserved tickets")
 			return
 		}
@@ -591,7 +592,7 @@ func (a *App) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if normalizedMode != event.PricingMode || normalizedPriceCents != event.TicketPriceCents || normalizedCurrency != event.TicketCurrency {
-			if event.ReservedCount > 0 {
+			if !lifecycle.CanChangePricing(normalizedMode, normalizedPriceCents, normalizedCurrency) {
 				writeError(w, http.StatusConflict, "pricing cannot change after tickets exist")
 				return
 			}
@@ -682,15 +683,16 @@ func (a *App) handlePublishEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = role
-	if event.Status != "draft" {
+	lifecycle := lifecycleFromEventRow(event)
+	if !lifecycle.IsDraft() {
 		writeError(w, http.StatusConflict, "event is already published")
 		return
 	}
-	if strings.TrimSpace(event.Title) == "" || event.StartsAt.IsZero() || strings.TrimSpace(event.PublicDescription) == "" || strings.TrimSpace(event.LocationDisplay) == "" {
+	if !lifecycle.ReadyToPublish() {
 		writeError(w, http.StatusBadRequest, "event is incomplete")
 		return
 	}
-	if event.TicketAllocation <= 0 {
+	if !lifecycle.HasPublishableTicketAllocation() {
 		writeError(w, http.StatusBadRequest, "ticketAllocation must be greater than zero")
 		return
 	}
@@ -726,7 +728,7 @@ func (a *App) handlePublishEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	event.Status = "published"
+	event.Status = eventStatusPublished
 	event.PublicSlug = sql.NullString{String: slug, Valid: true}
 	writeJSON(w, http.StatusOK, a.eventDTOFromRow(event))
 }
@@ -750,7 +752,8 @@ func (a *App) handleEndOfNight(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
-	if event.Status == "draft" {
+	lifecycle := lifecycleFromEventRow(event)
+	if !lifecycle.CanEndOfNight() {
 		writeError(w, http.StatusConflict, "event must be published first")
 		return
 	}
@@ -786,7 +789,7 @@ func (a *App) handleEndOfNight(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err == nil {
-		if event.Status != "end_of_night" {
+		if !eventStatusIsClosed(event.Status) {
 			if _, err := tx.Exec(r.Context(), `
 				update events
 				set status = 'end_of_night', ended_at = coalesce(ended_at, now()), updated_at = now()
@@ -834,7 +837,7 @@ func (a *App) handleEndOfNight(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if event.Status != "published" {
+	if !eventStatusIsPublished(event.Status) {
 		writeError(w, http.StatusConflict, "event is not published")
 		return
 	}

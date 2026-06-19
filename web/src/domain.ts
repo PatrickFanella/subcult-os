@@ -170,6 +170,7 @@ export interface EventDTO {
   startsAt: string;
   publicDescription: string;
   locationDisplay: string;
+  imageUrl: string | null;
   ticketAllocation: number;
   pricingMode: 'free' | 'fixed';
   ticketPriceCents: number;
@@ -196,6 +197,7 @@ export interface PublicEventSummaryDTO {
   startsAt: string;
   publicDescription: string;
   locationDisplay: string;
+  imageUrl?: string;
   workspaceName: string;
   pricingMode: 'free' | 'fixed';
   ticketPriceCents: number;
@@ -302,6 +304,7 @@ export interface TicketDTO {
   email: string;
   displayName: string | null;
   code: string;
+  ticketUrl: string;
   status: 'reserved' | 'checked_in';
   paymentStatus: 'free' | 'pending' | 'paid' | 'cancelled';
   amountCents: number;
@@ -311,6 +314,8 @@ export interface TicketDTO {
 
 export interface PaidReservationDTO {
   ticketId: string;
+  ticketCode: string;
+  ticketUrl: string;
   checkoutSessionId: string;
   checkoutUrl: string;
 }

@@ -5,7 +5,8 @@ import App from './App';
 import { EventEditorView } from './views/EventEditorView';
 import { PublicEventView } from './views/PublicEventView';
 import { TicketView } from './views/TicketView';
-import { WorkspaceView, normalizeCurrentWorkspace } from './views/WorkspaceView';
+import { WorkspaceView } from './views/WorkspaceView';
+import { normalizeCurrentWorkspace } from './modules/workspace/workspaceModel';
 
 vi.mock('react', async () => {
   const actual = await vi.importActual<typeof import('react')>('react');
@@ -64,6 +65,44 @@ function renderWithState(pathname: string, element: React.ReactElement, stateVal
   useStateMock.mockImplementation(makeUseStateImplementation(values));
 
   return renderToString(element);
+}
+
+function workspaceShellState(overrides: {
+  event?: Record<string, unknown>;
+  contactsDenied?: boolean;
+  commitmentsDenied?: boolean;
+} = {}) {
+  const states: unknown[] = skipStates(32);
+
+  // WorkspaceView state order: current user, workspace, events, archives, loading.
+  states[0] = {
+    id: 'person-1',
+    email: 'owner@example.com',
+    displayName: 'Owner',
+    workspaces: [{ id: 'workspace-1', name: 'Main Room', role: 'owner' }],
+  };
+  states[1] = {
+    id: 'workspace-1',
+    name: 'Main Room',
+    role: 'owner',
+    members: [{ id: 'member-1', email: 'morgan@example.com', displayName: 'Morgan', role: 'member' }],
+    invitations: [],
+  };
+  states[2] = overrides.event ? [overrides.event] : [];
+  states[3] = [];
+  states[4] = false;
+
+  // Optional private panels: contacts error/loading and commitments error/loading.
+  if (overrides.contactsDenied) {
+    states[16] = null;
+    states[17] = true;
+  }
+  if (overrides.commitmentsDenied) {
+    states[20] = null;
+    states[21] = true;
+  }
+
+  return states;
 }
 
 beforeEach(() => {
@@ -232,6 +271,14 @@ describe('App routes', () => {
     expect(rendered).not.toContain(REMINDER_PRIVATE_PREVIEW);
   });
 
+  it('keeps the legacy public event route alias on the public event view', () => {
+    const rendered = renderAt('/public/events/night-market');
+
+    expect(rendered).toContain('Free guest reservation');
+    expect(rendered).toContain('No account needed');
+    expect(rendered).toContain('Discover more events');
+  });
+
   it('renders the event editor route', () => {
     const rendered = renderAt('/events/new');
     expect(rendered).toContain('Event editor');
@@ -313,6 +360,41 @@ describe('App routes', () => {
     expect(rendered).toContain('Seed next draft');
     expect(rendered).toContain('No seeded draft yet');
     expect(rendered).toContain('Unresolved staffing remains before closeout.');
+  });
+
+  it('keeps the Workspace usable when private panels are denied', () => {
+    const event = {
+      id: 'event-1',
+      workspaceId: 'workspace-1',
+      title: 'Night Market',
+      startsAt: '2026-06-13T23:00:00.000Z',
+      publicDescription: 'A late set.',
+      locationDisplay: 'The Hall',
+      ticketAllocation: 100,
+      pricingMode: 'fixed',
+      ticketPriceCents: 1800,
+      ticketCurrency: 'usd',
+      reservedCount: 26,
+      checkedInCount: 20,
+      staffingOpenCount: 1,
+      staffingAssignedCount: 0,
+      staffingCompletedCount: 0,
+      staffingCancelledCount: 0,
+      status: 'end_of_night',
+      publicSlug: 'night-market',
+      publicUrl: '/e/night-market',
+    };
+
+    const states = workspaceShellState({ event, contactsDenied: true, commitmentsDenied: true });
+
+    const rendered = renderWithState('/workspace?workspaceId=workspace-1', <WorkspaceView />, states);
+
+    expect(rendered).toContain('Operator home');
+    expect(rendered).toContain('Main Room');
+    expect(rendered).toContain('Events');
+    expect(rendered).toContain('Night Market');
+    expect(rendered).not.toContain('Contacts');
+    expect(rendered).not.toContain('Commitments');
   });
 
   it('renders empty archive search copy', () => {

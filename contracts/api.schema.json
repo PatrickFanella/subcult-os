@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "dtos": {
+    "CurrentUserDTO": {
+      "required": ["id", "email", "displayName", "workspaces"]
+    },
+    "WorkspaceSummaryDTO": {
+      "required": ["id", "name", "role"]
+    },
+    "EventDTO": {
+      "required": [
+        "id",
+        "workspaceId",
+        "title",
+        "startsAt",
+        "publicDescription",
+        "locationDisplay",
+        "imageUrl",
+        "ticketAllocation",
+        "pricingMode",
+        "ticketPriceCents",
+        "ticketCurrency",
+        "reservedCount",
+        "checkedInCount",
+        "staffingOpenCount",
+        "staffingAssignedCount",
+        "staffingCompletedCount",
+        "staffingCancelledCount",
+        "status",
+        "publicSlug",
+        "publicUrl"
+      ]
+    },
+    "PublicEventDTO": {
+      "required": [
+        "id",
+        "workspaceId",
+        "title",
+        "startsAt",
+        "publicDescription",
+        "locationDisplay",
+        "imageUrl",
+        "ticketAllocation",
+        "pricingMode",
+        "ticketPriceCents",
+        "ticketCurrency",
+        "reservedCount",
+        "checkedInCount",
+        "staffingOpenCount",
+        "staffingAssignedCount",
+        "staffingCompletedCount",
+        "staffingCancelledCount",
+        "status",
+        "publicSlug",
+        "publicUrl",
+        "remainingTickets",
+        "isFull"
+      ]
+    },
+    "PublicEventSummaryDTO": {
+      "required": [
+        "id",
+        "title",
+        "startsAt",
+        "publicDescription",
+        "locationDisplay",
+        "workspaceName",
+        "pricingMode",
+        "ticketPriceCents",
+        "ticketCurrency",
+        "remainingTickets",
+        "isFull",
+        "applicationsOpen",
+        "status",
+        "publicSlug",
+        "publicUrl"
+      ]
+    },
+    "TicketDTO": {
+      "required": [
+        "id",
+        "eventId",
+        "email",
+        "displayName",
+        "code",
+        "ticketUrl",
+        "status",
+        "paymentStatus",
+        "amountCents",
+        "currency",
+        "checkedInAt"
+      ]
+    },
+    "TicketReservationDTO": {
+      "required": [
+        "id",
+        "eventId",
+        "email",
+        "displayName",
+        "code",
+        "ticketUrl",
+        "status",
+        "paymentStatus",
+        "amountCents",
+        "currency",
+        "checkedInAt"
+      ]
+    },
+    "PaidReservationDTO": {
+      "required": ["ticketId", "ticketCode", "ticketUrl", "checkoutSessionId", "checkoutUrl"]
+    }
+  }
+}

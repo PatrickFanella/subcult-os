@@ -498,7 +498,7 @@ func (a *App) handleApplyEventTemplate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
-	if event.Status != "draft" {
+	if !lifecycleFromEventRow(event).IsDraft() {
 		writeError(w, http.StatusConflict, "event must be draft")
 		return
 	}

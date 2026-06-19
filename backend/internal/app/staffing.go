@@ -176,7 +176,7 @@ func (a *App) handleCreateEventStaffing(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
-	if eventStatus == "end_of_night" {
+	if eventStatusIsClosed(eventStatus) {
 		writeError(w, http.StatusConflict, "event is closed")
 		return
 	}
@@ -524,7 +524,7 @@ func (a *App) handleUpdateEventStaffing(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusOK, eventStaffingItemDTOFromRow(current))
 		return
 	}
-	if eventStatus == "end_of_night" {
+	if eventStatusIsClosed(eventStatus) {
 		writeError(w, http.StatusConflict, "event is closed")
 		return
 	}

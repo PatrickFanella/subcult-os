@@ -214,7 +214,7 @@ export default function StaffScreen() {
               <Text style={styles.statMuted}>Tickets</Text>
               <Text style={styles.statValue}>{remainingTickets ?? '—'} <Text style={styles.statTotal}>remaining</Text></Text>
             </View>
-            <View style={styles.statPercent}><ShieldCheck size={16} color="#22c55e" /><Text style={styles.percentText}>{activeEvent?.status ?? '—'}</Text></View>
+            <View style={styles.statPercent}><ShieldCheck size={16} color="#22c55e" /><Text style={styles.percentText}>{activeEvent ? activeEvent.status : '—'}</Text></View>
           </View>
           {eventError ? <Text style={styles.error}>{eventError}</Text> : null}
           <Text onPress={() => void signOut()} style={styles.signOut}>Sign out {user.email}</Text>

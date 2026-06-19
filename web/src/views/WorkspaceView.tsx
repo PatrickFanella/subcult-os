@@ -1,6 +1,40 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
-import { ApiError, api, deleteJSON, patchJSON, postJSON } from '../api';
+import { api, deleteJSON, patchJSON, postJSON } from '../api';
+import { isClosedEvent, isDraftEvent, isPublishedEvent } from '../modules/eventLifecycle/eventLifecycle';
+import {
+	archiveLearningLoopCopy,
+	commitmentStatusLabel,
+	commitmentStatusTone,
+	emptyCommitmentForm,
+	emptyContactForm,
+	contactFormFrom,
+	emptyTemplateForm,
+	eventCountLabel,
+	eventStatusLabel,
+	eventStatusSummary,
+	eventStatusSurface,
+	eventStatusTone,
+	getRequestedArchiveQuery,
+	getRequestedWorkspaceId,
+	sortCommitments,
+	sortContacts,
+	sortTemplates,
+	staffingStatusCopy,
+	templateFormFrom,
+	templatePricingLabel,
+	deleteTemplateState,
+} from '../modules/workspace/workspaceModel';
+import {
+	loadDevEmailOutbox,
+	loadWorkspaceArchives,
+	loadWorkspaceCommitments,
+	loadWorkspaceContacts,
+	loadWorkspaceById,
+	loadWorkspaceFallback,
+	loadWorkspaceReminders,
+	loadWorkspaceTemplates,
+} from '../modules/workspace/workspaceLoaders';
 import type {
   CurrentUserDTO,
   CurrentWorkspaceDTO,
@@ -11,32 +45,14 @@ import type {
   EventStatus,
   ContactDTO,
   InvitationCreatedDTO,
-  InvitationDTO,
-  MemberDTO,
   ReminderEventDTO,
   WorkspaceArchiveSummaryDTO,
   WorkspaceDTO,
 } from '../domain';
 
-type CurrentWorkspaceResponse = Omit<CurrentWorkspaceDTO, 'members' | 'invitations'> & {
-  members?: MemberDTO[] | null;
-  invitations?: InvitationDTO[] | null;
-};
+type ContactFormState = ReturnType<typeof emptyContactForm>;
 
-type ContactFormState = {
-  displayName: string;
-  email: string;
-  phone: string;
-  tags: string;
-  notes: string;
-};
-
-type CommitmentFormState = {
-  title: string;
-  description: string;
-  dueAt: string;
-  eventId: string;
-};
+type CommitmentFormState = ReturnType<typeof emptyCommitmentForm>;
 
 type TemplateFormState = {
   name: string;
@@ -48,14 +64,6 @@ type TemplateFormState = {
   ticketPriceDollars: string;
   privateNotes: string;
 };
-
-export function normalizeCurrentWorkspace(workspace: CurrentWorkspaceResponse): CurrentWorkspaceDTO {
-  return {
-    ...workspace,
-    members: workspace.members ?? [],
-    invitations: workspace.invitations ?? [],
-  };
-}
 
 function signOut() {
   void postJSON('/api/auth/logout', {}).finally(() => {
@@ -69,22 +77,6 @@ function roleLabel(role: string) {
 
 function roleHint(role: string) {
   return role === 'owner' ? 'Can invite members and publish events' : 'Can help run the room';
-}
-
-function getRequestedWorkspaceId() {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
-  return new URLSearchParams(window.location.search).get('workspaceId');
-}
-
-function getRequestedArchiveQuery() {
-  if (typeof window === 'undefined') {
-    return '';
-  }
-
-  return new URLSearchParams(window.location.search).get('q') ?? '';
 }
 
 function formatDateTime(value: string) {
@@ -106,64 +98,6 @@ function formatShortDateTime(value: string) {
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(date);
 }
 
-function emptyContactForm(): ContactFormState {
-  return { displayName: '', email: '', phone: '', tags: '', notes: '' };
-}
-
-function contactFormFrom(contact: ContactDTO): ContactFormState {
-  return {
-    displayName: contact.displayName,
-    email: contact.email ?? '',
-    phone: contact.phone ?? '',
-    tags: contact.tags.join(', '),
-    notes: contact.notes,
-  };
-}
-
-function emptyCommitmentForm(): CommitmentFormState {
-  return { title: '', description: '', dueAt: '', eventId: '' };
-}
-
-function emptyTemplateForm(): TemplateFormState {
-  return {
-    name: '',
-    title: '',
-    publicDescription: '',
-    locationDisplay: '',
-    ticketAllocation: '1',
-    pricingMode: 'free',
-    ticketPriceDollars: '0.00',
-    privateNotes: '',
-  };
-}
-
-function templateFormFrom(template: EventTemplateDTO): TemplateFormState {
-  return {
-    name: template.name,
-    title: template.title,
-    publicDescription: template.publicDescription,
-    locationDisplay: template.locationDisplay,
-    ticketAllocation: String(template.ticketAllocation),
-    pricingMode: template.pricingMode,
-    ticketPriceDollars: template.pricingMode === 'fixed' ? (template.ticketPriceCents / 100).toFixed(2) : '0.00',
-    privateNotes: template.privateNotes,
-  };
-}
-
-function sortTemplates(templates: EventTemplateDTO[]) {
-  return [...templates].sort(
-    (left, right) => left.name.localeCompare(right.name) || new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime(),
-  );
-}
-
-function templatePricingLabel(template: EventTemplateDTO) {
-  if (template.pricingMode === 'free') {
-    return 'Free reservation';
-  }
-
-  return `${new Intl.NumberFormat([], { style: 'currency', currency: template.ticketCurrency.toUpperCase() || 'USD' }).format(template.ticketPriceCents / 100)} ${template.ticketCurrency.toUpperCase() || 'USD'}`;
-}
-
 function parseTagList(value: string) {
   const seen = new Set<string>();
   const tags: string[] = [];
@@ -178,130 +112,6 @@ function parseTagList(value: string) {
   }
 
   return tags;
-}
-
-function sortContacts(contacts: ContactDTO[]) {
-  return [...contacts].sort((left, right) => left.displayName.localeCompare(right.displayName) || new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime());
-}
-
-function sortCommitments(commitments: CommitmentDTO[]) {
-  const statusOrder: Record<CommitmentDTO['status'], number> = { open: 0, done: 1, cancelled: 2 };
-
-  return [...commitments].sort((left, right) => {
-    const statusDelta = statusOrder[left.status] - statusOrder[right.status];
-    if (statusDelta !== 0) return statusDelta;
-
-    const leftDue = left.dueAt ? new Date(left.dueAt).getTime() : Number.POSITIVE_INFINITY;
-    const rightDue = right.dueAt ? new Date(right.dueAt).getTime() : Number.POSITIVE_INFINITY;
-    if (leftDue !== rightDue) return leftDue - rightDue;
-
-    return new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
-  });
-}
-
-function commitmentStatusLabel(status: CommitmentDTO['status']) {
-  switch (status) {
-    case 'open':
-      return 'Open';
-    case 'done':
-      return 'Done';
-    case 'cancelled':
-      return 'Cancelled';
-  }
-}
-
-function commitmentStatusTone(status: CommitmentDTO['status']) {
-  switch (status) {
-    case 'open':
-      return 'border-amber-400/20 bg-amber-400/10 text-amber-200';
-    case 'done':
-      return 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200';
-    case 'cancelled':
-      return 'border-rose-400/20 bg-rose-400/10 text-rose-200';
-  }
-}
-
-function eventStatusLabel(status: EventStatus) {
-  switch (status) {
-    case 'draft':
-      return 'Draft';
-    case 'published':
-      return 'Live';
-    case 'end_of_night':
-      return 'Closed';
-  }
-}
-
-function eventStatusTone(status: EventStatus) {
-  switch (status) {
-    case 'draft':
-      return 'border-amber-400/25 bg-amber-400/10 text-amber-200';
-    case 'published':
-      return 'border-emerald-400/25 bg-emerald-400/10 text-emerald-200';
-    case 'end_of_night':
-      return 'border-fuchsia-400/25 bg-fuchsia-400/10 text-fuchsia-200';
-  }
-}
-
-function eventStatusSurface(status: EventStatus) {
-  switch (status) {
-    case 'draft':
-      return 'border-amber-400/20 bg-amber-400/[0.06]';
-    case 'published':
-      return 'border-emerald-400/20 bg-emerald-400/[0.06]';
-    case 'end_of_night':
-      return 'border-fuchsia-400/20 bg-fuchsia-400/[0.06]';
-  }
-}
-
-function eventStatusSummary(status: EventStatus) {
-  switch (status) {
-    case 'draft':
-      return 'Keep shaping the page, then publish when it is ready.';
-    case 'published':
-      return 'Live now. Keep the Door open and wrap when the room closes.';
-    case 'end_of_night':
-      return 'Closed out. Review the report and prep the next one.';
-  }
-}
-
-function eventCountLabel(event: EventDTO) {
-  return `Reserved ${event.reservedCount} / Checked in ${event.checkedInCount}`;
-}
-
-function staffingStatusCopy(event: EventDTO) {
-  const staffingTotal = event.staffingOpenCount + event.staffingAssignedCount + event.staffingCompletedCount + event.staffingCancelledCount;
-  const unresolvedCount = event.staffingOpenCount + event.staffingAssignedCount;
-
-  if (staffingTotal === 0) {
-    return 'No staffing items yet.';
-  }
-
-  if (unresolvedCount > 0) {
-    return 'Unresolved staffing remains before closeout.';
-  }
-
-  return 'All staffing complete.';
-}
-
-function archiveLearningLoopCopy(archives: WorkspaceArchiveSummaryDTO[]) {
-  const hasArchives = archives.length > 0;
-  const hasNotes = archives.some((archive) => archive.noteCount > 0);
-  const hasSeededDraft = archives.some((archive) => Boolean(archive.seededEventId));
-
-  if (!hasArchives) {
-    return 'Closed events will become private workspace memory here.';
-  }
-
-  if (!hasNotes) {
-    return 'Open an archive and capture the first lesson.';
-  }
-
-  if (!hasSeededDraft) {
-    return 'Use lessons to seed the next draft.';
-  }
-
-  return 'Review the seeded draft before publishing.';
 }
 
 type OperatorAction = {
@@ -319,9 +129,9 @@ type OperatorGuidance = {
 };
 
 function buildOperatorGuidance(events: EventDTO[], workspaceId: string): OperatorGuidance {
-  const newestDraft = events.find((event) => event.status === 'draft') ?? null;
-  const newestPublished = events.find((event) => event.status === 'published') ?? null;
-  const newestClosed = events.find((event) => event.status === 'end_of_night') ?? null;
+  const newestDraft = events.find((event) => isDraftEvent(event.status)) ?? null;
+  const newestPublished = events.find((event) => isPublishedEvent(event.status)) ?? null;
+  const newestClosed = events.find((event) => isClosedEvent(event.status)) ?? null;
 
   if (events.length === 0) {
     return {
@@ -417,25 +227,6 @@ function extractInviteToken(body: string) {
 
 function extractTicketCode(body: string) {
   return body.match(/\/tickets\/([A-Za-z0-9_-]+)/)?.[1] ?? null;
-}
-
-async function loadDevEmailOutbox() {
-  try {
-    const response = await fetch('/api/dev/email-outbox', { credentials: 'include' });
-
-    if (response.status === 401 || response.status === 404 || !response.ok) {
-      return null;
-    }
-
-    const data = await response.json().catch(() => null);
-    if (!Array.isArray(data)) {
-      return null;
-    }
-
-    return data as DevEmailOutboxMessageDTO[];
-  } catch {
-    return null;
-  }
 }
 
 export function WorkspaceView() {
@@ -535,45 +326,14 @@ export function WorkspaceView() {
   useEffect(() => {
     let cancelled = false;
 
-    async function loadWorkspaceArchives(workspaceID: string) {
-      const query = initialArchiveQuery;
-      const path = query ? `/api/workspaces/${workspaceID}/archives?q=${encodeURIComponent(query)}` : `/api/workspaces/${workspaceID}/archives`;
-      try {
-        return await api<WorkspaceArchiveSummaryDTO[]>(path);
-      } catch (caught) {
-        if (query) {
-          throw caught;
-        }
-        return [];
-      }
-    }
-
     async function loadWorkspaceData(nextWorkspace: CurrentWorkspaceDTO) {
       resetPrivateWorkspaceState();
       setWorkspace(nextWorkspace);
       const [loadedEvents, loadedArchives, loadedContacts, loadedCommitments] = await Promise.all([
         api<EventDTO[]>(`/api/workspaces/${nextWorkspace.id}/events`).catch(() => []),
-        loadWorkspaceArchives(nextWorkspace.id),
-        (async () => {
-          try {
-            return { data: await api<ContactDTO[]>(`/api/workspaces/${nextWorkspace.id}/contacts`), denied: false };
-          } catch (caught) {
-            if (caught instanceof ApiError && caught.status === 403) {
-              return { data: null, denied: true };
-            }
-            throw caught;
-          }
-        })(),
-        (async () => {
-          try {
-            return { data: await api<CommitmentDTO[]>(`/api/workspaces/${nextWorkspace.id}/commitments`), denied: false };
-          } catch (caught) {
-            if (caught instanceof ApiError && caught.status === 403) {
-              return { data: null, denied: true };
-            }
-            throw caught;
-          }
-        })(),
+        loadWorkspaceArchives(nextWorkspace.id, initialArchiveQuery, true),
+        loadWorkspaceContacts(nextWorkspace.id),
+        loadWorkspaceCommitments(nextWorkspace.id),
       ]);
       if (!cancelled) {
         setEvents(loadedEvents ?? []);
@@ -583,29 +343,6 @@ export function WorkspaceView() {
         setCommitmentsDenied(loadedCommitments.denied);
         setCommitments(loadedCommitments.data);
       }
-    }
-
-    async function loadFallbackWorkspace(user: CurrentUserDTO) {
-      const currentWorkspace = await api<CurrentWorkspaceResponse>('/api/workspaces/current').catch(() => null);
-      if (currentWorkspace) {
-        return { workspace: normalizeCurrentWorkspace(currentWorkspace), source: 'current' as const };
-      }
-
-      const fallback = user.workspaces[0];
-      if (!fallback) {
-        return null;
-      }
-
-      return {
-        workspace: {
-          id: fallback.id,
-          name: fallback.name,
-          role: fallback.role,
-          members: [],
-          invitations: [],
-        },
-        source: 'default' as const,
-      };
     }
 
     async function load() {
@@ -627,14 +364,14 @@ export function WorkspaceView() {
 
         if (requestedWorkspaceId) {
           try {
-            const selectedWorkspace = normalizeCurrentWorkspace(await api<CurrentWorkspaceResponse>(`/api/workspaces/${requestedWorkspaceId}`));
+            const selectedWorkspace = await loadWorkspaceById(requestedWorkspaceId);
             if (cancelled) return;
             await loadWorkspaceData(selectedWorkspace);
             return;
           } catch {
             if (cancelled) return;
 
-            const fallback = await loadFallbackWorkspace(user);
+            const fallback = await loadWorkspaceFallback(user);
             if (cancelled) return;
 
             if (fallback) {
@@ -655,28 +392,15 @@ export function WorkspaceView() {
           }
         }
 
-        const currentWorkspace = await api<CurrentWorkspaceResponse>('/api/workspaces/current').catch(() => null);
+        const fallback = await loadWorkspaceFallback(user);
         if (cancelled) return;
 
-        if (currentWorkspace) {
-          await loadWorkspaceData(normalizeCurrentWorkspace(currentWorkspace));
+        if (fallback) {
+          await loadWorkspaceData(fallback.workspace);
         } else {
-          const fallback = user.workspaces[0];
-          if (!fallback) {
-            setWorkspace(null);
-            setEvents([]);
-            setArchives([]);
-            return;
-          }
-
-          const fallbackWorkspace: CurrentWorkspaceDTO = {
-            id: fallback.id,
-            name: fallback.name,
-            role: fallback.role,
-            members: [],
-            invitations: [],
-          };
-          await loadWorkspaceData(fallbackWorkspace);
+          setWorkspace(null);
+          setEvents([]);
+          setArchives([]);
         }
       } catch (caught) {
         if (!cancelled) {
@@ -708,7 +432,7 @@ export function WorkspaceView() {
       setReminders(undefined);
 
       try {
-        const loadedReminders = await api<ReminderEventDTO[]>(`/api/workspaces/${workspace.id}/reminders`);
+        const loadedReminders = await loadWorkspaceReminders(workspace.id);
         if (!cancelled) {
           setReminders(loadedReminders);
         }
@@ -764,16 +488,14 @@ export function WorkspaceView() {
       }
 
       try {
-        const loadedTemplates = await api<EventTemplateDTO[]>(`/api/workspaces/${workspace.id}/event-templates`);
+        const loadedTemplates = await loadWorkspaceTemplates(workspace.id);
         if (!cancelled) {
-          setTemplates(sortTemplates(loadedTemplates));
+          setTemplates(loadedTemplates ? sortTemplates(loadedTemplates) : null);
         }
       } catch (caught) {
         if (!cancelled) {
           setTemplates(null);
-          if (!(caught instanceof ApiError && caught.status === 403)) {
-            setError(caught instanceof Error ? caught.message : 'Unable to load event templates');
-          }
+          setError(caught instanceof Error ? caught.message : 'Unable to load event templates');
         }
       }
     }
@@ -903,8 +625,7 @@ export function WorkspaceView() {
     setError(null);
 
     try {
-      const path = nextQuery ? `/api/workspaces/${workspace.id}/archives?q=${encodeURIComponent(nextQuery)}` : `/api/workspaces/${workspace.id}/archives`;
-      const loaded = await api<WorkspaceArchiveSummaryDTO[]>(path);
+      const loaded = await loadWorkspaceArchives(workspace.id, nextQuery);
       setArchives(loaded ?? []);
       setError(null);
       if (typeof window !== 'undefined') {
@@ -928,7 +649,7 @@ export function WorkspaceView() {
     setError(null);
 
     try {
-      const loaded = await api<WorkspaceArchiveSummaryDTO[]>(`/api/workspaces/${workspace.id}/archives`);
+      const loaded = await loadWorkspaceArchives(workspace.id, '');
       setArchives(loaded ?? []);
       setError(null);
       if (typeof window !== 'undefined') {
@@ -1152,7 +873,7 @@ export function WorkspaceView() {
 
     try {
       await deleteJSON(`/api/workspaces/${workspace.id}/event-templates/${templateID}`);
-      setTemplates((current) => current?.filter((template) => template.id !== templateID) ?? null);
+      setTemplates((current) => deleteTemplateState({ templates: current, editingTemplateId, templateDeletingId }, templateID).templates);
       if (editingTemplateId === templateID) {
         resetTemplateEditor();
       }
@@ -1360,17 +1081,17 @@ export function WorkspaceView() {
                         </div>
                         <p className="mt-3 text-sm font-medium text-zinc-200">{eventStatusSummary(event.status)}</p>
                         <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-zinc-300">{eventCountLabel(event)}</div>
-                        {event.status !== 'draft' ? <p className="mt-3 text-sm leading-6 text-zinc-400">{staffingStatusCopy(event)}</p> : null}
+                        {!isDraftEvent(event.status) ? <p className="mt-3 text-sm leading-6 text-zinc-400">{staffingStatusCopy(event)}</p> : null}
                         <div className="mt-4 flex flex-wrap gap-2 text-sm">
                           <a className="rounded-full bg-white px-3 py-2 font-medium text-zinc-950 transition hover:bg-zinc-200" href={`/events/${event.id}`}>
-                            {event.status === 'draft' ? 'Finish draft' : event.status === 'published' ? 'View editor' : 'Open archive'}
+                            {isDraftEvent(event.status) ? 'Finish draft' : isPublishedEvent(event.status) ? 'View editor' : 'Open archive'}
                           </a>
-                          {event.status === 'draft' ? (
+                          {isDraftEvent(event.status) ? (
                             <a className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-zinc-200 transition hover:bg-white/10" href={`/events/${event.id}`}>
                               Publish checklist
                             </a>
                           ) : null}
-                          {event.status === 'published' ? (
+                          {isPublishedEvent(event.status) ? (
                             <>
                               <a className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-zinc-200 transition hover:bg-white/10" href={`/door/${event.id}`}>
                                 Open Door
@@ -1385,7 +1106,7 @@ export function WorkspaceView() {
                               </a>
                             </>
                           ) : null}
-                          {event.status === 'end_of_night' ? (
+                          {isClosedEvent(event.status) ? (
                             <>
                               <div className="rounded-2xl border border-fuchsia-400/20 bg-fuchsia-400/10 px-3 py-3 text-sm text-fuchsia-50">
                                 <p className="text-[11px] uppercase tracking-[0.25em] text-fuchsia-100">Archive ready after closeout</p>

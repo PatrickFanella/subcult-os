@@ -278,7 +278,7 @@ func (a *App) handleUpdateEventRole(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
-	if eventStatus == "end_of_night" {
+	if eventStatusIsClosed(eventStatus) {
 		writeError(w, http.StatusConflict, "event is closed")
 		return
 	}

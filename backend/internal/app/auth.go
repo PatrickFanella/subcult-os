@@ -235,15 +235,6 @@ func (a *App) handleLogout(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
-func (a *App) setSession(w http.ResponseWriter, token string, expiresAt time.Time) {
-	w.Header().Set(authSessionHeader, sessionCookieValue(token))
-	http.SetCookie(w, sessionCookie(token, expiresAt, a.cookieSecure()))
-}
-
-func sessionCookieValue(token string) string {
-	return authCookieName + "=" + token
-}
-
 func (a *App) handleMe(w http.ResponseWriter, r *http.Request) {
 	personID, ok := a.requirePersonID(r)
 	if !ok {
@@ -306,31 +297,6 @@ func (a *App) requirePersonID(r *http.Request) (string, bool) {
 		return "", false
 	}
 	return personID, true
-}
-
-func sessionTokenFromRequest(r *http.Request) string {
-	if token := strings.TrimSpace(r.Header.Get(authTokenHeader)); token != "" {
-		return token
-	}
-	if auth := strings.TrimSpace(r.Header.Get("Authorization")); auth != "" {
-		scheme, token, ok := strings.Cut(auth, " ")
-		if ok && strings.EqualFold(scheme, "Bearer") && strings.TrimSpace(token) != "" {
-			return strings.TrimSpace(token)
-		}
-	}
-	header := strings.TrimSpace(r.Header.Get(authSessionHeader))
-	if header != "" {
-		for _, part := range strings.Split(header, ";") {
-			name, value, ok := strings.Cut(strings.TrimSpace(part), "=")
-			if ok && name == authCookieName && value != "" {
-				return value
-			}
-		}
-	}
-	if cookie, err := r.Cookie(authCookieName); err == nil && cookie.Value != "" {
-		return cookie.Value
-	}
-	return ""
 }
 
 func hashPassword(password string) (string, error) {

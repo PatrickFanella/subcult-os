@@ -25,13 +25,17 @@ type App struct {
 	config        Config
 	db            *pgxpool.Pool
 	payments      paymentProvider
+	media         mediaStorage
+	mediaErr      error
+	discovery     discoveryPolicy
 	mux           *http.ServeMux
 	loginMu       sync.Mutex
 	loginAttempts map[string]loginAttempt
 }
 
 func New(config Config, db *pgxpool.Pool) *App {
-	a := &App{config: config, db: db, payments: newStripePaymentProvider(config.StripeSecretKey), mux: http.NewServeMux(), loginAttempts: map[string]loginAttempt{}}
+	media, mediaErr := newMediaStorage(config)
+	a := &App{config: config, db: db, payments: newStripePaymentProvider(config.StripeSecretKey), media: media, mediaErr: mediaErr, discovery: newDiscoveryPolicy(), mux: http.NewServeMux(), loginAttempts: map[string]loginAttempt{}}
 	a.routes()
 	return a
 }

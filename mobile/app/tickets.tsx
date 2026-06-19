@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 
 import { loadSavedTickets, type SavedTicket } from '@/tickets/walletStore';
 import { AppChrome } from '@/ui/AppChrome';
+import { ticketJourneySavedTicketStatus } from '@/modules/tickets/ticketJourney';
 
 export default function TicketsScreen() {
   const [code, setCode] = useState('');
@@ -71,7 +72,7 @@ export default function TicketsScreen() {
                 <Text style={styles.savedTicketCode}>{ticket.code}</Text>
               </View>
               <View style={styles.savedTicketMetaBlock}>
-                <Text style={[styles.savedTicketStatus, ticket.paymentStatus === 'pending' && styles.savedTicketStatusPending]}>{ticket.paymentStatus === 'pending' ? 'payment pending' : ticket.status}</Text>
+                <Text style={[styles.savedTicketStatus, ticket.paymentStatus === 'pending' && styles.savedTicketStatusPending]}>{ticketJourneySavedTicketStatus(ticket)}</Text>
                 {ticket.paymentStatus === 'pending' ? <Text style={styles.pendingHint}>Tap to refresh</Text> : null}
               </View>
             </Pressable>

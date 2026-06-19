@@ -1,6 +1,58 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ApiError, api, patchJSON, postJSON } from '../api';
+import { eventLifecycleLabel as statusLabel, isClosedEvent, isDraftEvent, isPublishedEvent } from '../modules/eventLifecycle/eventLifecycle';
+import {
+	buildCreateRunOfShowPayload,
+	emptyRunOfShowForm,
+	staffingKindLabel,
+	staffingStatusLabel,
+	staffingWindowLabel,
+	sortRunOfShowItems,
+} from '../modules/runOfShow/runOfShowModel';
+import {
+	applicationReviewStatusOptions,
+	buildCommitmentCounts,
+	buildPayload,
+	buildRoleNameById,
+	buildStaffingCounts,
+	buildStaffingGroups,
+	commitmentStatusLabel,
+	commitmentStatusTone,
+	emptyCommitmentForm,
+	emptyForm,
+	emptySettlementAdjustmentForm,
+	formatDateTime,
+	formatMoney,
+	formatSignedMoney,
+	formFromEvent,
+	formsMatch,
+	fromInputValue,
+	getWorkspaceId,
+	isNewEvent,
+	pricingSummary,
+	priceInCents,
+	sortCommitments,
+	sortTemplates,
+	toRfc3339DateTime,
+	type CommitmentFormState,
+	type FormState,
+	type SettlementAdjustmentFormState,
+} from '../modules/eventEditor/eventEditorModel';
+import {
+	loadEventEditorArchive,
+	loadEventEditorCommitments,
+	loadEventEditorEvent,
+	loadEventEditorNotifications,
+	loadEventEditorParticipants,
+	loadEventEditorReport,
+	loadEventEditorReminders,
+	loadEventEditorRoleApplications,
+	loadEventEditorSettlement,
+	loadEventEditorStaffing,
+	loadEventEditorTemplates,
+	loadEventEditorWorkspace,
+} from '../modules/eventEditor/eventEditorLoaders';
 import type {
   CommitmentDTO,
   CurrentWorkspaceDTO,
@@ -13,295 +65,11 @@ import type {
   EventRoleDTO,
   EventSettlementDTO,
   EventStaffingItemDTO,
-  EventStatus,
   ReminderEventDTO,
   NotificationEventDTO,
 } from '../domain';
 
-type FormState = {
-  title: string;
-  startsAt: string;
-  publicDescription: string;
-  locationDisplay: string;
-  ticketAllocation: string;
-  pricingMode: 'free' | 'fixed';
-  ticketPriceDollars: string;
-};
-
-type SettlementAdjustmentFormState = {
-  amountDollars: string;
-  label: string;
-  reason: string;
-};
-
-type StaffingFormState = {
-  title: string;
-  kind: EventStaffingItemDTO['kind'];
-  notes: string;
-  startsAt: string;
-  endsAt: string;
-};
-
-type CommitmentFormState = {
-  title: string;
-  description: string;
-  dueAt: string;
-};
-
-const applicationReviewStatusOptions: { value: EventRoleApplicationDTO['status']; label: string }[] = [
-  { value: 'submitted', label: 'Submitted' },
-  { value: 'under_review', label: 'Under review' },
-  { value: 'accepted', label: 'Accepted' },
-  { value: 'waitlisted', label: 'Waitlisted' },
-  { value: 'rejected', label: 'Rejected' },
-  { value: 'withdrawn', label: 'Withdrawn' },
-  { value: 'confirmed', label: 'Confirmed' },
-];
-
-function isNewEvent(eventId: string) {
-  return eventId === '' || eventId === 'new';
-}
-
-function getWorkspaceId() {
-  if (typeof window === 'undefined') {
-    return '';
-  }
-
-  return new URLSearchParams(window.location.search).get('workspaceId') ?? '';
-}
-
-function toInputValue(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return '';
-  }
-
-  const offset = date.getTimezoneOffset();
-  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16);
-}
-
-function fromInputValue(value: string) {
-  return new Date(value).toISOString();
-}
-
-function toRfc3339DateTime(value: string) {
-  if (!value) {
-    return undefined;
-  }
-
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
-}
-
-function emptyForm(): FormState {
-  return {
-    title: '',
-    startsAt: '',
-    publicDescription: '',
-    locationDisplay: '',
-    ticketAllocation: '1',
-    pricingMode: 'free',
-    ticketPriceDollars: '0.00',
-  };
-}
-
-function formFromEvent(event: EventDTO): FormState {
-  return {
-    title: event.title,
-    startsAt: toInputValue(event.startsAt),
-    publicDescription: event.publicDescription,
-    locationDisplay: event.locationDisplay,
-    ticketAllocation: String(event.ticketAllocation),
-    pricingMode: event.pricingMode,
-    ticketPriceDollars: (event.ticketPriceCents / 100).toFixed(2),
-  };
-}
-
-function formsMatch(left: FormState, right: FormState) {
-  return (
-    left.title === right.title &&
-    left.startsAt === right.startsAt &&
-    left.publicDescription === right.publicDescription &&
-    left.locationDisplay === right.locationDisplay &&
-    left.ticketAllocation === right.ticketAllocation &&
-    left.pricingMode === right.pricingMode &&
-    left.ticketPriceDollars === right.ticketPriceDollars
-  );
-}
-
-function formatMoney(cents: number, currency: string) {
-  const normalizedCurrency = currency.trim().toUpperCase() || 'USD';
-  return `${new Intl.NumberFormat([], { style: 'currency', currency: normalizedCurrency }).format(cents / 100)} ${normalizedCurrency}`;
-}
-
-function formatSignedMoney(cents: number, currency: string) {
-  const sign = cents < 0 ? '-' : '+';
-  return `${sign}${formatMoney(Math.abs(cents), currency)}`;
-}
-
-function priceInCents(value: string) {
-  const parsed = Number(value);
-  if (Number.isNaN(parsed)) {
-    return 0;
-  }
-
-  return Math.round(parsed * 100);
-}
-
-function emptySettlementAdjustmentForm(): SettlementAdjustmentFormState {
-  return {
-    amountDollars: '',
-    label: '',
-    reason: '',
-  };
-}
-
-function emptyStaffingForm(): StaffingFormState {
-  return {
-    title: '',
-    kind: 'task',
-    notes: '',
-    startsAt: '',
-    endsAt: '',
-  };
-}
-
-function emptyCommitmentForm(): CommitmentFormState {
-  return { title: '', description: '', dueAt: '' };
-}
-
-function sortTemplates(templates: EventTemplateDTO[]) {
-  return [...templates].sort(
-    (left, right) => left.name.localeCompare(right.name) || new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime(),
-  );
-}
-
-function sortCommitments(items: CommitmentDTO[]) {
-  const statusOrder: Record<CommitmentDTO['status'], number> = { open: 0, done: 1, cancelled: 2 };
-
-  return [...items].sort((left, right) => {
-    const statusDelta = statusOrder[left.status] - statusOrder[right.status];
-    if (statusDelta !== 0) return statusDelta;
-
-    const leftDue = left.dueAt ? new Date(left.dueAt).getTime() : Number.POSITIVE_INFINITY;
-    const rightDue = right.dueAt ? new Date(right.dueAt).getTime() : Number.POSITIVE_INFINITY;
-    if (leftDue !== rightDue) return leftDue - rightDue;
-
-    return new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
-  });
-}
-
-function commitmentStatusLabel(status: CommitmentDTO['status']) {
-  switch (status) {
-    case 'open':
-      return 'Open';
-    case 'done':
-      return 'Done';
-    case 'cancelled':
-      return 'Cancelled';
-  }
-}
-
-function commitmentStatusTone(status: CommitmentDTO['status']) {
-  switch (status) {
-    case 'open':
-      return 'border-amber-400/20 bg-amber-400/10 text-amber-200';
-    case 'done':
-      return 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200';
-    case 'cancelled':
-      return 'border-rose-400/20 bg-rose-400/10 text-rose-200';
-  }
-}
-
-function staffingStatusOrder(status: EventStaffingItemDTO['status']) {
-  switch (status) {
-    case 'open':
-      return 0;
-    case 'assigned':
-      return 1;
-    case 'completed':
-      return 2;
-    case 'cancelled':
-      return 3;
-  }
-}
-
-function compareStaffingItems(left: EventStaffingItemDTO, right: EventStaffingItemDTO) {
-  const statusDelta = staffingStatusOrder(left.status) - staffingStatusOrder(right.status);
-  if (statusDelta !== 0) return statusDelta;
-
-  const leftStarts = left.startsAt ? new Date(left.startsAt).getTime() : Number.POSITIVE_INFINITY;
-  const rightStarts = right.startsAt ? new Date(right.startsAt).getTime() : Number.POSITIVE_INFINITY;
-  if (leftStarts !== rightStarts) return leftStarts - rightStarts;
-
-  const createdDelta = new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
-  if (createdDelta !== 0) return createdDelta;
-
-  return left.id.localeCompare(right.id);
-}
-
-function sortStaffingItems(items: EventStaffingItemDTO[]) {
-  return [...items].sort(compareStaffingItems);
-}
-
-function staffingStatusLabel(status: EventStaffingItemDTO['status']) {
-  switch (status) {
-    case 'open':
-      return 'Open';
-    case 'assigned':
-      return 'Assigned';
-    case 'completed':
-      return 'Completed';
-    case 'cancelled':
-      return 'Cancelled';
-  }
-}
-
-function staffingKindLabel(kind: EventStaffingItemDTO['kind']) {
-  return kind === 'task' ? 'Task' : 'Shift';
-}
-
-function staffingWindowLabel(item: EventStaffingItemDTO) {
-  if (item.startsAt && item.endsAt) {
-    return `${formatDateTime(item.startsAt)} → ${formatDateTime(item.endsAt)}`;
-  }
-
-  if (item.startsAt) {
-    return `Starts ${formatDateTime(item.startsAt)}`;
-  }
-
-  if (item.endsAt) {
-    return `Ends ${formatDateTime(item.endsAt)}`;
-  }
-
-  return 'No time window set';
-}
-
-function pricingSummary(event: EventDTO | null) {
-  if (!event || event.pricingMode === 'free') {
-    return 'Free reservation';
-  }
-
-  return formatMoney(event.ticketPriceCents, event.ticketCurrency);
-}
-
-function formatDateTime(value: string) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat([], { dateStyle: 'medium', timeStyle: 'short' }).format(date);
-}
-
-function statusLabel(status: EventStatus) {
-  switch (status) {
-    case 'draft':
-      return 'Draft';
-    case 'published':
-      return 'Published';
-    case 'end_of_night':
-      return 'End of Night';
-  }
-}
-
-function statusTone(status: EventStatus) {
+function statusTone(status: EventDTO['status']) {
   switch (status) {
     case 'draft':
       return 'border-amber-400/30 bg-amber-400/10 text-amber-200';
@@ -312,7 +80,7 @@ function statusTone(status: EventStatus) {
   }
 }
 
-function statusSummary(status: EventStatus) {
+function statusSummary(status: EventDTO['status']) {
   switch (status) {
     case 'draft':
       return 'Private until the checklist is complete and the public page goes live.';
@@ -322,6 +90,7 @@ function statusSummary(status: EventStatus) {
       return 'Closed out. Review the report and jump back to the workspace when you are done.';
   }
 }
+
 
 export function EventEditorView({ eventId }: { eventId: string }) {
   const creating = isNewEvent(eventId);
@@ -351,7 +120,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   const [participants, setParticipants] = useState<EventParticipantDTO[] | null>(null);
   const [staffingItems, setStaffingItems] = useState<EventStaffingItemDTO[] | null>(null);
   const [staffingLoading, setStaffingLoading] = useState(false);
-  const [staffingForm, setStaffingForm] = useState<StaffingFormState>(emptyStaffingForm);
+  const [staffingForm, setStaffingForm] = useState(emptyRunOfShowForm());
   const [staffingActioningId, setStaffingActioningId] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<NotificationEventDTO[] | null | undefined>(undefined);
   const [notificationsRefreshTick, setNotificationsRefreshTick] = useState(0);
@@ -368,11 +137,11 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   const commitmentsRevisionRef = useRef(0);
 
   const hasWorkspace = workspaceId !== '';
-  const closed = event?.status === 'end_of_night';
+  const closed = isClosedEvent(event?.status);
   const pricingLocked = (event?.reservedCount ?? 0) > 0 || closed;
   const settlementFinalized = settlement?.status === 'finalized';
   const settlementOpen = settlement?.status === 'open';
-  const canManageArchive = event?.status === 'end_of_night' && currentWorkspace?.role === 'owner' && currentWorkspace?.id === event?.workspaceId;
+  const canManageArchive = isClosedEvent(event?.status) && currentWorkspace?.role === 'owner' && currentWorkspace?.id === event?.workspaceId;
   const canReviewApplications = currentWorkspace?.role === 'owner' && currentWorkspace?.id === event?.workspaceId;
   const canViewNotificationActivity = currentWorkspace?.id === event?.workspaceId && (currentWorkspace?.role === 'owner' || currentWorkspace?.role === 'member');
   const canViewReminderActivity = currentWorkspace?.id === event?.workspaceId && (currentWorkspace?.role === 'owner' || currentWorkspace?.role === 'member');
@@ -382,7 +151,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   const participantsReady = participants !== null;
   const staffingReady = staffingLoading || staffingItems !== null;
   const canManageStaffing = currentWorkspace?.role === 'owner' && currentWorkspace?.id === event?.workspaceId && !closed;
-  const roleNameById = useMemo(() => new Map<string, string>((roles ?? []).map((role) => [role.id, role.name] as [string, string])), [roles]);
+  const roleNameById = useMemo(() => buildRoleNameById(roles), [roles]);
   const staffingAssigneeOptions = useMemo(
     () => ({
       members: (currentWorkspace?.members ?? []).map((member) => ({
@@ -396,38 +165,10 @@ export function EventEditorView({ eventId }: { eventId: string }) {
     }),
     [currentWorkspace?.members, participants],
   );
-  const staffingCounts = useMemo(
-    () =>
-      (staffingItems ?? []).reduce(
-        (counts, item) => ({
-          ...counts,
-          [item.status]: counts[item.status] + 1,
-        }),
-        { open: 0, assigned: 0, completed: 0, cancelled: 0 },
-      ),
-    [staffingItems],
-  );
-  const staffingTasks = useMemo(() => sortStaffingItems((staffingItems ?? []).filter((item) => item.kind === 'task')), [staffingItems]);
-  const staffingShifts = useMemo(() => sortStaffingItems((staffingItems ?? []).filter((item) => item.kind === 'shift')), [staffingItems]);
-  const staffingGroups: Array<{ kind: 'task' | 'shift'; label: string; items: EventStaffingItemDTO[] }> = useMemo(
-    () => [
-      { kind: 'task', label: 'Tasks', items: staffingTasks },
-      { kind: 'shift', label: 'Shifts', items: staffingShifts },
-    ],
-    [staffingShifts, staffingTasks],
-  );
+  const staffingCounts = useMemo(() => buildStaffingCounts(staffingItems), [staffingItems]);
+  const staffingGroups: Array<{ kind: 'task' | 'shift'; label: string; items: EventStaffingItemDTO[] }> = useMemo(() => buildStaffingGroups(staffingItems), [staffingItems]);
   const visibleCommitments = useMemo(() => (commitments ? sortCommitments(commitments) : []), [commitments]);
-  const commitmentCounts = useMemo(
-    () =>
-      visibleCommitments.reduce(
-        (counts, commitment) => ({
-          ...counts,
-          [commitment.status]: counts[commitment.status] + 1,
-        }),
-        { open: 0, done: 0, cancelled: 0 },
-      ),
-    [visibleCommitments],
-  );
+  const commitmentCounts = useMemo(() => buildCommitmentCounts(visibleCommitments), [visibleCommitments]);
   const dirty = useMemo(() => !formsMatch(form, initialForm), [form, initialForm]);
 
   useEffect(() => {
@@ -446,22 +187,21 @@ export function EventEditorView({ eventId }: { eventId: string }) {
       setSettlement(null);
 
       try {
-        const loaded = await api<EventDTO>(`/api/events/${eventId}`);
+        const loadedEvent = await loadEventEditorEvent(api, eventId);
         if (cancelled) return;
 
-        setEvent(loaded);
+        setEvent(loadedEvent);
 
-        const loadedForm = formFromEvent(loaded);
+        const loadedForm = formFromEvent(loadedEvent);
         setForm(loadedForm);
         setInitialForm(loadedForm);
+        setReport(null);
 
-        if (loaded.status === 'end_of_night') {
-          const loadedReport = await api<EventReportDTO>(`/api/events/${eventId}/report`).catch(() => null);
+        if (isClosedEvent(loadedEvent.status)) {
+          const loadedReport = await loadEventEditorReport(api, eventId);
           if (!cancelled) {
             setReport(loadedReport);
           }
-        } else {
-          setReport(null);
         }
       } catch (caught) {
         if (!cancelled) {
@@ -485,7 +225,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
     let cancelled = false;
 
     async function loadArchive() {
-      if (creating || event?.status !== 'end_of_night' || !event) {
+      if (creating || !event || !isClosedEvent(event.status)) {
         setArchive(null);
         setArchiveNoteBody('');
         setArchiveLoading(false);
@@ -496,17 +236,12 @@ export function EventEditorView({ eventId }: { eventId: string }) {
       setArchiveNoteBody('');
 
       try {
-        const loadedArchive = await api<EventArchiveDTO>(`/api/events/${event.id}/archive`);
+        const loadedArchive = await loadEventEditorArchive(api, event.id);
         if (!cancelled) {
           setArchive(loadedArchive);
         }
       } catch (caught) {
         if (cancelled) return;
-
-        if (caught instanceof ApiError && caught.status === 404) {
-          setArchive(null);
-          return;
-        }
 
         setError(caught instanceof Error ? caught.message : 'Unable to load archive');
       } finally {
@@ -531,7 +266,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
       setSettlement(null);
       setStaffingItems(null);
       setStaffingLoading(false);
-      setStaffingForm(emptyStaffingForm());
+      setStaffingForm(emptyRunOfShowForm());
       setStaffingActioningId(null);
       setForm(blank);
       setInitialForm(blank);
@@ -548,15 +283,9 @@ export function EventEditorView({ eventId }: { eventId: string }) {
         return;
       }
 
-      try {
-        const loaded = await api<CurrentWorkspaceDTO>(`/api/workspaces/${event.workspaceId}`);
-        if (!cancelled) {
-          setCurrentWorkspace(loaded);
-        }
-      } catch {
-        if (!cancelled) {
-          setCurrentWorkspace(null);
-        }
+      const loaded = await loadEventEditorWorkspace(api, event.workspaceId);
+      if (!cancelled) {
+        setCurrentWorkspace(loaded);
       }
     }
 
@@ -583,14 +312,11 @@ export function EventEditorView({ eventId }: { eventId: string }) {
       setApplications(null);
 
       try {
-        const [loadedRoles, loadedApplications] = await Promise.all([
-          api<EventRoleDTO[]>(`/api/events/${event.id}/roles`),
-          api<EventRoleApplicationDTO[]>(`/api/events/${event.id}/role-applications`),
-        ]);
+        const loaded = await loadEventEditorRoleApplications(api, event.id);
 
         if (!cancelled) {
-          setRoles(loadedRoles);
-          setApplications(loadedApplications);
+          setRoles(loaded.roles);
+          setApplications(loaded.applications);
           setApplicationReviewDrafts({});
           setReviewingApplicationId(null);
         }
@@ -620,7 +346,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
       setNotifications(undefined);
 
       try {
-        const loadedNotifications = await api<NotificationEventDTO[]>(`/api/events/${event.id}/notifications`);
+        const loadedNotifications = await loadEventEditorNotifications(api, event.id);
         if (!cancelled) {
           setNotifications(loadedNotifications);
         }
@@ -656,7 +382,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
       setReminders(undefined);
 
       try {
-        const loadedReminders = await api<ReminderEventDTO[]>(`/api/events/${event.id}/reminders`);
+        const loadedReminders = await loadEventEditorReminders(api, event.id);
         if (!cancelled) {
           setReminders(loadedReminders);
         }
@@ -692,7 +418,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
       setParticipants(null);
 
       try {
-        const loadedParticipants = await api<EventParticipantDTO[]>(`/api/events/${event.id}/participants`);
+        const loadedParticipants = await loadEventEditorParticipants(api, event.id);
         if (!cancelled) {
           setParticipants(loadedParticipants);
         }
@@ -717,20 +443,20 @@ export function EventEditorView({ eventId }: { eventId: string }) {
       if (creating || !event) {
         setStaffingItems(null);
         setStaffingLoading(false);
-        setStaffingForm(emptyStaffingForm());
+        setStaffingForm(emptyRunOfShowForm());
         setStaffingActioningId(null);
         return;
       }
 
       setStaffingLoading(true);
       setStaffingItems(null);
-      setStaffingForm(emptyStaffingForm());
+      setStaffingForm(emptyRunOfShowForm());
       setStaffingActioningId(null);
 
       try {
-        const loadedStaffing = await api<EventStaffingItemDTO[]>(`/api/events/${event.id}/staffing`);
+        const loadedStaffing = await loadEventEditorStaffing(api, event.id);
         if (!cancelled) {
-          setStaffingItems(sortStaffingItems(loadedStaffing));
+          setStaffingItems(loadedStaffing);
         }
       } catch (caught) {
         if (!cancelled) {
@@ -754,23 +480,18 @@ export function EventEditorView({ eventId }: { eventId: string }) {
     let cancelled = false;
 
     async function loadSettlement() {
-      if (creating || event?.status !== 'end_of_night' || !event) {
+      if (creating || !event || !isClosedEvent(event.status)) {
         setSettlement(null);
         return;
       }
 
       try {
-        const loadedSettlement = await api<EventSettlementDTO>(`/api/events/${event.id}/settlement`);
+        const loadedSettlement = await loadEventEditorSettlement(api, event.id);
         if (!cancelled) {
           setSettlement(loadedSettlement);
         }
       } catch (caught) {
         if (cancelled) return;
-
-        if (caught instanceof ApiError && caught.status === 404) {
-          setSettlement(null);
-          return;
-        }
 
         setError(caught instanceof Error ? caught.message : 'Unable to load settlement');
       }
@@ -805,20 +526,13 @@ export function EventEditorView({ eventId }: { eventId: string }) {
       setCommitmentActioningId(null);
 
       try {
-        const loadedCommitments = await api<CommitmentDTO[]>(`/api/events/${event.id}/commitments`);
+        const loadedCommitments = await loadEventEditorCommitments(api, event.id);
         if (!cancelled && requestRevision === commitmentsRevisionRef.current) {
-          setCommitments(sortCommitments(loadedCommitments));
+          setCommitmentsDenied(loadedCommitments.denied);
+          setCommitments(loadedCommitments.commitments);
         }
       } catch (caught) {
         if (cancelled) return;
-
-        if (caught instanceof ApiError && caught.status === 403) {
-          if (requestRevision === commitmentsRevisionRef.current) {
-            setCommitmentsDenied(true);
-            setCommitments(null);
-          }
-          return;
-        }
 
         if (requestRevision === commitmentsRevisionRef.current) {
           setError(caught instanceof Error ? caught.message : 'Unable to load commitments');
@@ -837,25 +551,22 @@ export function EventEditorView({ eventId }: { eventId: string }) {
     let cancelled = false;
 
     async function loadTemplates() {
-      if (creating || !event || event.status !== 'draft' || currentWorkspace?.id !== event.workspaceId || currentWorkspace?.role !== 'owner') {
+      if (creating || !event || !isDraftEvent(event.status) || currentWorkspace?.id !== event.workspaceId || currentWorkspace?.role !== 'owner') {
         setTemplates(null);
         setTemplateSelectionId('');
         return;
       }
 
       try {
-        const loadedTemplates = await api<EventTemplateDTO[]>(`/api/workspaces/${event.workspaceId}/event-templates`);
+        const loadedTemplates = await loadEventEditorTemplates(api, event.workspaceId);
         if (!cancelled) {
-          const ordered = sortTemplates(loadedTemplates);
-          setTemplates(ordered);
-          setTemplateSelectionId((current) => current || ordered[0]?.id || '');
+          setTemplates(loadedTemplates);
+          setTemplateSelectionId((current) => current || loadedTemplates?.[0]?.id || '');
         }
       } catch (caught) {
         if (!cancelled) {
           setTemplates(null);
-          if (!(caught instanceof ApiError && caught.status === 403)) {
-            setError(caught instanceof Error ? caught.message : 'Unable to load event templates');
-          }
+          setError(caught instanceof Error ? caught.message : 'Unable to load event templates');
         }
       }
     }
@@ -868,18 +579,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   }, [creating, currentWorkspace?.id, currentWorkspace?.role, event?.workspaceId, event?.status]);
 
   async function persist() {
-    const ticketPriceCents = form.pricingMode === 'fixed' ? priceInCents(form.ticketPriceDollars) : 0;
-
-    const payload = {
-      title: form.title.trim(),
-      startsAt: fromInputValue(form.startsAt),
-      publicDescription: form.publicDescription.trim(),
-      locationDisplay: form.locationDisplay.trim(),
-      ticketAllocation: Number(form.ticketAllocation),
-      pricingMode: form.pricingMode,
-      ticketPriceCents,
-      ticketCurrency: 'usd',
-    };
+    const payload = buildPayload(form);
 
     if (creating) {
       if (!hasWorkspace) {
@@ -1051,16 +751,13 @@ export function EventEditorView({ eventId }: { eventId: string }) {
     setError(null);
 
     try {
-      const created = await postJSON<EventStaffingItemDTO>(`/api/events/${event.id}/staffing`, {
-        title,
-        kind: staffingForm.kind,
-        notes: staffingForm.notes.trim(),
-        startsAt: staffingForm.startsAt ? fromInputValue(staffingForm.startsAt) : null,
-        endsAt: staffingForm.endsAt ? fromInputValue(staffingForm.endsAt) : null,
-      });
+      const startsAt = staffingForm.startsAt ? fromInputValue(staffingForm.startsAt) : null;
+      const endsAt = staffingForm.endsAt ? fromInputValue(staffingForm.endsAt) : null;
 
-      setStaffingItems((current) => sortStaffingItems([...(current ?? []), created]));
-      setStaffingForm(emptyStaffingForm());
+      const created = await postJSON<EventStaffingItemDTO>(`/api/events/${event.id}/staffing`, buildCreateRunOfShowPayload(staffingForm, startsAt, endsAt));
+
+      setStaffingItems((current) => sortRunOfShowItems([...(current ?? []), created]));
+      setStaffingForm(emptyRunOfShowForm());
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to create staffing item');
     } finally {
@@ -1077,7 +774,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
 
     try {
       const updated = await patchJSON<EventStaffingItemDTO>(`/api/events/${event.id}/staffing/${staffingID}`, payload);
-      setStaffingItems((current) => sortStaffingItems((current ?? []).map((item) => (item.id === staffingID ? updated : item))));
+      setStaffingItems((current) => sortRunOfShowItems((current ?? []).map((item) => (item.id === staffingID ? updated : item))));
       setNotificationsRefreshTick((current) => current + 1);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to update staffing item');
@@ -1178,7 +875,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
 
   async function handleApplyTemplate(formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault();
-    if (!event || !currentWorkspace || currentWorkspace.id !== event.workspaceId || currentWorkspace.role !== 'owner' || event.status !== 'draft') {
+    if (!event || !currentWorkspace || currentWorkspace.id !== event.workspaceId || currentWorkspace.role !== 'owner' || !isDraftEvent(event.status)) {
       return;
     }
 
@@ -1532,7 +1229,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                 </section>
               ) : null}
 
-              {!creating && effective?.status === 'draft' ? (
+              {!creating && isDraftEvent(effective?.status) ? (
                 <section className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
                   <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Publish checklist</p>
                   <h2 className="mt-2 text-2xl font-semibold text-white">Before you publish</h2>
@@ -1550,7 +1247,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                   <h2 className="mt-2 text-2xl font-semibold text-white">Private template tools</h2>
                   <p className="mt-2 text-sm leading-6 text-zinc-400">Template notes stay inside this private editor panel. Save the current event as a template or apply a saved one while the event is still a draft.</p>
 
-                  {effective.status === 'draft' ? (
+                  {isDraftEvent(effective.status) ? (
                     <>
                       <form className="mt-4 space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4" onSubmit={handleApplyTemplate}>
                         <label className="block space-y-2 text-sm">
@@ -1619,7 +1316,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                 </section>
               ) : null}
 
-              {!creating && effective?.status === 'published' ? (
+              {!creating && isPublishedEvent(effective?.status) ? (
                 <section className="rounded-[1.75rem] border border-emerald-400/20 bg-emerald-400/10 p-6">
                   <p className="text-xs uppercase tracking-[0.3em] text-emerald-200">Live event</p>
                   <h2 className="mt-2 text-2xl font-semibold text-white">Next step: end of night</h2>
@@ -2350,11 +2047,11 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                 </section>
               ) : null}
 
-              {!creating && effective && effective.status !== 'end_of_night' ? (
+              {!creating && effective && !isClosedEvent(effective.status) ? (
                 <section className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
                   <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Actions</p>
                   <div className="mt-4 flex flex-col gap-3">
-                    {effective.status === 'draft' ? (
+                    {isDraftEvent(effective.status) ? (
                       <button className="door-action rounded-2xl bg-white px-4 py-3 text-left font-medium text-zinc-950 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:bg-white/70" type="button" onClick={handlePublish} disabled={actioning}>
                         Publish public page
                       </button>

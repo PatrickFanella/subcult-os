@@ -1,4 +1,5 @@
-import { api, clearSessionCookie, postJSON, setSessionCookieFromHeader } from '@/api/client';
+import { api, postJSON } from '@/api/client';
+import { absorbSessionHeaders, clearSession } from '@/auth/sessionAdapter';
 import type { CurrentUserDTO } from '@/api/types';
 
 export function getMe() {
@@ -21,13 +22,13 @@ export function getMobileAuthDebug() {
 
 export async function login(body: { email: string; password: string }) {
   const user = await postJSON<CurrentUserDTO>('/api/auth/login', body);
-  await setSessionCookieFromHeader(user.sessionCookie ?? null);
+  await absorbSessionHeaders(new Headers(user.sessionCookie ? { 'x-subcult-session': user.sessionCookie } : {}));
   return user;
 }
 
 export async function signup(body: { email: string; password: string; displayName?: string }) {
   const user = await postJSON<CurrentUserDTO>('/api/auth/signup', body);
-  await setSessionCookieFromHeader(user.sessionCookie ?? null);
+  await absorbSessionHeaders(new Headers(user.sessionCookie ? { 'x-subcult-session': user.sessionCookie } : {}));
   return user;
 }
 
@@ -35,6 +36,6 @@ export async function logout() {
   try {
     await postJSON<{ ok: boolean }>('/api/auth/logout', {});
   } finally {
-    await clearSessionCookie();
+    await clearSession();
   }
 }

@@ -7,6 +7,7 @@ import { formatDate, formatTime } from '@/api/format';
 import { createTestTicket, getEvent, listEventRoles, listEventStaffing } from '@/api/staff';
 import type { EventDTO, EventRoleDTO, EventStaffingItemDTO } from '@/api/types';
 import { safeBack } from '@/navigation/safeBack';
+import { isPublishedEvent } from '@/events/eventLifecycle';
 import { saveTicketToWallet } from '@/tickets/walletStore';
 
 type ChecklistItem = {
@@ -167,7 +168,7 @@ function buildChecklist(event: EventDTO | null, roles: EventRoleDTO[], staffing:
   const detailsComplete = Boolean(event?.title && event.publicDescription && event.locationDisplay && event.startsAt);
   const ticketingReady = Boolean(event && event.ticketAllocation > 0 && (event.pricingMode === 'free' || event.ticketPriceCents > 0));
   const hasHero = Boolean(event?.imageUrl);
-  const published = event?.status === 'published';
+  const published = isPublishedEvent(event?.status);
   const hasTestTicket = Boolean(event && event.reservedCount > 0);
   const hasRoles = roles.some((role) => role.active);
   const hasRunOfShow = staffing.length > 0;

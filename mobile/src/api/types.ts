@@ -53,8 +53,8 @@ export interface TicketDTO {
   displayName: string | null;
   code: string;
   ticketUrl: string;
-  status: string;
-  paymentStatus: string;
+  status: 'reserved' | 'checked_in';
+  paymentStatus: 'free' | 'pending' | 'paid' | 'cancelled';
   amountCents: number;
   currency: string;
   checkedInAt: string | null;

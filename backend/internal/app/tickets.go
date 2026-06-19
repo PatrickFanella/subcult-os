@@ -84,14 +84,11 @@ func (a *App) handlePublicEvent(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not load event")
 		return
 	}
-	remaining := event.TicketAllocation - event.ReservedCount
-	if remaining < 0 {
-		remaining = 0
-	}
+	remaining := ticketJourneyCapacity(event.TicketAllocation, event.ReservedCount)
 	writeJSON(w, http.StatusOK, publicEventDTO{
 		eventDTO:         a.eventDTOFromRow(event),
 		RemainingTickets: remaining,
-		IsFull:           remaining == 0,
+		IsFull:           ticketJourneyIsFull(event.TicketAllocation, event.ReservedCount),
 	})
 }
 
@@ -139,11 +136,11 @@ func (a *App) handleReserveTicket(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not load event")
 		return
 	}
-	if event.ReservedCount >= event.TicketAllocation {
+	if ticketJourneyIsFull(event.TicketAllocation, event.ReservedCount) {
 		writeError(w, http.StatusConflict, "event is full")
 		return
 	}
-	if event.PricingMode != "free" {
+	if !ticketJourneyCanReservePublic(event.PricingMode, event.TicketAllocation, event.ReservedCount) {
 		writeError(w, http.StatusConflict, "paid checkout is required for this event")
 		return
 	}
@@ -235,11 +232,11 @@ func (a *App) handleCreatePaidReservation(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusInternalServerError, "could not load event")
 		return
 	}
-	if event.PricingMode != "fixed" {
-		writeError(w, http.StatusConflict, "paid checkout is only available for fixed-price events")
-		return
-	}
-	if event.ReservedCount >= event.TicketAllocation {
+	if !ticketJourneyCanCreatePaidReservation(event.PricingMode, event.TicketAllocation, event.ReservedCount) {
+		if !strings.EqualFold(strings.TrimSpace(event.PricingMode), "fixed") {
+			writeError(w, http.StatusConflict, "paid checkout is only available for fixed-price events")
+			return
+		}
 		writeError(w, http.StatusConflict, "event is full")
 		return
 	}
@@ -378,7 +375,7 @@ func (a *App) handleCreateTestTicket(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
-	if event.ReservedCount >= event.TicketAllocation {
+	if ticketJourneyIsFull(event.TicketAllocation, event.ReservedCount) {
 		writeError(w, http.StatusConflict, "event is full")
 		return
 	}
@@ -534,11 +531,11 @@ func (a *App) handleDoorCheckIn(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, "ticket belongs to a different event")
 		return
 	}
-	if ticket.PaymentStatus != "free" && ticket.PaymentStatus != "paid" {
+	if !ticketJourneyCanCheckIn(ticket.PaymentStatus) {
 		writeError(w, http.StatusConflict, "ticket is not eligible for check-in")
 		return
 	}
-	if ticket.Status == "checked_in" {
+	if ticketJourneyIsCheckedIn(ticket.Status) {
 		if err := tx.Commit(r.Context()); err != nil {
 			writeError(w, http.StatusInternalServerError, "could not save check-in")
 			return

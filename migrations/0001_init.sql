@@ -1,5 +1,6 @@
-CREATE TABLE IF NOT EXISTS app_metadata (
-  key text PRIMARY KEY,
-  value text NOT NULL,
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
+-- Alpha schema authority lives in backend/internal/app/schema.sql.
+-- Do not run this file as an ordered migration; it intentionally does not
+-- create tables.
+-- This placeholder exists so the repository has an obvious future home for
+-- ordered migrations when destructive changes, backfills, or production data
+-- require them.

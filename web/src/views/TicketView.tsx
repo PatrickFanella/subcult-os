@@ -1,66 +1,19 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import type { TicketDTO } from '../domain';
-
-function statusLabel(ticket: TicketDTO) {
-  return ticket.status === 'checked_in' ? 'Checked in' : 'Reserved';
-}
-
-function paymentLabel(ticket: TicketDTO) {
-  switch (ticket.paymentStatus) {
-    case 'free':
-      return 'Free ticket';
-    case 'pending':
-      return 'Payment pending';
-    case 'paid':
-      return 'Paid ticket';
-    case 'cancelled':
-      return 'Payment cancelled';
-  }
-}
-
-function paymentTone(ticket: TicketDTO) {
-  switch (ticket.paymentStatus) {
-    case 'free':
-    case 'paid':
-      return 'border-emerald-400/30 bg-emerald-500/10 text-emerald-50';
-    case 'pending':
-      return 'border-amber-300/30 bg-amber-300/10 text-amber-50';
-    case 'cancelled':
-      return 'border-rose-400/30 bg-rose-500/10 text-rose-50';
-  }
-}
-
-function formatMoney(cents: number, currency: string) {
-  return new Intl.NumberFormat([], { style: 'currency', currency: currency.toUpperCase() }).format(cents / 100);
-}
-
-function paymentSummary(ticket: TicketDTO) {
-  switch (ticket.paymentStatus) {
-    case 'free':
-      return 'No payment needed. This is a free reservation.';
-    case 'paid':
-      return `Paid ${formatMoney(ticket.amountCents, ticket.currency)}.`;
-    case 'pending':
-      return 'Checkout may still be processing. This ticket is not final until payment completes.';
-    case 'cancelled':
-      return 'Payment was cancelled. Finish checkout to activate this ticket.';
-  }
-}
-
-function ticketName(ticket: TicketDTO) {
-  return ticket.displayName ?? ticket.email;
-}
-
-function chunkCode(code: string) {
-  const chunks: string[] = [];
-
-  for (let index = 0; index < code.length; index += 4) {
-    chunks.push(code.slice(index, index + 4));
-  }
-
-  return chunks.join(' ');
-}
+import {
+  formatTicketCode,
+  ticketJourneyCodeCopy,
+  ticketJourneyDisplayName,
+  ticketJourneyPaymentBadge,
+  ticketJourneyPaymentLabel,
+  ticketJourneyPaymentSummary,
+  ticketJourneyPaymentTone,
+  ticketJourneyStatusBadge,
+  ticketJourneyStatusCopy,
+  ticketJourneyStatusLabel,
+  ticketJourneyStatusTone,
+} from '../modules/tickets/ticketJourney';
 
 function formatHumanTime(value: string | null) {
   if (!value) {
@@ -74,12 +27,6 @@ function formatHumanTime(value: string | null) {
   }
 
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(timestamp);
-}
-
-function statusSurface(ticket: TicketDTO) {
-  return ticket.status === 'checked_in'
-    ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-50'
-    : 'border-amber-300/30 bg-amber-300/10 text-amber-50';
 }
 
 export function TicketView({ code }: { code: string }) {
@@ -130,52 +77,46 @@ export function TicketView({ code }: { code: string }) {
 
           {ticket ? (
             <>
-              <div className={`rounded-[1.5rem] border px-4 py-4 ${paymentTone(ticket)}`}>
+              <div className={`rounded-[1.5rem] border px-4 py-4 ${ticketJourneyPaymentTone(ticket.paymentStatus)}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs uppercase tracking-[0.28em] text-white/70">Payment status</p>
-                    <p className="mt-2 text-2xl font-semibold tracking-tight text-white">{paymentLabel(ticket)}</p>
+                    <p className="mt-2 text-2xl font-semibold tracking-tight text-white">{ticketJourneyPaymentLabel(ticket.paymentStatus)}</p>
                   </div>
                   <span className="rounded-full border border-white/15 bg-black/15 px-3 py-1 text-xs uppercase tracking-[0.25em] text-white/80">
-                    {ticket.paymentStatus === 'paid' ? formatMoney(ticket.amountCents, ticket.currency) : ticket.paymentStatus === 'pending' ? 'Checkout open' : ticket.paymentStatus === 'cancelled' ? 'Needs checkout' : 'No payment'}
+                    {ticketJourneyPaymentBadge(ticket)}
                   </span>
                 </div>
 
-                <p className="mt-3 text-sm text-white/80">{paymentSummary(ticket)}</p>
+                <p className="mt-3 text-sm text-white/80">{ticketJourneyPaymentSummary(ticket)}</p>
               </div>
 
-              <div className={`rounded-[1.5rem] border px-4 py-4 ${statusSurface(ticket)}`}>
+              <div className={`rounded-[1.5rem] border px-4 py-4 ${ticketJourneyStatusTone(ticket.status)}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs uppercase tracking-[0.28em] text-white/70">Status</p>
-                    <p className="mt-2 text-2xl font-semibold tracking-tight text-white">{statusLabel(ticket)}</p>
+                    <p className="mt-2 text-2xl font-semibold tracking-tight text-white">{ticketJourneyStatusLabel(ticket.status)}</p>
                   </div>
                   <span className="rounded-full border border-white/15 bg-black/15 px-3 py-1 text-xs uppercase tracking-[0.25em] text-white/80">
-                    {ticket.status === 'checked_in' ? 'Access granted' : 'Bring to door'}
+                    {ticketJourneyStatusBadge(ticket.status)}
                   </span>
                 </div>
 
                 <p className="mt-3 text-sm text-white/80">
-                  {ticket.status === 'checked_in'
-                    ? `Checked in at ${formatHumanTime(ticket.checkedInAt)}`
-                    : 'Reserved and ready. Show the code below at the door.'}
+                  {ticketJourneyStatusCopy(ticket.status, formatHumanTime(ticket.checkedInAt))}
                 </p>
               </div>
 
               <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-5">
                 <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Show this at the door</p>
-                <p className="mt-3 break-words font-mono text-2xl tracking-[0.28em] text-white sm:text-3xl">{chunkCode(ticket.code)}</p>
-                <p className="mt-3 text-sm leading-6 text-zinc-400">
-                  {ticket.status === 'checked_in'
-                    ? 'This reservation has already been scanned.'
-                    : 'This code is what the door team needs to check you in.'}
-                </p>
+                <p className="mt-3 break-words font-mono text-2xl tracking-[0.28em] text-white sm:text-3xl">{formatTicketCode(ticket.code)}</p>
+                <p className="mt-3 text-sm leading-6 text-zinc-400">{ticketJourneyCodeCopy(ticket.status)}</p>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Name</p>
-                  <p className="mt-2 text-sm font-medium text-white">{ticketName(ticket)}</p>
+                  <p className="mt-2 text-sm font-medium text-white">{ticketJourneyDisplayName(ticket)}</p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Email</p>
@@ -187,7 +128,7 @@ export function TicketView({ code }: { code: string }) {
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Ticket code</p>
-                  <p className="mt-2 text-sm font-medium text-white">{chunkCode(ticket.code)}</p>
+                  <p className="mt-2 text-sm font-medium text-white">{formatTicketCode(ticket.code)}</p>
                 </div>
               </div>
 

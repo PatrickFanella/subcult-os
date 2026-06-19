@@ -204,10 +204,10 @@ func (a *App) fulfillCheckoutSessionCompleted(ctx context.Context, tx pgx.Tx, ev
 		}
 		return err
 	}
-	if ticket.StripeCheckoutSessionID != session.ID || ticket.PaymentStatus != "pending" {
+	if ticket.StripeCheckoutSessionID != session.ID || !ticketJourneyIsPaymentPending(ticket.PaymentStatus) {
 		return nil
 	}
-	if ticket.EventStatus == "end_of_night" {
+	if eventStatusIsClosed(ticket.EventStatus) {
 		return nil
 	}
 	if string(session.PaymentStatus) != string(stripe.CheckoutSessionPaymentStatusPaid) {

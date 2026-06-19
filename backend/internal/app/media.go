@@ -1,19 +1,10 @@
 package app
 
 import (
-	"context"
 	"database/sql"
-	"fmt"
 	"mime/multipart"
 	"net/http"
-	"net/url"
-	"path"
-	"path/filepath"
 	"strings"
-	"time"
-
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
 const maxEventImageBytes = 12 << 20
@@ -23,9 +14,12 @@ func (a *App) handleUploadEventImage(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "database unavailable")
 		return
 	}
-	media, err := a.mediaStorage()
-	if err != nil {
-		writeError(w, http.StatusServiceUnavailable, err.Error())
+	if a.mediaErr != nil || a.media == nil {
+		message := "media storage is not configured"
+		if a.mediaErr != nil {
+			message = a.mediaErr.Error()
+		}
+		writeError(w, http.StatusServiceUnavailable, message)
 		return
 	}
 
@@ -63,8 +57,7 @@ func (a *App) handleUploadEventImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	objectKey := fmt.Sprintf("events/%s/hero-%d%s", event.ID, time.Now().UTC().UnixNano(), imageExtension(header.Filename, contentType))
-	imageURL, err := media.put(r.Context(), objectKey, file, header.Size, contentType)
+	imageURL, err := a.media.UploadEventImage(r.Context(), event.ID, header.Filename, contentType, file, header.Size)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not upload image")
 		return
@@ -78,58 +71,6 @@ func (a *App) handleUploadEventImage(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, a.eventDTOFromRow(event))
 }
 
-type mediaStorage struct {
-	client        *minio.Client
-	bucket        string
-	publicBaseURL string
-}
-
-func (a *App) mediaStorage() (mediaStorage, error) {
-	endpoint := strings.TrimSpace(a.config.MediaS3Endpoint)
-	accessKey := strings.TrimSpace(a.config.MediaS3AccessKey)
-	secretKey := strings.TrimSpace(a.config.MediaS3SecretKey)
-	bucket := strings.TrimSpace(a.config.MediaS3Bucket)
-	publicBaseURL := strings.TrimRight(strings.TrimSpace(a.config.MediaPublicBaseURL), "/")
-	if endpoint == "" || accessKey == "" || secretKey == "" || bucket == "" || publicBaseURL == "" {
-		return mediaStorage{}, fmt.Errorf("media storage is not configured")
-	}
-	endpointHost, secure, err := normalizeMinIOEndpoint(endpoint)
-	if err != nil {
-		return mediaStorage{}, fmt.Errorf("media storage endpoint is invalid")
-	}
-	client, err := minio.New(endpointHost, &minio.Options{
-		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
-		Secure: secure,
-		Region: strings.TrimSpace(a.config.MediaS3Region),
-	})
-	if err != nil {
-		return mediaStorage{}, fmt.Errorf("media storage endpoint is invalid")
-	}
-	return mediaStorage{client: client, bucket: bucket, publicBaseURL: publicBaseURL}, nil
-}
-
-func (m mediaStorage) put(ctx context.Context, objectKey string, file multipart.File, size int64, contentType string) (string, error) {
-	if _, err := m.client.PutObject(ctx, m.bucket, objectKey, file, size, minio.PutObjectOptions{ContentType: contentType}); err != nil {
-		return "", err
-	}
-	if m.publicBaseURL != "" {
-		return m.publicBaseURL + "/" + path.Clean(objectKey), nil
-	}
-	return "", fmt.Errorf("media public base url is not configured")
-}
-
-func normalizeMinIOEndpoint(raw string) (endpoint string, secure bool, err error) {
-	value := strings.TrimSpace(raw)
-	if strings.HasPrefix(value, "http://") || strings.HasPrefix(value, "https://") {
-		parsed, parseErr := url.Parse(value)
-		if parseErr != nil || parsed.Host == "" {
-			return "", false, parseErr
-		}
-		return parsed.Host, parsed.Scheme == "https", nil
-	}
-	return value, true, nil
-}
-
 func imageContentType(header *multipart.FileHeader) string {
 	contentType := strings.ToLower(strings.TrimSpace(header.Header.Get("Content-Type")))
 	switch contentType {
@@ -137,25 +78,5 @@ func imageContentType(header *multipart.FileHeader) string {
 		return contentType
 	default:
 		return ""
-	}
-}
-
-func imageExtension(filename string, contentType string) string {
-	ext := strings.ToLower(filepath.Ext(filename))
-	switch ext {
-	case ".jpg", ".jpeg", ".png", ".webp", ".gif":
-		return ext
-	}
-	switch contentType {
-	case "image/jpeg":
-		return ".jpg"
-	case "image/png":
-		return ".png"
-	case "image/webp":
-		return ".webp"
-	case "image/gif":
-		return ".gif"
-	default:
-		return ".img"
 	}
 }

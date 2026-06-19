@@ -11,6 +11,10 @@ import { getTicket } from '@/api/tickets';
 import type { TicketDTO } from '@/api/types';
 import { safeBack } from '@/navigation/safeBack';
 import { saveTicketToWallet } from '@/tickets/walletStore';
+import {
+  ticketJourneyArrivalNotes,
+  ticketJourneyTicketBadge,
+} from '@/modules/tickets/ticketJourney';
 
 export default function TicketScreen() {
   const params = useLocalSearchParams<{ code?: string; checkout?: string }>();
@@ -172,7 +176,7 @@ export default function TicketScreen() {
 
         <View ref={passRef} collapsable={false} style={styles.ticketCard}>
           <View style={styles.cardHeader}>
-            <Text style={styles.statusPill}>{ticket?.status === 'checked_in' ? 'Checked in' : 'Admit one'}</Text>
+            <Text style={styles.statusPill}>{ticket ? ticketJourneyTicketBadge(ticket.status) : 'Admit one'}</Text>
             <Pressable disabled={!ticket} onPress={openShareMenu} style={styles.circleBadge}><Share2 size={22} color="#171717" /></Pressable>
           </View>
           <Text style={styles.eventTitle}>{ticket ? `Ticket ${ticket.code}` : 'Ticket lookup'}</Text>
@@ -189,13 +193,13 @@ export default function TicketScreen() {
             <View style={styles.qrBox}>
               {ticket ? <QRCode value={ticket.code} size={168} color="#171717" backgroundColor="#ffffff" /> : <Text style={styles.qrPlaceholder}>QR</Text>}
             </View>
-            <Text style={styles.ticketCode}>{ticket?.code ?? 'NO-CODE'}</Text>
+            <Text style={styles.ticketCode}>{ticket ? ticket.code : 'NO-CODE'}</Text>
           </View>
         </View>
 
         <View style={styles.notesCard}>
           <Text style={styles.notesTitle}>Arrival notes</Text>
-          <Text style={styles.notesText}>{ticket?.paymentStatus === 'pending' ? 'Payment is still pending. Refresh after checkout completes; the door will only accept paid/free tickets.' : 'Show this QR code or ticket code at the door. Staff scanners read the ticket code embedded in the QR pass.'}</Text>
+          <Text style={styles.notesText}>{ticket ? ticketJourneyArrivalNotes(ticket.paymentStatus) : 'Show this QR code or ticket code at the door. Staff scanners read the ticket code embedded in the QR pass.'}</Text>
           {ticket ? (
             <View style={styles.ticketActions}>
               <Pressable onPress={() => void loadTicket()} style={styles.refreshButton}><Text style={styles.refreshButtonText}>Refresh ticket</Text></Pressable>

@@ -7,10 +7,11 @@ import { checkInTicket, searchDoorTickets } from '@/api/door';
 import type { TicketDTO } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { safeBack } from '@/navigation/safeBack';
-
-function ticketLabel(ticket: TicketDTO) {
-  return ticket.displayName ?? ticket.email;
-}
+import {
+  ticketJourneyDisplayName,
+  ticketJourneyDoorBadge,
+  ticketJourneyDoorResultLabel,
+} from '@/modules/tickets/ticketJourney';
 
 export default function DoorScreen() {
   const params = useLocalSearchParams<{ eventId?: string }>();
@@ -56,7 +57,7 @@ export default function DoorScreen() {
     try {
       const updated = await checkInTicket(eventID, ticket.code);
       setResults((current) => current.map((item) => (item.code === updated.code ? updated : item)));
-      setNotice(`${updated.status === 'checked_in' ? 'Checked in' : 'Ready'} — ${ticketLabel(updated)}`);
+      setNotice(`${ticketJourneyDoorResultLabel(updated.status)} — ${ticketJourneyDisplayName(updated)}`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to check in ticket');
     } finally {
@@ -115,10 +116,10 @@ export default function DoorScreen() {
         {results.map((ticket) => (
           <View key={ticket.id} style={styles.resultCard}>
             <View style={styles.resultHeader}>
-              <Text style={[styles.statusPill, ticket.status === 'checked_in' && styles.statusPillChecked]}>{ticket.status === 'checked_in' ? 'Checked in' : 'Ready'}</Text>
+              <Text style={[styles.statusPill, ticket.status === 'checked_in' && styles.statusPillChecked]}>{ticketJourneyDoorBadge(ticket.status)}</Text>
               <Ticket size={20} color="#737373" />
             </View>
-            <Text style={styles.guestName}>{ticketLabel(ticket)}</Text>
+            <Text style={styles.guestName}>{ticketJourneyDisplayName(ticket)}</Text>
             <Text style={styles.guestMeta}>{ticket.code} · {ticket.paymentStatus}</Text>
             <View style={styles.divider} />
             <Pressable disabled={checkingIn === ticket.code} onPress={() => void checkIn(ticket)} style={styles.primaryButton}>

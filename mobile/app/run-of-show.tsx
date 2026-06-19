@@ -7,16 +7,15 @@ import { formatTime } from '@/api/format';
 import { createEventStaffing, listEventStaffing, updateEventStaffing, updateEventStaffingStatus } from '@/api/staff';
 import type { EventStaffingItemDTO } from '@/api/types';
 import { safeBack } from '@/navigation/safeBack';
-
-type StaffingForm = {
-  title: string;
-  kind: EventStaffingItemDTO['kind'];
-  notes: string;
-  startsAt: string;
-  endsAt: string;
-};
-
-const emptyForm: StaffingForm = { title: '', kind: 'task', notes: '', startsAt: '', endsAt: '' };
+import {
+	buildCreateRunOfShowPayload,
+	buildUpdateRunOfShowPayload,
+	emptyRunOfShowForm,
+	isRunOfShowTimeRangeValid,
+	parseOptionalDateTime,
+	sortRunOfShowItems,
+	toRunOfShowInputValue,
+} from '@/modules/runOfShow/runOfShowModel';
 
 export default function RunOfShowScreen() {
   const params = useLocalSearchParams<{ eventId?: string }>();
@@ -27,7 +26,7 @@ export default function RunOfShowScreen() {
   const [updatingID, setUpdatingID] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [editingID, setEditingID] = useState<string | null>(null);
-  const [form, setForm] = useState<StaffingForm>(emptyForm);
+  const [form, setForm] = useState(emptyRunOfShowForm());
 
   useEffect(() => {
     let cancelled = false;
@@ -38,7 +37,7 @@ export default function RunOfShowScreen() {
       try {
         const loaded = await listEventStaffing(eventID);
         if (!cancelled) {
-          setItems(sortStaffingItems(loaded));
+          setItems(sortRunOfShowItems(loaded));
         }
       } catch (caught) {
         if (!cancelled) setError(caught instanceof Error ? caught.message : 'Unable to load run of show');
@@ -58,7 +57,7 @@ export default function RunOfShowScreen() {
     setError(null);
     try {
       const updated = await updateEventStaffingStatus(eventID, item.id, status);
-      setItems((current) => current.map((candidate) => (candidate.id === updated.id ? updated : candidate)));
+      setItems((current) => sortRunOfShowItems(current.map((candidate) => (candidate.id === updated.id ? updated : candidate))));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to update staffing item');
     } finally {
@@ -79,7 +78,7 @@ export default function RunOfShowScreen() {
       setError('Use date/time like 2026-06-19 21:00, or leave it blank.');
       return;
     }
-    if (startsAt && endsAt && new Date(endsAt).getTime() < new Date(startsAt).getTime()) {
+    if (!isRunOfShowTimeRangeValid(startsAt, endsAt)) {
       setError('End time must be after start time.');
       return;
     }
@@ -87,24 +86,13 @@ export default function RunOfShowScreen() {
     setError(null);
     try {
       if (editingID) {
-        const updated = await updateEventStaffing(eventID, editingID, {
-          title,
-          notes: form.notes.trim(),
-          ...(startsAt ? { startsAt } : { clearStartsAt: true }),
-          ...(endsAt ? { endsAt } : { clearEndsAt: true }),
-        });
-        setItems((current) => sortStaffingItems(current.map((candidate) => (candidate.id === updated.id ? updated : candidate))));
+        const updated = await updateEventStaffing(eventID, editingID, buildUpdateRunOfShowPayload({ title, notes: form.notes }, startsAt, endsAt));
+        setItems((current) => sortRunOfShowItems(current.map((candidate) => (candidate.id === updated.id ? updated : candidate))));
         stopEditing();
       } else {
-        const created = await createEventStaffing(eventID, {
-          title,
-          kind: form.kind,
-          notes: form.notes.trim(),
-          startsAt: startsAt || null,
-          endsAt: endsAt || null,
-        });
-        setItems((current) => sortStaffingItems([created, ...current]));
-        setForm(emptyForm);
+        const created = await createEventStaffing(eventID, buildCreateRunOfShowPayload(form, startsAt, endsAt));
+        setItems((current) => sortRunOfShowItems([created, ...current]));
+        setForm(emptyRunOfShowForm());
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to save run-of-show item');
@@ -119,15 +107,15 @@ export default function RunOfShowScreen() {
       title: item.title,
       kind: item.kind,
       notes: item.notes,
-      startsAt: toLocalInput(item.startsAt),
-      endsAt: toLocalInput(item.endsAt),
+      startsAt: toRunOfShowInputValue(item.startsAt),
+      endsAt: toRunOfShowInputValue(item.endsAt),
     });
     setError(null);
   }
 
   function stopEditing() {
     setEditingID(null);
-    setForm(emptyForm);
+    setForm(emptyRunOfShowForm());
   }
 
   return (
@@ -239,26 +227,6 @@ function statusIcon(status: string) {
   if (status === 'completed') return <CheckCircle2 size={24} color="#22c55e" fill="#ffffff" />;
   if (status === 'assigned') return <Clock size={24} color="#3b82f6" fill="#ffffff" />;
   return <Circle size={24} color="#d4d4d4" fill="#ffffff" />;
-}
-
-function sortStaffingItems(items: EventStaffingItemDTO[]) {
-  return [...items].sort((a, b) => (a.startsAt ?? a.createdAt).localeCompare(b.startsAt ?? b.createdAt));
-}
-
-function parseOptionalDateTime(value: string): string | null | false {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const date = new Date(trimmed.replace(' ', 'T'));
-  if (Number.isNaN(date.getTime())) return false;
-  return date.toISOString();
-}
-
-function toLocalInput(value: string | null) {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  const offset = date.getTimezoneOffset();
-  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16).replace('T', ' ');
 }
 
 const styles = StyleSheet.create({

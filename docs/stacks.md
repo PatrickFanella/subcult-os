@@ -154,11 +154,13 @@ docker compose up -d postgres
 
 `subcult-os` currently uses one embedded idempotent schema file at
 `backend/internal/app/schema.sql`, wired through `backend/internal/app/db.go`.
-See `docs/runbooks/database-migrations.md` for the current migration runbook.
+That embedded schema is the alpha source of truth.
 
-While the app is in alpha, additive schema edits in `schema.sql` are acceptable.
-Destructive changes, backfills, long-running rewrites, or production databases
-that need reversible deploys require a real ordered migration tool first.
+`migrations/` is reserved for the future ordered migration tool once destructive
+changes, backfills, long-running rewrites, or production deploys require it.
+Until then, additive schema edits belong in `backend/internal/app/schema.sql`.
+
+See `docs/runbooks/database-migrations.md` for the current migration runbook.
 
 ## Docker
 

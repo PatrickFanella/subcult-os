@@ -2,24 +2,14 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { api, postJSON } from '../api';
 import type { TicketDTO } from '../domain';
-
-function ticketLabel(ticket: TicketDTO) {
-  return ticket.displayName ?? ticket.email;
-}
-
-function statusLabel(ticket: TicketDTO) {
-  return ticket.status === 'checked_in' ? 'Checked in' : 'Reserved';
-}
-
-function chunkCode(code: string) {
-  const chunks: string[] = [];
-
-  for (let index = 0; index < code.length; index += 4) {
-    chunks.push(code.slice(index, index + 4));
-  }
-
-  return chunks.join(' ');
-}
+import {
+  formatTicketCode,
+  ticketJourneyDisplayName,
+  ticketJourneyDoorStatusBadge,
+  ticketJourneyDoorStatusCopy,
+  ticketJourneyStatusLabel,
+  ticketJourneyStatusTone,
+} from '../modules/tickets/ticketJourney';
 
 function formatHumanTime(value: string | null) {
   if (!value) {
@@ -45,12 +35,6 @@ function noticeClassName(kind: 'neutral' | 'success' | 'error') {
   }
 
   return 'border-white/10 bg-white/5 text-zinc-300';
-}
-
-function statusSurface(ticket: TicketDTO) {
-  return ticket.status === 'checked_in'
-    ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-50'
-    : 'border-amber-300/30 bg-amber-300/10 text-amber-50';
 }
 
 export function DoorView({ eventId }: { eventId: string }) {
@@ -89,11 +73,7 @@ export function DoorView({ eventId }: { eventId: string }) {
     try {
       const loaded = await api<TicketDTO[]>(`/api/events/${eventId}/door/tickets?query=${encodeURIComponent(trimmedQuery)}`);
       setResults(loaded);
-      setNotice(
-        loaded.length === 0
-          ? { kind: 'neutral', text: `No matches for “${trimmedQuery}”.` }
-          : { kind: 'success', text: `${loaded.length} ticket${loaded.length === 1 ? '' : 's'} ready.` },
-      );
+      setNotice(loaded.length === 0 ? { kind: 'neutral', text: `No matches for “${trimmedQuery}”.` } : { kind: 'success', text: `${loaded.length} ticket${loaded.length === 1 ? '' : 's'} ready.` });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to search tickets');
     } finally {
@@ -113,10 +93,7 @@ export function DoorView({ eventId }: { eventId: string }) {
         const next = current.map((currentTicket) => (currentTicket.code === updated.code ? updated : currentTicket));
         return next.some((currentTicket) => currentTicket.code === updated.code) ? next : [updated, ...next];
       });
-      setNotice({
-        kind: 'success',
-        text: wasAlreadyCheckedIn ? `Already checked in — ${ticketLabel(updated)}` : `Checked in — ${ticketLabel(updated)}`,
-      });
+      setNotice({ kind: 'success', text: wasAlreadyCheckedIn ? `Already checked in — ${ticketJourneyDisplayName(updated)}` : `Checked in — ${ticketJourneyDisplayName(updated)}` });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to check in ticket');
     } finally {
@@ -180,27 +157,27 @@ export function DoorView({ eventId }: { eventId: string }) {
 
           {results.map((ticket) => (
             <article key={ticket.id} className="rounded-[1.75rem] border border-white/10 bg-zinc-950/90 p-4 shadow-xl shadow-black/20 sm:p-5">
-              <div className={`rounded-[1.4rem] border px-4 py-4 ${statusSurface(ticket)}`}>
+              <div className={`rounded-[1.4rem] border px-4 py-4 ${ticketJourneyStatusTone(ticket.status)}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs uppercase tracking-[0.28em] text-white/70">Status</p>
-                    <p className="mt-2 text-2xl font-semibold tracking-tight text-white">{statusLabel(ticket)}</p>
+                    <p className="mt-2 text-2xl font-semibold tracking-tight text-white">{ticketJourneyStatusLabel(ticket.status)}</p>
                   </div>
-                  <span className="rounded-full border border-white/15 bg-black/15 px-3 py-1 text-xs uppercase tracking-[0.25em] text-white/80">{ticket.status === 'checked_in' ? 'Door ready' : 'Needs check-in'}</span>
+                  <span className="rounded-full border border-white/15 bg-black/15 px-3 py-1 text-xs uppercase tracking-[0.25em] text-white/80">{ticketJourneyDoorStatusBadge(ticket.status)}</span>
                 </div>
 
-                <p className="mt-3 text-sm text-white/80">{ticket.status === 'checked_in' ? `Checked in at ${formatHumanTime(ticket.checkedInAt)}` : 'Awaiting check-in'}</p>
+                <p className="mt-3 text-sm text-white/80">{ticketJourneyDoorStatusCopy(ticket.status, formatHumanTime(ticket.checkedInAt))}</p>
               </div>
 
               <div className="mt-4 space-y-3">
                 <div>
-                  <p className="text-lg font-medium text-white">{ticketLabel(ticket)}</p>
+                  <p className="text-lg font-medium text-white">{ticketJourneyDisplayName(ticket)}</p>
                   <p className="mt-1 text-sm text-zinc-400">{ticket.email}</p>
                 </div>
 
                 <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
                   <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Code</p>
-                  <p className="mt-2 break-words font-mono text-xl tracking-[0.24em] text-white sm:text-2xl">{chunkCode(ticket.code)}</p>
+                  <p className="mt-2 break-words font-mono text-xl tracking-[0.24em] text-white sm:text-2xl">{formatTicketCode(ticket.code)}</p>
                 </div>
 
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -210,7 +187,7 @@ export function DoorView({ eventId }: { eventId: string }) {
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-300">
                     <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Ticket holder</p>
-                    <p className="mt-2 text-zinc-100">{ticketLabel(ticket)}</p>
+                    <p className="mt-2 text-zinc-100">{ticketJourneyDisplayName(ticket)}</p>
                   </div>
                 </div>
               </div>

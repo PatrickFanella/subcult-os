@@ -1,47 +1,7 @@
 import { apiUrl } from '@/config/api';
-import { loadStoredSessionCookie, removeStoredSessionCookie, storeSessionCookie } from '@/auth/sessionCookieStore';
+import { absorbSessionHeaders, loadSessionHeaders } from '@/auth/sessionAdapter';
 
-let sessionCookie: string | null = null;
-let loadedStoredCookie = false;
-
-async function ensureStoredCookieLoaded() {
-  if (loadedStoredCookie) {
-    return;
-  }
-
-  sessionCookie = await loadStoredSessionCookie();
-  loadedStoredCookie = true;
-}
-
-export async function setSessionCookieFromHeader(value: string | null) {
-  if (!value) {
-    return;
-  }
-
-  const [cookie] = value.split(';');
-  if (cookie.includes('subcult_session=')) {
-    sessionCookie = cookie;
-    loadedStoredCookie = true;
-    await storeSessionCookie(cookie);
-  }
-}
-
-export async function clearSessionCookie() {
-  sessionCookie = null;
-  loadedStoredCookie = true;
-  await removeStoredSessionCookie();
-}
-
-export async function getSessionDebugState() {
-  await ensureStoredCookieLoaded();
-  const token = sessionCookie?.startsWith('subcult_session=') ? sessionCookie.slice('subcult_session='.length) : '';
-  return {
-    loadedStoredCookie,
-    hasSessionCookie: Boolean(sessionCookie),
-    hasBearerToken: Boolean(token),
-    sessionCookiePrefix: sessionCookie ? sessionCookie.slice(0, 'subcult_session='.length) : '',
-  };
-}
+export { getSessionDebugState } from '@/auth/sessionAdapter';
 
 export class ApiError extends Error {
   status: number;
@@ -56,25 +16,16 @@ export class ApiError extends Error {
 }
 
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
-  await ensureStoredCookieLoaded();
-
   const headers = new Headers(options.headers);
   const hasFormDataBody = typeof FormData !== 'undefined' && options.body instanceof FormData;
   if (!hasFormDataBody && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
-  if (sessionCookie && !headers.has('Cookie')) {
-    headers.set('Cookie', sessionCookie);
-  }
-  if (sessionCookie && !headers.has('X-Subcult-Session')) {
-    headers.set('X-Subcult-Session', sessionCookie);
-  }
-  const bearerToken = sessionCookie?.startsWith('subcult_session=') ? sessionCookie.slice('subcult_session='.length) : null;
-  if (bearerToken && !headers.has('X-Subcult-Session-Token')) {
-    headers.set('X-Subcult-Session-Token', bearerToken);
-  }
-  if (bearerToken && !headers.has('Authorization')) {
-    headers.set('Authorization', `Bearer ${bearerToken}`);
+  const sessionHeaders = await loadSessionHeaders();
+  for (const [key, value] of Object.entries(sessionHeaders)) {
+    if (!headers.has(key)) {
+      headers.set(key, value);
+    }
   }
 
   const headerObject: Record<string, string> = {};
@@ -88,8 +39,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     headers: headerObject,
   });
 
-  await setSessionCookieFromHeader(response.headers.get('set-cookie'));
-  await setSessionCookieFromHeader(response.headers.get('x-subcult-session'));
+  await absorbSessionHeaders(response.headers);
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {

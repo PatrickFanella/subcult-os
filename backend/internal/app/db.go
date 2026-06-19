@@ -26,6 +26,9 @@ func OpenDB(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
+// RunMigrations applies the current alpha schema from the embedded schema.sql.
+// That embedded idempotent schema remains the source of truth until an ordered
+// migration tool is introduced for production data or destructive changes.
 func RunMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 	if pool == nil {
 		return nil
