@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
 	emptyPublicRoleApplicationDraft,
+	publicRoleApplicationStatusCopy,
 	publicRoleApplicationButtonLabel,
+	publicRoleAvailabilityLabel,
+	publicRoleCanSubmit,
 	publicRoleCapacityLabel,
 	validatePublicRoleApplicationDraft,
 } from './publicEventRolesModel';
@@ -20,10 +23,22 @@ describe('publicEventRolesModel', () => {
 		expect(publicRoleApplicationButtonLabel(false, true)).toBe('Submitted');
 	});
 
+	it('describes public role availability and submit state', () => {
+		expect(publicRoleAvailabilityLabel(0)).toBe('Open application');
+		expect(publicRoleAvailabilityLabel(2)).toBe('2 spots total');
+		expect(publicRoleAvailabilityLabel(2, 1)).toBe('1 spot open');
+		expect(publicRoleAvailabilityLabel(2, 2)).toBe('Role full');
+		expect(publicRoleApplicationStatusCopy(true, null)).toBe('Application sent. The Host can review it from the Workspace.');
+		expect(publicRoleApplicationStatusCopy(false, 'Please enter your name.')).toBe('Please enter your name.');
+		expect(publicRoleCanSubmit(false, false)).toBe(true);
+		expect(publicRoleCanSubmit(true, false)).toBe(false);
+		expect(publicRoleCanSubmit(false, true)).toBe(false);
+	});
+
 	it('validates application drafts', () => {
 		expect(emptyPublicRoleApplicationDraft()).toMatchObject({ submitting: false, submitted: false, error: null });
-		expect(validatePublicRoleApplicationDraft({ applicantName: ' ', applicantEmail: 'alex@example.test', message: '' })).toBe('Please enter your name.');
-		expect(validatePublicRoleApplicationDraft({ applicantName: 'Alex', applicantEmail: 'invalid', message: '' })).toBe('Please enter a valid email address.');
+		expect(validatePublicRoleApplicationDraft({ applicantName: '  ', applicantEmail: 'guest@example.com', message: '' })).toBe('Please enter your name.');
+		expect(validatePublicRoleApplicationDraft({ applicantName: 'Guest', applicantEmail: 'guest', message: '' })).toBe('Please enter a valid email address.');
 		expect(validatePublicRoleApplicationDraft({ applicantName: 'Alex', applicantEmail: 'alex@example.test', message: 'a'.repeat(2001) })).toBe('Message must be 2000 characters or fewer.');
 		expect(validatePublicRoleApplicationDraft({ applicantName: 'Alex', applicantEmail: 'alex@example.test', message: 'Happy to help.' })).toBeNull();
 	});

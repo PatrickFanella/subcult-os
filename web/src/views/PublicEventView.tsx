@@ -3,6 +3,12 @@ import type { FormEvent } from 'react';
 import { api, postJSON } from '../api';
 import type { EventRoleApplicationDTO, EventRoleDTO, PaidReservationDTO, PublicEventDTO, TicketReservationDTO } from '../domain';
 import {
+  publicEventConversionSummary,
+  publicEventPrimaryCtaLabel,
+  publicEventReservationSuccessCopy,
+  publicEventRoleSectionIntro,
+} from '../modules/publicEvent/publicEventConversion';
+import {
   publicCardClass,
   publicEyebrowClass,
   publicHeroCardClass,
@@ -36,22 +42,6 @@ function pricingLabel(event: PublicEventDTO | null) {
   }
 
   return `${formatCurrency(event.ticketPriceCents, event.ticketCurrency)} ticket`;
-}
-
-function ctaLabel(event: PublicEventDTO | null) {
-  return event?.pricingMode === 'fixed' ? 'Buy ticket' : 'Reserve free ticket';
-}
-
-function heroSummary(event: PublicEventDTO | null) {
-  if (!event) {
-    return 'Grab a free spot. Email required to send the ticket. Display name optional. No account needed.';
-  }
-
-  if (event.pricingMode === 'fixed') {
-    return `Buy a ticket for ${formatCurrency(event.ticketPriceCents, event.ticketCurrency)}. Email is required for the checkout link. Display name is optional.`;
-  }
-
-  return 'Grab a free spot. Email required to send the ticket. Display name optional. No account needed.';
 }
 
 type RoleApplicationDraft = {
@@ -272,7 +262,7 @@ export function PublicEventView({ slug }: { slug: string }) {
               <div>
                 <p className={publicEyebrowClass}>{event ? pricingLabel(event) : 'Free guest reservation'}</p>
                 <h1 className="mt-3 text-4xl font-black tracking-tight text-[#171717] sm:text-5xl">{event?.title ?? 'Reserve your free ticket'}</h1>
-                <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">{heroSummary(event)}</p>
+                <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">{publicEventConversionSummary(event, pricingLabel(event))}</p>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
@@ -342,11 +332,11 @@ export function PublicEventView({ slug }: { slug: string }) {
                     Open ticket
                   </a>
 
-                  <p className="mt-3 text-sm text-emerald-800">Ticket link recorded and sent by the dev outbox.</p>
+                  <p className="mt-3 text-sm text-emerald-800">{publicEventReservationSuccessCopy(reservation)}</p>
                 </section>
               ) : (
                 <form className={publicCardClass} onSubmit={handleSubmit}>
-                  <p className={publicEyebrowClass}>{ctaLabel(event)}</p>
+                  <p className={publicEyebrowClass}>{publicEventPrimaryCtaLabel(event, reserving)}</p>
                   <p className={`mt-2 leading-6 ${publicMutedTextClass}`}>
                     {event?.pricingMode === 'fixed'
                       ? 'Email is required for the checkout session. Display name is optional.'
@@ -368,7 +358,7 @@ export function PublicEventView({ slug }: { slug: string }) {
                   </label>
 
                   <button className={`door-action mt-4 w-full ${publicPrimaryButtonClass}`} type="submit" disabled={reserving || event.isFull}>
-                    {event.isFull ? 'Sold out' : reserving ? 'Reserving…' : ctaLabel(event)}
+                    {publicEventPrimaryCtaLabel(event, reserving)}
                   </button>
 
                   {event.isFull ? (
@@ -382,7 +372,7 @@ export function PublicEventView({ slug }: { slug: string }) {
 
             <section className={publicCardClass}>
               <p className={publicEyebrowClass}>Apply to participate</p>
-              <p className={`mt-2 leading-6 ${publicMutedTextClass}`}>Public roles are open for applications. Each role gets its own short form, and your ticket flow stays the same.</p>
+				<p className={`mt-2 leading-6 ${publicMutedTextClass}`}>{publicEventRoleSectionIntro(roles === null ? null : roles.length)}</p>
 
               {roles === null ? (
                 <p className="mt-4 rounded-3xl bg-[#f5f5f5] px-4 py-3 text-sm text-neutral-600">Loading participation roles…</p>

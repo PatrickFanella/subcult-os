@@ -9,10 +9,13 @@ import { createPaidReservation, getPublicEvent, listPublicEventRoles, reserveFre
 import type { EventRoleDTO, PublicEventDTO } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { eventArtwork } from '@/data/eventArtwork';
+import { publicEventPrimaryActionLabel, publicEventStickyCtaHint } from '@/modules/events/publicEventConversionModel';
 import {
   emptyPublicRoleApplicationDraft,
   publicRoleApplicationButtonLabel,
-  publicRoleCapacityLabel,
+  publicRoleApplicationStatusCopy,
+  publicRoleAvailabilityLabel,
+  publicRoleCanSubmit,
   validatePublicRoleApplicationDraft,
   type PublicRoleApplicationDraft,
 } from '@/modules/discovery/publicEventRolesModel';
@@ -213,7 +216,9 @@ export default function EventDetailScreen() {
   }
 
   const price = pricingLabel(event.pricingMode, event.ticketPriceCents, event.ticketCurrency);
-  const soldOut = event.isFull;
+  const stickyCtaLabel = publicEventPrimaryActionLabel(event, reserving);
+  const stickyCtaHint = publicEventStickyCtaHint(event, price);
+  const stickyCtaDisabled = event.isFull || reserving;
 
   return (
     <View style={styles.screen}>
@@ -256,6 +261,8 @@ export default function EventDetailScreen() {
               <View style={styles.roleList}>
                 {roles.map((role) => {
                   const draft = roleDrafts[role.id] ?? emptyPublicRoleApplicationDraft();
+                  const canSubmit = publicRoleCanSubmit(draft.submitting, draft.submitted);
+                  const statusCopy = publicRoleApplicationStatusCopy(draft.submitted, draft.error);
                   return (
                     <View key={role.id} style={styles.roleCard}>
                       <View style={styles.roleHeader}>
@@ -263,7 +270,7 @@ export default function EventDetailScreen() {
                           <Text style={styles.roleName}>{role.name}</Text>
                           <Text style={styles.roleDescription}>{role.description || 'No description provided.'}</Text>
                         </View>
-                        <Text style={styles.rolePill}>{publicRoleCapacityLabel(role.capacity)}</Text>
+						<Text style={styles.rolePill}>{publicRoleAvailabilityLabel(role.capacity)}</Text>
                       </View>
                       <TextInput
                         value={draft.applicantName}
@@ -292,11 +299,10 @@ export default function EventDetailScreen() {
                         style={[styles.input, styles.messageInput]}
                         editable={!draft.submitting && !draft.submitted}
                       />
-                      <Pressable disabled={draft.submitting || draft.submitted} onPress={() => void handleRoleSubmit(role)} style={[styles.roleButton, (draft.submitting || draft.submitted) && styles.roleButtonDisabled]}>
+                      <Pressable disabled={!canSubmit} onPress={() => void handleRoleSubmit(role)} style={[styles.roleButton, !canSubmit && styles.roleButtonDisabled]}>
                         <Text style={styles.roleButtonText}>{publicRoleApplicationButtonLabel(draft.submitting, draft.submitted)}</Text>
                       </Pressable>
-                      {draft.error ? <Text style={styles.errorText}>{draft.error}</Text> : null}
-                      {draft.submitted ? <Text style={styles.successText}>Application submitted for {role.name}. We received your interest and will follow up privately.</Text> : null}
+                      <Text style={draft.error ? styles.errorText : draft.submitted ? styles.successText : styles.formHelp}>{statusCopy}</Text>
                     </View>
                   );
                 })}
@@ -338,14 +344,17 @@ export default function EventDetailScreen() {
       </ScrollView>
       <View style={[styles.stickyBar, { paddingBottom: Math.max(insets.bottom, 14) }]}> 
         <View>
-          <Text style={styles.priceLabel}>{soldOut ? 'Status' : 'Starting from'}</Text>
-          <Text style={styles.price}>{soldOut ? 'Sold out' : price}</Text>
-          {!soldOut ? <Text style={styles.remaining}>{event.remainingTickets} remaining</Text> : null}
+          <Text style={styles.priceLabel}>{event.isFull ? 'Status' : 'Starting from'}</Text>
+          <Text style={styles.price}>{event.isFull ? 'Sold out' : price}</Text>
+          <Text style={styles.remaining}>{stickyCtaHint}</Text>
         </View>
-        <Pressable disabled={soldOut || reserving} onPress={handleReserve} style={[styles.ticketButton, (soldOut || reserving) && styles.ticketButtonDisabled]}>
-          <TicketIcon size={20} color="#ffffff" />
-          <Text style={styles.ticketButtonText}>{reserving ? 'Working…' : event.pricingMode === 'fixed' ? 'Buy ticket' : 'Reserve'}</Text>
-        </Pressable>
+        <View style={styles.stickyAction}>
+          {event.isFull ? <Text style={styles.stickyWarning}>No tickets remain.</Text> : null}
+          <Pressable disabled={stickyCtaDisabled} onPress={handleReserve} style={[styles.ticketButton, stickyCtaDisabled && styles.ticketButtonDisabled]}>
+            <TicketIcon size={20} color="#ffffff" />
+            <Text style={styles.ticketButtonText}>{stickyCtaLabel}</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -419,6 +428,8 @@ const styles = StyleSheet.create({
   priceLabel: { color: '#737373', fontSize: 14, fontWeight: '600' },
   price: { color: '#171717', fontSize: 24, fontWeight: '800' },
   remaining: { color: '#737373', fontSize: 12, fontWeight: '600' },
+  stickyAction: { alignItems: 'flex-end', gap: 6 },
+  stickyWarning: { color: '#dc2626', fontSize: 12, fontWeight: '700' },
   ticketButton: { backgroundColor: '#171717', paddingHorizontal: 22, paddingVertical: 16, borderRadius: 16, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 8 },
   ticketButtonDisabled: { opacity: 0.45 },
   ticketButtonText: { color: '#ffffff', fontWeight: '700' },

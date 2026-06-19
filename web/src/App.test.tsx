@@ -2312,8 +2312,8 @@ describe('App routes', () => {
     expect(rendered).not.toContain('applicantEmail');
   });
 
-  it('renders the public paid ticket CTA', () => {
-    const event = {
+	it('renders the public paid ticket CTA', () => {
+		const event = {
       id: 'event-1',
       workspaceId: 'workspace-1',
       title: 'Night Market',
@@ -2335,9 +2335,38 @@ describe('App routes', () => {
 
     const rendered = renderWithState('/e/night-market', <PublicEventView slug="night-market" />, [event, '', '', false, false, null, null, [], {}]);
 
-    expect(rendered).toContain('Buy ticket');
-    expect(rendered).toContain('$18.00');
-    expect(rendered).toContain('Secure checkout');
+		expect(rendered).toContain('Buy ticket');
+		expect(rendered).toContain('$18.00');
+		expect(rendered).toContain('No account needed');
+		expect(rendered).toContain('Secure checkout');
+		expect(rendered).not.toContain('Stripe Checkout');
+	});
+
+  it('renders the public sold-out ticket CTA', () => {
+    const event = {
+      id: 'event-1',
+      workspaceId: 'workspace-1',
+      title: 'Community Jam',
+      startsAt: '2026-06-13T23:00:00.000Z',
+      publicDescription: 'A free late set.',
+      locationDisplay: 'The Hall',
+      ticketAllocation: 100,
+      pricingMode: 'free',
+      ticketPriceCents: 0,
+      ticketCurrency: 'usd',
+      reservedCount: 100,
+      checkedInCount: 0,
+      status: 'published',
+      publicSlug: 'community-jam',
+      publicUrl: '/e/community-jam',
+      remainingTickets: 0,
+      isFull: true,
+    };
+
+    const rendered = renderWithState('/e/community-jam', <PublicEventView slug="community-jam" />, [event, '', '', false, false, null, null, [], {}]);
+
+    expect(rendered).toContain('Sold out');
+    expect(rendered).toContain('This Event is sold out. Check back with the Host for returns or future dates.');
   });
 
   it('renders public role application forms alongside ticket flow', () => {
@@ -2389,11 +2418,13 @@ describe('App routes', () => {
     expect(rendered).toContain('Performer');
     expect(rendered).toContain('Applicant name');
     expect(rendered).toContain('Applicant email');
-    expect(rendered).toContain('Message');
-    expect(rendered).toContain('Submit application');
-    expect(rendered).toContain('Buy ticket');
-    expect(rendered).toContain('Secure checkout');
-  });
+		expect(rendered).toContain('Message');
+		expect(rendered).toContain('Submit application');
+		expect(rendered).toContain('Apply for public roles without changing your ticket flow.');
+		expect(rendered).toContain('Buy ticket');
+		expect(rendered).toContain('Secure checkout');
+		expect(rendered).not.toContain('Stripe Checkout');
+	});
 
   it('renders the workspace-backed new event flow', () => {
     const rendered = renderAt('/events/new?workspaceId=workspace-1');
