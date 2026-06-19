@@ -5,7 +5,7 @@ PROJECT_NAME := subcult-os
 COMPOSE_PROJECT_NAME ?= $(PROJECT_NAME)
 BACKEND_BIN ?= bin/$(PROJECT_NAME)
 
-.PHONY: help deps deps-web deps-mobile verify quick fmt lint lint-mobile test test-backend test-web build build-backend build-web run-backend dev dev-mobile up up-build down reset-db restart logs ps urls smoke alpha-qa alpha-qa-paid fake-event-qa compose-config db-shell migrate migrate-status migrate-reset clean open-pilot-check check-contracts
+.PHONY: help deps deps-web deps-mobile verify quick fmt lint lint-mobile test test-backend test-db test-web test-mobile build build-backend build-web run-backend dev dev-mobile up up-build down reset-db restart logs ps urls smoke alpha-qa alpha-qa-paid fake-event-qa compose-config db-shell migrate migrate-status migrate-reset clean open-pilot-check check-contracts
 
 help:
 	@awk 'BEGIN {FS = ":.*##"; printf "$(PROJECT_NAME) commands:\n"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -34,13 +34,23 @@ lint: ## Run Go vet and frontend lint
 lint-mobile: ## Type-check the Expo mobile app
 	pnpm --dir mobile run lint
 
-test: test-backend test-web ## Run backend and frontend tests
+test: test-backend test-web test-mobile ## Run backend, frontend, and mobile tests
 
-test-backend: ## Run Go tests
-	cd backend && go test ./...
+test-backend: ## Run non-DB Go tests
+	cd backend && TEST_DATABASE_URL= go test ./...
+
+test-db: ## Run DB-backed Go integration tests when TEST_DATABASE_URL is set
+	@if [ -z "$${TEST_DATABASE_URL}" ]; then \
+		echo "TEST_DATABASE_URL is required for DB-backed tests"; \
+		exit 1; \
+	fi
+	cd backend && go test ./internal/app -run 'TestFirstEventLifecycleCurrentCreatePublishFreeDoorEndOfNightFlow|TestTicketReservationCurrentCapacityAndDoorRules|TestRunMigrationsCreatesEventsTable' -count=1 -v
 
 test-web: ## Run frontend tests
 	pnpm --dir web run test
+
+test-mobile: ## Run mobile module tests
+	pnpm --dir mobile run test
 
 check-contracts: ## Check shared API contracts
 	node scripts/check-contracts.mjs
@@ -91,8 +101,30 @@ urls: ## Print local stack URLs and published ports
 
 smoke: ## Check running Docker services and API/web health
 	docker compose -p $(COMPOSE_PROJECT_NAME) ps
-	docker compose -p $(COMPOSE_PROJECT_NAME) exec -T api wget -qO- http://127.0.0.1:8080/api/health
-	docker compose -p $(COMPOSE_PROJECT_NAME) exec -T web wget -qO- http://127.0.0.1/ >/dev/null
+	API_PORT=$$(docker compose -p $(COMPOSE_PROJECT_NAME) port api 8080 | awk -F: '{print $$NF}'); \
+	WEB_PORT=$$(docker compose -p $(COMPOSE_PROJECT_NAME) port web 80 | awk -F: '{print $$NF}'); \
+	if [ -z "$$API_PORT" ] || [ -z "$$WEB_PORT" ]; then \
+		echo "Could not resolve API or web host ports"; \
+		exit 1; \
+	fi; \
+	api_ready=0; \
+	for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do \
+		curl -fsS http://127.0.0.1:$$API_PORT/api/health >/dev/null && api_ready=1 && break; \
+		sleep 1; \
+	done; \
+	if [ "$$api_ready" != "1" ]; then \
+		echo "API health check failed after retries"; \
+		exit 1; \
+	fi; \
+	web_ready=0; \
+	for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do \
+		curl -fsS http://127.0.0.1:$$WEB_PORT/ >/dev/null && web_ready=1 && break; \
+		sleep 1; \
+	done; \
+	if [ "$$web_ready" != "1" ]; then \
+		echo "Web health check failed after retries"; \
+		exit 1; \
+	fi
 
 alpha-qa: ## Run end-to-end alpha lifecycle QA against the running stack
 	bash scripts/alpha-qa.sh

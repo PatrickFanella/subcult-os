@@ -199,6 +199,26 @@ func TestS3MediaStorageUploadReturnsError(t *testing.T) {
 	}
 }
 
+func TestS3MediaStoragePublicURLCleansObjectKey(t *testing.T) {
+	storage := &s3MediaStorage{publicBaseURL: "https://cdn.example.test/media"}
+
+	got := storage.publicURL("events//image.png")
+	want := "https://cdn.example.test/media/events/image.png"
+	if got != want {
+		t.Fatalf("publicURL() = %q, want %q", got, want)
+	}
+}
+
+func TestS3MediaStoragePublicURLPreservesBaseSlashBehavior(t *testing.T) {
+	storage := &s3MediaStorage{publicBaseURL: "https://cdn.example.test/media/"}
+
+	got := storage.publicURL("events/image.png")
+	want := "https://cdn.example.test/media//events/image.png"
+	if got != want {
+		t.Fatalf("publicURL() = %q, want %q", got, want)
+	}
+}
+
 func newMultipartUploadRequest(t *testing.T, path, fieldName, filename, contentType string, content []byte) *http.Request {
 	t.Helper()
 	var body bytes.Buffer

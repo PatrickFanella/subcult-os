@@ -19,6 +19,12 @@ go test ./...
 golangci-lint run
 ```
 
+`make test-db` runs DB-backed Go integration tests and requires
+`TEST_DATABASE_URL`. These tests cover the full Event lifecycle, Ticket
+capacity/Door behavior, and schema loading. They are intentionally separate
+from `make verify` so local verification remains fast and does not require a
+database fixture.
+
 ## Node / TypeScript
 
 Current TypeScript layout:
@@ -159,6 +165,14 @@ That embedded schema is the alpha source of truth.
 `migrations/` is reserved for the future ordered migration tool once destructive
 changes, backfills, long-running rewrites, or production deploys require it.
 Until then, additive schema edits belong in `backend/internal/app/schema.sql`.
+
+- `make test-backend` and `make verify` clear `TEST_DATABASE_URL` so ordinary
+  verification stays non-DB and deterministic.
+- `make test-db` runs DB-backed Go integration tests and requires
+  `TEST_DATABASE_URL`. These tests cover the full Event lifecycle, Ticket
+  capacity/Door behavior, and schema loading. They are intentionally separate
+  from `make verify` so local verification remains fast and does not require a
+  database fixture.
 
 See `docs/runbooks/database-migrations.md` for the current migration runbook.
 

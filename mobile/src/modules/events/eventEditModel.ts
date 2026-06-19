@@ -1,7 +1,14 @@
-import * as ImagePicker from 'expo-image-picker';
-
 import type { EventWritePayload } from '@/api/staff';
 import type { EventDTO, PricingMode } from '@/api/types';
+
+export type EventEditImageAsset = {
+	uri: string;
+};
+
+export type EventEditImagePickerResult<TAsset extends EventEditImageAsset = EventEditImageAsset> = {
+	canceled: boolean;
+	assets?: TAsset[] | null;
+};
 
 export type EventEditFormState = {
 	title: string;
@@ -15,8 +22,8 @@ export type EventEditFormState = {
 	ticketCurrency: string;
 };
 
-export type EventEditImageSelection = {
-	selectedImage: ImagePicker.ImagePickerAsset;
+export type EventEditImageSelection<TAsset extends EventEditImageAsset = EventEditImageAsset> = {
+	selectedImage: TAsset;
 	imageUrl: string;
 	notice: string;
 };
@@ -124,9 +131,9 @@ export function eventEditPublishButtonLabel(editing: boolean, canPublish: boolea
 	return publishing ? 'Publishing…' : canPublish || !editing ? 'Save & publish' : 'Published';
 }
 
-export function eventEditImageSelectionFromResult(result: Awaited<ReturnType<typeof ImagePicker.launchImageLibraryAsync>>): EventEditImageSelection | null {
-	if (result.canceled || !result.assets[0]) return null;
-	const selectedImage = result.assets[0];
+export function eventEditImageSelectionFromResult<TAsset extends EventEditImageAsset>(result: EventEditImagePickerResult<TAsset>): EventEditImageSelection<TAsset> | null {
+	const selectedImage = result.assets?.[0];
+	if (result.canceled || !selectedImage) return null;
 	return {
 		selectedImage,
 		imageUrl: selectedImage.uri,

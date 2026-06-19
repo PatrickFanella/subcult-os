@@ -61,10 +61,17 @@ func (m *s3MediaStorage) UploadEventImage(ctx context.Context, eventID, filename
 	if _, err := m.client.PutObject(ctx, m.bucket, objectKey, body, size, minio.PutObjectOptions{ContentType: contentType}); err != nil {
 		return "", err
 	}
-	if m.publicBaseURL != "" {
-		return m.publicBaseURL + "/" + path.Clean(objectKey), nil
+	if url := m.publicURL(objectKey); url != "" {
+		return url, nil
 	}
 	return "", fmt.Errorf("media public base url is not configured")
+}
+
+func (m *s3MediaStorage) publicURL(objectKey string) string {
+	if m == nil || m.publicBaseURL == "" {
+		return ""
+	}
+	return m.publicBaseURL + "/" + path.Clean(objectKey)
 }
 
 func imageExtension(filename string, contentType string) string {

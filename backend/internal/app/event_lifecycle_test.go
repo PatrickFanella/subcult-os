@@ -74,3 +74,29 @@ func TestEventLifecycleHelpers(t *testing.T) {
 		t.Fatalf("expected raw status helpers to match lifecycle constants")
 	}
 }
+
+func TestEventLifecyclePublishedWithoutReservationsAllowsOperationalChanges(t *testing.T) {
+	startsAt := time.Date(2026, time.June, 19, 20, 0, 0, 0, time.UTC)
+	lifecycle := eventLifecycle{Status: eventStatusPublished, Title: "Night Market", StartsAt: startsAt, PricingMode: "free", TicketPriceCents: 0, TicketCurrency: "usd", ReservedCount: 0}
+
+	if lifecycle.CanChangeTitle("After Hours") {
+		t.Fatal("published events should not allow title changes even without reservations")
+	}
+	if !lifecycle.CanChangeStartsAt(startsAt.Add(time.Hour)) {
+		t.Fatal("published events without reservations should allow startsAt changes")
+	}
+	if !lifecycle.CanChangeTicketAllocation(1) {
+		t.Fatal("published events without reservations should allow allocation changes")
+	}
+	if !lifecycle.CanChangePricing("fixed", 2000, "usd") {
+		t.Fatal("published events without reservations should allow pricing changes")
+	}
+}
+
+func TestEventLifecyclePublishReadinessTrimsRequiredCopy(t *testing.T) {
+	lifecycle := eventLifecycle{Status: eventStatusDraft, Title: "  ", StartsAt: time.Now(), PublicDescription: "Description", LocationDisplay: "Room", TicketAllocation: 1}
+
+	if lifecycle.ReadyToPublish() || lifecycle.CanPublish() {
+		t.Fatal("whitespace-only title should not be publish-ready")
+	}
+}

@@ -81,3 +81,15 @@ func TestTicketJourneyDoorCheckInRules(t *testing.T) {
 		t.Fatal("unexpected payment pending detection")
 	}
 }
+
+func TestTicketJourneyCapacityPrecedenceForPaidEvents(t *testing.T) {
+	if !ticketJourneyIsFull(1, 1) {
+		t.Fatal("expected event to be full")
+	}
+	if ticketJourneyCanCreatePaidReservation("fixed", 1, 1) {
+		t.Fatal("fixed-price full event should not allow paid reservation")
+	}
+	if !ticketJourneyCanCreatePaidReservation("fixed", 2, 1) {
+		t.Fatal("fixed-price event with capacity should allow paid reservation")
+	}
+}
