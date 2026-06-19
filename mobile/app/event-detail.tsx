@@ -5,10 +5,17 @@ import { Image, Linking, Pressable, ScrollView, Share, StyleSheet, Text, TextInp
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { formatCurrency, formatDate, formatTime, pricingLabel } from '@/api/format';
-import { createPaidReservation, getPublicEvent, reserveFreeTicket } from '@/api/events';
-import type { PublicEventDTO } from '@/api/types';
+import { createPaidReservation, getPublicEvent, listPublicEventRoles, reserveFreeTicket, submitPublicRoleApplication } from '@/api/events';
+import type { EventRoleDTO, PublicEventDTO } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { eventArtwork } from '@/data/eventArtwork';
+import {
+  emptyPublicRoleApplicationDraft,
+  publicRoleApplicationButtonLabel,
+  publicRoleCapacityLabel,
+  validatePublicRoleApplicationDraft,
+  type PublicRoleApplicationDraft,
+} from '@/modules/discovery/publicEventRolesModel';
 import { safeBack } from '@/navigation/safeBack';
 import { savePendingPaidTicket, saveTicketToWallet } from '@/tickets/walletStore';
 
@@ -21,6 +28,9 @@ export default function EventDetailScreen() {
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [reserving, setReserving] = useState(false);
+  const [roles, setRoles] = useState<EventRoleDTO[] | null>(null);
+  const [roleError, setRoleError] = useState<string | null>(null);
+  const [roleDrafts, setRoleDrafts] = useState<Record<string, PublicRoleApplicationDraft>>({});
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const reservationEmail = user?.email ?? email.trim();
@@ -38,6 +48,9 @@ export default function EventDetailScreen() {
 
       setLoading(true);
       setError(null);
+      setRoleError(null);
+      setRoles(null);
+      setRoleDrafts({});
 
       try {
         const loaded = await getPublicEvent(slug);
@@ -62,6 +75,83 @@ export default function EventDetailScreen() {
       cancelled = true;
     };
   }, [slug]);
+
+  useEffect(() => {
+    if (!event || event.publicSlug !== slug) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadRoles() {
+      setRoleError(null);
+      setRoles(null);
+
+      try {
+        const loadedRoles = await listPublicEventRoles(slug);
+        if (!cancelled) {
+          setRoles(loadedRoles);
+        }
+      } catch (caught) {
+        if (!cancelled) {
+          setRoles([]);
+          setRoleError(caught instanceof Error ? caught.message : 'Unable to load public roles');
+        }
+      }
+    }
+
+    void loadRoles();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [event, slug]);
+
+  function updateRoleDraft(roleID: string, updater: (draft: PublicRoleApplicationDraft) => PublicRoleApplicationDraft) {
+    setRoleDrafts((current) => {
+      const draft = current[roleID] ?? emptyPublicRoleApplicationDraft();
+      return { ...current, [roleID]: updater(draft) };
+    });
+  }
+
+  async function handleRoleSubmit(role: EventRoleDTO) {
+    if (!event?.publicSlug) {
+      return;
+    }
+
+    const draft = roleDrafts[role.id] ?? emptyPublicRoleApplicationDraft();
+    const validationError = validatePublicRoleApplicationDraft(draft);
+    if (validationError) {
+      updateRoleDraft(role.id, (current) => ({ ...current, error: validationError, submitted: false }));
+      return;
+    }
+
+    updateRoleDraft(role.id, (current) => ({ ...current, submitting: true, error: null }));
+    try {
+      const submitted = await submitPublicRoleApplication(event.publicSlug, {
+        roleId: role.id,
+        applicantName: draft.applicantName.trim(),
+        applicantEmail: draft.applicantEmail.trim(),
+        message: draft.message.trim(),
+      });
+      updateRoleDraft(role.id, (current) => ({
+        ...current,
+        applicantName: submitted.applicantName,
+        applicantEmail: submitted.applicantEmail,
+        message: submitted.message,
+        submitting: false,
+        submitted: true,
+        error: null,
+      }));
+    } catch (caught) {
+      updateRoleDraft(role.id, (current) => ({
+        ...current,
+        submitting: false,
+        submitted: false,
+        error: caught instanceof Error ? caught.message : 'Unable to submit application',
+      }));
+    }
+  }
 
   async function handleReserve() {
     if (!event || !event.publicSlug) {
@@ -154,6 +244,65 @@ export default function EventDetailScreen() {
             <Text style={styles.aboutTitle}>About</Text>
             <Text style={styles.aboutText}>{event.publicDescription || 'More details soon.'}</Text>
           </View>
+          <View style={styles.participationCard}>
+            <Text style={styles.aboutTitle}>Participation</Text>
+            <Text style={styles.formHelp}>Public roles are open for short applications. Your ticket flow stays the same.</Text>
+            {roleError ? <Text style={styles.errorText}>{roleError}</Text> : null}
+            {roles === null ? (
+              <Text style={styles.formHelp}>Loading participation roles…</Text>
+            ) : roles.length === 0 ? (
+              <Text style={styles.formHelp}>No public roles available right now.</Text>
+            ) : (
+              <View style={styles.roleList}>
+                {roles.map((role) => {
+                  const draft = roleDrafts[role.id] ?? emptyPublicRoleApplicationDraft();
+                  return (
+                    <View key={role.id} style={styles.roleCard}>
+                      <View style={styles.roleHeader}>
+                        <View style={styles.roleTitleWrap}>
+                          <Text style={styles.roleName}>{role.name}</Text>
+                          <Text style={styles.roleDescription}>{role.description || 'No description provided.'}</Text>
+                        </View>
+                        <Text style={styles.rolePill}>{publicRoleCapacityLabel(role.capacity)}</Text>
+                      </View>
+                      <TextInput
+                        value={draft.applicantName}
+                        onChangeText={(value) => updateRoleDraft(role.id, (current) => ({ ...current, applicantName: value, submitted: false, error: null }))}
+                        placeholder="Applicant name"
+                        placeholderTextColor="#a3a3a3"
+                        style={styles.input}
+                        editable={!draft.submitting && !draft.submitted}
+                      />
+                      <TextInput
+                        value={draft.applicantEmail}
+                        onChangeText={(value) => updateRoleDraft(role.id, (current) => ({ ...current, applicantEmail: value, submitted: false, error: null }))}
+                        autoCapitalize="none"
+                        keyboardType="email-address"
+                        placeholder="Applicant email"
+                        placeholderTextColor="#a3a3a3"
+                        style={styles.input}
+                        editable={!draft.submitting && !draft.submitted}
+                      />
+                      <TextInput
+                        value={draft.message}
+                        onChangeText={(value) => updateRoleDraft(role.id, (current) => ({ ...current, message: value, submitted: false, error: null }))}
+                        multiline
+                        placeholder="Message (optional)"
+                        placeholderTextColor="#a3a3a3"
+                        style={[styles.input, styles.messageInput]}
+                        editable={!draft.submitting && !draft.submitted}
+                      />
+                      <Pressable disabled={draft.submitting || draft.submitted} onPress={() => void handleRoleSubmit(role)} style={[styles.roleButton, (draft.submitting || draft.submitted) && styles.roleButtonDisabled]}>
+                        <Text style={styles.roleButtonText}>{publicRoleApplicationButtonLabel(draft.submitting, draft.submitted)}</Text>
+                      </Pressable>
+                      {draft.error ? <Text style={styles.errorText}>{draft.error}</Text> : null}
+                      {draft.submitted ? <Text style={styles.successText}>Application submitted for {role.name}. We received your interest and will follow up privately.</Text> : null}
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
           <View style={styles.formCard}>
             <Text style={styles.aboutTitle}>{event.pricingMode === 'fixed' ? 'Buy ticket' : 'Reserve ticket'}</Text>
             {user ? (
@@ -245,14 +394,27 @@ const styles = StyleSheet.create({
   aboutBlock: { marginBottom: 24 },
   aboutTitle: { fontSize: 18, fontWeight: '800', marginBottom: 8, color: '#171717' },
   aboutText: { color: '#525252', lineHeight: 22 },
+  participationCard: { gap: 12, backgroundColor: '#f5f5f5', borderRadius: 24, padding: 18, marginBottom: 24 },
+  roleList: { gap: 14 },
+  roleCard: { gap: 12, backgroundColor: '#ffffff', borderRadius: 20, padding: 14 },
+  roleHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
+  roleTitleWrap: { flex: 1 },
+  roleName: { color: '#171717', fontSize: 16, fontWeight: '900' },
+  roleDescription: { color: '#737373', lineHeight: 20, marginTop: 4 },
+  rolePill: { color: '#525252', backgroundColor: '#f5f5f5', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, fontSize: 12, fontWeight: '900', overflow: 'hidden' },
   formCard: { gap: 12, backgroundColor: '#f5f5f5', borderRadius: 24, padding: 18, marginBottom: 48 },
   formHelp: { color: '#737373', lineHeight: 20 },
   input: { minHeight: 52, borderRadius: 16, backgroundColor: '#ffffff', color: '#171717', paddingHorizontal: 14, fontSize: 15, fontWeight: '600' },
+  messageInput: { minHeight: 96, paddingTop: 14, textAlignVertical: 'top' },
+  roleButton: { alignItems: 'center', justifyContent: 'center', minHeight: 48, borderRadius: 16, borderWidth: 1, borderColor: '#d4d4d4', backgroundColor: '#ffffff' },
+  roleButtonDisabled: { opacity: 0.55 },
+  roleButtonText: { color: '#171717', fontWeight: '800' },
   signedInCard: { backgroundColor: '#ffffff', borderRadius: 18, padding: 14, gap: 3 },
   signedInLabel: { color: '#737373', fontSize: 12, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1 },
   signedInName: { color: '#171717', fontSize: 16, fontWeight: '900' },
   signedInEmail: { color: '#737373', fontWeight: '700' },
   errorText: { color: '#dc2626', fontWeight: '600', lineHeight: 20 },
+  successText: { color: '#047857', fontWeight: '700', lineHeight: 20 },
   stickyBar: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.97)', borderTopWidth: 1, borderTopColor: '#f5f5f5', paddingTop: 14, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 -2px 10px rgba(0,0,0,0.08)', elevation: 8 },
   priceLabel: { color: '#737373', fontSize: 14, fontWeight: '600' },
   price: { color: '#171717', fontSize: 24, fontWeight: '800' },

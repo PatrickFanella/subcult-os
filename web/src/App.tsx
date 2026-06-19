@@ -42,9 +42,9 @@ export default function App() {
     return <TicketView code={getSegment(pathname, 2)} />;
   }
 
-  if (pathname.startsWith('/door/')) {
-    return <DoorView eventId={getSegment(pathname, 2)} />;
-  }
+	if (pathname === '/door' || pathname.startsWith('/door/')) {
+		return <DoorView eventId={getSegment(pathname, 2)} />;
+	}
 
   if (pathname.startsWith('/invite/')) {
     return <InviteView token={getSegment(pathname, 2)} />;

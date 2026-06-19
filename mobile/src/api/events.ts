@@ -1,5 +1,5 @@
 import { api, postJSON } from '@/api/client';
-import type { PaidReservationDTO, PublicEventDTO, PublicEventSummaryDTO, TicketReservationDTO } from '@/api/types';
+import type { EventRoleApplicationDTO, EventRoleDTO, PaidReservationDTO, PublicEventDTO, PublicEventSummaryDTO, TicketReservationDTO } from '@/api/types';
 
 export function listPublicEvents(query = '') {
   const normalized = query.trim();
@@ -17,4 +17,12 @@ export function reserveFreeTicket(slug: string, body: { email: string; displayNa
 
 export function createPaidReservation(slug: string, body: { email: string; displayName?: string }) {
   return postJSON<PaidReservationDTO>(`/api/public/events/${encodeURIComponent(slug)}/paid-reservations`, body);
+}
+
+export function listPublicEventRoles(slug: string) {
+  return api<EventRoleDTO[]>(`/api/public/events/${encodeURIComponent(slug)}/roles`);
+}
+
+export function submitPublicRoleApplication(slug: string, body: { roleId: string; applicantName: string; applicantEmail: string; message: string }) {
+  return postJSON<EventRoleApplicationDTO>(`/api/public/events/${encodeURIComponent(slug)}/role-applications`, body);
 }

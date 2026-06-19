@@ -1,11 +1,9 @@
 import type { PublicEventSummaryDTO } from '@/api/types';
 
-export const discoveryLoadingCopy = 'Loading events…';
-export const discoveryEmptyTitle = 'No published events yet';
-export const discoveryEmptyBody = 'Published web events will appear here automatically.';
-export const discoveryErrorTitle = 'Could not load events';
-export const discoveryDefaultErrorBody = 'Unable to load events';
-export const discoveryViewDetailsLabel = 'View Details';
+export const discoveryLoadingCopy = 'Loading published Events…';
+export const discoverySearchLabel = 'Search published Events';
+export const discoverySearchPlaceholder = 'Search published Events';
+export const discoveryViewEventLabel = 'View Event';
 
 export function formatDiscoveryDate(value: string) {
 	const date = new Date(value);
@@ -27,4 +25,17 @@ export function discoveryPricingLabel(event: Pick<PublicEventSummaryDTO, 'pricin
 
 export function discoverySubtitle(event: Pick<PublicEventSummaryDTO, 'publicDescription'>) {
 	return event.publicDescription || 'Published event';
+}
+
+export function discoveryEmptyTitle(query: string) {
+	return query.trim() ? 'No Events match that search yet' : 'No published Events yet';
+}
+
+export function discoveryEmptyBody(query: string) {
+	const trimmed = query.trim();
+	return trimmed ? `No published Events matched “${trimmed}”. Try another search.` : 'Published Events will appear here when Hosts share them.';
+}
+
+export function discoveryErrorCopy(message?: string | null) {
+	return message ? `Could not load published Events: ${message}` : 'Could not load published Events.';
 }

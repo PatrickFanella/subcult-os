@@ -6,7 +6,8 @@ import {
 	discoveryBadgeLabel,
 	discoveryBrowseLabel,
 	discoveryDescription,
-	discoveryEmptyStateCopy,
+	discoveryEmptyBody,
+	discoveryEmptyTitle,
 	discoveryErrorCopy,
 	discoveryLoadingCopy,
 	discoveryPricingLabel,
@@ -19,6 +20,16 @@ import {
 	formatDiscoveryDateTime,
 	getRequestedDiscoveryQuery,
 } from '../modules/discovery/discoveryModel';
+import {
+	publicCardClass,
+	publicEyebrowClass,
+	publicMutedTextClass,
+	publicPageInnerClass,
+	publicPageShellClass,
+	publicPrimaryButtonClass,
+	publicSecondaryButtonClass,
+	publicStatusPillClass,
+} from '../modules/publicUi/publicUi';
 
 export function DiscoverView() {
 	const [events, setEvents] = useState<PublicEventSummaryDTO[] | null>(null);
@@ -76,27 +87,23 @@ export function DiscoverView() {
 	}
 
 	return (
-		<main className="min-h-screen px-4 py-6 text-zinc-100 sm:px-6 lg:px-8">
-			<section className="mx-auto w-full max-w-6xl space-y-6">
-				<header className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6 shadow-2xl shadow-black/40 backdrop-blur">
-					<p className="text-xs uppercase tracking-[0.35em] text-amber-300">{discoveryBrowseLabel}</p>
+		<main className={publicPageShellClass}>
+			<section className={`${publicPageInnerClass} max-w-6xl`}>
+				<header className="rounded-[32px] border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
+					<p className={publicEyebrowClass}>{discoveryBrowseLabel}</p>
 					<div className="mt-3 flex flex-wrap items-center gap-2">
-						<span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-emerald-200">
-							{discoveryBadgeLabel}
-						</span>
-						<span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-zinc-200">
-							{discoveryScopeLabel}
-						</span>
+						<span className={publicStatusPillClass('success')}>{discoveryBadgeLabel}</span>
+						<span className={publicStatusPillClass()}>{discoveryScopeLabel}</span>
 					</div>
 
-					<h1 className="mt-5 text-3xl font-semibold tracking-tight text-white sm:text-4xl">{discoveryTitle}</h1>
-					<p className="mt-3 max-w-2xl text-sm leading-7 text-zinc-300 sm:text-base">{discoveryDescription}</p>
+					<h1 className="mt-5 text-4xl font-black tracking-tight text-[#171717] sm:text-5xl">{discoveryTitle}</h1>
+					<p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">{discoveryDescription}</p>
 
-					<form className="mt-6 flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:flex-row sm:items-end" onSubmit={handleSubmit}>
+					<form className="mt-6 flex flex-col gap-3 rounded-[24px] border border-neutral-200 bg-neutral-50 p-4 sm:flex-row sm:items-end" onSubmit={handleSubmit}>
 						<label className="flex-1 space-y-2">
-							<span className="text-xs uppercase tracking-[0.25em] text-zinc-500">{discoverySearchLabel}</span>
+							<span className={publicEyebrowClass}>{discoverySearchLabel}</span>
 							<input
-								className="w-full rounded-2xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-sm text-white outline-none ring-0 transition placeholder:text-zinc-500 focus:border-amber-300/40 focus:bg-zinc-900"
+								className="w-full rounded-full border border-neutral-300 bg-white px-4 py-3 text-sm text-[#171717] outline-none transition placeholder:text-neutral-400 focus:border-[#171717]"
 								type="search"
 								value={searchQuery}
 								onChange={(event) => setSearchQuery(event.target.value)}
@@ -104,80 +111,81 @@ export function DiscoverView() {
 							/>
 						</label>
 						<div className="flex gap-3 sm:shrink-0">
-							<button className="rounded-2xl bg-amber-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-amber-200" type="submit">
+							<button className={publicPrimaryButtonClass} type="submit">
 								Search
 							</button>
-							<button className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-medium text-zinc-100 transition hover:bg-white/10" type="button" onClick={() => handleReset()}>
+							<button className={publicSecondaryButtonClass} type="button" onClick={() => handleReset()}>
 								Reset
 							</button>
 						</div>
 					</form>
 				</header>
 
-				{loading ? <div className="rounded-[1.75rem] border border-white/10 bg-white/5 p-6 text-sm text-zinc-400">{discoveryLoadingCopy}</div> : null}
+				{loading ? <div className={`${publicCardClass} ${publicMutedTextClass}`}>{discoveryLoadingCopy}</div> : null}
 
 				{error ? (
-					<p aria-live="polite" className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+					<p aria-live="polite" className="rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
 						{discoveryErrorCopy(error)}
 					</p>
 				) : null}
 
 				{!loading && !error && events?.length === 0 ? (
-					<div className="rounded-[1.75rem] border border-white/10 bg-white/5 p-6 text-sm text-zinc-400">
-						{discoveryEmptyStateCopy(searchQuery)}
+					<div className={publicCardClass}>
+						<h2 className="text-xl font-black text-[#171717]">{discoveryEmptyTitle(searchQuery)}</h2>
+						<p className={`mt-2 ${publicMutedTextClass}`}>{discoveryEmptyBody(searchQuery)}</p>
 					</div>
 				) : null}
 
 				{!loading && !error && events && events.length > 0 ? (
 					<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
 						{events.map((event) => (
-							<article key={event.id} className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-5 shadow-lg shadow-black/20">
-								<div className="flex items-start justify-between gap-3">
-									<div>
-										<p className="text-xs uppercase tracking-[0.3em] text-amber-300">{event.status}</p>
-										<h2 className="mt-2 text-xl font-semibold text-white">{event.title}</h2>
-									</div>
-									<span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.25em] text-zinc-300">
-										{discoveryRemainingLabel(event)}
-									</span>
-								</div>
+							<article key={event.id} className="overflow-hidden rounded-[28px] border border-neutral-200 bg-white shadow-sm">
+								{event.imageUrl ? <img className="h-48 w-full object-cover" src={event.imageUrl} alt="" /> : null}
 
-								<div className="mt-4 grid gap-3 text-sm text-zinc-300">
-									<div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-										<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Hosted by</p>
-										<p className="mt-2 font-medium text-white">{event.workspaceName}</p>
+								<div className="flex h-full flex-col p-5">
+									<div className="flex items-start justify-between gap-3">
+										<div>
+											<p className={publicEyebrowClass}>{formatDiscoveryDateTime(event.startsAt)}</p>
+											<h2 className="mt-2 text-2xl font-black leading-tight text-[#171717]">{event.title}</h2>
+										</div>
+										<span className={publicStatusPillClass(event.isFull ? 'danger' : 'neutral')}>{discoveryRemainingLabel(event)}</span>
 									</div>
-									<div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-										<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Date</p>
-										<p className="mt-2 font-medium text-white">{formatDiscoveryDateTime(event.startsAt)}</p>
-									</div>
-									<div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-										<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Location</p>
-										<p className="mt-2 font-medium text-white">{event.locationDisplay}</p>
-									</div>
-									<div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-										<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Description</p>
-										<p className="mt-2 leading-6 text-zinc-300">{event.publicDescription || 'No public description provided.'}</p>
-									</div>
-									<div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-										<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Pricing</p>
-										<p className="mt-2 font-medium text-white">{discoveryPricingLabel(event)}</p>
-									</div>
-									<div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-										<p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Remaining tickets</p>
-										<p className={`mt-2 font-medium ${event.isFull ? 'text-rose-200' : 'text-white'}`}>{event.remainingTickets}</p>
-									</div>
+
+									<div className="mt-4 grid gap-3 text-sm text-neutral-700">
+										<div className="rounded-[20px] bg-neutral-50 p-4">
+											<p className={publicEyebrowClass}>Hosted by</p>
+											<p className="mt-2 font-bold text-[#171717]">{event.workspaceName}</p>
+										</div>
+										<div className="rounded-[20px] bg-neutral-50 p-4">
+											<p className={publicEyebrowClass}>Location</p>
+											<p className="mt-2 font-bold text-[#171717]">{event.locationDisplay}</p>
+										</div>
+										<div className="rounded-[20px] bg-neutral-50 p-4">
+											<p className={publicEyebrowClass}>Description</p>
+											<p className="mt-2 leading-6 text-neutral-600">{event.publicDescription || 'No public description provided.'}</p>
+										</div>
+										<div className="grid gap-3 sm:grid-cols-2">
+											<div className="rounded-[20px] bg-neutral-50 p-4">
+												<p className={publicEyebrowClass}>Pricing</p>
+												<p className="mt-2 font-bold text-[#171717]">{discoveryPricingLabel(event)}</p>
+											</div>
+											<div className="rounded-[20px] bg-neutral-50 p-4">
+												<p className={publicEyebrowClass}>Remaining tickets</p>
+												<p className={`mt-2 font-bold ${event.isFull ? 'text-rose-700' : 'text-[#171717]'}`}>{event.remainingTickets}</p>
+											</div>
+										</div>
 									{event.applicationsOpen ? (
-										<div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4">
-											<p className="text-xs uppercase tracking-[0.2em] text-emerald-200">Applications</p>
-											<p className="mt-2 font-medium text-white">Applications open</p>
+										<div className="rounded-[20px] border border-emerald-200 bg-emerald-50 p-4">
+											<p className="text-xs font-black uppercase tracking-[0.24em] text-emerald-700">Applications</p>
+											<p className="mt-2 font-bold text-emerald-800">Applications open</p>
 										</div>
 									) : null}
 								</div>
 
-								<a className="mt-5 inline-flex w-full items-center justify-center rounded-2xl bg-amber-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-amber-200" href={event.publicUrl}>
-									{discoveryViewEventLabel}
-								</a>
+									<a className={`${publicPrimaryButtonClass} mt-5 w-full`} href={event.publicUrl}>
+										{discoveryViewEventLabel}
+									</a>
+								</div>
 							</article>
 						))}
 					</div>

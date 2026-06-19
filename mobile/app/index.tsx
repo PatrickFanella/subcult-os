@@ -1,21 +1,21 @@
 import { Link } from 'expo-router';
 import { Calendar, MapPin } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { listPublicEvents } from '@/api/events';
 import type { PublicEventSummaryDTO } from '@/api/types';
 import { eventArtwork } from '@/data/eventArtwork';
 import { AppChrome } from '@/ui/AppChrome';
 import {
-	discoveryDefaultErrorBody,
 	discoveryEmptyBody,
 	discoveryEmptyTitle,
-	discoveryErrorTitle,
+	discoveryErrorCopy,
 	discoveryLoadingCopy,
 	discoveryPricingLabel,
+	discoverySearchPlaceholder,
 	discoverySubtitle,
-	discoveryViewDetailsLabel,
+	discoveryViewEventLabel,
 	formatDiscoveryDate,
 	formatDiscoveryTime,
 } from '@/modules/discovery/discoveryModel';
@@ -24,6 +24,7 @@ export default function DiscoveryFeedScreen() {
 	const [events, setEvents] = useState<PublicEventSummaryDTO[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const [searchQuery, setSearchQuery] = useState('');
 	const [viewportHeight, setViewportHeight] = useState(0);
 
 	useEffect(() => {
@@ -34,7 +35,7 @@ export default function DiscoveryFeedScreen() {
 			setError(null);
 
 			try {
-				const loaded = await listPublicEvents();
+				const loaded = await listPublicEvents(searchQuery);
 				if (!cancelled) {
 					setEvents(loaded);
 				}
@@ -55,11 +56,25 @@ export default function DiscoveryFeedScreen() {
 		return () => {
 			cancelled = true;
 		};
-	}, []);
+	}, [searchQuery]);
+
+	const searchBar = (
+		<View style={styles.searchWrap}>
+			<TextInput
+				value={searchQuery}
+				onChangeText={setSearchQuery}
+				placeholder={discoverySearchPlaceholder}
+				placeholderTextColor="#737373"
+				style={styles.searchInput}
+				returnKeyType="search"
+			/>
+		</View>
+	);
 
 	if (loading) {
 		return (
 			<AppChrome>
+				{searchBar}
 				<View style={styles.centerState}>
 					<Text style={styles.centerTitle}>{discoveryLoadingCopy}</Text>
 				</View>
@@ -70,9 +85,10 @@ export default function DiscoveryFeedScreen() {
 	if (error) {
 		return (
 			<AppChrome>
+				{searchBar}
 				<View style={styles.centerState}>
-					<Text style={styles.centerTitle}>{discoveryErrorTitle}</Text>
-					<Text style={styles.centerBody}>{error || discoveryDefaultErrorBody}</Text>
+					<Text style={styles.centerTitle}>Could not load Events</Text>
+					<Text style={styles.centerBody}>{discoveryErrorCopy(error)}</Text>
 				</View>
 			</AppChrome>
 		);
@@ -81,9 +97,10 @@ export default function DiscoveryFeedScreen() {
 	if (events.length === 0) {
 		return (
 			<AppChrome>
+				{searchBar}
 				<View style={styles.centerState}>
-					<Text style={styles.centerTitle}>{discoveryEmptyTitle}</Text>
-					<Text style={styles.centerBody}>{discoveryEmptyBody}</Text>
+					<Text style={styles.centerTitle}>{discoveryEmptyTitle(searchQuery)}</Text>
+					<Text style={styles.centerBody}>{discoveryEmptyBody(searchQuery)}</Text>
 				</View>
 			</AppChrome>
 		);
@@ -91,6 +108,7 @@ export default function DiscoveryFeedScreen() {
 
 	return (
 		<AppChrome>
+			{searchBar}
 			<ScrollView
 				pagingEnabled
 				showsVerticalScrollIndicator={false}
@@ -119,7 +137,7 @@ export default function DiscoveryFeedScreen() {
 								</View>
 							</View>
 							<Link href={{ pathname: '/event-detail', params: { slug: event.publicSlug } }} style={styles.button}>
-								{discoveryViewDetailsLabel}
+								{discoveryViewEventLabel}
 							</Link>
 						</View>
 					</View>
@@ -131,6 +149,21 @@ export default function DiscoveryFeedScreen() {
 
 const styles = StyleSheet.create({
 	scroll: { flex: 1, backgroundColor: '#000000' },
+	searchWrap: {
+		position: 'absolute',
+		top: 16,
+		left: 16,
+		right: 16,
+		zIndex: 10,
+		borderRadius: 18,
+		backgroundColor: 'rgba(255,255,255,0.94)',
+		padding: 6,
+		shadowColor: '#000000',
+		shadowOpacity: 0.14,
+		shadowRadius: 18,
+		shadowOffset: { width: 0, height: 8 },
+	},
+	searchInput: { borderRadius: 14, backgroundColor: '#ffffff', color: '#171717', fontSize: 16, fontWeight: '700', paddingHorizontal: 14, paddingVertical: 12 },
 	slide: { position: 'relative', width: '100%', backgroundColor: '#000000' },
 	slideFallback: { minHeight: 640 },
 	image: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, width: '100%', height: '100%' },

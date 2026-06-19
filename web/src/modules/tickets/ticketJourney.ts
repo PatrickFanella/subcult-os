@@ -40,6 +40,14 @@ export function ticketJourneyDoorStatusCopy(status: TicketDTO['status'], checked
 	return status === 'checked_in' ? `Checked in at ${checkedInAt}` : 'Awaiting check-in';
 }
 
+export function doorCheckInButtonLabel(checkingIn: boolean, checkedIn: boolean) {
+	if (checkingIn) {
+		return 'Checking in…';
+	}
+
+	return checkedIn ? 'Checked in' : 'Check in';
+}
+
 export function ticketJourneyCodeCopy(status: TicketDTO['status']) {
 	return status === 'checked_in'
 		? 'This reservation has already been scanned.'

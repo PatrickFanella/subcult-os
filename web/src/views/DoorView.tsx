@@ -3,12 +3,21 @@ import type { FormEvent } from 'react';
 import { api, postJSON } from '../api';
 import type { TicketDTO } from '../domain';
 import {
-  formatTicketCode,
+  publicCardClass,
+  publicEyebrowClass,
+  publicMutedTextClass,
+  publicPageInnerClass,
+  publicPageShellClass,
+  publicPrimaryButtonClass,
+  publicSecondaryButtonClass,
+  publicStatusPillClass,
+} from '../modules/publicUi/publicUi';
+import {
+  doorCheckInButtonLabel,
   ticketJourneyDisplayName,
   ticketJourneyDoorStatusBadge,
   ticketJourneyDoorStatusCopy,
   ticketJourneyStatusLabel,
-  ticketJourneyStatusTone,
 } from '../modules/tickets/ticketJourney';
 
 function formatHumanTime(value: string | null) {
@@ -27,14 +36,24 @@ function formatHumanTime(value: string | null) {
 
 function noticeClassName(kind: 'neutral' | 'success' | 'error') {
   if (kind === 'success') {
-    return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200';
+    return 'border-emerald-200 bg-emerald-50 text-emerald-700';
   }
 
   if (kind === 'error') {
-    return 'border-rose-500/30 bg-rose-500/10 text-rose-200';
+    return 'border-rose-200 bg-rose-50 text-rose-700';
   }
 
-  return 'border-white/10 bg-white/5 text-zinc-300';
+  return 'border-neutral-200 bg-white text-neutral-600';
+}
+
+function doorStatusPillTone(status: TicketDTO['status']) {
+  return status === 'checked_in' ? 'success' : 'neutral';
+}
+
+function doorStatusCardClass(status: TicketDTO['status']) {
+  return status === 'checked_in'
+    ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+    : 'border-neutral-200 bg-neutral-50 text-[#171717]';
 }
 
 export function DoorView({ eventId }: { eventId: string }) {
@@ -63,7 +82,13 @@ export function DoorView({ eventId }: { eventId: string }) {
 
     if (!trimmedQuery) {
       setLoading(false);
-      setNotice({ kind: 'neutral', text: 'Type an email, name, or exact code to search.' });
+      setNotice({ kind: 'neutral', text: 'Type an email, name, or exact ticket code.' });
+      return;
+    }
+
+    if (!eventId) {
+      setLoading(false);
+      setError('Missing event ID. Open Door from Staff mode.');
       return;
     }
 
@@ -82,6 +107,11 @@ export function DoorView({ eventId }: { eventId: string }) {
   }
 
   async function handleCheckIn(ticket: TicketDTO) {
+    if (!eventId) {
+      setError('Missing event ID. Open Door from Staff mode.');
+      return;
+    }
+
     const wasAlreadyCheckedIn = ticket.status === 'checked_in';
     setCheckingIn(ticket.code);
     setError(null);
@@ -102,39 +132,39 @@ export function DoorView({ eventId }: { eventId: string }) {
   }
 
   return (
-    <main className="min-h-screen px-4 py-4 text-zinc-100 sm:px-6 lg:px-8">
-      <section className="mx-auto w-full max-w-3xl space-y-4">
-        <header className="rounded-[1.75rem] border border-white/10 bg-zinc-950/90 p-5 shadow-2xl shadow-black/40 backdrop-blur sm:p-6">
-          <p className="text-xs uppercase tracking-[0.3em] text-fuchsia-300">Door</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">Mobile check-in</h1>
-          <p className="mt-2 text-sm leading-6 text-zinc-400">Search by email, display name, or exact code. Paste a full code and press Search to jump straight to check-in.</p>
+    <main className={publicPageShellClass}>
+      <section className={`${publicPageInnerClass} max-w-3xl`}>
+        <header className="rounded-[32px] border border-neutral-200 bg-white p-6 shadow-sm">
+          <p className={`${publicEyebrowClass} text-blue-600`}>Door Mode</p>
+          <h1 className="mt-2 text-4xl font-black tracking-[-0.04em] text-[#171717]">Guest List</h1>
+          <p className={`mt-2 ${publicMutedTextClass}`}>Search by name, email, or exact ticket code. Paste a full code and press Search to jump straight to check-in.</p>
 
-          <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-300">Event ID: {eventId}</div>
+          <div className="mt-4 rounded-2xl bg-neutral-100 px-4 py-3 text-sm font-medium text-neutral-700">Event ID: {eventId || 'Missing'}</div>
         </header>
 
-        <form className="rounded-[1.75rem] border border-white/10 bg-zinc-950/90 p-4 shadow-xl shadow-black/20 sm:p-6" onSubmit={handleSearch}>
+        <form className={publicCardClass} onSubmit={handleSearch}>
           <label className="block space-y-2 text-sm">
-            <span className="text-zinc-300">Lookup or exact code</span>
+            <span className="font-bold text-[#171717]">Lookup or exact code</span>
             <input
-              className="door-input w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-lg text-white outline-none transition placeholder:text-zinc-500 focus:border-amber-300/60 focus:bg-white/8"
+              className="door-input w-full rounded-[18px] border border-neutral-200 bg-neutral-100 px-4 py-4 text-base font-medium text-[#171717] outline-none transition placeholder:text-neutral-400 focus:border-neutral-400 focus:bg-white"
               type="search"
               autoComplete="off"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Email, name, or full code"
+              placeholder="Name, email, or ticket code"
             />
           </label>
 
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <button
-              className="door-action rounded-2xl bg-amber-300 px-4 py-4 text-lg font-semibold text-zinc-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-amber-300/60"
+              className={`door-action ${publicPrimaryButtonClass} min-h-14 rounded-[18px] text-base`}
               type="submit"
               disabled={loading}
             >
               {loading ? 'Searching…' : 'Search'}
             </button>
             <button
-              className="door-action rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-lg font-semibold text-zinc-100 transition hover:bg-white/10"
+              className={`door-action ${publicSecondaryButtonClass} min-h-14 rounded-[18px] text-base`}
               type="button"
               onClick={handleClear}
             >
@@ -142,63 +172,63 @@ export function DoorView({ eventId }: { eventId: string }) {
             </button>
           </div>
 
-          <p className="mt-3 text-xs leading-5 text-zinc-500">Exact code works. Search by email, name, or the full ticket code to pull up a single result.</p>
+          <p className="mt-3 text-xs leading-5 text-neutral-500">Exact code works. Search by email, name, or the full ticket code to pull up a single result.</p>
         </form>
 
-        {error ? <p className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error}</p> : null}
+        {error ? <p className="rounded-[18px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">{error}</p> : null}
         {notice ? (
-          <p className={`rounded-2xl border px-4 py-3 text-sm ${noticeClassName(notice.kind)}`} aria-live="polite">
+          <p className={`rounded-[18px] border px-4 py-3 text-sm ${noticeClassName(notice.kind)}`} aria-live="polite">
             {notice.text}
           </p>
         ) : null}
 
         <div className="space-y-3">
-          {results.length === 0 ? <p className="rounded-[1.75rem] border border-white/10 bg-white/5 p-6 text-sm text-zinc-400">Search results will appear here.</p> : null}
+          {results.length === 0 ? <p className={`${publicCardClass} ${publicMutedTextClass}`}>Search results will appear here.</p> : null}
 
           {results.map((ticket) => (
-            <article key={ticket.id} className="rounded-[1.75rem] border border-white/10 bg-zinc-950/90 p-4 shadow-xl shadow-black/20 sm:p-5">
-              <div className={`rounded-[1.4rem] border px-4 py-4 ${ticketJourneyStatusTone(ticket.status)}`}>
+            <article key={ticket.id} className={publicCardClass}>
+              <div className={`rounded-[24px] border px-4 py-4 ${doorStatusCardClass(ticket.status)}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.28em] text-white/70">Status</p>
-                    <p className="mt-2 text-2xl font-semibold tracking-tight text-white">{ticketJourneyStatusLabel(ticket.status)}</p>
+                    <p className={publicEyebrowClass}>Status</p>
+                    <p className="mt-2 text-2xl font-black tracking-[-0.03em]">{ticketJourneyStatusLabel(ticket.status)}</p>
                   </div>
-                  <span className="rounded-full border border-white/15 bg-black/15 px-3 py-1 text-xs uppercase tracking-[0.25em] text-white/80">{ticketJourneyDoorStatusBadge(ticket.status)}</span>
+                  <span className={publicStatusPillClass(doorStatusPillTone(ticket.status))}>{ticketJourneyDoorStatusBadge(ticket.status)}</span>
                 </div>
 
-                <p className="mt-3 text-sm text-white/80">{ticketJourneyDoorStatusCopy(ticket.status, formatHumanTime(ticket.checkedInAt))}</p>
+                <p className="mt-3 text-sm text-neutral-700">{ticketJourneyDoorStatusCopy(ticket.status, formatHumanTime(ticket.checkedInAt))}</p>
               </div>
 
               <div className="mt-4 space-y-3">
                 <div>
-                  <p className="text-lg font-medium text-white">{ticketJourneyDisplayName(ticket)}</p>
-                  <p className="mt-1 text-sm text-zinc-400">{ticket.email}</p>
+                  <p className="text-2xl font-black tracking-[-0.03em] text-[#171717]">{ticketJourneyDisplayName(ticket)}</p>
+                  <p className="mt-1 text-sm text-neutral-500">{ticket.email}</p>
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Code</p>
-                  <p className="mt-2 break-words font-mono text-xl tracking-[0.24em] text-white sm:text-2xl">{formatTicketCode(ticket.code)}</p>
+                <div className="rounded-2xl bg-neutral-100 px-4 py-4">
+                  <p className={publicEyebrowClass}>Code</p>
+                  <p className="mt-2 break-words font-mono text-lg font-bold tracking-[0.08em] text-[#171717] sm:text-xl">{ticket.code}</p>
                 </div>
 
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-300">
-                    <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Checked in</p>
-                    <p className="mt-2 text-zinc-100">{formatHumanTime(ticket.checkedInAt)}</p>
+                  <div className="rounded-2xl bg-neutral-100 px-4 py-3 text-sm text-neutral-600">
+                    <p className={publicEyebrowClass}>Checked in</p>
+                    <p className="mt-2 font-medium text-[#171717]">{formatHumanTime(ticket.checkedInAt)}</p>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-300">
-                    <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Ticket holder</p>
-                    <p className="mt-2 text-zinc-100">{ticketJourneyDisplayName(ticket)}</p>
+                  <div className="rounded-2xl bg-neutral-100 px-4 py-3 text-sm text-neutral-600">
+                    <p className={publicEyebrowClass}>Payment</p>
+                    <p className="mt-2 font-medium text-[#171717]">{ticket.paymentStatus}</p>
                   </div>
                 </div>
               </div>
 
               <button
-                className="door-action mt-4 w-full rounded-2xl bg-white px-4 py-4 text-left text-base font-semibold text-zinc-950 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:bg-white/70"
+                className={`door-action mt-4 w-full ${publicPrimaryButtonClass} min-h-14 rounded-[18px] text-base`}
                 type="button"
                 onClick={() => handleCheckIn(ticket)}
                 disabled={checkingIn === ticket.code || ticket.status === 'checked_in'}
               >
-                {ticket.status === 'checked_in' ? 'Already checked in' : checkingIn === ticket.code ? 'Checking in…' : 'Check in this code'}
+                {doorCheckInButtonLabel(checkingIn === ticket.code, ticket.status === 'checked_in')}
               </button>
             </article>
           ))}

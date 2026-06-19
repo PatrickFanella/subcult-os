@@ -1,6 +1,17 @@
 import { useEffect, useState } from 'react';
+import QRCode from 'qrcode';
 import { api } from '../api';
 import type { TicketDTO } from '../domain';
+import {
+  publicCardClass,
+  publicEyebrowClass,
+  publicMutedTextClass,
+  publicPageInnerClass,
+  publicPageShellClass,
+  publicPrimaryButtonClass,
+  publicSecondaryButtonClass,
+  publicStatusPillClass,
+} from '../modules/publicUi/publicUi';
 import {
   formatTicketCode,
   ticketJourneyCodeCopy,
@@ -8,11 +19,9 @@ import {
   ticketJourneyPaymentBadge,
   ticketJourneyPaymentLabel,
   ticketJourneyPaymentSummary,
-  ticketJourneyPaymentTone,
   ticketJourneyStatusBadge,
   ticketJourneyStatusCopy,
   ticketJourneyStatusLabel,
-  ticketJourneyStatusTone,
 } from '../modules/tickets/ticketJourney';
 
 function formatHumanTime(value: string | null) {
@@ -29,17 +38,43 @@ function formatHumanTime(value: string | null) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(timestamp);
 }
 
+function ticketStatusTone(status: TicketDTO['status']) {
+  return status === 'checked_in' ? 'success' : 'warning';
+}
+
+function ticketPaymentTone(paymentStatus: TicketDTO['paymentStatus']) {
+  switch (paymentStatus) {
+    case 'free':
+    case 'paid':
+      return 'success';
+    case 'cancelled':
+      return 'danger';
+    case 'pending':
+    default:
+      return 'warning';
+  }
+}
+
+function ticketArrivalNotes(paymentStatus: TicketDTO['paymentStatus']) {
+  return paymentStatus === 'pending'
+    ? 'Payment is still pending. Refresh after checkout completes; the door will only accept paid/free tickets.'
+    : 'Show this QR code or ticket code at the door. Staff scanners read the ticket code embedded in the QR pass.';
+}
+
 export function TicketView({ code }: { code: string }) {
-  const [ticket, setTicket] = useState<TicketDTO | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+	const [ticket, setTicket] = useState<TicketDTO | null>(null);
+	const [qr, setQr] = useState<{ code: string; dataUrl: string } | null>(null);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function load() {
-      setLoading(true);
-      setError(null);
+	async function load() {
+		setLoading(true);
+		setError(null);
+		setTicket(null);
+		setQr(null);
 
       try {
         const loaded = await api<TicketDTO>(`/api/tickets/${code}`);
@@ -64,79 +99,153 @@ export function TicketView({ code }: { code: string }) {
     };
   }, [code]);
 
-  return (
-    <main className="min-h-screen px-4 py-6 text-zinc-100 sm:px-6 lg:px-8">
-      <section className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-xl items-center">
-        <div className="w-full space-y-4 rounded-[1.75rem] border border-white/10 bg-zinc-950/90 p-6 shadow-2xl shadow-black/40 backdrop-blur">
-          <p className="text-xs uppercase tracking-[0.3em] text-fuchsia-300">Ticket</p>
-          <h1 className="text-3xl font-semibold tracking-tight text-white">Show this at the door</h1>
-          <p className="text-sm leading-6 text-zinc-400">Your reservation lives here. Keep this page open or save the code for arrival.</p>
+  useEffect(() => {
+    let cancelled = false;
 
-          {loading ? <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-zinc-400">Loading…</div> : null}
-          {error ? <p className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error}</p> : null}
+	async function buildQr() {
+		if (!ticket?.code) {
+			setQr(null);
+			return;
+		}
+
+		const qrCode = ticket.code;
+		setQr(null);
+
+		try {
+			const generated = await QRCode.toDataURL(qrCode, {
+				color: { dark: '#171717', light: '#ffffff' },
+				errorCorrectionLevel: 'M',
+				margin: 1,
+				scale: 8,
+        });
+
+		if (!cancelled) {
+			setQr({ code: qrCode, dataUrl: generated });
+		}
+	} catch {
+		if (!cancelled) {
+			setQr(null);
+		}
+	}
+    }
+
+    void buildQr();
+
+    return () => {
+      cancelled = true;
+    };
+	}, [ticket?.code]);
+
+  return (
+    <main className={publicPageShellClass}>
+      <section className={`${publicPageInnerClass} max-w-2xl`}>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className={publicEyebrowClass}>Ticket</p>
+            <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] text-[#171717] sm:text-4xl">Show this at the door</h1>
+          </div>
+          <a className={publicSecondaryButtonClass} href="/">
+            Workspace
+          </a>
+        </div>
+
+        <div className="space-y-4">
+          <p className={`${publicMutedTextClass} leading-6`}>Your reservation lives here. Keep this page open or save the code for arrival.</p>
+
+          {loading ? <div className={`${publicCardClass} ${publicMutedTextClass}`}>Loading ticket…</div> : null}
+          {error ? <p className="rounded-[22px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">{error}</p> : null}
 
           {ticket ? (
             <>
-              <div className={`rounded-[1.5rem] border px-4 py-4 ${ticketJourneyPaymentTone(ticket.paymentStatus)}`}>
+              <div className="overflow-hidden rounded-[32px] border border-neutral-200 bg-white p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.28em] text-white/70">Payment status</p>
-                    <p className="mt-2 text-2xl font-semibold tracking-tight text-white">{ticketJourneyPaymentLabel(ticket.paymentStatus)}</p>
-                  </div>
-                  <span className="rounded-full border border-white/15 bg-black/15 px-3 py-1 text-xs uppercase tracking-[0.25em] text-white/80">
-                    {ticketJourneyPaymentBadge(ticket)}
+                  <span className={publicStatusPillClass(ticketStatusTone(ticket.status))}>{ticketJourneyStatusBadge(ticket.status)}</span>
+                  <span className="rounded-full bg-white p-3 text-xl shadow-sm" aria-hidden="true">
+                    ↗
                   </span>
                 </div>
 
-                <p className="mt-3 text-sm text-white/80">{ticketJourneyPaymentSummary(ticket)}</p>
-              </div>
+                <div className="mt-5">
+                  <h2 className="text-2xl font-black tracking-[-0.03em] text-[#171717]">Ticket {ticket.code}</h2>
+                  <p className="mt-1 text-sm text-neutral-500">{ticketJourneyDisplayName(ticket)}</p>
+                </div>
 
-              <div className={`rounded-[1.5rem] border px-4 py-4 ${ticketJourneyStatusTone(ticket.status)}`}>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.28em] text-white/70">Status</p>
-                    <p className="mt-2 text-2xl font-semibold tracking-tight text-white">{ticketJourneyStatusLabel(ticket.status)}</p>
+                <div className="mt-5 grid gap-3 text-sm font-semibold text-neutral-700 sm:grid-cols-2">
+                  <p>Payment: {ticket.paymentStatus}</p>
+                  <p>Status: {ticket.status}</p>
+                </div>
+
+                <div className="my-6 border-t-2 border-dashed border-neutral-200" />
+
+                <div className="flex flex-col items-center text-center">
+				<div className="flex h-56 w-56 items-center justify-center rounded-[24px] border border-neutral-200 bg-white p-4" aria-label="Ticket QR code">
+					{qr?.code === ticket.code ? (
+						<img className="h-full w-full" src={qr.dataUrl} alt={`QR code for ticket ${ticket.code}`} />
+					) : (
+                      <span className="text-xs font-black uppercase tracking-[0.28em] text-neutral-500">Preparing QR</span>
+                    )}
                   </div>
-                  <span className="rounded-full border border-white/15 bg-black/15 px-3 py-1 text-xs uppercase tracking-[0.25em] text-white/80">
-                    {ticketJourneyStatusBadge(ticket.status)}
-                  </span>
+                  <p className="mt-4 break-words font-mono text-sm tracking-[0.28em] text-neutral-600">{ticket.code}</p>
+                  <p className="mt-2 text-sm text-neutral-500">{ticketJourneyCodeCopy(ticket.status)}</p>
                 </div>
-
-                <p className="mt-3 text-sm text-white/80">
-                  {ticketJourneyStatusCopy(ticket.status, formatHumanTime(ticket.checkedInAt))}
-                </p>
               </div>
 
-              <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-5">
-                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Show this at the door</p>
-                <p className="mt-3 break-words font-mono text-2xl tracking-[0.28em] text-white sm:text-3xl">{formatTicketCode(ticket.code)}</p>
-                <p className="mt-3 text-sm leading-6 text-zinc-400">{ticketJourneyCodeCopy(ticket.status)}</p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className={publicCardClass}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className={publicEyebrowClass}>Payment status</p>
+                      <p className="mt-2 text-2xl font-black tracking-[-0.03em] text-[#171717]">{ticketJourneyPaymentLabel(ticket.paymentStatus)}</p>
+                    </div>
+                    <span className={publicStatusPillClass(ticketPaymentTone(ticket.paymentStatus))}>{ticketJourneyPaymentBadge(ticket)}</span>
+                  </div>
+
+                  <p className="mt-3 text-sm leading-6 text-neutral-600">{ticketJourneyPaymentSummary(ticket)}</p>
+                </div>
+
+                <div className={publicCardClass}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className={publicEyebrowClass}>Status</p>
+                      <p className="mt-2 text-2xl font-black tracking-[-0.03em] text-[#171717]">{ticketJourneyStatusLabel(ticket.status)}</p>
+                    </div>
+                    <span className={publicStatusPillClass(ticketStatusTone(ticket.status))}>{ticketJourneyStatusBadge(ticket.status)}</span>
+                  </div>
+
+                  <p className="mt-3 text-sm leading-6 text-neutral-600">
+                    {ticketJourneyStatusCopy(ticket.status, formatHumanTime(ticket.checkedInAt))}
+                  </p>
+                </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Name</p>
-                  <p className="mt-2 text-sm font-medium text-white">{ticketJourneyDisplayName(ticket)}</p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Email</p>
-                  <p className="mt-2 text-sm font-medium text-white">{ticket.email}</p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Checked in</p>
-                  <p className="mt-2 text-sm font-medium text-white">{formatHumanTime(ticket.checkedInAt)}</p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Ticket code</p>
-                  <p className="mt-2 text-sm font-medium text-white">{formatTicketCode(ticket.code)}</p>
+              <div className={publicCardClass}>
+                <p className="text-xl font-black tracking-[-0.03em] text-[#171717]">Arrival notes</p>
+                <p className="mt-2 text-sm leading-6 text-neutral-600">{ticketArrivalNotes(ticket.paymentStatus)}</p>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                    <p className={publicEyebrowClass}>Name</p>
+                    <p className="mt-2 text-sm font-bold text-[#171717]">{ticketJourneyDisplayName(ticket)}</p>
+                  </div>
+                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                    <p className={publicEyebrowClass}>Email</p>
+                    <p className="mt-2 break-words text-sm font-bold text-[#171717]">{ticket.email}</p>
+                  </div>
+                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                    <p className={publicEyebrowClass}>Checked in</p>
+                    <p className="mt-2 text-sm font-bold text-[#171717]">{formatHumanTime(ticket.checkedInAt)}</p>
+                  </div>
+                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                    <p className={publicEyebrowClass}>Ticket code</p>
+                    <p className="mt-2 text-sm font-bold text-[#171717]">{formatTicketCode(ticket.code)}</p>
+                  </div>
                 </div>
               </div>
 
               <div className="flex flex-wrap gap-2 text-sm">
-                <a className="rounded-full bg-amber-300 px-4 py-2 font-medium text-zinc-950 transition hover:bg-amber-200" href={`/door/${ticket.eventId}`}>
+                <a className={publicPrimaryButtonClass} href={`/door/${ticket.eventId}`}>
                   Door
                 </a>
-                <a className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-zinc-200 transition hover:bg-white/10" href="/">
+                <a className={publicSecondaryButtonClass} href="/">
                   Workspace
                 </a>
               </div>

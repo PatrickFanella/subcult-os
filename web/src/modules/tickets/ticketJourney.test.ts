@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+	doorCheckInButtonLabel,
 	formatTicketCode,
 	ticketJourneyCodeCopy,
 	ticketJourneyDoorStatusBadge,
@@ -31,5 +32,11 @@ describe('ticketJourney helpers', () => {
 
 	it('chunks codes consistently', () => {
 		expect(formatTicketCode('abcdefghijkl')).toBe('abcd efgh ijkl');
+	});
+
+	it('mirrors mobile door check-in button labels', () => {
+		expect(doorCheckInButtonLabel(true, false)).toBe('Checking in…');
+		expect(doorCheckInButtonLabel(false, true)).toBe('Checked in');
+		expect(doorCheckInButtonLabel(false, false)).toBe('Check in');
 	});
 });

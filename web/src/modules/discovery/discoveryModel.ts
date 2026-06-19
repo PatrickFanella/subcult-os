@@ -5,10 +5,10 @@ export const discoveryBadgeLabel = 'Discover events';
 export const discoveryScopeLabel = 'Published only';
 export const discoveryTitle = 'Discover events';
 export const discoveryDescription = 'Browse published events without opening private workspace pages.';
-export const discoverySearchLabel = 'Search published events';
-export const discoverySearchPlaceholder = 'Title, description, or location';
-export const discoveryLoadingCopy = 'Loading published events…';
-export const discoveryViewEventLabel = 'View event';
+export const discoverySearchLabel = 'Search published Events';
+export const discoverySearchPlaceholder = 'Search published Events';
+export const discoveryLoadingCopy = 'Loading published Events…';
+export const discoveryViewEventLabel = 'View Event';
 
 export function getRequestedDiscoveryQuery() {
 	if (typeof window === 'undefined') {
@@ -40,9 +40,18 @@ export function discoveryRemainingLabel(event: Pick<PublicEventSummaryDTO, 'isFu
 }
 
 export function discoveryEmptyStateCopy(searchQuery: string) {
-	return searchQuery ? 'No events matched your search.' : 'No published events are discoverable yet.';
+	return discoveryEmptyBody(searchQuery);
 }
 
-export function discoveryErrorCopy(error: string) {
-	return `Could not load published events. ${error}`;
+export function discoveryEmptyTitle(searchQuery: string) {
+	return searchQuery.trim() ? 'No Events match that search yet' : 'No published Events yet';
+}
+
+export function discoveryEmptyBody(searchQuery: string) {
+	const query = searchQuery.trim();
+	return query ? `No published Events matched “${query}”. Try another search.` : 'Published Events will appear here when Hosts share them.';
+}
+
+export function discoveryErrorCopy(error?: string | null) {
+	return error ? `Could not load published Events: ${error}` : 'Could not load published Events.';
 }

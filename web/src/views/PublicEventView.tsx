@@ -2,6 +2,20 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { api, postJSON } from '../api';
 import type { EventRoleApplicationDTO, EventRoleDTO, PaidReservationDTO, PublicEventDTO, TicketReservationDTO } from '../domain';
+import {
+  publicCardClass,
+  publicEyebrowClass,
+  publicHeroCardClass,
+  publicMutedTextClass,
+  publicPageInnerClass,
+  publicPageShellClass,
+  publicPrimaryButtonClass,
+  publicSecondaryButtonClass,
+  publicStatusPillClass,
+} from '../modules/publicUi/publicUi';
+
+const publicInputClass =
+  'w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-[#171717] outline-none transition placeholder:text-neutral-400 focus:border-neutral-500 focus:ring-2 focus:ring-neutral-200 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500';
 
 function formatDateTime(value: string) {
   const date = new Date(value);
@@ -238,117 +252,85 @@ export function PublicEventView({ slug }: { slug: string }) {
   }
 
   return (
-    <main className="min-h-screen px-4 py-6 text-zinc-100 sm:px-6 lg:px-8">
-      <section className="mx-auto w-full max-w-4xl space-y-6">
-        <header className="relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6 shadow-2xl shadow-black/40 backdrop-blur">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(251,191,36,0.16),_transparent_38%),radial-gradient(circle_at_bottom_left,_rgba(217,70,239,0.14),_transparent_34%)]" />
-          <div className="relative">
-            <p className="text-xs uppercase tracking-[0.35em] text-fuchsia-300">{pricingLabel(event)}</p>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-amber-200">
-                No account needed
-              </span>
-              <a className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-white transition hover:bg-white/10" href="/discover">
+    <main className={publicPageShellClass}>
+      <section className={publicPageInnerClass}>
+        <header className={publicHeroCardClass}>
+          {event?.imageUrl ? <img className="h-72 w-full object-cover sm:h-96" src={event.imageUrl} alt="" /> : <div className="h-24 bg-neutral-200 sm:h-36" />}
+
+          <div className="p-5 sm:p-7">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={publicStatusPillClass()}>{pricingLabel(event)}</span>
+              <span className={publicStatusPillClass('success')}>No account needed</span>
+              <a className={publicStatusPillClass()} href="/discover">
                 Discover more events
               </a>
-              {event?.pricingMode === 'fixed' ? (
-                <span className="rounded-full border border-fuchsia-400/30 bg-fuchsia-500/10 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-fuchsia-100">
-                  Stripe Checkout
-                </span>
-              ) : null}
-              <span className={`rounded-full border px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] ${event?.isFull ? 'border-rose-400/30 bg-rose-500/10 text-rose-200' : 'border-emerald-400/30 bg-emerald-500/10 text-emerald-200'}`}>
-                {event?.isFull ? 'Sold out' : `${event?.remainingTickets ?? '—'} remaining`}
-              </span>
-              {event?.pricingMode === 'fixed' ? (
-                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-white">
-                  {formatCurrency(event.ticketPriceCents, event.ticketCurrency)}
-                </span>
-              ) : null}
+              {event?.pricingMode === 'fixed' ? <span className={publicStatusPillClass()}>Secure checkout</span> : null}
+              <span className={publicStatusPillClass(event?.isFull ? 'danger' : 'success')}>{event?.isFull ? 'Sold out' : `${event?.remainingTickets ?? '—'} remaining`}</span>
             </div>
 
-            <div className="mt-5 grid gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
+            <div className="mt-5 grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
               <div>
-                <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">{event?.title ?? (event?.pricingMode === 'fixed' ? 'Buy your ticket' : 'Reserve your free ticket')}</h1>
-                <p className="mt-3 max-w-2xl text-sm leading-7 text-zinc-300 sm:text-base">{heroSummary(event)}</p>
+                <p className={publicEyebrowClass}>{event ? pricingLabel(event) : 'Free guest reservation'}</p>
+                <h1 className="mt-3 text-4xl font-black tracking-tight text-[#171717] sm:text-5xl">{event?.title ?? 'Reserve your free ticket'}</h1>
+                <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">{heroSummary(event)}</p>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Date & time</p>
-                  <p className="mt-2 text-sm font-medium text-white">{event ? formatDateTime(event.startsAt) : 'Loading event…'}</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-3xl bg-[#f5f5f5] p-4">
+                  <p className={publicEyebrowClass}>Date & time</p>
+                  <p className="mt-2 text-sm font-bold text-[#171717]">{event ? formatDateTime(event.startsAt) : 'Loading event…'}</p>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Location</p>
-                  <p className="mt-2 text-sm font-medium text-white">{event?.locationDisplay ?? 'Loading location…'}</p>
+                <div className="rounded-3xl bg-[#f5f5f5] p-4">
+                  <p className={publicEyebrowClass}>Location</p>
+                  <p className="mt-2 text-sm font-bold text-[#171717]">{event?.locationDisplay ?? 'Loading location…'}</p>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Tickets</p>
-                  <p className={`mt-2 text-sm font-medium ${event?.isFull ? 'text-rose-200' : 'text-white'}`}>
-                    {event ? (event.isFull ? 'Sold out' : `${event.remainingTickets} left`) : 'Loading availability…'}
-                  </p>
+                <div className="rounded-3xl bg-[#f5f5f5] p-4">
+                  <p className={publicEyebrowClass}>Tickets</p>
+                  <p className={`mt-2 text-sm font-bold ${event?.isFull ? 'text-rose-700' : 'text-[#171717]'}`}>{event ? (event.isFull ? 'Sold out' : `${event.remainingTickets} left`) : 'Loading availability…'}</p>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Pricing</p>
-                  <p className="mt-2 text-sm font-medium text-white">{event ? pricingLabel(event) : 'Loading pricing…'}</p>
+                <div className="rounded-3xl bg-[#f5f5f5] p-4">
+                  <p className={publicEyebrowClass}>Pricing</p>
+                  <p className="mt-2 text-sm font-bold text-[#171717]">{event ? pricingLabel(event) : 'Loading pricing…'}</p>
                 </div>
               </div>
             </div>
           </div>
-
-          {event ? (
-            <div className="relative mt-6 grid gap-3 sm:grid-cols-4">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Status</p>
-                <p className="mt-2 text-sm font-medium text-white">{event.status}</p>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Remaining</p>
-                <p className={`mt-2 text-sm font-medium ${event.isFull ? 'text-rose-200' : 'text-white'}`}>{event.isFull ? 'Sold out' : event.remainingTickets}</p>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Location</p>
-                <p className="mt-2 text-sm font-medium text-white">{event.locationDisplay}</p>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Starts</p>
-                <p className="mt-2 text-sm font-medium text-white">{formatDateTime(event.startsAt)}</p>
-              </div>
-            </div>
-          ) : null}
         </header>
 
-        {loading ? <div className="rounded-[1.75rem] border border-white/10 bg-white/5 p-6 text-sm text-zinc-400">Loading…</div> : null}
+        {loading ? <div className={publicCardClass}>Loading event…</div> : null}
         {error ? (
-          <p aria-live="polite" className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+          <p aria-live="polite" className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
             {error}
           </p>
         ) : null}
 
+        {!loading && !event ? <div className={publicCardClass}>Could not load event. Try again from Discover.</div> : null}
+
         {event ? (
           <div className="space-y-6">
             <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-              <section className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
-                <p className="text-xs uppercase tracking-[0.3em] text-amber-300">About</p>
-                <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-zinc-300">{event.publicDescription}</p>
+              <section className={publicCardClass}>
+                <p className={publicEyebrowClass}>About</p>
+                <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-neutral-700">{event.publicDescription}</p>
               </section>
 
               {reservation ? (
-                <section className="rounded-[1.75rem] border border-emerald-500/20 bg-emerald-500/10 p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-emerald-200">Reservation confirmed</p>
-                  <h2 className="mt-3 text-xl font-semibold text-white">Your ticket is ready</h2>
+                <section className="rounded-[28px] border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+                  <p className={publicEyebrowClass}>Reservation confirmed</p>
+                  <h2 className="mt-3 text-2xl font-black text-[#171717]">Your ticket is ready</h2>
 
-                  <div className="mt-5 grid gap-3 text-sm text-zinc-200">
-                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Ticket holder</p>
-                      <p className="mt-2 font-medium text-white">{reservation.displayName ?? '—'}</p>
-                      <p className="mt-1 text-zinc-300">{reservation.email}</p>
+                  <div className="mt-5 grid gap-3 text-sm text-neutral-700">
+                    <div className="rounded-3xl bg-white p-4">
+                      <p className={publicEyebrowClass}>Ticket holder</p>
+                      <p className="mt-2 font-bold text-[#171717]">{reservation.displayName ?? '—'}</p>
+                      <p className="mt-1 text-neutral-600">{reservation.email}</p>
                     </div>
 
-                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Access code</p>
-                      <div className="mt-3 flex flex-wrap gap-2 text-sm font-semibold tracking-[0.35em] text-white">
+                    <div className="rounded-3xl bg-white p-4">
+                      <p className={publicEyebrowClass}>Access code</p>
+                      <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold tracking-[0.35em] text-[#171717]">
                         {chunkCode(reservation.code).map((part, index) => (
-                          <span key={`${part}-${index}`} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 font-mono">
+                          <span key={`${part}-${index}`} className="rounded-2xl border border-neutral-200 bg-[#f5f5f5] px-3 py-2 font-mono">
                             {part}
                           </span>
                         ))}
@@ -356,77 +338,56 @@ export function PublicEventView({ slug }: { slug: string }) {
                     </div>
                   </div>
 
-                  <a
-                    className="mt-5 inline-flex w-full items-center justify-center rounded-2xl bg-emerald-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-emerald-200"
-                    href={reservation.ticketUrl}
-                  >
+                  <a className={`${publicPrimaryButtonClass} mt-5 w-full`} href={reservation.ticketUrl}>
                     Open ticket
                   </a>
 
-                  <p className="mt-3 text-sm text-emerald-100/80">Ticket link recorded and sent by the dev outbox.</p>
+                  <p className="mt-3 text-sm text-emerald-800">Ticket link recorded and sent by the dev outbox.</p>
                 </section>
               ) : (
-                <form className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6" onSubmit={handleSubmit}>
-                  <p className="text-xs uppercase tracking-[0.3em] text-amber-300">{ctaLabel(event)}</p>
-                  <p className="mt-2 text-sm leading-6 text-zinc-400">
+                <form className={publicCardClass} onSubmit={handleSubmit}>
+                  <p className={publicEyebrowClass}>{ctaLabel(event)}</p>
+                  <p className={`mt-2 leading-6 ${publicMutedTextClass}`}>
                     {event?.pricingMode === 'fixed'
                       ? 'Email is required for the checkout session. Display name is optional.'
                       : 'Email is required so we can send the ticket. Display name is optional.'}
                   </p>
 
-                  <label className="mt-4 block space-y-2 text-sm">
-                    <span className="text-zinc-300">Email <span className="text-rose-300">required</span></span>
-                    <input
-                      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-white/8"
-                      type="email"
-                      autoComplete="email"
-                      required
-                      value={email}
-                      onChange={(event) => setEmail(event.target.value)}
-                      disabled={event.isFull || reserving}
-                    />
+                  <label className="mt-4 block space-y-2 text-sm font-semibold text-[#171717]">
+                    <span>
+                      Email <span className="text-rose-600">required</span>
+                    </span>
+                    <input className={publicInputClass} type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} disabled={event.isFull || reserving} />
                   </label>
 
-                  <label className="mt-4 block space-y-2 text-sm">
-                    <span className="text-zinc-300">Display name <span className="text-zinc-500">optional</span></span>
-                    <input
-                      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-white/8"
-                      type="text"
-                      autoComplete="name"
-                      value={displayName}
-                      onChange={(event) => setDisplayName(event.target.value)}
-                      placeholder="Optional"
-                      disabled={event.isFull || reserving}
-                    />
+                  <label className="mt-4 block space-y-2 text-sm font-semibold text-[#171717]">
+                    <span>
+                      Display name <span className="text-neutral-500">optional</span>
+                    </span>
+                    <input className={publicInputClass} type="text" autoComplete="name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Optional" disabled={event.isFull || reserving} />
                   </label>
 
-                  <button
-                    className="door-action mt-4 w-full rounded-2xl bg-amber-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-amber-300/60"
-                    type="submit"
-                    disabled={reserving || event.isFull}
-                  >
+                  <button className={`door-action mt-4 w-full ${publicPrimaryButtonClass}`} type="submit" disabled={reserving || event.isFull}>
                     {event.isFull ? 'Sold out' : reserving ? 'Reserving…' : ctaLabel(event)}
                   </button>
 
                   {event.isFull ? (
-                    <p className="mt-3 text-sm text-rose-200">This event is sold out. {event?.pricingMode === 'fixed' ? 'Paid checkout is closed.' : 'Reservations are closed.'}</p>
+                    <p className="mt-3 text-sm text-rose-700">This event is sold out. {event?.pricingMode === 'fixed' ? 'Paid checkout is closed.' : 'Reservations are closed.'}</p>
                   ) : (
-                    <p className="mt-3 text-sm text-zinc-400">No account needed — just your email.</p>
+                    <p className="mt-3 text-sm text-neutral-600">No account needed — just your email.</p>
                   )}
                 </form>
               )}
             </div>
 
-            <section className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
-              <p className="text-xs uppercase tracking-[0.3em] text-fuchsia-300">Apply to participate</p>
-              <p className="mt-2 text-sm leading-6 text-zinc-400">
-                Public roles are open for applications. Each role gets its own short form, and your ticket flow stays the same.
-              </p>
+            <section className={publicCardClass}>
+              <p className={publicEyebrowClass}>Apply to participate</p>
+              <p className={`mt-2 leading-6 ${publicMutedTextClass}`}>Public roles are open for applications. Each role gets its own short form, and your ticket flow stays the same.</p>
 
               {roles === null ? (
-                <p className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-400">Loading participation roles…</p>
+                <p className="mt-4 rounded-3xl bg-[#f5f5f5] px-4 py-3 text-sm text-neutral-600">Loading participation roles…</p>
               ) : roles.length === 0 ? (
-                <p className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-400">No public roles available right now.</p>
+                <p className="mt-4 rounded-3xl bg-[#f5f5f5] px-4 py-3 text-sm text-neutral-600">No public roles available right now.</p>
               ) : (
                 <div className="mt-4 grid gap-4 lg:grid-cols-2">
                   {roles.map((role) => {
@@ -435,26 +396,26 @@ export function PublicEventView({ slug }: { slug: string }) {
                     return (
                       <form
                         key={role.id}
-                        className="rounded-2xl border border-white/10 bg-black/20 p-4"
+                        className="rounded-3xl border border-neutral-200 bg-[#f5f5f5] p-4"
                         onSubmit={(formEvent) => {
                           void handleRoleSubmit(role, formEvent);
                         }}
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div>
-                            <h3 className="text-base font-semibold text-white">{role.name}</h3>
-                            <p className="mt-1 text-sm leading-6 text-zinc-300 whitespace-pre-wrap">{role.description || 'No description provided.'}</p>
+                            <h3 className="text-base font-black text-[#171717]">{role.name}</h3>
+                            <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-neutral-600">{role.description || 'No description provided.'}</p>
                           </div>
-                          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.25em] text-zinc-300">
-                            {role.capacity > 0 ? `${role.capacity} spots` : 'Open'}
-                          </span>
+                          <span className={publicStatusPillClass()}>{role.capacity > 0 ? `${role.capacity} spots` : 'Open'}</span>
                         </div>
 
                         <div className="mt-4 grid gap-3">
-                          <label className="block space-y-2 text-sm">
-                            <span className="text-zinc-300">Applicant name <span className="text-rose-300">required</span></span>
+                          <label className="block space-y-2 text-sm font-semibold text-[#171717]">
+                            <span>
+                              Applicant name <span className="text-rose-600">required</span>
+                            </span>
                             <input
-                              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-fuchsia-300/60 focus:bg-white/8"
+                              className={publicInputClass}
                               type="text"
                               autoComplete="name"
                               required
@@ -467,10 +428,12 @@ export function PublicEventView({ slug }: { slug: string }) {
                             />
                           </label>
 
-                          <label className="block space-y-2 text-sm">
-                            <span className="text-zinc-300">Applicant email <span className="text-rose-300">required</span></span>
+                          <label className="block space-y-2 text-sm font-semibold text-[#171717]">
+                            <span>
+                              Applicant email <span className="text-rose-600">required</span>
+                            </span>
                             <input
-                              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-fuchsia-300/60 focus:bg-white/8"
+                              className={publicInputClass}
                               type="email"
                               autoComplete="email"
                               required
@@ -483,10 +446,12 @@ export function PublicEventView({ slug }: { slug: string }) {
                             />
                           </label>
 
-                          <label className="block space-y-2 text-sm">
-                            <span className="text-zinc-300">Message <span className="text-zinc-500">optional</span></span>
+                          <label className="block space-y-2 text-sm font-semibold text-[#171717]">
+                            <span>
+                              Message <span className="text-neutral-500">optional</span>
+                            </span>
                             <textarea
-                              className="min-h-28 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-fuchsia-300/60 focus:bg-white/8"
+                              className={`${publicInputClass} min-h-28`}
                               value={draft.message}
                               onChange={(event) => {
                                 const value = event.target.value;
@@ -498,24 +463,16 @@ export function PublicEventView({ slug }: { slug: string }) {
                           </label>
                         </div>
 
-                        <div className="mt-4 flex items-center justify-between gap-3">
-                          <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">Max 2000 runes</p>
-                          <button
-                            className="rounded-2xl bg-fuchsia-300 px-4 py-3 text-sm font-medium text-zinc-950 transition hover:bg-fuchsia-200 disabled:cursor-not-allowed disabled:bg-fuchsia-300/60"
-                            type="submit"
-                            disabled={draft.submitting || draft.submitted}
-                          >
+                        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                          <p className="text-xs font-bold uppercase tracking-[0.25em] text-neutral-500">Max 2000 runes</p>
+                          <button className={publicSecondaryButtonClass} type="submit" disabled={draft.submitting || draft.submitted}>
                             {draft.submitted ? 'Submitted' : draft.submitting ? 'Submitting…' : 'Submit application'}
                           </button>
                         </div>
 
-                        {draft.error ? (
-                          <p className="mt-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{draft.error}</p>
-                        ) : null}
+                        {draft.error ? <p className="mt-3 rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{draft.error}</p> : null}
                         {draft.submitted ? (
-                          <p className="mt-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
-                            Application submitted for {role.name}. We received your interest and will follow up privately.
-                          </p>
+                          <p className="mt-3 rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">Application submitted for {role.name}. We received your interest and will follow up privately.</p>
                         ) : null}
                       </form>
                     );
