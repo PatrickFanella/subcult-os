@@ -1,5 +1,11 @@
 # Development execution log
 
+## 2026-09-20 — AUTH-RETURN same-origin navigation
+
+Issue #93 records a browser-confirmed URL-normalization gap: the previous `next` check allowed slash/backslash and slash/control/slash inputs that Chromium resolves off-site. The new pure return-path validator rejects those forms, checks the parsed origin, and rejects network-path results after dot-segment normalization. It preserves valid invitation/workspace paths and query/fragment data. No cookie disclosure is claimed; this addresses post-authentication off-site navigation.
+
+Seventeen hostile/valid-path cases pass. Actual browser sign-in with the malicious slash/backslash query remains on the local application origin and lands at the operator home. `make verify` passes (120 web and 27 mobile tests plus the full configured Go/build/contracts/Compose checks). This is a local fix; no production deployment occurred.
+
 ## 2026-09-20 — IDENT-02 web recovery and challenge qualification
 
 The real Chromium/Vite Strict Mode journey reproduced two verification POSTs on one page load: one 200 and one rejected 401 replay. Verification now requires an explicit form submission, with an immediate in-flight guard; mounting the page does not consume the challenge. Successful verification replaces the token URL. Recovery success clears its query token and password field and removes the completed form. Recovery inputs have accessible names and result/error messages expose status/alert semantics.

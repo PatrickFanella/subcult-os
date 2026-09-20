@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { postJSON } from '../api';
 import type { CurrentUserDTO, SignupResultDTO } from '../domain';
+import { safeReturnPath } from '../modules/auth/returnPath';
 
 type Mode = 'login' | 'signup';
 
@@ -18,12 +19,7 @@ function getNextPath() {
     return '/';
   }
 
-  const next = new URLSearchParams(window.location.search).get('next');
-  if (!next || next.trim().length === 0 || !next.startsWith('/') || next.startsWith('//')) {
-    return '/';
-  }
-
-  return next;
+  return safeReturnPath(new URLSearchParams(window.location.search).get('next'));
 }
 
 function authHref(mode: Mode) {
