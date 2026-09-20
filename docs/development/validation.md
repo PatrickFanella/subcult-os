@@ -1,5 +1,5 @@
 # Development documentation validation
-Date: 2026-09-20.
+Date: 2026-09-20. The initial checks below are historical; subsequent implementation and verification are recorded in [execution-log.md](execution-log.md). The Gitea roadmap and stacked PRs now track remaining delivery.
 
 ## Evidence and scope
 Repository paths, revisions, Make targets, package scripts, current DTO checker behavior and accepted domain/AT decisions were inspected directly. Current public-beta status was treated as dated documentation rather than a fresh runtime result.
@@ -17,4 +17,4 @@ Protocol overview, Lexicon guidance and OAuth specification were rechecked on th
 
 ## Artifact boundary
 The ZIP is a portable snapshot of this development directory plus the repository runbooks it links to. The repository's separate execution-order plan links to the directory; the full backlog, order, deployment safety rules and legacy-service cutover procedure remain available inside the snapshot without that external plan.
-No running app, browser journey, provider, migration, restore, hosted issue, deployment or production release was exercised. These remain future development/qualification tasks.
+The initial documentation pass did not exercise runtime behavior. Subsequent execution entries record disposable migration/restore tests, aggregate verification and a synthetic browser identity journey; Gitea roadmap publication is complete. Real AT provider interoperability, native-device qualification and production replacement remain unqualified. Never treat an earlier documentation-only statement as the current implementation status.

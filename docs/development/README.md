@@ -31,7 +31,7 @@ The execution-order plan also lives in the repository's existing docs/superpower
 
 ## Authority
 Accepted repository ADRs and current code take precedence over proposal prose. [ADR 0005](../adr/0005-subcult-os-platform-core.md) selects OS as the receiving repository, and [ADR 0006](../adr/0006-no-prototype-compatibility-contract.md) permits deliberate prototype-breaking redesign. This pack does not itself migrate or reset databases, replace authentication, copy Subcults source, publish Lexicons, enable providers or authorize deployment.
-The adjacent research/funding kits supply rationale, not production requirements. Existing Open Pilot issue and PR templates remain unchanged. No hosted issues have been created or queued.
+The adjacent research/funding kits supply rationale, not production requirements. Existing Open Pilot issue and PR templates remain unchanged. The [Gitea roadmap](https://git.subcult.tv/subculture-collective/subcult-os/issues/1) contains the complete ordered issue plan. Work proceeds in stacked PRs: each next branch starts from the preceding PR branch, targets it, and names its parent. Roadmap publication did not queue any items for automation.
 
 ## First implementation recommendation
 BASE-01, API-01, DB-01, INV-01 and IDENT-01 are complete at their documented evidence levels. AT-01 has a verified cross-language syntax foundation, encrypted persistence, public confidential-client documents, hardened discovery policy, HTTP start/callback boundary, and browser-qualified link/list/local-unlink UI. Live interoperability, remote provider revocation and Lexicon slices remain open. Add publication only after authority and failure behavior are approved; replace the legacy host only after every pre-cutover gate in the runbook passes.

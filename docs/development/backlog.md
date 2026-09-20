@@ -1,6 +1,6 @@
 # Development backlog
 
-Status: local work items for the Subcult OS platform core. No hosted issue has been created, queued or assigned. Sizes are rough engineering ranges, not commitments.
+Status: original engineering slices for the Subcult OS platform core. The [Gitea master roadmap](https://git.subcult.tv/subculture-collective/subcult-os/issues/1) now tracks 83 work items, including deferred and exploratory work, with native dependencies. No items were queued or assigned by roadmap publication. Sizes below are rough historical engineering ranges, not commitments.
 
 ## Dependency order
 
@@ -32,7 +32,7 @@ Review [decisions](decisions.md), [architecture](architecture.md), and the [extr
 - Repository: OS
 - Priority: P0
 - Depends on: BASE-01
-- Status: implemented and focused-test-verified; aggregate `make verify` remains blocked by mobile dependency build policy
+- Status: implemented; focused privacy tests and subsequent aggregate `make verify` passed. Earlier dependency-policy failures are historical evidence, not the current gate.
 - Size: implemented slice
 
 **Acceptance:** Explicit public allowlist; private workspace/attendance/staffing properties rejected; necessary public UI retained.
@@ -96,7 +96,7 @@ Review [decisions](decisions.md), [architecture](architecture.md), and the [extr
 - Repository: OS
 - Priority: P0
 - Depends on: DB-01, INV-01
-- Status: syntax and encrypted identity-only OAuth persistence implemented and verified; HTTP flow, resolver and Lexicon admission remain open
+- Status: syntax, encrypted identity-only persistence, confidential-client metadata/JWKS, hardened resolver, start/callback and link/list/local-unlink UI implemented. Remote revocation, real provider qualification and Lexicon admission remain open in Gitea #9, #10 and #11.
 - Size: active multi-slice item
 
 **Acceptance:** Pinned minimal Indigo surface; canonical syntax/DID/handle/URI/CID validation; reviewed Lexicon subset; identity-only OAuth link/unlink; no publication scope by default.
