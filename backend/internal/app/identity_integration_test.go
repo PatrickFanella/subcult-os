@@ -171,6 +171,35 @@ func TestIdentityDoesNotMergeMatchingEmailOrDID(t *testing.T) {
 	}
 }
 
+func TestIdentityATProtoStartBindsAuthenticatedPerson(t *testing.T) {
+	application := newIdentityTestApp(t)
+	session := signupAndVerifyIdentity(t, application, "atproto-link@example.test")
+	flow := &fakeATProtoLinkFlow{}
+	application.config.ATProtoOAuthEnabled = true
+	application.atprotoFlow = flow
+	application.atprotoFlowErr = nil
+
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/atproto/start", strings.NewReader(`{"identifier":"User.Example.COM"}`))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set(authTokenHeader, session.AccessToken)
+	result := authRequest(t, application, request, http.StatusOK)
+	if mustString(t, result.JSON, "authorizationUrl") != "https://auth.example/authorize" {
+		t.Fatalf("unexpected start response: %#v", result.JSON)
+	}
+	var wantPersonID string
+	if err := application.db.QueryRow(t.Context(), `select person_id from identity_sessions where access_token_hash = $1`, tokenHash(session.AccessToken)).Scan(&wantPersonID); err != nil {
+		t.Fatal(err)
+	}
+	if flow.startPersonID != wantPersonID || flow.startIdentifier != "user.example.com" {
+		t.Fatalf("flow start = person %q identifier %q, want %q and normalized handle", flow.startPersonID, flow.startIdentifier, wantPersonID)
+	}
+
+	badRequest := httptest.NewRequest(http.MethodPost, "/api/v1/auth/atproto/start", strings.NewReader(`{"identifier":"@not-valid"}`))
+	badRequest.Header.Set("Content-Type", "application/json")
+	badRequest.Header.Set(authTokenHeader, session.AccessToken)
+	authRequest(t, application, badRequest, http.StatusBadRequest)
+}
+
 func newIdentityTestApp(t *testing.T) *App {
 	t.Helper()
 	pool := newMigrationTestPool(t)

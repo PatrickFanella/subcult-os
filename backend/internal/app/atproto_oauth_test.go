@@ -2,9 +2,12 @@ package app
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -110,6 +113,52 @@ func TestLoadConfigRejectsInvalidOAuthEnabledBoolean(t *testing.T) {
 	}
 }
 
+func TestATProtoStartRequiresLocalAuthentication(t *testing.T) {
+	settings := testAppOAuthSettings(t)
+	application := New(oauthEnabledTestConfig(settings), nil)
+	application.atprotoFlow = &fakeATProtoLinkFlow{}
+	application.atprotoFlowErr = nil
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/atproto/start", strings.NewReader(`{"identifier":"user.example.com"}`))
+	request.Header.Set("Content-Type", "application/json")
+	application.Handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("start status = %d: %s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestATProtoCallbackUsesFixedSameOriginLanding(t *testing.T) {
+	settings := testAppOAuthSettings(t)
+	for _, test := range []struct {
+		name       string
+		flowErr    error
+		wantStatus string
+	}{
+		{name: "linked", wantStatus: "linked"},
+		{name: "cancelled", flowErr: atprotocol.ErrOAuthDenied, wantStatus: "cancelled"},
+		{name: "error", flowErr: errors.New("contains secret provider detail"), wantStatus: "error"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			application := New(oauthEnabledTestConfig(settings), nil)
+			application.atprotoFlow = &fakeATProtoLinkFlow{completeErr: test.flowErr}
+			application.atprotoFlowErr = nil
+			recorder := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodGet, "/api/v1/auth/atproto/callback?state=state-1&error_description=%3Cscript%3E", nil)
+			application.Handler().ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusSeeOther {
+				t.Fatalf("callback status = %d", recorder.Code)
+			}
+			want := "https://subcults.subcult.tv/workspace?atproto=" + test.wantStatus
+			if got := recorder.Header().Get("Location"); got != want {
+				t.Fatalf("callback location = %q, want %q", got, want)
+			}
+			if strings.Contains(recorder.Header().Get("Location"), "script") || strings.Contains(recorder.Body.String(), "provider detail") {
+				t.Fatal("callback exposed untrusted or provider error detail")
+			}
+		})
+	}
+}
+
 func testAppOAuthSettings(t *testing.T) atprotocol.OAuthClientSettings {
 	t.Helper()
 	privateKey, err := atprotocol.GenerateOAuthClientPrivateKey()
@@ -123,6 +172,35 @@ func testAppOAuthSettings(t *testing.T) atprotocol.OAuthClientSettings {
 		PrivateKey:  privateKey,
 		KeyID:       "subcults-1",
 	}
+}
+
+func oauthEnabledTestConfig(settings atprotocol.OAuthClientSettings) Config {
+	return Config{
+		AppEnv:               "test",
+		PublicWebURL:         "https://subcults.subcult.tv",
+		ATProtoOAuthEnabled:  true,
+		ATProtoOAuthClientID: settings.ClientID,
+		ATProtoOAuthCallback: settings.CallbackURL,
+		ATProtoOAuthJWKSURL:  settings.JWKSURL,
+		ATProtoOAuthKey:      settings.PrivateKey,
+		ATProtoOAuthKeyID:    settings.KeyID,
+	}
+}
+
+type fakeATProtoLinkFlow struct {
+	completeErr     error
+	startPersonID   string
+	startIdentifier string
+}
+
+func (f *fakeATProtoLinkFlow) StartLink(_ context.Context, personID, identifier string) (string, error) {
+	f.startPersonID = personID
+	f.startIdentifier = identifier
+	return "https://auth.example/authorize", nil
+}
+
+func (f *fakeATProtoLinkFlow) CompleteLink(context.Context, url.Values) (atprotocol.OAuthLinkResult, error) {
+	return atprotocol.OAuthLinkResult{DID: "did:plc:vwzwgnygau7ed7b7wt5ux7y2"}, f.completeErr
 }
 
 func getOAuthDocument(t *testing.T, application *App, path string) []byte {

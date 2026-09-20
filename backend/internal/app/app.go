@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"net/url"
@@ -23,19 +24,21 @@ func Greeting(name string) string {
 }
 
 type App struct {
-	config        Config
-	db            *pgxpool.Pool
-	payments      paymentProvider
-	media         mediaStorage
-	mediaErr      error
-	discovery     discoveryPolicy
-	identity      *identityProtector
-	identityErr   error
-	atprotoOAuth  *atprotocol.OAuthClient
-	atprotoErr    error
-	mux           *http.ServeMux
-	loginMu       sync.Mutex
-	loginAttempts map[string]loginAttempt
+	config         Config
+	db             *pgxpool.Pool
+	payments       paymentProvider
+	media          mediaStorage
+	mediaErr       error
+	discovery      discoveryPolicy
+	identity       *identityProtector
+	identityErr    error
+	atprotoOAuth   *atprotocol.OAuthClient
+	atprotoErr     error
+	atprotoFlow    atprotoLinkFlow
+	atprotoFlowErr error
+	mux            *http.ServeMux
+	loginMu        sync.Mutex
+	loginAttempts  map[string]loginAttempt
 }
 
 func New(config Config, db *pgxpool.Pool) *App {
@@ -46,7 +49,21 @@ func New(config Config, db *pgxpool.Pool) *App {
 	if config.ATProtoOAuthEnabled {
 		atprotoOAuth, atprotoErr = atprotocol.NewOAuthClient(config.atprotoOAuthSettings())
 	}
-	a := &App{config: config, db: db, payments: newStripePaymentProvider(config.StripeSecretKey), media: media, mediaErr: mediaErr, discovery: newDiscoveryPolicy(), identity: identity, identityErr: identityErr, atprotoOAuth: atprotoOAuth, atprotoErr: atprotoErr, mux: http.NewServeMux(), loginAttempts: map[string]loginAttempt{}}
+	var atprotoFlow atprotoLinkFlow
+	var atprotoFlowErr error
+	if config.ATProtoOAuthEnabled && atprotoErr == nil {
+		if db == nil {
+			atprotoFlowErr = errors.New("AT OAuth flow requires a database")
+		} else {
+			store, err := atprotocol.NewOAuthStore(db, config.IdentityProtectionKey, config.SessionSecret)
+			if err != nil {
+				atprotoFlowErr = err
+			} else {
+				atprotoFlow, atprotoFlowErr = atprotoOAuth.NewOAuthFlow(store)
+			}
+		}
+	}
+	a := &App{config: config, db: db, payments: newStripePaymentProvider(config.StripeSecretKey), media: media, mediaErr: mediaErr, discovery: newDiscoveryPolicy(), identity: identity, identityErr: identityErr, atprotoOAuth: atprotoOAuth, atprotoErr: atprotoErr, atprotoFlow: atprotoFlow, atprotoFlowErr: atprotoFlowErr, mux: http.NewServeMux(), loginAttempts: map[string]loginAttempt{}}
 	a.routes()
 	return a
 }
@@ -81,6 +98,8 @@ func (a *App) routes() {
 	a.mux.HandleFunc("GET /api/dev/email-outbox", a.handleDevEmailOutbox)
 	a.mux.HandleFunc("GET /api/v1/auth/atproto/client-metadata", a.handleATProtoClientMetadata)
 	a.mux.HandleFunc("GET /api/v1/auth/atproto/jwks", a.handleATProtoJWKS)
+	a.mux.HandleFunc("POST /api/v1/auth/atproto/start", a.handleATProtoStart)
+	a.mux.HandleFunc("GET /api/v1/auth/atproto/callback", a.handleATProtoCallback)
 	a.mux.HandleFunc("POST /api/workspaces", a.handleCreateWorkspace)
 	a.mux.HandleFunc("GET /api/workspaces/current", a.handleCurrentWorkspace)
 	a.mux.HandleFunc("GET /api/workspaces/{workspaceID}", a.handleGetWorkspace)

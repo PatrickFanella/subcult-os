@@ -1,6 +1,6 @@
 # AT Protocol kernel
 
-Status: syntax foundation, encrypted identity-only OAuth persistence, and configurable confidential-client metadata/JWKS endpoints implemented on 2026-09-20; authorization/callback flows, Lexicon admission, DID resolution and publication are not implemented.
+Status: syntax foundation, encrypted identity-only OAuth persistence, configurable confidential-client documents, and authenticated start/one-time callback routes implemented on 2026-09-20; live interoperability, link/unlink UI, Lexicon admission and publication are not qualified or implemented.
 
 ## Dependency boundary
 
@@ -29,15 +29,14 @@ The product owner selected `https://subcults.subcult.tv` as the production web o
 - callback: `https://subcults.subcult.tv/api/v1/auth/atproto/callback`
 - public JWKS: `https://subcults.subcult.tv/api/v1/auth/atproto/jwks`
 
-The replacement is a confidential web client using `private_key_jwt`, ES256 and a P-256 signing key supplied only through the deployment secret store. Its metadata requests only `atproto`; the broader repository scopes advertised by the legacy service are deliberately not inherited. `GET` metadata and JWKS endpoints exist behind `ATPROTO_OAUTH_ENABLED`, but that flag must remain false until start/callback behavior is implemented and qualified. The callback URL is reserved, not yet served.
+The replacement is a confidential web client using `private_key_jwt`, ES256 and a P-256 signing key supplied only through the deployment secret store. Its metadata requests only `atproto`; the broader repository scopes advertised by the legacy service are deliberately not inherited. `GET` metadata/JWKS, authenticated `POST` start, and public state-bound `GET` callback endpoints exist behind `ATPROTO_OAUTH_ENABLED`. That flag remains false by default until link UI and bounded live interoperability are qualified.
 
 Before the OAuth flow is enabled, complete and document:
 
 1. signing-key import/rotation and rollback behavior for the existing `subcults-1` key ID;
-2. resolver network policy, including DNS rebinding and private-network denial;
-3. explicit link/unlink UX and the rule that a DID link grants no workspace or publication authority;
-4. a bounded live interoperability test covering PAR, callback, refresh and revocation without repository scopes;
-5. whether existing legacy grants can be revoked or should simply require fresh authorization after cutover.
+2. explicit link/unlink UX and the rule that a DID link grants no workspace or publication authority;
+3. a bounded live interoperability test covering PAR, callback, refresh and revocation without repository scopes;
+4. whether existing legacy grants can be revoked or should simply require fresh authorization after cutover.
 
 Use the pinned Indigo OAuth package only after reviewing its exact API and transitive surface. Do not copy the old Subcults OAuth service while its license/provenance gate remains unresolved.
 
@@ -58,7 +57,9 @@ Migration 4 and `backend/internal/atproto.OAuthStore` now implement that local p
 
 Importing the pinned Indigo OAuth package to satisfy its store interface adds its current JWT, identity, CID/multibase and Prometheus-related transitive modules to the backend build. This is the reviewed cost of compiling against the actual unstable interface rather than maintaining a lookalike local contract.
 
-The application can now publish the selected client metadata and public JWKS without exposing the private key. Configuration validation requires all three endpoints to share the HTTPS web origin and rejects invalid booleans, missing keys and incompatible signing curves. Production flow work is no longer blocked on URL or client-type selection, but start/callback handling, outbound resolver policy and live interoperability remain open.
+The application can publish the selected client metadata and public JWKS without exposing the private key. Configuration validation requires all three endpoints to share the HTTPS web origin and rejects invalid booleans, missing keys and incompatible signing curves. The start route accepts only a syntactically valid handle or DID from an authenticated local person, binds that person into encrypted request state, and returns a validated HTTPS authorization URL. The callback atomically claims state, delegates PAR/PKCE/DPoP/token and subject checks to pinned Indigo, persists only exact `atproto` sessions, and redirects to a fixed same-origin result without reflecting provider error text.
+
+Outbound OAuth, handle and DID discovery uses public-IP-only dial controls with environment proxy use and HTTP redirects disabled. This closes the proxy bypass and redirect rebinding gaps left open by the SDK defaults. The adapter fails closed if a future pinned Indigo release changes the default identity-directory shape so the hardening can no longer be applied. Live interoperability remains open; these local tests do not prove that a real PDS accepts the client.
 
 ## Lexicon boundary
 
@@ -69,7 +70,8 @@ No `tv.subcult.*` Lexicon has been admitted or published. The old schemas remain
 ```bash
 cd backend && go test ./internal/atproto -count=1
 cd backend && TEST_DATABASE_URL=postgres://... go test ./internal/atproto -run TestOAuthStore -count=1
+cd backend && TEST_DATABASE_URL=postgres://... go test ./internal/app -run TestIdentityATProtoStart -count=1
 cd web && pnpm run test -- atprotoSyntaxConformance
 ```
 
-These checks prove local cross-language syntax agreement for the checked-in corpus and, with PostgreSQL configured, the encrypted store's expiry, replay, scope, rotation, audit and non-merging invariants. They do not prove handle resolution, live OAuth interoperability, a PDS write, Lexicon compatibility or publication authority.
+These checks prove local cross-language syntax agreement, authenticated person binding, hardened redirect policy and, with PostgreSQL configured, the encrypted store's expiry, replay, scope, rotation, audit and non-merging invariants. They do not prove live handle/DID resolution, OAuth interoperability, a PDS write, Lexicon compatibility or publication authority.
