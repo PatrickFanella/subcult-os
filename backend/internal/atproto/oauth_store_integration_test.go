@@ -148,6 +148,9 @@ func TestOAuthStoreClaimsEncryptsLinksAndRotates(t *testing.T) {
 	if err := store.SaveSession(t.Context(), session); err == nil || !strings.Contains(err.Error(), "not active") {
 		t.Fatalf("SaveSession() for revoked link error = %v", err)
 	}
+	if _, err := store.GetSession(t.Context(), did, request.State); !errors.Is(err, atprotocol.ErrOAuthSessionNotFound) {
+		t.Fatalf("revoked-link GetSession() error = %v", err)
+	}
 	if err := store.DeleteSession(t.Context(), did, request.State); err != nil {
 		t.Fatal(err)
 	}
