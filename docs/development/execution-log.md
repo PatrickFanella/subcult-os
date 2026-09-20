@@ -1,5 +1,13 @@
 # Development execution log
 
+## 2026-09-20 — Five-issue delivery batch after merge checkpoint
+
+The owner approved batches of five to ten issues, followed by combined verification and merging before further feature work. Baseline: `966a111` on main, verified by hosted runs 8929/8930 and local database/race tests. Current batch: #101 reservation inventory, #102 protected-session expiry, #103 Resend adapter, #104 durable delivery, #105 signed delivery feedback/suppression. Each receives a stacked PR. Parent roadmap issues remain open where live-provider, device or deployment acceptance is still missing.
+
+### #101 — Reservation inventory
+
+Free RSVP now reloads authoritative event inventory instead of leaving pre-reservation counts or decrementing locally. A failed refresh preserves the issued ticket and labels availability unknown. Unit checks cover confirmed, failed-refresh and rejected-reservation cases. `make verify` passed (123 web and 27 mobile tests). A real Chromium browser against the disposable PostgreSQL/API/Vite runtime reserved the last ticket: both availability indicators changed to sold out while the confirmation and ticket link remained visible. This was synthetic local data, not delivery or production qualification.
+
 ## 2026-09-20 — ARCH-01 protocol failure isolation
 
 Reused the complete local-event lifecycle assertion for a second scenario with an enabled AT link flow that returns a synthetic provider error. The AT request returns 502, then local create/publish/free-reserve/duplicate-check-in/closeout succeeds with one settlement/archive. The provider is called exactly once and no DID link is created. Focused and complete database gates plus `make verify` pass. This tests the existing application seam, not a live network partition or offline mobile mode.
