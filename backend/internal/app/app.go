@@ -238,7 +238,14 @@ func (a *App) requestLogger(next http.Handler) http.Handler {
 		started := time.Now()
 		recorder := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(recorder, r)
-		log.Printf("method=%s path=%s status=%d duration=%s", r.Method, r.URL.Path, recorder.status, time.Since(started).Round(time.Millisecond))
+		// Paths include bearer ticket/invitation values and linked DIDs. Log
+		// only the server-owned route template, never user-supplied URLs. A
+		// denied or unmatched request may not have reached the mux at all.
+		route := r.Pattern
+		if route == "" {
+			route = "unmatched"
+		}
+		log.Printf("method=%s route=%q status=%d duration=%s", r.Method, route, recorder.status, time.Since(started).Round(time.Millisecond))
 	})
 }
 

@@ -1,5 +1,9 @@
 # Development execution log
 
+## 2026-09-20 — Request log privacy follow-up
+
+Issue #89 records a concrete leak observed during lifecycle testing: the shared request logger wrote invitation/ticket values and linked DIDs from raw URL paths. It now writes only server-owned route templates, method, status and duration; unmatched, method-mismatch and pre-routing-denied requests use a constant marker. Query strings and path values are never a fallback. Focused race tests capture actual log output across those cases, and `make verify` passes. This changes future application logs only; production rollout and historic log retention are separate work.
+
 ## 2026-09-20 — AT-REVOKE worker and provider adapter
 
 Added bounded leased processing, acknowledgement fencing, exponential retries, terminal quarantine and credential erasure. The SDK-backed adapter revokes access and refresh tokens with confidential-client assertions and DPoP nonce handling through the hardened public-only transport. Raw provider errors never enter the queue or command output. An opt-in worker command supports status, one-shot and watch modes using the same API image/database; disabling new OAuth links does not prevent draining existing work.
