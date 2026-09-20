@@ -33,6 +33,7 @@ var (
 	ErrOAuthRequestNotFound = errors.New("AT OAuth request is missing, expired, or already claimed")
 	ErrOAuthSessionNotFound = errors.New("AT OAuth session not found")
 	ErrOAuthScopeRejected   = errors.New("AT OAuth session has non-identity scope")
+	ErrOAuthLinkRevoked     = errors.New("AT OAuth DID link is not active")
 )
 
 type oauthLinkPersonContextKey struct{}
@@ -178,6 +179,9 @@ func (s *OAuthStore) SaveSession(ctx context.Context, session atprotocoloauth.Cl
 		return fmt.Errorf("begin AT OAuth session save: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+	if err := lockOAuthDID(ctx, tx, session.AccountDID.String()); err != nil {
+		return err
+	}
 
 	var personID string
 	existingSession := true
@@ -188,6 +192,25 @@ func (s *OAuthStore) SaveSession(ctx context.Context, session atprotocoloauth.Cl
 	`, session.AccountDID.String(), session.SessionID).Scan(&personID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		existingSession = false
+		// A refresh may finish after unlink removed the active session. Retain
+		// the rotated credentials for revocation without resurrecting access.
+		// Clearing the lease fences acknowledgements of the older payload.
+		result, queueErr := tx.Exec(ctx, `
+			update atproto_oauth_revocations
+			set payload_ciphertext = $3, status = 'pending', attempts = 0,
+			    next_attempt_at = $4, updated_at = $4,
+			    lease_until = null, lease_token = null, last_error_code = null
+			where did = $1 and session_id = $2 and expires_at > $4
+		`, session.AccountDID.String(), session.SessionID, payload, s.now())
+		if queueErr != nil {
+			return fmt.Errorf("retain late AT OAuth rotation: %w", queueErr)
+		}
+		if result.RowsAffected() == 1 {
+			if err := tx.Commit(ctx); err != nil {
+				return fmt.Errorf("commit late AT OAuth rotation: %w", err)
+			}
+			return ErrOAuthLinkRevoked
+		}
 		err = tx.QueryRow(ctx, `
 			select person_id
 			from atproto_oauth_requests
@@ -211,7 +234,7 @@ func (s *OAuthStore) SaveSession(ctx context.Context, session atprotocoloauth.Cl
 			return fmt.Errorf("verify AT OAuth DID link: %w", err)
 		}
 		if !active {
-			return errors.New("AT OAuth DID link is not active")
+			return ErrOAuthLinkRevoked
 		}
 	} else {
 		result, err := tx.Exec(ctx, `
@@ -260,9 +283,10 @@ func (s *OAuthStore) SaveSession(ctx context.Context, session atprotocoloauth.Cl
 func (s *OAuthStore) GetSession(ctx context.Context, did syntax.DID, sessionID string) (*atprotocoloauth.ClientSessionData, error) {
 	var payload []byte
 	err := s.db.QueryRow(ctx, `
-		select payload_ciphertext
-		from atproto_oauth_sessions
-		where did = $1 and session_id = $2
+		select s.payload_ciphertext
+		from atproto_oauth_sessions s
+		join did_links l on l.did = s.did and l.person_id = s.person_id
+		where s.did = $1 and s.session_id = $2 and l.status = 'active'
 	`, did.String(), sessionID).Scan(&payload)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrOAuthSessionNotFound
@@ -314,9 +338,8 @@ func (s *OAuthStore) ListActiveLinks(ctx context.Context, personID string) ([]OA
 	return links, nil
 }
 
-// RevokeLocalLink immediately removes locally stored OAuth sessions and marks
-// the DID unusable by this account. Remote token revocation is a separate
-// best-effort network operation and must not be confused with this local gate.
+// RevokeLocalLink atomically disables local access and transfers encrypted
+// credentials into a durable revocation outbox. Network work happens later.
 func (s *OAuthStore) RevokeLocalLink(ctx context.Context, personID, rawDID string) error {
 	did, err := syntax.ParseDID(strings.TrimSpace(rawDID))
 	if err != nil {
@@ -327,6 +350,9 @@ func (s *OAuthStore) RevokeLocalLink(ctx context.Context, personID, rawDID strin
 		return fmt.Errorf("begin AT OAuth unlink: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+	if err := lockOAuthDID(ctx, tx, did.String()); err != nil {
+		return err
+	}
 	result, err := tx.Exec(ctx, `
 		update did_links
 		set status = 'revoked', revoked_at = $3, updated_at = $3
@@ -337,6 +363,14 @@ func (s *OAuthStore) RevokeLocalLink(ctx context.Context, personID, rawDID strin
 	}
 	if result.RowsAffected() != 1 {
 		return ErrOAuthLinkNotFound
+	}
+	if _, err := tx.Exec(ctx, `
+		insert into atproto_oauth_revocations
+			(person_id, did, session_id, payload_ciphertext)
+		select person_id, did, session_id, payload_ciphertext
+		from atproto_oauth_sessions where person_id = $1 and did = $2
+	`, personID, did.String()); err != nil {
+		return fmt.Errorf("queue AT OAuth revocation: %w", err)
 	}
 	if _, err := tx.Exec(ctx, `
 		delete from atproto_oauth_sessions where person_id = $1 and did = $2
@@ -351,6 +385,15 @@ func (s *OAuthStore) RevokeLocalLink(ctx context.Context, personID, rawDID strin
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit AT OAuth unlink: %w", err)
+	}
+	return nil
+}
+
+// Serializes session persistence and unlink even when no session row exists.
+// Hash collisions only serialize unrelated DIDs; they cannot grant access.
+func lockOAuthDID(ctx context.Context, tx pgx.Tx, did string) error {
+	if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtextextended($1, 0))`, did); err != nil {
+		return fmt.Errorf("lock AT OAuth DID: %w", err)
 	}
 	return nil
 }
