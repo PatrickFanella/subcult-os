@@ -1,0 +1,9 @@
+# BEGIN blacktower clonedeps
+!.blacktower/
+!.blacktower/clonedeps.json
+!.blacktower/clonedeps/
+!.blacktower/clonedeps/repos/
+!.blacktower/clonedeps/repos/**
+.blacktower/clonedeps/repos/**/.git/
+.blacktower/clonedeps/repos/**/.git/**
+# END blacktower clonedeps

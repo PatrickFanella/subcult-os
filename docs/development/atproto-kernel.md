@@ -34,6 +34,21 @@ Before OAuth work continues, choose and document:
 
 Use the pinned Indigo OAuth package only after reviewing its exact API and transitive surface. Do not copy the old Subcults OAuth service while its license/provenance gate remains unresolved.
 
+### Pinned implementation review
+
+The source for the exact Indigo commit is registered as a read-only inspection dependency under `.blacktower/clonedeps/repos/bluesky-social__indigo/`. The 2026-09-20 review found that its client already implements PAR, PKCE, DPoP proof generation and nonce retries, callback `iss` checks, token `sub` checks, public-only HTTP transports and session refresh/revocation. Subcult OS should adapt those behaviors instead of reimplementing them.
+
+The application still owns security properties that Indigo intentionally delegates to its caller:
+
+- durable, concurrent `ClientAuthStore` persistence and expired-request collection;
+- encryption at rest for PKCE verifiers, DPoP private keys and access/refresh tokens;
+- one-time callback consumption and a local-person link intent that cannot merge accounts;
+- returned-scope policy and explicit local link status;
+- stricter redirect and outbound-resolution policy around metadata discovery;
+- atomic persistence when token or DPoP nonce rotation updates a session.
+
+No OAuth routes are enabled by this review. Production flow work remains blocked on public metadata/callback URLs and the public-versus-confidential client decision, but the local encrypted persistence layer can be built independently.
+
 ## Lexicon boundary
 
 No `tv.subcult.*` Lexicon has been admitted or published. The old schemas remain blocked by field review and the Subcults rights/license gate. `T-SYNTAX` is therefore implemented, while `T-LEX` remains open. When a minimal schema is independently authored and approved, validate the same JSON cases with Indigo's Lexicon package and the official TypeScript `@atproto/lex` package; reject unknown private-location and operational fields at the public projection boundary.
