@@ -1,5 +1,15 @@
 # Development execution log
 
+## 2026-09-20 — QUAL-BASE full database gate restored
+
+Resolved all seven isolated failures from #95. Two product defects were confirmed: malformed event IDs reached PostgreSQL UUID conversion and returned 500, and publication preserved the database slug but incorrectly returned/audited the ID-derived fallback. Both normal and locking event loaders now reject malformed UUIDs as not found before querying; publication uses `RETURNING public_slug` so storage, response and audit agree. Regression tests retain the seeded-slug scenario and explicitly compare all three values.
+
+The remaining setup corrections preserve behavior assertions: closed/private public applications are explicitly denied, then synthetic private rows perturb source state to prove archive immutability and roster filtering; paid-event privacy checks assert free-RSVP rejection and use a paid ticket fixture; member staffing authorization is checked through the supported PATCH method. Public-event privacy is observed before close and closed lookup must return 404. No public admission/payment policy was relaxed and no test was removed or skipped.
+
+The full app database suite passed twice in one process: 336 passing test/subtest events, zero failures/skips. The expanded `make test-db` then passed for the complete app and AT packages; it no longer hides lifecycle cases behind a name filter. `make verify` passed (120 web, 27 mobile, configured Go/vet/build/contracts/Compose). Original failed ledgers remain unchanged; successful local ledgers are `/tmp/subcult-lifecycle-contracts-full.jsonl` and `/tmp/subcult-test-db-expanded.log`.
+
+A separate actual Chromium rehearsal created a workspace and event, published, reserved a free ticket, opened ticket lookup, checked in through Door, and generated End of Night with reserved/check-in/no-show counts 1/1/0 and zero-dollar settlement. This rehearsal used the earlier running `07b83ea` API binary and current web sources (unchanged since `c7817d2`), not a rebuilt/deployed claim for these backend fixes. Broad API coverage qualifies additional workspace/privacy/staffing/template/role/reminder boundaries; physical-device and full browser coverage of those panels remain open under #5. The date field required DOM input-event entry because the preview typing helper misfocused the native date input; this is not native date-picker qualification.
+
 ## 2026-09-20 — Hosted CI toolchain setup
 
 Run 8907/job 16364 failed immediately at `make deps-web`: `pnpm: command not found`. The workflow previously assumed Go/pnpm existed in the shared runner image. It now provisions Node 24 (matching the frontend image major), pnpm 10.33.0 (the web package pin), and locally qualified Go 1.26.6, reports versions, and retains the unchanged `make verify` gate. Added actions use verified upstream commit pins; no runner or global host configuration changed. Dependency caching is disabled for Go until the Gitea cache path is independently qualified. A 20-minute job bound and explicit CI environment prevent unbounded setup and interactive dependency prompts.

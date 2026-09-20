@@ -44,8 +44,7 @@ test-db: ## Run DB-backed Go integration tests when TEST_DATABASE_URL is set
 		echo "TEST_DATABASE_URL is required for DB-backed tests"; \
 		exit 1; \
 	fi
-	cd backend && go test ./internal/app -run 'TestFirstEventLifecycleCurrentCreatePublishFreeDoorEndOfNightFlow|TestTicketReservationCurrentCapacityAndDoorRules|TestRunMigrations|TestIdentity|TestRotatedRefresh|TestSessionExpiry|TestPasswordRecovery|TestPrototypeSession' -count=1 -v
-	cd backend && go test ./internal/atproto -run 'TestOAuthStore' -count=1 -v
+	cd backend && go test ./internal/app ./internal/atproto -count=1 -v
 
 test-web: ## Run frontend tests
 	pnpm --dir web run test

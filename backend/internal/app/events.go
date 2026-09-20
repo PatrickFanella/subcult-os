@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type eventDTO struct {
@@ -704,14 +705,15 @@ func (a *App) handlePublishEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer func() { _ = tx.Rollback(r.Context()) }()
-	if _, err := tx.Exec(r.Context(), `
+	if err := tx.QueryRow(r.Context(), `
 		update events
 		set status = 'published',
 		    public_slug = coalesce(public_slug, $2),
 		    published_at = coalesce(published_at, now()),
 		    updated_at = now()
 		where id = $1
-	`, event.ID, slug); err != nil {
+		returning public_slug
+	`, event.ID, slug).Scan(&slug); err != nil {
 		writeError(w, http.StatusInternalServerError, "could not publish event")
 		return
 	}
@@ -1668,7 +1670,8 @@ func nullableString(value sql.NullString) *string {
 
 func (a *App) loadEventDetails(ctx context.Context, eventID string) (eventRow, error) {
 	var row eventRow
-	if eventID == "" {
+	var id pgtype.UUID
+	if eventID == "" || id.Scan(eventID) != nil {
 		return row, pgx.ErrNoRows
 	}
 	err := a.db.QueryRow(ctx, `
@@ -1695,7 +1698,8 @@ func (a *App) loadEventDetails(ctx context.Context, eventID string) (eventRow, e
 
 func (a *App) loadEventDetailsForUpdate(ctx context.Context, tx pgx.Tx, eventID string) (eventRow, error) {
 	var row eventRow
-	if eventID == "" {
+	var id pgtype.UUID
+	if eventID == "" || id.Scan(eventID) != nil {
 		return row, pgx.ErrNoRows
 	}
 	if err := tx.QueryRow(ctx, `

@@ -7,7 +7,7 @@ Commands below were inspected in repository Makefiles/package scripts on 2026-09
 | rtk proxy make verify | Repository install, format, lint, contract, unit, build, Compose/template gate | Installs dependencies; fmt can write Go files; excludes live DB/provider/browser qualification |
 | rtk proxy make check-contracts | Required property presence/optionality across TS clients | Not serialization, privacy or exact type conformance |
 | rtk proxy make test-backend | Non-DB Go suite | Explicitly clears TEST_DATABASE_URL |
-| rtk proxy make test-db | Selected DB-backed lifecycle/capacity/migration cases | Disposable TEST_DATABASE_URL required; not all future identity/protocol tests |
+| rtk proxy make test-db | Complete app and AT adapter packages with database-backed cases enabled | Disposable TEST_DATABASE_URL required; private fixture schemas; not live-provider/device evidence |
 | rtk proxy make test-web | Web Vitest | Installed pinned dependencies |
 | rtk proxy make test-mobile | Mobile module tests | Not device behavior |
 | rtk proxy make alpha-qa | API free-event lifecycle against running stack | Creates test records; use isolated authorized stack |

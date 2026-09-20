@@ -676,14 +676,10 @@ func TestArchiveSnapshotStaysImmutableAfterCreation(t *testing.T) {
 	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
 	archiveBefore := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/archive", http.StatusOK)
 
-	late := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": roleID, "applicantName": "Casey", "applicantEmail": "casey@example.com", "message": "Late addition."}, http.StatusOK)
-	if _, err := fx.app.db.Exec(t.Context(), `
-		update event_role_applications
-		set status = 'accepted', updated_at = now()
-		where id = $1
-	`, mustString(t, late.JSON, "id")); err != nil {
-		t.Fatal(err)
-	}
+	postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": roleID, "applicantName": "Casey", "applicantEmail": "casey@example.com"}, http.StatusNotFound)
+	// Directly perturb private source data to prove the archive is a snapshot,
+	// without incorrectly admitting a public application to a closed event.
+	insertRoleApplicationFixture(t, fx, eventID, roleID, "Casey", "casey@example.com", "accepted")
 
 	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
 	archiveAfter := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/archive", http.StatusOK)
@@ -1119,8 +1115,15 @@ func TestPrivateMemoryBoundaries(t *testing.T) {
 		"ownerPersonId": ownerID,
 	}, http.StatusOK)
 
-	ticket := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/reservations", map[string]any{"email": fx.email("guest"), "displayName": "Guest"}, http.StatusOK)
-	ticketCode := mustString(t, ticket.JSON, "code")
+	postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/reservations", map[string]any{"email": fx.email("guest"), "displayName": "Guest"}, http.StatusConflict)
+	// Payment fulfillment has its own provider-boundary tests. Seed a paid ticket
+	// here so privacy checks do not rely on bypassing checkout through free RSVP.
+	ticketID := insertTicketWithPaymentStatus(t, fx, eventID, fx.email("guest"), "Guest", "paid", 1800, "usd")
+	var ticketCode string
+	if err := fx.app.db.QueryRow(t.Context(), `select code from tickets where id = $1`, ticketID).Scan(&ticketCode); err != nil {
+		t.Fatal(err)
+	}
+	openPublicEvent := getJSON(t, fx.app, nil, "/api/public/events/"+slug, http.StatusOK).Body
 
 	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
 
@@ -1153,7 +1156,8 @@ func TestPrivateMemoryBoundaries(t *testing.T) {
 
 	publicResponses := map[string]string{
 		"public discovery": getJSON(t, fx.app, nil, "/api/public/events", http.StatusOK).Body,
-		"public event":     getJSON(t, fx.app, nil, "/api/public/events/"+slug, http.StatusOK).Body,
+		"public event":     openPublicEvent,
+		"closed event":     getJSON(t, fx.app, nil, "/api/public/events/"+slug, http.StatusNotFound).Body,
 		"ticket lookup":    getJSON(t, fx.app, nil, "/api/tickets/"+ticketCode, http.StatusOK).Body,
 		"report":           getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/report", http.StatusOK).Body,
 		"settlement":       getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/settlement", http.StatusOK).Body,
@@ -1812,7 +1816,7 @@ func TestEventStaffingUpdateAPI(t *testing.T) {
 		}
 	}
 
-	postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/staffing/"+taskID, map[string]any{"title": "Member update"}, http.StatusForbidden)
+	patchJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/staffing/"+taskID, map[string]any{"title": "Member update"}, http.StatusForbidden)
 
 	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
 	patchJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/staffing/"+taskID, map[string]any{"title": "Closed update"}, http.StatusConflict)
@@ -2039,14 +2043,8 @@ func TestLegacyReportCreatesArchiveOnceAndKeepsSnapshotImmutable(t *testing.T) {
 		t.Fatalf("expected two archived participants from legacy report retry, got %#v", archiveBefore.JSON)
 	}
 
-	late := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": roleID, "applicantName": "Casey", "applicantEmail": "casey@example.com", "message": "Late addition."}, http.StatusOK)
-	if _, err := fx.app.db.Exec(t.Context(), `
-		update event_role_applications
-		set status = 'accepted', updated_at = now()
-		where id = $1
-	`, mustString(t, late.JSON, "id")); err != nil {
-		t.Fatal(err)
-	}
+	postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": roleID, "applicantName": "Casey", "applicantEmail": "casey@example.com"}, http.StatusNotFound)
+	insertRoleApplicationFixture(t, fx, eventID, roleID, "Casey", "casey@example.com", "accepted")
 
 	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
 	archiveAfter := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/archive", http.StatusOK)
@@ -2113,6 +2111,16 @@ func TestEventRoleDefinitionsAPI(t *testing.T) {
 	published := publishEvent(t, fx, eventID)
 	if mustString(t, published, "publicSlug") != roleSlug {
 		t.Fatalf("expected publish to preserve manual slug, got %#v", published)
+	}
+	var storedSlug, auditedSlug string
+	if err := fx.app.db.QueryRow(t.Context(), `select public_slug from events where id=$1`, eventID).Scan(&storedSlug); err != nil {
+		t.Fatal(err)
+	}
+	if err := fx.app.db.QueryRow(t.Context(), `select metadata->>'publicSlug' from audit_entries where action='event.published' and subject_id=$1`, eventID).Scan(&auditedSlug); err != nil {
+		t.Fatal(err)
+	}
+	if storedSlug != roleSlug || auditedSlug != roleSlug {
+		t.Fatalf("publication response, database and audit must agree: stored=%q audited=%q", storedSlug, auditedSlug)
 	}
 
 	publicRoles := getJSON(t, fx.app, nil, "/api/public/events/"+roleSlug+"/roles", http.StatusOK)
@@ -2587,15 +2595,8 @@ func TestEventParticipantRosterAPI(t *testing.T) {
 		{name: "Blair", email: "blair@example.com", status: "confirmed"},
 	}
 	for _, draft := range backstageApplications {
-		created := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": backstageRoleID, "applicantName": draft.name, "applicantEmail": draft.email, "message": draft.name + " message"}, http.StatusOK)
-		applicationID := mustString(t, created.JSON, "id")
-		if _, err := fx.app.db.Exec(t.Context(), `
-			update event_role_applications
-			set status = $2, updated_at = now()
-			where id = $1
-		`, applicationID, draft.status); err != nil {
-			t.Fatal(err)
-		}
+		postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": backstageRoleID, "applicantName": draft.name, "applicantEmail": draft.email}, http.StatusNotFound)
+		insertRoleApplicationFixture(t, fx, eventID, backstageRoleID, draft.name, draft.email, draft.status)
 	}
 	performerParticipant := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": performerRoleID, "applicantName": "Casey", "applicantEmail": "casey@example.com", "message": "Casey message"}, http.StatusOK)
 	if _, err := fx.app.db.Exec(t.Context(), `
@@ -2615,14 +2616,8 @@ func TestEventParticipantRosterAPI(t *testing.T) {
 		{name: "Evan", email: "evan@example.com", status: "waitlisted"},
 	}
 	for _, draft := range otherStatusApplications {
-		created := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": supportRoleID, "applicantName": draft.name, "applicantEmail": draft.email, "message": draft.name + " message"}, http.StatusOK)
-		if _, err := fx.app.db.Exec(t.Context(), `
-			update event_role_applications
-			set status = $2, updated_at = now()
-			where id = $1
-		`, mustString(t, created.JSON, "id"), draft.status); err != nil {
-			t.Fatal(err)
-		}
+		postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/role-applications", map[string]any{"roleId": supportRoleID, "applicantName": draft.name, "applicantEmail": draft.email}, http.StatusNotFound)
+		insertRoleApplicationFixture(t, fx, eventID, supportRoleID, draft.name, draft.email, draft.status)
 	}
 
 	participantList := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/participants", http.StatusOK)
@@ -3776,6 +3771,16 @@ func insertPendingStripeTicket(t *testing.T, fx lifecycleFixture, eventID, email
 		t.Fatal(err)
 	}
 	return ticketID, sessionID
+}
+
+func insertRoleApplicationFixture(t *testing.T, fx lifecycleFixture, eventID, roleID, name, email, status string) {
+	t.Helper()
+	if _, err := fx.app.db.Exec(t.Context(), `
+		insert into event_role_applications (event_id, role_id, applicant_name, applicant_email, message, status)
+		values ($1, $2, $3, $4, $5, $6)
+	`, eventID, roleID, name, email, name+" private message", status); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func insertTicketWithPaymentStatus(t *testing.T, fx lifecycleFixture, eventID, email, displayName, paymentStatus string, amountCents int, currency string) string {
