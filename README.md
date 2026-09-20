@@ -1,5 +1,11 @@
 # subcult-os
 
+Gitea verification installs Node 24, pnpm 10.33.0 and Go 1.26.6 inside each job.
+The shared runner must provide Docker Compose for configuration validation; CI
+does not start or deploy the application. Local `make verify` and hosted CI are
+separate evidence, and the complete database qualification remains tracked in
+[issue #95](https://git.subcult.tv/subculture-collective/subcult-os/issues/95).
+
 Full-stack SUBCULT OS project with a Go backend, Vite React TypeScript Tailwind public web frontend, Expo React Native mobile app, Postgres, Docker Compose, and Open Pilot conventions.
 
 Bootstrapped from `subculture-collective/project-template`.

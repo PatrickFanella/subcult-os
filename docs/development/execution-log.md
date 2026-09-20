@@ -1,5 +1,11 @@
 # Development execution log
 
+## 2026-09-20 — Hosted CI toolchain setup
+
+Run 8907/job 16364 failed immediately at `make deps-web`: `pnpm: command not found`. The workflow previously assumed Go/pnpm existed in the shared runner image. It now provisions Node 24 (matching the frontend image major), pnpm 10.33.0 (the web package pin), and locally qualified Go 1.26.6, reports versions, and retains the unchanged `make verify` gate. Added actions use verified upstream commit pins; no runner or global host configuration changed. Dependency caching is disabled for Go until the Gitea cache path is independently qualified. A 20-minute job bound and explicit CI environment prevent unbounded setup and interactive dependency prompts.
+
+Local `make verify` and actionlint pass. Actionlint initially hit an unset mise shim; explicitly selecting its installed Go 1.25.13 tool environment passed without changing global defaults. Hosted execution must be read back after publication; this entry does not claim hosted success or full database qualification.
+
 ## 2026-09-20 — QUAL-BASE test isolation and retained failures
 
 The broad app database run at `c7817d2` produced 151 passing / 11 failing test events. Unlike the identity tests, lifecycle fixtures shared the public schema and persisted data across runs. Each lifecycle fixture now owns a disposable schema through the existing migration helper. Secondary cross-workspace actors explicitly share the first application's database/session authority; they remain valid authenticated users, so access-denial checks do not degrade into invalid-session tests. The events-table migration check is also schema-local.

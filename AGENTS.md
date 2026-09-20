@@ -21,6 +21,10 @@ make verify
 
 Use narrower commands only when an issue explicitly asks for a smaller check.
 
+Gitea CI provisions Node 24, pnpm 10.33.0 and Go 1.26.6 in the job rather than
+assuming the shared runner image includes them. Keep toolchain changes explicit
+and distinguish local `make verify` from the actual hosted result.
+
 ## Cloned Dependency Source
 
 Read-only dependency source repositories are available under
