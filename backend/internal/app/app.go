@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	atprotocol "git.subcult.tv/PatrickFanella/subcult-os/internal/atproto"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -30,6 +31,8 @@ type App struct {
 	discovery     discoveryPolicy
 	identity      *identityProtector
 	identityErr   error
+	atprotoOAuth  *atprotocol.OAuthClient
+	atprotoErr    error
 	mux           *http.ServeMux
 	loginMu       sync.Mutex
 	loginAttempts map[string]loginAttempt
@@ -38,7 +41,12 @@ type App struct {
 func New(config Config, db *pgxpool.Pool) *App {
 	media, mediaErr := newMediaStorage(config)
 	identity, identityErr := newIdentityProtector(config.IdentityProtectionKey, config.SessionSecret)
-	a := &App{config: config, db: db, payments: newStripePaymentProvider(config.StripeSecretKey), media: media, mediaErr: mediaErr, discovery: newDiscoveryPolicy(), identity: identity, identityErr: identityErr, mux: http.NewServeMux(), loginAttempts: map[string]loginAttempt{}}
+	var atprotoOAuth *atprotocol.OAuthClient
+	var atprotoErr error
+	if config.ATProtoOAuthEnabled {
+		atprotoOAuth, atprotoErr = atprotocol.NewOAuthClient(config.atprotoOAuthSettings())
+	}
+	a := &App{config: config, db: db, payments: newStripePaymentProvider(config.StripeSecretKey), media: media, mediaErr: mediaErr, discovery: newDiscoveryPolicy(), identity: identity, identityErr: identityErr, atprotoOAuth: atprotoOAuth, atprotoErr: atprotoErr, mux: http.NewServeMux(), loginAttempts: map[string]loginAttempt{}}
 	a.routes()
 	return a
 }
@@ -71,6 +79,8 @@ func (a *App) routes() {
 	a.mux.HandleFunc("GET /api/me", a.handleMe)
 	a.mux.HandleFunc("GET /api/debug/mobile-auth", a.handleMobileAuthDebug)
 	a.mux.HandleFunc("GET /api/dev/email-outbox", a.handleDevEmailOutbox)
+	a.mux.HandleFunc("GET /api/v1/auth/atproto/client-metadata", a.handleATProtoClientMetadata)
+	a.mux.HandleFunc("GET /api/v1/auth/atproto/jwks", a.handleATProtoJWKS)
 	a.mux.HandleFunc("POST /api/workspaces", a.handleCreateWorkspace)
 	a.mux.HandleFunc("GET /api/workspaces/current", a.handleCurrentWorkspace)
 	a.mux.HandleFunc("GET /api/workspaces/{workspaceID}", a.handleGetWorkspace)

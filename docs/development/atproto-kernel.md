@@ -1,6 +1,6 @@
 # AT Protocol kernel
 
-Status: syntax foundation and encrypted identity-only OAuth persistence implemented on 2026-09-20; OAuth HTTP flows, Lexicon admission, DID resolution and publication are not implemented.
+Status: syntax foundation, encrypted identity-only OAuth persistence, and configurable confidential-client metadata/JWKS endpoints implemented on 2026-09-20; authorization/callback flows, Lexicon admission, DID resolution and publication are not implemented.
 
 ## Dependency boundary
 
@@ -23,14 +23,21 @@ Syntax validation is not resolution or authority proof. A handle must be resolve
 
 Do not implement OAuth as a conventional authorization-code shortcut. The current AT Protocol [OAuth specification](https://atproto.com/specs/oauth) requires PKCE, pushed authorization requests, DPoP with server nonces, automated client metadata, issuer/resource-server discovery, returned-scope checks and mandatory `sub` validation. Identity-only linking still requires the `atproto` scope but must request no repository permissions by default.
 
-Before OAuth work continues, choose and document:
+The product owner selected `https://subcults.subcult.tv` as the production web origin and authorized eventual replacement of the legacy service there. Subcult OS preserves the legacy public OAuth identity at these exact URLs:
 
-1. public client metadata and callback URLs for web and native variants;
-2. confidential-client signing-key storage and rotation, or an explicitly public-client design;
-3. encrypted storage for DPoP/private session material;
-4. resolver network policy, including DNS rebinding and private-network denial;
-5. state, PKCE verifier, issuer, nonce and callback replay lifetimes;
-6. explicit link/unlink UX and the rule that a DID link grants no workspace or publication authority.
+- client ID and metadata: `https://subcults.subcult.tv/api/v1/auth/atproto/client-metadata`
+- callback: `https://subcults.subcult.tv/api/v1/auth/atproto/callback`
+- public JWKS: `https://subcults.subcult.tv/api/v1/auth/atproto/jwks`
+
+The replacement is a confidential web client using `private_key_jwt`, ES256 and a P-256 signing key supplied only through the deployment secret store. Its metadata requests only `atproto`; the broader repository scopes advertised by the legacy service are deliberately not inherited. `GET` metadata and JWKS endpoints exist behind `ATPROTO_OAUTH_ENABLED`, but that flag must remain false until start/callback behavior is implemented and qualified. The callback URL is reserved, not yet served.
+
+Before the OAuth flow is enabled, complete and document:
+
+1. signing-key import/rotation and rollback behavior for the existing `subcults-1` key ID;
+2. resolver network policy, including DNS rebinding and private-network denial;
+3. explicit link/unlink UX and the rule that a DID link grants no workspace or publication authority;
+4. a bounded live interoperability test covering PAR, callback, refresh and revocation without repository scopes;
+5. whether existing legacy grants can be revoked or should simply require fresh authorization after cutover.
 
 Use the pinned Indigo OAuth package only after reviewing its exact API and transitive surface. Do not copy the old Subcults OAuth service while its license/provenance gate remains unresolved.
 
@@ -51,7 +58,7 @@ Migration 4 and `backend/internal/atproto.OAuthStore` now implement that local p
 
 Importing the pinned Indigo OAuth package to satisfy its store interface adds its current JWT, identity, CID/multibase and Prometheus-related transitive modules to the backend build. This is the reviewed cost of compiling against the actual unstable interface rather than maintaining a lookalike local contract.
 
-No OAuth routes are enabled by this persistence slice. Production flow work remains blocked on public metadata/callback URLs and the public-versus-confidential client decision.
+The application can now publish the selected client metadata and public JWKS without exposing the private key. Configuration validation requires all three endpoints to share the HTTPS web origin and rejects invalid booleans, missing keys and incompatible signing curves. Production flow work is no longer blocked on URL or client-type selection, but start/callback handling, outbound resolver policy and live interoperability remain open.
 
 ## Lexicon boundary
 
