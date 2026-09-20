@@ -1,5 +1,13 @@
 # Development execution log
 
+## 2026-09-20 — QUAL-BASE test isolation and retained failures
+
+The broad app database run at `c7817d2` produced 151 passing / 11 failing test events. Unlike the identity tests, lifecycle fixtures shared the public schema and persisted data across runs. Each lifecycle fixture now owns a disposable schema through the existing migration helper. Secondary cross-workspace actors explicitly share the first application's database/session authority; they remain valid authenticated users, so access-denial checks do not degrade into invalid-session tests. The events-table migration check is also schema-local.
+
+Isolation removes four failures (notification/reminder static keys and discovery counts): the same broad suite reaches 155 passing / seven failing events. Issue #95 retains the seven archive, paid-privacy, staffing, slug and private-role cases for behavioral reconciliation. Original local JSONL ledgers remain at `/tmp/subcult-lifecycle-baseline.jsonl` and `/tmp/subcult-lifecycle-isolated.jsonl`; no failing test was deleted or skipped. A new fixture test proves private schemas and valid authenticated cross-workspace denial. That test and the four repaired cases pass twice in one process. `make verify` passes; the full database suite remains red and the maintained narrow target is not presented as full coverage.
+
+Hosted runs now finish but fail before tests: run 8907/job 16364 at `c7817d2` reports `pnpm: command not found`. CI toolchain setup is the next independent fix; local verification is not hosted success. No runner service was modified.
+
 ## 2026-09-20 — AUTH-RETURN same-origin navigation
 
 Issue #93 records a browser-confirmed URL-normalization gap: the previous `next` check allowed slash/backslash and slash/control/slash inputs that Chromium resolves off-site. The new pure return-path validator rejects those forms, checks the parsed origin, and rejects network-path results after dot-segment normalization. It preserves valid invitation/workspace paths and query/fragment data. No cookie disclosure is claimed; this addresses post-authentication off-site navigation.

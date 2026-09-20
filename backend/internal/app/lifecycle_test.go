@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"reflect"
 	"sort"
 	"strings"
@@ -88,7 +87,7 @@ func TestFirstEventLifecycleSettlementAPI(t *testing.T) {
 	}
 
 	getJSON(t, fx.app, nil, "/api/events/"+eventID+"/settlement", http.StatusForbidden)
-	otherFx := newLifecycleFixture(t)
+	otherFx := newLifecycleFixture(t, fx.app)
 	getJSON(t, fx.app, otherFx.memberCookie, "/api/events/"+eventID+"/settlement", http.StatusForbidden)
 	postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/settlement/adjustments", map[string]any{"amountCents": 100, "label": "Member"}, http.StatusForbidden)
 	postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/settlement/finalize", map[string]any{}, http.StatusForbidden)
@@ -145,7 +144,7 @@ func TestWorkspaceContactsListAPI(t *testing.T) {
 		t.Fatalf("unexpected tags: %#v", tags)
 	}
 
-	otherFx := newLifecycleFixture(t)
+	otherFx := newLifecycleFixture(t, fx.app)
 	getJSON(t, fx.app, nil, "/api/workspaces/"+workspaceID+"/contacts", http.StatusForbidden)
 	getJSON(t, fx.app, otherFx.ownerCookie, "/api/workspaces/"+workspaceID+"/contacts", http.StatusForbidden)
 }
@@ -262,7 +261,7 @@ func TestEventTemplatesListAPI(t *testing.T) {
 		}
 	}
 
-	otherFx := newLifecycleFixture(t)
+	otherFx := newLifecycleFixture(t, fx.app)
 	getJSON(t, fx.app, nil, "/api/workspaces/"+fx.workspaceID+"/event-templates", http.StatusForbidden)
 	getJSON(t, fx.app, otherFx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/event-templates", http.StatusForbidden)
 }
@@ -415,7 +414,7 @@ func TestEventTemplateApplyToDraftAPI(t *testing.T) {
 	memberEventID := mustString(t, memberDraft, "id")
 	postJSON(t, fx.app, fx.memberCookie, "/api/events/"+memberEventID+"/apply-template", map[string]any{"templateId": templateID}, http.StatusForbidden)
 
-	otherFx := newLifecycleFixture(t)
+	otherFx := newLifecycleFixture(t, fx.app)
 	otherTemplate := postJSON(t, otherFx.app, otherFx.ownerCookie, "/api/workspaces/"+otherFx.workspaceID+"/event-templates", map[string]any{"name": "Other", "title": "Other"}, http.StatusOK)
 	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+memberEventID+"/apply-template", map[string]any{"templateId": mustString(t, otherTemplate.JSON, "id")}, http.StatusNotFound)
 
@@ -493,7 +492,7 @@ func TestCommitmentsAPI(t *testing.T) {
 
 	postJSON(t, fx.app, fx.memberCookie, "/api/workspaces/"+fx.workspaceID+"/commitments", map[string]any{"title": "member"}, http.StatusForbidden)
 	getJSON(t, fx.app, nil, "/api/workspaces/"+fx.workspaceID+"/commitments", http.StatusForbidden)
-	otherFx := newLifecycleFixture(t)
+	otherFx := newLifecycleFixture(t, fx.app)
 	getJSON(t, fx.app, otherFx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments", http.StatusForbidden)
 
 	otherEvent := createEvent(t, otherFx, "Other workspace event", 5)
@@ -567,7 +566,7 @@ func TestFirstEventLifecycleArchiveAPI(t *testing.T) {
 	}
 
 	getJSON(t, fx.app, nil, "/api/events/"+eventID+"/archive", http.StatusForbidden)
-	otherFx := newLifecycleFixture(t)
+	otherFx := newLifecycleFixture(t, fx.app)
 	getJSON(t, fx.app, otherFx.memberCookie, "/api/events/"+eventID+"/archive", http.StatusForbidden)
 }
 
@@ -750,7 +749,7 @@ func TestNotificationLedgerAPI(t *testing.T) {
 		}
 	}
 
-	otherFx := newLifecycleFixture(t)
+	otherFx := newLifecycleFixture(t, fx.app)
 	getJSON(t, fx.app, otherFx.memberCookie, "/api/events/"+eventID+"/notifications", http.StatusForbidden)
 	getJSON(t, fx.app, nil, "/api/events/"+eventID+"/notifications", http.StatusForbidden)
 }
@@ -794,7 +793,7 @@ func TestReminderLedgerAPI(t *testing.T) {
 		t.Fatalf("expected one event reminder, got %#v", got)
 	}
 
-	otherFx := newLifecycleFixture(t)
+	otherFx := newLifecycleFixture(t, fx.app)
 	getJSON(t, fx.app, nil, "/api/workspaces/"+fx.workspaceID+"/reminders", http.StatusForbidden)
 	getJSON(t, fx.app, otherFx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/reminders", http.StatusForbidden)
 	getJSON(t, fx.app, otherFx.memberCookie, "/api/events/"+eventID+"/reminders", http.StatusForbidden)
@@ -809,7 +808,7 @@ func TestReminderSweepAPIEmptyAndPermissions(t *testing.T) {
 	}
 
 	postJSON(t, fx.app, fx.memberCookie, "/api/workspaces/"+fx.workspaceID+"/reminders/sweep", map[string]any{}, http.StatusForbidden)
-	otherFx := newLifecycleFixture(t)
+	otherFx := newLifecycleFixture(t, fx.app)
 	postJSON(t, fx.app, otherFx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/reminders/sweep", map[string]any{}, http.StatusForbidden)
 }
 
@@ -1457,7 +1456,7 @@ func TestEventStaffingListAPI(t *testing.T) {
 	}
 
 	getJSON(t, fx.app, nil, "/api/events/"+eventID+"/staffing", http.StatusForbidden)
-	otherFx := newLifecycleFixture(t)
+	otherFx := newLifecycleFixture(t, fx.app)
 	getJSON(t, fx.app, otherFx.memberCookie, "/api/events/"+eventID+"/staffing", http.StatusForbidden)
 	getJSON(t, fx.app, fx.ownerCookie, "/api/events/does-not-exist/staffing", http.StatusNotFound)
 }
@@ -2660,7 +2659,7 @@ func TestEventParticipantRosterAPI(t *testing.T) {
 	}
 
 	getJSON(t, fx.app, nil, "/api/events/"+eventID+"/participants", http.StatusForbidden)
-	otherFx := newLifecycleFixture(t)
+	otherFx := newLifecycleFixture(t, fx.app)
 	getJSON(t, fx.app, otherFx.memberCookie, "/api/events/"+eventID+"/participants", http.StatusForbidden)
 }
 
@@ -2734,7 +2733,7 @@ func TestWorkspaceArchiveIndexAPI(t *testing.T) {
 		t.Fatalf("expected underscore search to return empty array, got %#v", underscoreSearch.JSON)
 	}
 
-	other := newLifecycleFixture(t)
+	other := newLifecycleFixture(t, fx.app)
 	otherEvent := createEvent(t, other, "Night Market", 4)
 	otherEventID := mustString(t, otherEvent, "id")
 	publishEvent(t, other, otherEventID)
@@ -3668,23 +3667,37 @@ func (f lifecycleFixture) email(prefix string) string {
 	return prefix + "+" + f.suffix + "@example.test"
 }
 
-func newLifecycleFixture(t *testing.T) lifecycleFixture {
+func TestLifecycleFixtureSchemaIsolation(t *testing.T) {
+	first := newLifecycleFixture(t)
+	second := newLifecycleFixture(t)
+	var firstSchema, secondSchema string
+	if err := first.app.db.QueryRow(t.Context(), `select current_schema()`).Scan(&firstSchema); err != nil {
+		t.Fatal(err)
+	}
+	if err := second.app.db.QueryRow(t.Context(), `select current_schema()`).Scan(&secondSchema); err != nil {
+		t.Fatal(err)
+	}
+	if firstSchema == secondSchema || firstSchema == "public" || secondSchema == "public" {
+		t.Fatalf("fixtures must use distinct private schemas: %q, %q", firstSchema, secondSchema)
+	}
+	otherWorkspace := newLifecycleFixture(t, first.app)
+	getJSON(t, first.app, otherWorkspace.ownerCookie, "/api/me", http.StatusOK)
+	getJSON(t, first.app, otherWorkspace.ownerCookie, "/api/workspaces/"+first.workspaceID, http.StatusForbidden)
+}
+
+func newLifecycleFixture(t *testing.T, shared ...*App) lifecycleFixture {
 	t.Helper()
-	if os.Getenv("TEST_DATABASE_URL") == "" {
-		t.Skip("set TEST_DATABASE_URL to run lifecycle acceptance test")
+	var app *App
+	if len(shared) > 0 {
+		// Keep cross-workspace actors in the same database and session authority.
+		app = shared[0]
+	} else {
+		db := newMigrationTestPool(t)
+		if err := RunMigrations(t.Context(), db); err != nil {
+			t.Fatal(err)
+		}
+		app = New(Config{AppEnv: "test", PublicWebURL: "http://public.test", SessionSecret: "test-secret"}, db)
 	}
-
-	ctx := t.Context()
-	db, err := OpenDB(ctx, os.Getenv("TEST_DATABASE_URL"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(db.Close)
-	if err := RunMigrations(ctx, db); err != nil {
-		t.Fatal(err)
-	}
-
-	app := New(Config{AppEnv: "test", PublicWebURL: "http://public.test", SessionSecret: "test-secret"}, db)
 	suffix := strings.ToLower(strings.ReplaceAll(t.Name(), "/", "-")) + fmt.Sprintf("-%d", time.Now().UnixNano())
 	ownerEmail := "owner+" + suffix + "@example.test"
 	memberEmail := "member+" + suffix + "@example.test"
@@ -3700,16 +3713,8 @@ func newLifecycleFixture(t *testing.T) lifecycleFixture {
 }
 
 func TestRunMigrationsCreatesEventsTable(t *testing.T) {
-	if os.Getenv("TEST_DATABASE_URL") == "" {
-		t.Skip("set TEST_DATABASE_URL to run lifecycle acceptance test")
-	}
-
 	ctx := t.Context()
-	db, err := OpenDB(ctx, os.Getenv("TEST_DATABASE_URL"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(db.Close)
+	db := newMigrationTestPool(t)
 	if err := RunMigrations(ctx, db); err != nil {
 		t.Fatal(err)
 	}
@@ -3719,7 +3724,7 @@ func TestRunMigrationsCreatesEventsTable(t *testing.T) {
 		select exists (
 			select 1
 			from information_schema.tables
-			where table_schema = 'public' and table_name = 'events'
+			where table_schema = current_schema() and table_name = 'events'
 		)
 	`).Scan(&exists); err != nil {
 		t.Fatal(err)
