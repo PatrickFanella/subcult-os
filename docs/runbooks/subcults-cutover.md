@@ -6,7 +6,7 @@ The product owner authorized Subcult OS to replace the existing legacy Subcults 
 
 ## Known public state
 
-On 2026-09-20 the public hostname served the legacy app through Cloudflare and Caddy. These routes were observed without authentication:
+On 2026-09-20 the public hostname served the legacy app through Cloudflare and Almaz Caddy. Live read-only host inspection confirmed that the active Caddy route sends `/api/*` and `/health/*` to Dozor `10.0.0.57:3025` and all other paths to Dozor `10.0.0.57:3024`. Historical NUC routes are stale and must not be used for cutover. These routes were observed without authentication:
 
 | Route | Observed behavior | Replacement contract |
 | --- | --- | --- |
@@ -18,7 +18,16 @@ On 2026-09-20 the public hostname served the legacy app through Cloudflare and C
 
 The legacy metadata described a confidential web client using `private_key_jwt`, ES256, DPoP, key ID `subcults-1`, and broader repository scopes. The replacement keeps the public URL identity and confidential-client shape but does not inherit repository permissions. Existing grants may require fresh authorization; verify this explicitly rather than weakening the replacement scope.
 
-Historical deployment material points to a NUC service using separate frontend/API ports. Treat that as a lead only. Resolve the current host, service names, image digests, proxy route and volumes from the live environment immediately before planning commands.
+The live Compose project is `/srv/containers/subcults` on Dozor. It currently runs `subcults-frontend`, `subcults-api`, `subcults-indexer`, `subcults-tap`, `subcults-redis`, and `pg16-postgis`; every container reported running, healthy where configured, and zero restarts. Exact image IDs captured on 2026-09-20 are:
+
+- API `sha256:a9f3748d6e895862b0034bad343b22390cade56d37c81402b20f9702dbb606e9`
+- frontend `sha256:dd1976fa4696eedf0d69534eeb0c12e6dff3d991064da1de7366597b954f4257`
+- indexer `sha256:15f464f81a78a7726ff181424483643632b1cd4b475555a2810da8ef18106541`
+- Tap `sha256:49df1f10e641f1dc53bc5b9b927a29284bd986cb0a61d21af65b909e5309a9a8`
+- PostgreSQL/PostGIS `sha256:681931a625df344215e9b8998bf34daf146b6a395ceacee4439eb9c85869239f`
+- Redis `sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2`
+
+The legacy `subcults` database reported migration version 46 with `dirty=false` and zero rows in `users`, `events`, `profiles`, `atproto_oauth_links`, `atproto_oauth_sessions`, and `atproto_oauth_requests`. This supports a clean Subcult OS database rather than a retained-user migration, but row counts are not authorization to delete the legacy database. Backup directories were not readable to the unprivileged inspection account, so current backup/restore evidence remains a pre-cutover gate.
 
 ## Non-negotiable safety rules
 
@@ -37,7 +46,7 @@ Perform read-only inventory on the actual host and record the results in a dated
 1. DNS/Cloudflare target and TLS/proxy mode.
 2. Caddy source configuration and rendered active route for `subcults.subcult.tv`.
 3. Service/container names, image repositories, immutable image digests, command, environment variable names, mounts, networks, restart policies and published ports.
-4. Database engine/version, database name, volume or dataset, schema migration level and a row-count-only inventory of account and OAuth tables.
+4. Database engine/version, database name, volume or dataset, schema migration level and a fresh row-count-only inventory of account and OAuth tables. Reconfirm the observed zero rows immediately before cutover.
 5. Current health responses and a browser screenshot/recording of the public home and one representative public event journey.
 6. The legacy OAuth metadata and JWKS public documents, including a fingerprint of each public JWK. Never capture private key material.
 
