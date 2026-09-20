@@ -4,6 +4,10 @@ Full-stack SUBCULT OS project with a Go backend, Vite React TypeScript Tailwind 
 
 Bootstrapped from `subculture-collective/project-template`.
 
+## Future development
+
+See the [Subcult.tv platform development handoff](docs/development/README.md), [ADR 0005](docs/adr/0005-subcult-os-platform-core.md), and [ADR 0006](docs/adr/0006-no-prototype-compatibility-contract.md). Subcult OS is the accepted receiving repository; selected Subcults capabilities will be extracted behind OS-native boundaries rather than merged wholesale. Prototype API/schema compatibility is not required by default. Consolidation is planned, not implemented by those documents.
+
 ## Quick start
 
 ```bash
@@ -115,6 +119,7 @@ Event image uploads are backend-proxied to S3-compatible storage such as MinIO. 
 - For event image uploads, configure S3-compatible media storage and expose `MEDIA_PUBLIC_BASE_URL` without auth so attendee/mobile clients can render images.
 - Use `/api/health` for process health and `/api/ready` for DB-backed readiness.
 - Review `docs/runbooks/database-migrations.md` before changing persisted schema.
+- Keep applied migrations immutable. `schema.sql` is version 1; add later gap-free files under `backend/internal/app/migrations/` and use `make migrate` so the checksum ledger and startup compatibility gate are enforced.
 - Review `docs/runbooks/deployment-checklist.md` before running outside local development.
 
 ## Paid ticketing local setup

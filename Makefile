@@ -44,7 +44,7 @@ test-db: ## Run DB-backed Go integration tests when TEST_DATABASE_URL is set
 		echo "TEST_DATABASE_URL is required for DB-backed tests"; \
 		exit 1; \
 	fi
-	cd backend && go test ./internal/app -run 'TestFirstEventLifecycleCurrentCreatePublishFreeDoorEndOfNightFlow|TestTicketReservationCurrentCapacityAndDoorRules|TestRunMigrationsCreatesEventsTable' -count=1 -v
+	cd backend && go test ./internal/app -run 'TestFirstEventLifecycleCurrentCreatePublishFreeDoorEndOfNightFlow|TestTicketReservationCurrentCapacityAndDoorRules|TestRunMigrations' -count=1 -v
 
 test-web: ## Run frontend tests
 	pnpm --dir web run test
@@ -141,14 +141,15 @@ compose-config: ## Validate Docker Compose config
 db-shell: ## Open a psql shell in the Postgres container
 	docker compose -p $(COMPOSE_PROJECT_NAME) exec postgres sh -c 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"'
 
-migrate: ## Apply the alpha schema.sql to local Postgres, starting it if needed
+migrate: ## Apply ordered migrations to local Postgres, starting it if needed
 	docker compose -p $(COMPOSE_PROJECT_NAME) up -d --wait postgres
-	docker compose -p $(COMPOSE_PROJECT_NAME) exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"' < backend/internal/app/schema.sql
+	docker compose -p $(COMPOSE_PROJECT_NAME) build api
+	docker compose -p $(COMPOSE_PROJECT_NAME) run --rm --no-deps api /app/migrate
 
-migrate-status: ## Show local Postgres tables and applied alpha schema objects
-	docker compose -p $(COMPOSE_PROJECT_NAME) exec -T postgres sh -c 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c "\dt public.*" -c "\di public.*"'
+migrate-status: ## Show local Postgres migration ledger, tables, and indexes
+	docker compose -p $(COMPOSE_PROJECT_NAME) exec -T postgres sh -c 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c "select version, name, checksum, applied_at from schema_migrations order by version" -c "\dt public.*" -c "\di public.*"'
 
-migrate-reset: reset-db migrate ## Reset local Postgres data, restart stack, and apply schema.sql
+migrate-reset: reset-db migrate ## Reset local Postgres data, restart stack, and apply ordered migrations
 
 clean: ## Remove local build outputs
 	rm -rf bin web/dist mobile/.expo mobile/dist
