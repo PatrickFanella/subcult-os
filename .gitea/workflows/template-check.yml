@@ -18,6 +18,7 @@ jobs:
           POSTGRES_PASSWORD: disposable-ci-only
           POSTGRES_DB: subcult_test
         options: >-
+          --label subcult.os.ci-database=${{ github.run_id }}-${{ github.run_attempt }}
           --health-cmd "pg_isready -U subcult_test -d subcult_test"
           --health-interval 5s
           --health-timeout 5s
@@ -48,13 +49,18 @@ jobs:
         run: make verify
       - name: Verify persisted lifecycle and protocol boundaries
         env:
-          TEST_POSTGRES_ID: ${{ job.services.postgres.id }}
+          TEST_DATABASE_RUN: ${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           # The runner may use a shared network: the generic postgres alias
           # can resolve to another job or a retained database. Use only this
-          # job's exact service container and fail closed if it is unavailable.
-          test -n "$TEST_POSTGRES_ID"
-          test_db_ip=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$TEST_POSTGRES_ID")
+          # job's labeled service; this runner omits job.services.*.id.
+          [[ "$TEST_DATABASE_RUN" =~ ^[0-9]+-[0-9]+$ ]]
+          test_db_id=$(docker ps --no-trunc --quiet --filter "label=subcult.os.ci-database=$TEST_DATABASE_RUN")
+          if ! [[ "$test_db_id" =~ ^[0-9a-f]{64}$ ]]; then
+            echo 'Expected exactly one database container for this run' >&2
+            exit 1
+          fi
+          test_db_ip=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$test_db_id")
           if ! [[ "$test_db_ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
             echo 'Expected exactly one IPv4 address for the job database' >&2
             exit 1
