@@ -4,6 +4,7 @@ This directory is the current project knowledge base.
 
 ## Sections
 
+- [Subcult.tv platform development handoff](development/README.md) — OS-core architecture, selective Subcults extraction inventory, prioritized backlog, verification and release gates.
 - `adr/` — architecture decision records
 - `reference/` — stable technical references
 - `research/` — exploratory notes, comparisons, and findings
