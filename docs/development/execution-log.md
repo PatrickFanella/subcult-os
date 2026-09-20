@@ -1,5 +1,11 @@
 # Development execution log
 
+## 2026-09-20 — AT-REVOKE worker and provider adapter
+
+Added bounded leased processing, acknowledgement fencing, exponential retries, terminal quarantine and credential erasure. The SDK-backed adapter revokes access and refresh tokens with confidential-client assertions and DPoP nonce handling through the hardened public-only transport. Raw provider errors never enter the queue or command output. An opt-in worker command supports status, one-shot and watch modes using the same API image/database; disabling new OAuth links does not prevent draining existing work.
+
+`make verify`, `make test-db`, the complete AT package race suite, the optional Compose profile render and a real CLI watch/SIGTERM smoke passed. Tests cover transient backoff, terminal exhaustion, unsupported providers, malformed encrypted payloads, retention expiry, crash recovery including the eighth attempt, concurrent workers and late-rotation fencing. The CLI produced aggregate counts with new links disabled. Docker became inactive after the earlier PostgreSQL 17 storage checks; worker tests used a signature-verified standalone PostgreSQL 18.6 package on a private Unix socket with no TCP listener. No shared daemon was started. The image was not built or deployed in that environment; real provider acceptance and production worker qualification remain open.
+
 ## 2026-09-20 — AT-REVOKE durable storage slice
 
 Migration 5 adds an encrypted revocation outbox. Local unlink atomically transfers every active session payload to the outbox, revokes the DID and removes active sessions. DID-scoped transaction locks serialize unlink and session persistence. A late refresh cannot reactivate the link: it updates pending encrypted revocation material and invalidates the older worker lease. Active-session reads also require a current active DID link.

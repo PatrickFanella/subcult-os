@@ -20,7 +20,7 @@ services:
 
   api:
     build: ./backend
-    environment:
+    environment: &api_environment
       APP_ENV: ${APP_ENV:-development}
       API_ADDR: :8080
       DATABASE_URL: postgres://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-app}?sslmode=disable
@@ -45,6 +45,16 @@ services:
     ports:
       - target: 8080
         published: "${API_PORT:-38080}"
+
+  atproto-revocations:
+    profiles: [atproto-workers]
+    build: ./backend
+    command: ["/app/atproto-revoke", "-watch"]
+    environment: *api_environment
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_started
 
   web:
     build: ./web

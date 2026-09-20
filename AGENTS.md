@@ -9,6 +9,8 @@ This repository is `subcult-os`, a Go full-stack project with Vite React TypeScr
 3. Keep generated caches, secrets, and local data out of git.
 4. Update this file and `README.md` when stack conventions change.
 
+The optional `atproto-workers` Compose profile runs the revocation command from the same API image against the shared database. Keep it opt-in, run migrations before processing, and preserve secret-free status/error output. It may drain existing revocations even when new OAuth links are disabled.
+
 ## Verification
 
 Run:

@@ -1,6 +1,6 @@
 # AT Protocol kernel
 
-Status: syntax foundation, encrypted identity-only OAuth persistence, configurable confidential-client documents, authenticated start/one-time callback routes, and link/list/local-unlink UI implemented on 2026-09-20; live interoperability, remote provider revocation, Lexicon admission and publication are not qualified or implemented.
+Status: syntax, encrypted identity-only OAuth persistence, confidential-client documents, authenticated start/callback, link/list/unlink UI and durable revocation processing implemented locally. Real provider interoperability and deployed worker qualification remain open; Lexicon admission and publication are not implemented.
 
 ## Dependency boundary
 
@@ -61,7 +61,11 @@ The application can publish the selected client metadata and public JWKS without
 
 Outbound OAuth, handle and DID discovery uses public-IP-only dial controls with environment proxy use and HTTP redirects disabled. This closes the proxy bypass and redirect rebinding gaps left open by the SDK defaults. The adapter fails closed if a future pinned Indigo release changes the default identity-directory shape so the hardening can no longer be applied. Live interoperability remains open; these local tests do not prove that a real PDS accepts the client.
 
-Authenticated users can list every active DID link and begin a new identity-only link from the operator home. The UI explicitly states that a DID grants neither workspace membership nor publication authority and requires a second confirmation to unlink. Local unlink is transactional: it marks only that person's active DID as revoked, deletes all matching stored OAuth sessions, and records `atproto_did_unlinked`. It succeeds without external network availability. Provider-side token revocation remains open and must be attempted without weakening immediate local revocation before production enablement.
+Authenticated users can list every active DID link and begin a new identity-only link from the operator home. The UI states that a DID grants neither workspace membership nor publication authority and requires a second confirmation to unlink. Local unlink atomically marks that person's active DID revoked, transfers encrypted credentials to the revocation outbox, deletes active sessions and records `atproto_did_unlinked`. It succeeds without network availability. The bounded worker separately revokes both tokens through Indigo's confidential-client/DPoP flow with public-only, no-proxy, no-redirect transport.
+
+Migration 5 provides two-minute leases, fencing tokens, exponential one-minute-to-64-minute retry delays and a maximum of eight attempts. A timed-out operation may already have succeeded; retry is expected. A late refresh replaces encrypted revocation material and fences the old acknowledgement without restoring local access. An expired lease is reclaimable, including terminal handling of a crash on attempt eight. Unsupported/invalid/exhausted work is quarantined and secrets removed; seven-day retention expiry also purges credentials without claiming remote success. Relinking after unlink requires fresh authorization.
+
+`atproto-revoke -status` reports aggregate counts only. The one-shot command processes at most ten jobs by default; `-limit` accepts 1–100 and `-watch` repeats bounded batches every 30 seconds. The optional `atproto-workers` Compose profile runs it without an additional API/database. New-link enablement is independent of draining old jobs. The deployment must supervise the worker, monitor quarantined/backlogged counts and retain the correct protection/signing keys. A rollback must stop the worker before using a pre-migration-5 binary and must preserve the outbox; losing queued credentials makes remote revocation unprovable. Physical deployment/provider qualification remains #10 and the cutover gate.
 
 `make generate-atproto-key` emits an Indigo-compatible multibase P-256 client key. Its stdout is secret material and should be piped directly to the deployment secret manager, never stored in committed configuration or captured in logs.
 

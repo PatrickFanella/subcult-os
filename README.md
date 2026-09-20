@@ -130,6 +130,12 @@ Event image uploads are backend-proxied to S3-compatible storage such as MinIO. 
 - Review `docs/runbooks/deployment-checklist.md` before running outside local development.
 - Use `docs/runbooks/subcults-cutover.md` before replacing the legacy service at `subcults.subcult.tv`.
 
+## AT OAuth revocation worker
+
+Unlink immediately disables local access and queues encrypted credentials for remote revocation. After migrations and client secrets are configured, opt into the separate worker command with `docker compose --profile atproto-workers up -d atproto-revocations`. It uses the same API image and database, polls every 30 seconds and works even while new OAuth links are disabled. It does not apply migrations itself. This profile is off by default and is not live-qualified yet.
+
+Use `docker compose exec api /app/atproto-revoke -status` for secret-free queue counts, or omit `-status` for one bounded batch. Completed credentials are erased; unsupported providers, invalid payloads, eight failed attempts or seven-day retention expiry produce a quarantined record with credentials removed. Quarantine does not prove provider revocation; investigate and revoke in the provider UI if necessary. See [the AT kernel](docs/development/atproto-kernel.md) for retries and recovery.
+
 ## Paid ticketing local setup
 
 For local paid-ticket testing, copy the optional Stripe env vars from `.env.example`, then run Stripe CLI webhook forwarding:
