@@ -1,5 +1,11 @@
 # Development execution log
 
+## 2026-09-20 — Hosted database verification gate
+
+With the full local database suite restored, Gitea now declares a job-scoped PostgreSQL 17 service and runs the complete `make test-db` after `make verify`. The service has disposable test-only credentials, readiness checks, no host port and no retained volume. Test cases use private schemas. No application database, runner settings or deployment service is targeted.
+
+Actionlint and local `make verify` pass; the immediately preceding expanded local database gate passes on isolated PostgreSQL 18. Hosted service-network and PostgreSQL 17 execution remain pending until this revision runs. Parent run 8911 has successfully provisioned Node/pnpm/Go and reached dependency/build verification, clearing the earlier missing-pnpm step; it is not yet a completed green run.
+
 ## 2026-09-20 — QUAL-BASE full database gate restored
 
 Resolved all seven isolated failures from #95. Two product defects were confirmed: malformed event IDs reached PostgreSQL UUID conversion and returned 500, and publication preserved the database slug but incorrectly returned/audited the ID-derived fallback. Both normal and locking event loaders now reject malformed UUIDs as not found before querying; publication uses `RETURNING public_slug` so storage, response and audit agree. Regression tests retain the seeded-slug scenario and explicitly compare all three values.

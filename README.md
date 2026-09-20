@@ -1,8 +1,10 @@
 # subcult-os
 
 Gitea verification installs Node 24, pnpm 10.33.0 and Go 1.26.6 inside each job.
-The shared runner must provide Docker Compose for configuration validation; CI
-does not start or deploy the application. Local `make verify` and hosted CI are
+The shared runner must provide Docker Compose for configuration validation. CI
+starts a job-scoped PostgreSQL 17 service with disposable credentials and no host
+port or persistent volume, then runs `make test-db`; it does not deploy the app.
+Local `make verify` and hosted CI are
 separate evidence. `make test-db` requires a disposable `TEST_DATABASE_URL` and
 runs the complete app and AT adapter packages; the earlier seven failures and
 their reconciliation are tracked in [issue #95](https://git.subcult.tv/subculture-collective/subcult-os/issues/95).
