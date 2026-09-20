@@ -102,7 +102,10 @@ Event image uploads are backend-proxied to S3-compatible storage such as MinIO. 
 
 ## Current alpha security notes
 
-- Passwords are stored with bcrypt. Legacy local SHA-256 password hashes are upgraded on successful login.
+- Passwords are stored with bcrypt; unverified accounts cannot sign in.
+- Email identity lookup uses keyed hashes and encrypted address material. The current `people.email` column remains an operational projection for existing workspace workflows, not the authentication lookup authority.
+- Browser sessions use short-lived HttpOnly access cookies plus rotating refresh cookies. Native auth transport is isolated under `/api/mobile/auth/*` and returns separate access and refresh credentials for secure storage; ordinary browser auth responses never expose those credentials as JavaScript-readable headers. Replaying a rotated refresh credential revokes its session family.
+- Account recovery revokes every existing session. Matching email text or DID never merges accounts automatically.
 - Cookie-authenticated mutating API requests with an `Origin` header must come from the same host or `PUBLIC_WEB_URL`.
 - Login attempts are lightly throttled per email/IP in process memory.
 - Public free ticket reservations remain guest-accessible without account login.
@@ -114,6 +117,7 @@ Event image uploads are backend-proxied to S3-compatible storage such as MinIO. 
 - Set `APP_ENV=production`.
 - Set a real `DATABASE_URL`; production startup fails without it.
 - Set a non-default `SESSION_SECRET` with at least 24 characters.
+- Set `IDENTITY_PROTECTION_KEY` to a base64-encoded 32-byte key held in the deployment secret store. Losing it makes protected identity material unreadable; rotating it requires a designed data migration.
 - Set `PUBLIC_WEB_URL` to the HTTPS web origin used by browsers.
 - Stripe paid ticketing is optional until an Event uses paid pricing; when enabled, set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`.
 - For event image uploads, configure S3-compatible media storage and expose `MEDIA_PUBLIC_BASE_URL` without auth so attendee/mobile clients can render images.

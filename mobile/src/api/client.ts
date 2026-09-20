@@ -1,5 +1,5 @@
+import { absorbSessionHeaders, clearSession, loadRefreshHeaders, loadSessionHeaders } from '@/auth/sessionAdapter';
 import { apiUrl } from '@/config/api';
-import { absorbSessionHeaders, loadSessionHeaders } from '@/auth/sessionAdapter';
 
 export { getSessionDebugState } from '@/auth/sessionAdapter';
 
@@ -15,38 +15,42 @@ export class ApiError extends Error {
   }
 }
 
-export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+let refreshPromise: Promise<boolean> | null = null;
+
+async function request(path: string, options: RequestInit, refresh = false) {
   const headers = new Headers(options.headers);
   const hasFormDataBody = typeof FormData !== 'undefined' && options.body instanceof FormData;
-  if (!hasFormDataBody && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json');
-  }
-  const sessionHeaders = await loadSessionHeaders();
-  for (const [key, value] of Object.entries(sessionHeaders)) {
-    if (!headers.has(key)) {
-      headers.set(key, value);
-    }
-  }
+  if (!hasFormDataBody && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  const sessionHeaders = refresh ? await loadRefreshHeaders() : await loadSessionHeaders();
+  for (const [key, value] of Object.entries(sessionHeaders)) if (!headers.has(key)) headers.set(key, value);
 
-  const headerObject: Record<string, string> = {};
-  headers.forEach((value, key) => {
-    headerObject[key] = value;
-  });
-
-  const response = await fetch(apiUrl(path), {
-    ...options,
-    credentials: 'include',
-    headers: headerObject,
-  });
-
+  const response = await fetch(apiUrl(path), { ...options, headers });
   await absorbSessionHeaders(response.headers);
+  return response;
+}
+
+async function refreshSession() {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const response = await request('/api/mobile/auth/refresh', { method: 'POST', body: '{}' }, true);
+      if (!response.ok) await clearSession();
+      return response.ok;
+    })().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}
+
+export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+  let response = await request(path, options);
+  if (response.status === 401 && !path.startsWith('/api/mobile/auth/') && await refreshSession()) response = await request(path, options);
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const message = typeof data?.error === 'string' ? data.error : `Request failed: ${response.status}`;
     throw new ApiError(response.status, message, data);
   }
-
   return data as T;
 }
 

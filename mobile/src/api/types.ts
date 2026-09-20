@@ -77,7 +77,11 @@ export interface CurrentUserDTO {
   email: string;
   displayName: string | null;
   workspaces: WorkspaceSummaryDTO[];
-  sessionCookie?: string;
+}
+
+export interface SignupResultDTO {
+  verificationRequired: boolean;
+  email: string;
 }
 
 export interface EventDTO {

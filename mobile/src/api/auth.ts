@@ -1,17 +1,14 @@
 import { api, postJSON } from '@/api/client';
-import { absorbSessionHeaders, clearSession } from '@/auth/sessionAdapter';
-import type { CurrentUserDTO } from '@/api/types';
+import { clearSession } from '@/auth/sessionAdapter';
+import type { CurrentUserDTO, SignupResultDTO } from '@/api/types';
 
 export function getMe() {
   return api<CurrentUserDTO>('/api/me');
 }
 
 export interface MobileAuthDebugDTO {
-  hasCookie: boolean;
-  hasAuthorization: boolean;
-  hasSessionHeader: boolean;
-  hasTokenHeader: boolean;
-  hasToken: boolean;
+  hasAccessToken: boolean;
+  hasRefreshToken: boolean;
   recognized: boolean;
   personId: string;
 }
@@ -21,20 +18,20 @@ export function getMobileAuthDebug() {
 }
 
 export async function login(body: { email: string; password: string }) {
-  const user = await postJSON<CurrentUserDTO>('/api/auth/login', body);
-  await absorbSessionHeaders(new Headers(user.sessionCookie ? { 'x-subcult-session': user.sessionCookie } : {}));
-  return user;
+  return postJSON<CurrentUserDTO>('/api/mobile/auth/login', body);
 }
 
 export async function signup(body: { email: string; password: string; displayName?: string }) {
-  const user = await postJSON<CurrentUserDTO>('/api/auth/signup', body);
-  await absorbSessionHeaders(new Headers(user.sessionCookie ? { 'x-subcult-session': user.sessionCookie } : {}));
-  return user;
+  return postJSON<SignupResultDTO>('/api/mobile/auth/signup', body);
+}
+
+export function verifyEmail(token: string) {
+  return postJSON<CurrentUserDTO>('/api/mobile/auth/verify-email', { token });
 }
 
 export async function logout() {
   try {
-    await postJSON<{ ok: boolean }>('/api/auth/logout', {});
+    await postJSON<{ ok: boolean }>('/api/mobile/auth/logout', {});
   } finally {
     await clearSession();
   }

@@ -4,6 +4,9 @@
     "CurrentUserDTO": {
       "required": ["id", "email", "displayName", "workspaces"]
     },
+    "SignupResultDTO": {
+      "required": ["verificationRequired", "email"]
+    },
     "WorkspaceSummaryDTO": {
       "required": ["id", "name", "role"]
     },

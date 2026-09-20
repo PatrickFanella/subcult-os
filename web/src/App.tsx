@@ -3,6 +3,7 @@ import { DiscoverView } from './views/DiscoverView';
 import { DoorView } from './views/DoorView';
 import { EventEditorView } from './views/EventEditorView';
 import { InviteView } from './views/InviteView';
+import { IdentityActionView } from './views/IdentityActionView';
 import { PublicEventView } from './views/PublicEventView';
 import { TicketView } from './views/TicketView';
 import { WorkspaceView } from './views/WorkspaceView';
@@ -25,6 +26,10 @@ export default function App() {
   if (pathname === '/login' || pathname === '/signup' || pathname === '/auth') {
     return <AuthView />;
   }
+
+  if (pathname === '/verify-email') return <IdentityActionView action="verify" />;
+  if (pathname === '/recover') return <IdentityActionView action="request-recovery" />;
+  if (pathname === '/recover-password') return <IdentityActionView action="complete-recovery" />;
 
   if (pathname === '/discover') {
     return <DiscoverView />;

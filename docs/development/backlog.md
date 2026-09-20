@@ -80,8 +80,8 @@ Review [decisions](decisions.md), [architecture](architecture.md), and the [extr
 - Repository: OS
 - Priority: P0
 - Depends on: DB-01, INV-01
-- Status: proposed
-- Size: 5–8 engineering days
+- Status: implemented and focused-test-verified; native-device and full recovery-browser qualification remain open
+- Size: implemented foundation slice
 
 **Acceptance:** Verified email identities, protected lookup material, rotating session families, revoke-one/revoke-all, recovery and additive DID-link slots; API, web and mobile move to the new model together.
 

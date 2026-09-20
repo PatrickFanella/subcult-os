@@ -261,6 +261,59 @@ func TestIdentityFoundationCreatesCanonicalTables(t *testing.T) {
 	}
 }
 
+func TestPrototypeSessionRemovalRejectsPopulatedTable(t *testing.T) {
+	pool := newMigrationTestPool(t)
+	ctx := t.Context()
+	migrations, err := loadMigrations(migrationFS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, migrations[0].SQL); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `
+		create table schema_migrations (
+			version integer primary key check (version > 0),
+			name text not null,
+			checksum char(64) not null,
+			applied_at timestamptz not null default now()
+		)
+	`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into schema_migrations (version, name, checksum) values ($1, $2, $3)`, migrations[0].Version, migrations[0].Name, migrations[0].Checksum); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, migrations[1].SQL); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into schema_migrations (version, name, checksum) values ($1, $2, $3)`, migrations[1].Version, migrations[1].Name, migrations[1].Checksum); err != nil {
+		t.Fatal(err)
+	}
+	var personID string
+	if err := pool.QueryRow(ctx, `
+		insert into people (email, password_hash) values ('prototype-session@example.test', 'bcrypt$placeholder')
+		returning id
+	`).Scan(&personID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `insert into sessions (person_id, token_hash, expires_at) values ($1, 'prototype-token', now() + interval '1 hour')`, personID); err != nil {
+		t.Fatal(err)
+	}
+
+	err = RunMigrations(ctx, pool)
+	if err == nil || !strings.Contains(err.Error(), "prototype sessions require inventory before removal") {
+		t.Fatalf("RunMigrations() error = %v, want prototype-session inventory gate", err)
+	}
+	var version int
+	if versionErr := pool.QueryRow(ctx, `select coalesce(max(version), 0) from schema_migrations`).Scan(&version); versionErr != nil {
+		t.Fatal(versionErr)
+	}
+	if version != 2 {
+		t.Fatalf("schema version = %d, want failed migration to preserve version 2", version)
+	}
+}
+
 func mustReadMigrationFile(t *testing.T, name string) []byte {
 	t.Helper()
 	body, err := migrationFS.ReadFile(name)

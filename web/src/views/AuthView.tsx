@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { postJSON } from '../api';
-import type { CurrentUserDTO } from '../domain';
+import type { CurrentUserDTO, SignupResultDTO } from '../domain';
 
 type Mode = 'login' | 'signup';
 
@@ -42,6 +42,7 @@ export function AuthView() {
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const nextPath = useMemo(getNextPath, []);
   const title = useMemo(() => (mode === 'signup' ? 'Create account' : 'Sign in'), [mode]);
@@ -57,6 +58,7 @@ export function AuthView() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    setNotice(null);
 
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
@@ -78,7 +80,12 @@ export function AuthView() {
         ...(mode === 'signup' ? { displayName: displayName.trim() || undefined } : {}),
       };
 
-      await postJSON<CurrentUserDTO>(mode === 'signup' ? '/api/auth/signup' : '/api/auth/login', body);
+      if (mode === 'signup') {
+        const result = await postJSON<SignupResultDTO>('/api/auth/signup', body);
+        setNotice(`Check ${result.email} for a verification link before signing in.`);
+        return;
+      }
+      await postJSON<CurrentUserDTO>('/api/auth/login', body);
       goToNext(nextPath);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to continue');
@@ -176,6 +183,7 @@ export function AuthView() {
             </label>
 
             {error ? <p className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error}</p> : null}
+            {notice ? <p className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">{notice}</p> : null}
 
             <button
               className="w-full rounded-2xl bg-amber-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-amber-300/60"
@@ -184,6 +192,7 @@ export function AuthView() {
             >
               {loading ? 'Working…' : title}
             </button>
+            {mode === 'login' ? <a className="block text-center text-sm text-amber-300" href="/recover">Forgot your password?</a> : null}
           </form>
         </div>
       </section>

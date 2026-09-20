@@ -368,7 +368,11 @@ func (a *App) handleCreateInvitation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, tokenHash := newToken()
+	token, tokenHash, err := newToken()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not create invitation token")
+		return
+	}
 	tx, err := a.db.Begin(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not start transaction")

@@ -1,11 +1,14 @@
 package app
 
 import (
+	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 )
+
+var testIdentityProtectionKey = base64.StdEncoding.EncodeToString([]byte("0123456789abcdef0123456789abcdef"))
 
 func NewTestApp(t *testing.T) *App {
 	t.Helper()
@@ -122,7 +125,7 @@ func TestConfigValidateRejectsUnsafeProduction(t *testing.T) {
 		t.Fatal("expected production config validation error")
 	}
 	message := err.Error()
-	for _, want := range []string{"DATABASE_URL", "SESSION_SECRET", "PUBLIC_WEB_URL"} {
+	for _, want := range []string{"DATABASE_URL", "SESSION_SECRET", "IDENTITY_PROTECTION_KEY", "PUBLIC_WEB_URL"} {
 		if !strings.Contains(message, want) {
 			t.Fatalf("expected %s in validation error, got %q", want, message)
 		}
@@ -131,11 +134,12 @@ func TestConfigValidateRejectsUnsafeProduction(t *testing.T) {
 
 func TestConfigValidateAllowsSafeProduction(t *testing.T) {
 	config := Config{
-		AppEnv:        "production",
-		DatabaseURL:   "postgres://app:secret@db:5432/app?sslmode=require",
-		SessionSecret: "replace-with-a-long-random-secret",
-		PublicWebURL:  "https://subcult.example",
-		Addr:          ":8080",
+		AppEnv:                "production",
+		DatabaseURL:           "postgres://app:secret@db:5432/app?sslmode=require",
+		SessionSecret:         "replace-with-a-long-random-secret",
+		IdentityProtectionKey: testIdentityProtectionKey,
+		PublicWebURL:          "https://subcult.example",
+		Addr:                  ":8080",
 	}
 	if err := config.Validate(); err != nil {
 		t.Fatalf("production config should validate: %v", err)
@@ -144,11 +148,12 @@ func TestConfigValidateAllowsSafeProduction(t *testing.T) {
 
 func TestConfigValidateAllowsPaidTicketingDisabled(t *testing.T) {
 	config := Config{
-		AppEnv:        "production",
-		Addr:          ":8080",
-		DatabaseURL:   "postgres://app:secret@db:5432/app?sslmode=require",
-		SessionSecret: "replace-with-a-long-random-secret",
-		PublicWebURL:  "https://subcult.example",
+		AppEnv:                "production",
+		Addr:                  ":8080",
+		DatabaseURL:           "postgres://app:secret@db:5432/app?sslmode=require",
+		SessionSecret:         "replace-with-a-long-random-secret",
+		IdentityProtectionKey: testIdentityProtectionKey,
+		PublicWebURL:          "https://subcult.example",
 	}
 	if err := config.Validate(); err != nil {
 		t.Fatalf("production config without Stripe should validate when paid ticketing is disabled: %v", err)
@@ -157,12 +162,13 @@ func TestConfigValidateAllowsPaidTicketingDisabled(t *testing.T) {
 
 func TestConfigValidateRejectsPartialStripeConfig(t *testing.T) {
 	config := Config{
-		AppEnv:          "production",
-		Addr:            ":8080",
-		DatabaseURL:     "postgres://app:secret@db:5432/app?sslmode=require",
-		SessionSecret:   "replace-with-a-long-random-secret",
-		PublicWebURL:    "https://subcult.example",
-		StripeSecretKey: "sk_test_123",
+		AppEnv:                "production",
+		Addr:                  ":8080",
+		DatabaseURL:           "postgres://app:secret@db:5432/app?sslmode=require",
+		SessionSecret:         "replace-with-a-long-random-secret",
+		IdentityProtectionKey: testIdentityProtectionKey,
+		PublicWebURL:          "https://subcult.example",
+		StripeSecretKey:       "sk_test_123",
 	}
 	err := config.Validate()
 	if err == nil || !strings.Contains(err.Error(), "STRIPE_WEBHOOK_SECRET") {
@@ -172,13 +178,14 @@ func TestConfigValidateRejectsPartialStripeConfig(t *testing.T) {
 
 func TestConfigValidateAllowsCompleteStripeConfig(t *testing.T) {
 	config := Config{
-		AppEnv:              "production",
-		Addr:                ":8080",
-		DatabaseURL:         "postgres://app:secret@db:5432/app?sslmode=require",
-		SessionSecret:       "replace-with-a-long-random-secret",
-		PublicWebURL:        "https://subcult.example",
-		StripeSecretKey:     "sk_test_123",
-		StripeWebhookSecret: "whsec_123",
+		AppEnv:                "production",
+		Addr:                  ":8080",
+		DatabaseURL:           "postgres://app:secret@db:5432/app?sslmode=require",
+		SessionSecret:         "replace-with-a-long-random-secret",
+		IdentityProtectionKey: testIdentityProtectionKey,
+		PublicWebURL:          "https://subcult.example",
+		StripeSecretKey:       "sk_test_123",
+		StripeWebhookSecret:   "whsec_123",
 	}
 	if err := config.Validate(); err != nil {
 		t.Fatalf("complete Stripe config should validate: %v", err)

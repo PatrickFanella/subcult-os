@@ -28,6 +28,8 @@ type App struct {
 	media         mediaStorage
 	mediaErr      error
 	discovery     discoveryPolicy
+	identity      *identityProtector
+	identityErr   error
 	mux           *http.ServeMux
 	loginMu       sync.Mutex
 	loginAttempts map[string]loginAttempt
@@ -35,7 +37,8 @@ type App struct {
 
 func New(config Config, db *pgxpool.Pool) *App {
 	media, mediaErr := newMediaStorage(config)
-	a := &App{config: config, db: db, payments: newStripePaymentProvider(config.StripeSecretKey), media: media, mediaErr: mediaErr, discovery: newDiscoveryPolicy(), mux: http.NewServeMux(), loginAttempts: map[string]loginAttempt{}}
+	identity, identityErr := newIdentityProtector(config.IdentityProtectionKey, config.SessionSecret)
+	a := &App{config: config, db: db, payments: newStripePaymentProvider(config.StripeSecretKey), media: media, mediaErr: mediaErr, discovery: newDiscoveryPolicy(), identity: identity, identityErr: identityErr, mux: http.NewServeMux(), loginAttempts: map[string]loginAttempt{}}
 	a.routes()
 	return a
 }
@@ -48,8 +51,23 @@ func (a *App) routes() {
 	})
 	a.mux.HandleFunc("GET /api/ready", a.handleReady)
 	a.mux.HandleFunc("POST /api/auth/signup", a.handleSignup)
+	a.mux.HandleFunc("POST /api/auth/verify-email", a.handleVerifyEmail)
+	a.mux.HandleFunc("POST /api/auth/request-verification", a.handleRequestVerification)
 	a.mux.HandleFunc("POST /api/auth/login", a.handleLogin)
+	a.mux.HandleFunc("POST /api/auth/refresh", a.handleRefreshSession)
 	a.mux.HandleFunc("POST /api/auth/logout", a.handleLogout)
+	a.mux.HandleFunc("POST /api/auth/logout-all", a.handleLogoutAll)
+	a.mux.HandleFunc("POST /api/auth/recovery/request", a.handleRequestRecovery)
+	a.mux.HandleFunc("POST /api/auth/recovery/complete", a.handleCompleteRecovery)
+	a.mux.HandleFunc("POST /api/mobile/auth/signup", a.handleSignup)
+	a.mux.HandleFunc("POST /api/mobile/auth/verify-email", a.handleVerifyEmail)
+	a.mux.HandleFunc("POST /api/mobile/auth/request-verification", a.handleRequestVerification)
+	a.mux.HandleFunc("POST /api/mobile/auth/login", a.handleLogin)
+	a.mux.HandleFunc("POST /api/mobile/auth/refresh", a.handleRefreshSession)
+	a.mux.HandleFunc("POST /api/mobile/auth/logout", a.handleLogout)
+	a.mux.HandleFunc("POST /api/mobile/auth/logout-all", a.handleLogoutAll)
+	a.mux.HandleFunc("POST /api/mobile/auth/recovery/request", a.handleRequestRecovery)
+	a.mux.HandleFunc("POST /api/mobile/auth/recovery/complete", a.handleCompleteRecovery)
 	a.mux.HandleFunc("GET /api/me", a.handleMe)
 	a.mux.HandleFunc("GET /api/debug/mobile-auth", a.handleMobileAuthDebug)
 	a.mux.HandleFunc("GET /api/dev/email-outbox", a.handleDevEmailOutbox)
@@ -151,9 +169,9 @@ func (a *App) cors(next http.Handler) http.Handler {
 		if origin := strings.TrimSpace(r.Header.Get("Origin")); origin != "" && a.allowedOrigin(r) {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, "+authSessionHeader+", "+authTokenHeader)
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, "+authTokenHeader+", "+refreshTokenHeader)
 			w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, POST, PATCH, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Expose-Headers", authSessionHeader)
+			w.Header().Set("Access-Control-Expose-Headers", authTokenHeader+", "+refreshTokenHeader)
 			w.Header().Add("Vary", "Origin")
 		}
 		if r.Method == http.MethodOptions {
@@ -194,7 +212,9 @@ func requestNeedsOriginCheck(r *http.Request) bool {
 	if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
 		return false
 	}
-	if _, err := r.Cookie(authCookieName); err != nil && strings.TrimSpace(r.Header.Get(authSessionHeader)) == "" && strings.TrimSpace(r.Header.Get(authTokenHeader)) == "" && strings.TrimSpace(r.Header.Get("Authorization")) == "" {
+	_, accessCookieErr := r.Cookie(authCookieName)
+	_, refreshCookieErr := r.Cookie(refreshCookieName)
+	if accessCookieErr != nil && refreshCookieErr != nil && strings.TrimSpace(r.Header.Get(authTokenHeader)) == "" && strings.TrimSpace(r.Header.Get(refreshTokenHeader)) == "" && strings.TrimSpace(r.Header.Get("Authorization")) == "" {
 		return false
 	}
 	return r.Header.Get("Origin") != ""

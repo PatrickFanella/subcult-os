@@ -9,6 +9,11 @@ export interface CurrentUserDTO {
   workspaces: WorkspaceSummaryDTO[];
 }
 
+export interface SignupResultDTO {
+  verificationRequired: boolean;
+  email: string;
+}
+
 export interface WorkspaceSummaryDTO {
   id: string;
   name: string;
