@@ -1,5 +1,13 @@
 # Development execution log
 
+## 2026-09-20 — IDENT-02 web recovery and challenge qualification
+
+The real Chromium/Vite Strict Mode journey reproduced two verification POSTs on one page load: one 200 and one rejected 401 replay. Verification now requires an explicit form submission, with an immediate in-flight guard; mounting the page does not consume the challenge. Successful verification replaces the token URL. Recovery success clears its query token and password field and removes the completed form. Recovery inputs have accessible names and result/error messages expose status/alert semantics.
+
+On the disposable Unix-socket PostgreSQL 18 database, browser signup created no session before confirmation; one confirmation created exactly one session and reached the operator home. Recovery through the browser invalidated the existing session, rejected the old password, and accepted the new password. With only the synthetic account's access expiration advanced in the database, a reload refreshed the cookie session, advanced its generation from 0 to 1 and retained the authenticated workspace. This is controlled-expiration evidence, not a 15-minute natural soak. Development outbox reads bridged unsent emails; no external email was delivered. Tokens/passwords and account rows are not included in this record.
+
+`make verify` passed (103 web tests, 27 mobile tests, Go/vet/build/contracts/Compose); `make test-db` passed including replay descendant revocation, revoke-one/all, recovery and account non-merging. Handler tests cover explicit submission, concurrent-submit suppression and missing tokens; actual browser behavior was checked separately. Issue #6 stays open: physical-device secure storage, restarts/deep links and native logout require real-device evidence. Hosted CI, production email and production deployment are not claimed.
+
 ## 2026-09-20 — UP-STATE reduced upstream reproduction
 
 Prepared an original no-network test against Indigo's actual `StartAuthFlow`, rather than only a fake application runner. The pinned/current upstream commit ignores a failing store and returns nil error; the test reproduces that failure. A two-line error-propagation patch applied to a disposable source export makes the complete OAuth race suite pass. The inspected read-only dependency clone and application module pin remain unchanged. Current README contribution guidance requests issue discussion before an upstream PR; the package includes a submission draft and AI-assistance disclosure, but no external maintainer was contacted.
