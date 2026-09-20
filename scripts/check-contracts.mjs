@@ -79,6 +79,7 @@ const mobileInterfaces = parseInterfaces(readText(mobilePath));
 
 for (const [dtoName, spec] of Object.entries(schema)) {
   const required = Array.isArray(spec.required) ? spec.required : [];
+  const forbidden = Array.isArray(spec.forbidden) ? spec.forbidden : [];
   for (const [label, interfaces] of [
     ['web', webInterfaces],
     ['mobile', mobileInterfaces],
@@ -96,6 +97,11 @@ for (const [dtoName, spec] of Object.entries(schema)) {
       }
       if (props.get(prop).optional) {
         fail(`[${label}] ${dtoName} property ${prop} is optional but contract marks it required`);
+      }
+    }
+    for (const prop of forbidden) {
+      if (props.has(prop)) {
+        fail(`[${label}] ${dtoName} exposes forbidden property ${prop}`);
       }
     }
   }

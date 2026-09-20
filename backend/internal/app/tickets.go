@@ -15,9 +15,20 @@ import (
 )
 
 type publicEventDTO struct {
-	eventDTO
-	RemainingTickets int  `json:"remainingTickets"`
-	IsFull           bool `json:"isFull"`
+	ID                string  `json:"id"`
+	Title             string  `json:"title"`
+	StartsAt          string  `json:"startsAt"`
+	PublicDescription string  `json:"publicDescription"`
+	LocationDisplay   string  `json:"locationDisplay"`
+	ImageURL          *string `json:"imageUrl"`
+	PricingMode       string  `json:"pricingMode"`
+	TicketPriceCents  int     `json:"ticketPriceCents"`
+	TicketCurrency    string  `json:"ticketCurrency"`
+	Status            string  `json:"status"`
+	PublicSlug        string  `json:"publicSlug"`
+	PublicURL         string  `json:"publicUrl"`
+	RemainingTickets  int     `json:"remainingTickets"`
+	IsFull            bool    `json:"isFull"`
 }
 
 type ticketDTO struct {
@@ -84,12 +95,28 @@ func (a *App) handlePublicEvent(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not load event")
 		return
 	}
+	writeJSON(w, http.StatusOK, a.publicEventDTOFromRow(event))
+}
+
+func (a *App) publicEventDTOFromRow(event eventRow) publicEventDTO {
 	remaining := ticketJourneyCapacity(event.TicketAllocation, event.ReservedCount)
-	writeJSON(w, http.StatusOK, publicEventDTO{
-		eventDTO:         a.eventDTOFromRow(event),
-		RemainingTickets: remaining,
-		IsFull:           ticketJourneyIsFull(event.TicketAllocation, event.ReservedCount),
-	})
+	slug := event.PublicSlug.String
+	return publicEventDTO{
+		ID:                event.ID,
+		Title:             event.Title,
+		StartsAt:          event.StartsAt.UTC().Format(time.RFC3339Nano),
+		PublicDescription: event.PublicDescription,
+		LocationDisplay:   event.LocationDisplay,
+		ImageURL:          nullableString(event.ImageURL),
+		PricingMode:       event.PricingMode,
+		TicketPriceCents:  event.TicketPriceCents,
+		TicketCurrency:    event.TicketCurrency,
+		Status:            eventStatusPublished,
+		PublicSlug:        slug,
+		PublicURL:         a.publicEventURL(slug),
+		RemainingTickets:  remaining,
+		IsFull:            ticketJourneyIsFull(event.TicketAllocation, event.ReservedCount),
+	}
 }
 
 func (a *App) handleReserveTicket(w http.ResponseWriter, r *http.Request) {
@@ -584,14 +611,14 @@ func (a *App) loadPublishedEventBySlug(ctx context.Context, slug string) (eventR
 		return row, pgx.ErrNoRows
 	}
 	if err := a.db.QueryRow(ctx, `
-		select e.id, e.workspace_id, e.title, e.starts_at, e.public_description, e.location_display,
+		select e.id, e.workspace_id, e.title, e.starts_at, e.public_description, e.location_display, e.image_url,
 		       e.ticket_allocation, e.pricing_mode, e.ticket_price_cents, e.ticket_currency, e.status, e.public_slug,
 		       (select count(*) from tickets t where t.event_id = e.id and t.payment_status <> 'cancelled') as reserved_count,
 		       (select count(*) from tickets t where t.event_id = e.id and t.status = 'checked_in' and t.payment_status <> 'cancelled') as checked_in_count
 		from events e
 		where e.public_slug = $1
 		  and e.status = 'published'
-	`, slug).Scan(&row.ID, &row.WorkspaceID, &row.Title, &row.StartsAt, &row.PublicDescription, &row.LocationDisplay, &row.TicketAllocation, &row.PricingMode, &row.TicketPriceCents, &row.TicketCurrency, &row.Status, &row.PublicSlug, &row.ReservedCount, &row.CheckedInCount); err != nil {
+	`, slug).Scan(&row.ID, &row.WorkspaceID, &row.Title, &row.StartsAt, &row.PublicDescription, &row.LocationDisplay, &row.ImageURL, &row.TicketAllocation, &row.PricingMode, &row.TicketPriceCents, &row.TicketCurrency, &row.Status, &row.PublicSlug, &row.ReservedCount, &row.CheckedInCount); err != nil {
 		return eventRow{}, err
 	}
 	return row, nil

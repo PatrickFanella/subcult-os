@@ -32,24 +32,26 @@
       ]
     },
     "PublicEventDTO": {
-      "required": [
-        "id",
+      "forbidden": [
         "workspaceId",
-        "title",
-        "startsAt",
-        "publicDescription",
-        "locationDisplay",
-        "imageUrl",
         "ticketAllocation",
-        "pricingMode",
-        "ticketPriceCents",
-        "ticketCurrency",
         "reservedCount",
         "checkedInCount",
         "staffingOpenCount",
         "staffingAssignedCount",
         "staffingCompletedCount",
-        "staffingCancelledCount",
+        "staffingCancelledCount"
+      ],
+      "required": [
+        "id",
+        "title",
+        "startsAt",
+        "publicDescription",
+        "locationDisplay",
+        "imageUrl",
+        "pricingMode",
+        "ticketPriceCents",
+        "ticketCurrency",
         "status",
         "publicSlug",
         "publicUrl",

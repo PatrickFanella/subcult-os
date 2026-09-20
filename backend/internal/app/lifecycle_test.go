@@ -1224,7 +1224,7 @@ func TestPrivateMemoryBoundaries(t *testing.T) {
 func TestPublicEventDiscoveryAPI(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	draft := createEvent(t, fx, "Draft Night", 20)
-	published := createEventWithPricing(t, fx, "Published Market", 40, "fixed", 1500, "usd")
+	published := createEvent(t, fx, "Published Market", 40)
 	privateApplications := createEvent(t, fx, "Members Night", 30)
 	closed := createEvent(t, fx, "Closed Night", 30)
 
@@ -1240,8 +1240,8 @@ func TestPublicEventDiscoveryAPI(t *testing.T) {
 	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+publishedID+"/roles", map[string]any{"name": "Performer", "description": "Play a 20-minute set.", "capacity": 3, "public": true}, http.StatusOK)
 	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+privateApplicationsID+"/roles", map[string]any{"name": "Backstage", "description": "Private notes.", "capacity": 1, "public": false}, http.StatusOK)
 	postJSON(t, fx.app, nil, "/api/public/events/"+publishedSlug+"/reservations", map[string]any{
-		"name":  "Ada",
-		"email": "ada@example.com",
+		"displayName": "Ada",
+		"email":       "ada@example.com",
 	}, http.StatusOK)
 
 	resp := getJSON(t, fx.app, nil, "/api/public/events", http.StatusOK)
@@ -1274,7 +1274,7 @@ func TestPublicEventDiscoveryAPI(t *testing.T) {
 	if int(publishedEvent["remainingTickets"].(float64)) != 39 || publishedEvent["isFull"].(bool) {
 		t.Fatalf("unexpected availability: %#v", publishedEvent)
 	}
-	if !strings.HasPrefix(publishedEvent["publicUrl"].(string), "http://example.test/e/") {
+	if !strings.HasPrefix(publishedEvent["publicUrl"].(string), "http://public.test/e/") {
 		t.Fatalf("unexpected public url: %#v", publishedEvent["publicUrl"])
 	}
 
@@ -3175,6 +3175,10 @@ func TestTicketReservationCurrentCapacityAndDoorRules(t *testing.T) {
 	event := createEvent(t, fx, "Night Market", 1)
 	eventID := mustString(t, event, "id")
 	slug := mustString(t, publishEvent(t, fx, eventID), "publicSlug")
+	const publicImageURL = "https://media.example.test/night-market.jpg"
+	if _, err := fx.app.db.Exec(t.Context(), `update events set image_url = $1 where id = $2`, publicImageURL, eventID); err != nil {
+		t.Fatal(err)
+	}
 
 	firstReservation := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/reservations", map[string]any{"email": fx.email("guest-a"), "displayName": "Guest One"}, http.StatusOK)
 	postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/reservations", map[string]any{"email": fx.email("guest-b"), "displayName": "Guest Two"}, http.StatusConflict)
@@ -3187,8 +3191,16 @@ func TestTicketReservationCurrentCapacityAndDoorRules(t *testing.T) {
 	}
 
 	publicEvent := getJSON(t, fx.app, nil, "/api/public/events/"+slug, http.StatusOK).JSON.(map[string]any)
-	if int(publicEvent["reservedCount"].(float64)) != 1 || int(publicEvent["remainingTickets"].(float64)) != 0 || !publicEvent["isFull"].(bool) {
+	if int(publicEvent["remainingTickets"].(float64)) != 0 || !publicEvent["isFull"].(bool) {
 		t.Fatalf("expected event to stay full after one reservation: %#v", publicEvent)
+	}
+	if publicEvent["imageUrl"] != publicImageURL {
+		t.Fatalf("expected public event image parity, got %#v", publicEvent["imageUrl"])
+	}
+	for _, forbidden := range []string{"workspaceId", "ticketAllocation", "reservedCount", "checkedInCount", "staffingOpenCount", "staffingAssignedCount", "staffingCompletedCount", "staffingCancelledCount", "staffingItems", "settlement", "archive", "notes"} {
+		if _, ok := publicEvent[forbidden]; ok {
+			t.Fatalf("public event detail leaked operational field %q: %#v", forbidden, publicEvent)
+		}
 	}
 }
 
@@ -3494,7 +3506,7 @@ func TestFirstEventLifecycleFullCapacity(t *testing.T) {
 	postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/reservations", map[string]any{"email": secondGuest, "displayName": "Guest Two"}, http.StatusConflict)
 
 	publicEvent := getJSON(t, fx.app, nil, "/api/public/events/"+slug, http.StatusOK)
-	if int(publicEvent.JSON.(map[string]any)["reservedCount"].(float64)) != 1 || int(publicEvent.JSON.(map[string]any)["remainingTickets"].(float64)) != 0 || publicEvent.JSON.(map[string]any)["isFull"].(bool) != true {
+	if int(publicEvent.JSON.(map[string]any)["remainingTickets"].(float64)) != 0 || publicEvent.JSON.(map[string]any)["isFull"].(bool) != true {
 		t.Fatalf("event should remain full with one reservation: %#v", publicEvent.JSON)
 	}
 }

@@ -186,7 +186,19 @@ export interface EventDTO {
   publicUrl: string | null;
 }
 
-export interface PublicEventDTO extends EventDTO {
+export interface PublicEventDTO {
+  id: string;
+  title: string;
+  startsAt: string;
+  publicDescription: string;
+  locationDisplay: string;
+  imageUrl: string | null;
+  pricingMode: 'free' | 'fixed';
+  ticketPriceCents: number;
+  ticketCurrency: string;
+  status: 'published';
+  publicSlug: string;
+  publicUrl: string;
   remainingTickets: number;
   isFull: boolean;
 }

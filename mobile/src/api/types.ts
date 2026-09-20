@@ -23,25 +23,17 @@ export interface PublicEventSummaryDTO {
 
 export interface PublicEventDTO {
   id: string;
-  workspaceId: string;
   title: string;
   startsAt: string;
   publicDescription: string;
   locationDisplay: string;
   imageUrl: string | null;
-  ticketAllocation: number;
   pricingMode: PricingMode;
   ticketPriceCents: number;
   ticketCurrency: string;
-  reservedCount: number;
-  checkedInCount: number;
-  staffingOpenCount: number;
-  staffingAssignedCount: number;
-  staffingCompletedCount: number;
-  staffingCancelledCount: number;
-  status: EventStatus;
-  publicSlug: string | null;
-  publicUrl: string | null;
+  status: 'published';
+  publicSlug: string;
+  publicUrl: string;
   remainingTickets: number;
   isFull: boolean;
 }
