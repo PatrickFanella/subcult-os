@@ -1,5 +1,5 @@
 # Subcult.tv platform development handoff
-Updated: 2026-09-20. Status: **Subcult OS accepted as the platform core; API privacy, ordered migrations and the selective extraction audit are complete**, not implemented consolidation or release approval.
+Updated: 2026-09-20. Status: **Subcult OS is the platform core; API privacy, ordered migrations, canonical identity, selective extraction and the AT syntax kernel are implemented**, not a completed protocol integration or release approval.
 
 This directory converts the Subcult research and funding work into an engineering handoff. It is the canonical copy for this task. Subcults was inspected read-only and remains source material rather than the destination repository. The directory can also be copied into an Obsidian vault because internal links are relative Markdown links.
 
@@ -16,6 +16,7 @@ This directory converts the Subcult research and funding work into an engineerin
 - [Subcult OS development track](subcult-os-track.md)
 - [Selective extraction inventory](extraction-inventory.md)
 - [Subcults file-level extraction manifest](subcults-extraction-manifest.md)
+- [AT Protocol kernel and OAuth boundary](atproto-kernel.md)
 - [Superseded bridge contract](bridge-contract.md)
 - [User journeys and UI acceptance](journeys.md)
 - [Security, consent and data placement](data-boundaries.md)
@@ -32,4 +33,4 @@ Accepted repository ADRs and current code take precedence over proposal prose. [
 The adjacent research/funding kits supply rationale, not production requirements. Existing Open Pilot issue and PR templates remain unchanged. No hosted issues have been created or queued.
 
 ## First implementation recommendation
-BASE-01, API-01, DB-01 and INV-01 are complete at their documented evidence levels. Next, implement IDENT-01 and AT-01 as separate, reviewable units against the clean schema and extraction manifest. Add publication only after authority and failure behavior are approved.
+BASE-01, API-01, DB-01, INV-01 and IDENT-01 are complete at their documented evidence levels. AT-01 has a verified cross-language syntax foundation; its OAuth, resolver and Lexicon slices remain open. Add publication only after authority and failure behavior are approved.

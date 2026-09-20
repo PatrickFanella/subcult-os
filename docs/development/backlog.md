@@ -96,8 +96,8 @@ Review [decisions](decisions.md), [architecture](architecture.md), and the [extr
 - Repository: OS
 - Priority: P0
 - Depends on: DB-01, INV-01
-- Status: proposed
-- Size: 4–7 engineering days
+- Status: syntax foundation implemented and cross-language verified; OAuth, resolver and Lexicon admission remain open
+- Size: active multi-slice item
 
 **Acceptance:** Pinned minimal Indigo surface; canonical syntax/DID/handle/URI/CID validation; reviewed Lexicon subset; identity-only OAuth link/unlink; no publication scope by default.
 

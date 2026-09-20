@@ -60,7 +60,7 @@ If any existing account data is later designated for migration, accounts must no
 
 ## AT Protocol implementation
 
-Production protocol code remains Go behind a narrow adapter. Pin Indigo dependencies, own error/retry behavior locally, and keep Lexicons as the schema source of truth. Run shared valid/invalid fixtures against Go and the official TypeScript `@atproto/lex` implementation so protocol drift is visible.
+Production protocol code remains Go behind the narrow [AT Protocol kernel](atproto-kernel.md). Pin Indigo dependencies, own error/retry behavior locally, and keep admitted Lexicons as the schema source of truth. Syntax fixtures run against Indigo and official TypeScript `@atproto/syntax`; once a Lexicon is independently authored and approved, its record fixtures must also run against Indigo Lexicon validation and official TypeScript `@atproto/lex` so protocol drift is visible.
 
 Public writes require both local authorization and current scoped OAuth authority. Use payload digests, idempotency keys, CID preconditions, durable reconciliation, bounded retry and quarantine. A service credential alone never proves creator permission.
 
