@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	atprotocol "git.subcult.tv/PatrickFanella/subcult-os/internal/atproto"
 )
@@ -21,6 +22,16 @@ type atprotoStartRequest struct {
 
 type atprotoStartResponse struct {
 	AuthorizationURL string `json:"authorizationUrl"`
+}
+
+type atprotoLinkDTO struct {
+	DID        string    `json:"did"`
+	Handle     *string   `json:"handle"`
+	VerifiedAt time.Time `json:"verifiedAt"`
+}
+
+type atprotoLinksResponse struct {
+	Links []atprotoLinkDTO `json:"links"`
 }
 
 func (a *App) handleATProtoClientMetadata(w http.ResponseWriter, r *http.Request) {
@@ -78,6 +89,56 @@ func (a *App) handleATProtoCallback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, landing, http.StatusSeeOther)
 }
 
+func (a *App) handleATProtoLinks(w http.ResponseWriter, r *http.Request) {
+	if !a.atprotoLinkStoreAvailable(w, r) {
+		return
+	}
+	personID, ok := a.requirePersonID(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	links, err := a.atprotoStore.ListActiveLinks(r.Context(), personID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not load AT Protocol links")
+		return
+	}
+	response := atprotoLinksResponse{Links: make([]atprotoLinkDTO, 0, len(links))}
+	for _, link := range links {
+		var handle *string
+		if link.Handle != "" {
+			value := link.Handle
+			handle = &value
+		}
+		response.Links = append(response.Links, atprotoLinkDTO{DID: link.DID, Handle: handle, VerifiedAt: link.VerifiedAt})
+	}
+	writeJSON(w, http.StatusOK, response)
+}
+
+func (a *App) handleATProtoUnlink(w http.ResponseWriter, r *http.Request) {
+	if !a.atprotoLinkStoreAvailable(w, r) {
+		return
+	}
+	personID, ok := a.requirePersonID(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	if err := a.atprotoStore.RevokeLocalLink(r.Context(), personID, r.PathValue("did")); err != nil {
+		if errors.Is(err, atprotocol.ErrOAuthInvalidDID) {
+			writeError(w, http.StatusBadRequest, "invalid AT Protocol DID")
+			return
+		}
+		if errors.Is(err, atprotocol.ErrOAuthLinkNotFound) {
+			writeError(w, http.StatusNotFound, "AT Protocol link not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "could not unlink AT Protocol identity")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (a *App) atprotoOAuthAvailable(w http.ResponseWriter, r *http.Request) bool {
 	if !a.config.ATProtoOAuthEnabled {
 		http.NotFound(w, r)
@@ -96,6 +157,18 @@ func (a *App) atprotoFlowAvailable(w http.ResponseWriter, r *http.Request) bool 
 		return false
 	}
 	if a.atprotoErr != nil || a.atprotoFlowErr != nil || a.atprotoFlow == nil {
+		writeError(w, http.StatusServiceUnavailable, "AT OAuth unavailable")
+		return false
+	}
+	return true
+}
+
+func (a *App) atprotoLinkStoreAvailable(w http.ResponseWriter, r *http.Request) bool {
+	if !a.config.ATProtoOAuthEnabled {
+		http.NotFound(w, r)
+		return false
+	}
+	if a.atprotoErr != nil || a.atprotoFlowErr != nil || a.atprotoStore == nil {
 		writeError(w, http.StatusServiceUnavailable, "AT OAuth unavailable")
 		return false
 	}

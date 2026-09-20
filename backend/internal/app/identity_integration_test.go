@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	atprotocol "git.subcult.tv/PatrickFanella/subcult-os/internal/atproto"
 )
 
 type authTestResult struct {
@@ -198,6 +200,55 @@ func TestIdentityATProtoStartBindsAuthenticatedPerson(t *testing.T) {
 	badRequest.Header.Set("Content-Type", "application/json")
 	badRequest.Header.Set(authTokenHeader, session.AccessToken)
 	authRequest(t, application, badRequest, http.StatusBadRequest)
+}
+
+func TestIdentityATProtoLinkListAndUnlink(t *testing.T) {
+	application := newIdentityTestApp(t)
+	session := signupAndVerifyIdentity(t, application, "atproto-status@example.test")
+	var personID string
+	if err := application.db.QueryRow(t.Context(), `select person_id from identity_sessions where access_token_hash = $1`, tokenHash(session.AccessToken)).Scan(&personID); err != nil {
+		t.Fatal(err)
+	}
+	store, err := atprotocol.NewOAuthStore(application.db, "", "identity-atproto-status-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	application.config.ATProtoOAuthEnabled = true
+	application.atprotoStore = store
+	application.atprotoFlowErr = nil
+	did := "did:plc:identityatprotostatus"
+	if _, err := application.db.Exec(t.Context(), `
+		insert into did_links (person_id, did, handle, verified_at)
+		values ($1, $2, 'linked.example.com', now())
+	`, personID, did); err != nil {
+		t.Fatal(err)
+	}
+	listRequest := httptest.NewRequest(http.MethodGet, "/api/v1/auth/atproto/links", nil)
+	listRequest.Header.Set(authTokenHeader, session.AccessToken)
+	listed := authRequest(t, application, listRequest, http.StatusOK)
+	listedJSON, ok := listed.JSON.(map[string]any)
+	if !ok {
+		t.Fatalf("unexpected links response: %#v", listed.JSON)
+	}
+	links, ok := listedJSON["links"].([]any)
+	if !ok || len(links) != 1 || mustString(t, links[0], "did") != did || mustString(t, links[0], "handle") != "linked.example.com" {
+		t.Fatalf("unexpected links: %#v", listed.JSON)
+	}
+
+	unlinkRequest := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/atproto/links/"+url.PathEscape(did), nil)
+	unlinkRequest.Header.Set(authTokenHeader, session.AccessToken)
+	authRequest(t, application, unlinkRequest, http.StatusNoContent)
+	var status string
+	if err := application.db.QueryRow(t.Context(), `select status from did_links where person_id = $1 and did = $2`, personID, did).Scan(&status); err != nil {
+		t.Fatal(err)
+	}
+	if status != "revoked" {
+		t.Fatalf("link status = %q", status)
+	}
+	authRequest(t, application, unlinkRequest, http.StatusNotFound)
+	invalidRequest := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/atproto/links/not-a-did", nil)
+	invalidRequest.Header.Set(authTokenHeader, session.AccessToken)
+	authRequest(t, application, invalidRequest, http.StatusBadRequest)
 }
 
 func newIdentityTestApp(t *testing.T) *App {

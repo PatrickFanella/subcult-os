@@ -34,6 +34,7 @@ type App struct {
 	identityErr    error
 	atprotoOAuth   *atprotocol.OAuthClient
 	atprotoErr     error
+	atprotoStore   *atprotocol.OAuthStore
 	atprotoFlow    atprotoLinkFlow
 	atprotoFlowErr error
 	mux            *http.ServeMux
@@ -51,6 +52,7 @@ func New(config Config, db *pgxpool.Pool) *App {
 	}
 	var atprotoFlow atprotoLinkFlow
 	var atprotoFlowErr error
+	var atprotoStore *atprotocol.OAuthStore
 	if config.ATProtoOAuthEnabled && atprotoErr == nil {
 		if db == nil {
 			atprotoFlowErr = errors.New("AT OAuth flow requires a database")
@@ -59,11 +61,12 @@ func New(config Config, db *pgxpool.Pool) *App {
 			if err != nil {
 				atprotoFlowErr = err
 			} else {
+				atprotoStore = store
 				atprotoFlow, atprotoFlowErr = atprotoOAuth.NewOAuthFlow(store)
 			}
 		}
 	}
-	a := &App{config: config, db: db, payments: newStripePaymentProvider(config.StripeSecretKey), media: media, mediaErr: mediaErr, discovery: newDiscoveryPolicy(), identity: identity, identityErr: identityErr, atprotoOAuth: atprotoOAuth, atprotoErr: atprotoErr, atprotoFlow: atprotoFlow, atprotoFlowErr: atprotoFlowErr, mux: http.NewServeMux(), loginAttempts: map[string]loginAttempt{}}
+	a := &App{config: config, db: db, payments: newStripePaymentProvider(config.StripeSecretKey), media: media, mediaErr: mediaErr, discovery: newDiscoveryPolicy(), identity: identity, identityErr: identityErr, atprotoOAuth: atprotoOAuth, atprotoErr: atprotoErr, atprotoStore: atprotoStore, atprotoFlow: atprotoFlow, atprotoFlowErr: atprotoFlowErr, mux: http.NewServeMux(), loginAttempts: map[string]loginAttempt{}}
 	a.routes()
 	return a
 }
@@ -100,6 +103,8 @@ func (a *App) routes() {
 	a.mux.HandleFunc("GET /api/v1/auth/atproto/jwks", a.handleATProtoJWKS)
 	a.mux.HandleFunc("POST /api/v1/auth/atproto/start", a.handleATProtoStart)
 	a.mux.HandleFunc("GET /api/v1/auth/atproto/callback", a.handleATProtoCallback)
+	a.mux.HandleFunc("GET /api/v1/auth/atproto/links", a.handleATProtoLinks)
+	a.mux.HandleFunc("DELETE /api/v1/auth/atproto/links/{did}", a.handleATProtoUnlink)
 	a.mux.HandleFunc("POST /api/workspaces", a.handleCreateWorkspace)
 	a.mux.HandleFunc("GET /api/workspaces/current", a.handleCurrentWorkspace)
 	a.mux.HandleFunc("GET /api/workspaces/{workspaceID}", a.handleGetWorkspace)

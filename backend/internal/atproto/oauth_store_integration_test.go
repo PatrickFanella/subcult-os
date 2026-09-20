@@ -215,6 +215,48 @@ func TestOAuthStoreRejectsExpiredScopeAndCrossAccountLink(t *testing.T) {
 	}
 }
 
+func TestOAuthStoreListsAndLocallyRevokesLink(t *testing.T) {
+	db := newOAuthStoreTestPool(t)
+	store, err := atprotocol.NewOAuthStore(db, "", "oauth-store-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	personID := insertOAuthStorePerson(t, db, "oauth-unlink@example.test")
+	request := oauthRequest("unlink-state")
+	saveAndClaimOAuthRequest(t, store, personID, request)
+	did := syntax.DID("did:plc:oauthunlinkowner")
+	if err := store.SaveSession(t.Context(), oauthSession(did, request.State, "unlink-access", "unlink-refresh")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(t.Context(), `update did_links set handle = 'unlink.example.com' where did = $1`, did.String()); err != nil {
+		t.Fatal(err)
+	}
+	links, err := store.ListActiveLinks(t.Context(), personID)
+	if err != nil || len(links) != 1 || links[0].DID != did.String() || links[0].Handle != "unlink.example.com" {
+		t.Fatalf("ListActiveLinks() = %#v, %v", links, err)
+	}
+	if err := store.RevokeLocalLink(t.Context(), personID, did.String()); err != nil {
+		t.Fatal(err)
+	}
+	links, err = store.ListActiveLinks(t.Context(), personID)
+	if err != nil || len(links) != 0 {
+		t.Fatalf("links after revoke = %#v, %v", links, err)
+	}
+	var sessionCount, auditCount int
+	if err := db.QueryRow(t.Context(), `select count(*) from atproto_oauth_sessions where did = $1`, did.String()).Scan(&sessionCount); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(t.Context(), `select count(*) from auth_audit_events where person_id = $1 and event_type = 'atproto_did_unlinked'`, personID).Scan(&auditCount); err != nil {
+		t.Fatal(err)
+	}
+	if sessionCount != 0 || auditCount != 1 {
+		t.Fatalf("local revoke sessions=%d audit=%d, want 0/1", sessionCount, auditCount)
+	}
+	if err := store.RevokeLocalLink(t.Context(), personID, did.String()); !errors.Is(err, atprotocol.ErrOAuthLinkNotFound) {
+		t.Fatalf("second revoke error = %v", err)
+	}
+}
+
 func saveAndClaimOAuthRequest(t *testing.T, store *atprotocol.OAuthStore, personID string, request atprotocoloauth.AuthRequestData) {
 	t.Helper()
 	if err := store.SaveAuthRequestInfo(atprotocol.WithOAuthLinkPerson(t.Context(), personID), request); err != nil {

@@ -40,7 +40,7 @@ When AT OAuth is enabled, production must also set:
 - `ATPROTO_OAUTH_CLIENT_PRIVATE_KEY` to a secret-store-backed multibase P-256 key
 - `ATPROTO_OAUTH_CLIENT_KEY_ID` to the public key identifier
 
-Do not enable AT OAuth until the link UI and bounded live start/callback, refresh, unlink/revocation and replay-negative journeys have passed. Passing local handlers and publishing metadata/JWKS alone is not a qualified login flow.
+Do not enable AT OAuth until bounded live start/callback, refresh, provider-revocation and replay-negative journeys have passed. Passing local handlers, browser UI and metadata/JWKS checks alone is not a qualified login flow.
 
 Do not commit real secrets to `.env`, `.env.example`, docs, or compose files.
 

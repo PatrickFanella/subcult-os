@@ -28,6 +28,8 @@ const (
 
 var (
 	ErrOAuthLinkContext     = errors.New("AT OAuth link requires an authenticated local person")
+	ErrOAuthLinkNotFound    = errors.New("AT OAuth link not found")
+	ErrOAuthInvalidDID      = errors.New("AT OAuth DID is invalid")
 	ErrOAuthRequestNotFound = errors.New("AT OAuth request is missing, expired, or already claimed")
 	ErrOAuthSessionNotFound = errors.New("AT OAuth session not found")
 	ErrOAuthScopeRejected   = errors.New("AT OAuth session has non-identity scope")
@@ -40,6 +42,12 @@ type OAuthStore struct {
 	aead      cipher.AEAD
 	lookupKey []byte
 	now       func() time.Time
+}
+
+type OAuthLink struct {
+	DID        string
+	Handle     string
+	VerifiedAt time.Time
 }
 
 // WithOAuthLinkPerson binds an authenticated local account to one OAuth start
@@ -277,6 +285,72 @@ func (s *OAuthStore) DeleteSession(ctx context.Context, did syntax.DID, sessionI
 		delete from atproto_oauth_sessions where did = $1 and session_id = $2
 	`, did.String(), sessionID); err != nil {
 		return fmt.Errorf("delete AT OAuth session: %w", err)
+	}
+	return nil
+}
+
+func (s *OAuthStore) ListActiveLinks(ctx context.Context, personID string) ([]OAuthLink, error) {
+	rows, err := s.db.Query(ctx, `
+		select did, coalesce(handle, ''), verified_at
+		from did_links
+		where person_id = $1 and status = 'active'
+		order by verified_at desc, did
+	`, personID)
+	if err != nil {
+		return nil, fmt.Errorf("list AT OAuth links: %w", err)
+	}
+	defer rows.Close()
+	links := make([]OAuthLink, 0)
+	for rows.Next() {
+		var link OAuthLink
+		if err := rows.Scan(&link.DID, &link.Handle, &link.VerifiedAt); err != nil {
+			return nil, fmt.Errorf("scan AT OAuth link: %w", err)
+		}
+		links = append(links, link)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read AT OAuth links: %w", err)
+	}
+	return links, nil
+}
+
+// RevokeLocalLink immediately removes locally stored OAuth sessions and marks
+// the DID unusable by this account. Remote token revocation is a separate
+// best-effort network operation and must not be confused with this local gate.
+func (s *OAuthStore) RevokeLocalLink(ctx context.Context, personID, rawDID string) error {
+	did, err := syntax.ParseDID(strings.TrimSpace(rawDID))
+	if err != nil {
+		return ErrOAuthInvalidDID
+	}
+	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return fmt.Errorf("begin AT OAuth unlink: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	result, err := tx.Exec(ctx, `
+		update did_links
+		set status = 'revoked', revoked_at = $3, updated_at = $3
+		where person_id = $1 and did = $2 and status = 'active'
+	`, personID, did.String(), s.now())
+	if err != nil {
+		return fmt.Errorf("revoke AT OAuth DID link: %w", err)
+	}
+	if result.RowsAffected() != 1 {
+		return ErrOAuthLinkNotFound
+	}
+	if _, err := tx.Exec(ctx, `
+		delete from atproto_oauth_sessions where person_id = $1 and did = $2
+	`, personID, did.String()); err != nil {
+		return fmt.Errorf("delete AT OAuth sessions: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
+		insert into auth_audit_events (person_id, event_type)
+		values ($1, 'atproto_did_unlinked')
+	`, personID); err != nil {
+		return fmt.Errorf("audit AT OAuth unlink: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit AT OAuth unlink: %w", err)
 	}
 	return nil
 }

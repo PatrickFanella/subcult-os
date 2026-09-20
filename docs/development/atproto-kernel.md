@@ -1,6 +1,6 @@
 # AT Protocol kernel
 
-Status: syntax foundation, encrypted identity-only OAuth persistence, configurable confidential-client documents, and authenticated start/one-time callback routes implemented on 2026-09-20; live interoperability, link/unlink UI, Lexicon admission and publication are not qualified or implemented.
+Status: syntax foundation, encrypted identity-only OAuth persistence, configurable confidential-client documents, authenticated start/one-time callback routes, and link/list/local-unlink UI implemented on 2026-09-20; live interoperability, remote provider revocation, Lexicon admission and publication are not qualified or implemented.
 
 ## Dependency boundary
 
@@ -34,8 +34,8 @@ The replacement is a confidential web client using `private_key_jwt`, ES256 and 
 Before the OAuth flow is enabled, complete and document:
 
 1. signing-key import/rotation and rollback behavior for the existing `subcults-1` key ID;
-2. explicit link/unlink UX and the rule that a DID link grants no workspace or publication authority;
-3. a bounded live interoperability test covering PAR, callback, refresh and revocation without repository scopes;
+2. a bounded live interoperability test covering PAR, callback, refresh and revocation without repository scopes;
+3. remote provider token revocation that cannot prevent immediate local unlink;
 4. whether existing legacy grants can be revoked or should simply require fresh authorization after cutover.
 
 Use the pinned Indigo OAuth package only after reviewing its exact API and transitive surface. Do not copy the old Subcults OAuth service while its license/provenance gate remains unresolved.
@@ -61,6 +61,10 @@ The application can publish the selected client metadata and public JWKS without
 
 Outbound OAuth, handle and DID discovery uses public-IP-only dial controls with environment proxy use and HTTP redirects disabled. This closes the proxy bypass and redirect rebinding gaps left open by the SDK defaults. The adapter fails closed if a future pinned Indigo release changes the default identity-directory shape so the hardening can no longer be applied. Live interoperability remains open; these local tests do not prove that a real PDS accepts the client.
 
+Authenticated users can list every active DID link and begin a new identity-only link from the operator home. The UI explicitly states that a DID grants neither workspace membership nor publication authority and requires a second confirmation to unlink. Local unlink is transactional: it marks only that person's active DID as revoked, deletes all matching stored OAuth sessions, and records `atproto_did_unlinked`. It succeeds without external network availability. Provider-side token revocation remains open and must be attempted without weakening immediate local revocation before production enablement.
+
+`make generate-atproto-key` emits an Indigo-compatible multibase P-256 client key. Its stdout is secret material and should be piped directly to the deployment secret manager, never stored in committed configuration or captured in logs.
+
 ## Lexicon boundary
 
 No `tv.subcult.*` Lexicon has been admitted or published. The old schemas remain blocked by field review and the Subcults rights/license gate. `T-SYNTAX` is therefore implemented, while `T-LEX` remains open. When a minimal schema is independently authored and approved, validate the same JSON cases with Indigo's Lexicon package and the official TypeScript `@atproto/lex` package; reject unknown private-location and operational fields at the public projection boundary.
@@ -71,7 +75,8 @@ No `tv.subcult.*` Lexicon has been admitted or published. The old schemas remain
 cd backend && go test ./internal/atproto -count=1
 cd backend && TEST_DATABASE_URL=postgres://... go test ./internal/atproto -run TestOAuthStore -count=1
 cd backend && TEST_DATABASE_URL=postgres://... go test ./internal/app -run TestIdentityATProtoStart -count=1
+cd backend && TEST_DATABASE_URL=postgres://... go test ./internal/app -run TestIdentityATProtoLinkListAndUnlink -count=1
 cd web && pnpm run test -- atprotoSyntaxConformance
 ```
 
-These checks prove local cross-language syntax agreement, authenticated person binding, hardened redirect policy and, with PostgreSQL configured, the encrypted store's expiry, replay, scope, rotation, audit and non-merging invariants. They do not prove live handle/DID resolution, OAuth interoperability, a PDS write, Lexicon compatibility or publication authority.
+These checks prove local cross-language syntax agreement, authenticated person binding, hardened redirect policy, local unlink behavior and, with PostgreSQL configured, the encrypted store's expiry, replay, scope, rotation, audit and non-merging invariants. They do not prove live handle/DID resolution, OAuth interoperability, provider token revocation, a PDS write, Lexicon compatibility or publication authority.

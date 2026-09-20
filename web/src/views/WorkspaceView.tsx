@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { api, deleteJSON, patchJSON, postJSON } from '../api';
+import { ATProtoIdentityPanel } from '../components/ATProtoIdentityPanel';
 import { isClosedEvent, isDraftEvent, isPublishedEvent } from '../modules/eventLifecycle/eventLifecycle';
 import {
 	archiveLearningLoopCopy,
@@ -914,6 +915,7 @@ export function WorkspaceView() {
 
         {error ? <p className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error}</p> : null}
         {workspaceNotice ? <p className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">{workspaceNotice}</p> : null}
+        {!loading && me ? <ATProtoIdentityPanel /> : null}
 
         {loading ? (
           <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
