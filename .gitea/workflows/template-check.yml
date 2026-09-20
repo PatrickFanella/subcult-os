@@ -48,5 +48,16 @@ jobs:
         run: make verify
       - name: Verify persisted lifecycle and protocol boundaries
         env:
-          TEST_DATABASE_URL: postgres://subcult_test:disposable-ci-only@postgres:5432/subcult_test?sslmode=disable
-        run: make test-db
+          TEST_POSTGRES_ID: ${{ job.services.postgres.id }}
+        run: |
+          # The runner may use a shared network: the generic postgres alias
+          # can resolve to another job or a retained database. Use only this
+          # job's exact service container and fail closed if it is unavailable.
+          test -n "$TEST_POSTGRES_ID"
+          test_db_ip=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$TEST_POSTGRES_ID")
+          if ! [[ "$test_db_ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+            echo 'Expected exactly one IPv4 address for the job database' >&2
+            exit 1
+          fi
+          export TEST_DATABASE_URL="postgres://subcult_test:disposable-ci-only@$test_db_ip:5432/subcult_test?sslmode=disable"
+          make test-db
