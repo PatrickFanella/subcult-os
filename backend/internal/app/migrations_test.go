@@ -90,8 +90,8 @@ func TestRunMigrationsTracksReplayAndVersion(t *testing.T) {
 	if err := pool.QueryRow(ctx, `select count(*) from schema_migrations`).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
-	if count != 1 {
-		t.Fatalf("migration ledger rows = %d, want 1", count)
+	if count != minimumSchemaVersion {
+		t.Fatalf("migration ledger rows = %d, want %d", count, minimumSchemaVersion)
 	}
 }
 
@@ -117,8 +117,8 @@ func TestRunMigrationsRejectsDatabaseAheadOfBinary(t *testing.T) {
 	}
 	if _, err := pool.Exec(ctx, `
 		insert into schema_migrations (version, name, checksum)
-		values (2, 'future', $1)
-	`, strings.Repeat("0", 64)); err != nil {
+		values ($1, 'future', $2)
+	`, minimumSchemaVersion+1, strings.Repeat("0", 64)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -135,13 +135,14 @@ func TestRunMigrationsRollsBackFailedVersion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	migrations = append(migrations, newMigration(2, "forced_failure", []byte(`
+	failedVersion := len(migrations) + 1
+	migrations = append(migrations, newMigration(failedVersion, "forced_failure", []byte(`
 		create table migration_failure_probe (id integer primary key);
 		select * from migration_table_that_does_not_exist;
 	`)))
 
 	err = runMigrations(ctx, pool, migrations)
-	if err == nil || !strings.Contains(err.Error(), "apply migration 2 forced_failure") {
+	if err == nil || !strings.Contains(err.Error(), fmt.Sprintf("apply migration %d forced_failure", failedVersion)) {
 		t.Fatalf("runMigrations() error = %v, want forced migration failure", err)
 	}
 
@@ -186,9 +187,87 @@ func TestRunMigrationsSerializesConcurrentRunners(t *testing.T) {
 	if err := pool.QueryRow(ctx, `select count(*) from schema_migrations`).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
-	if count != 1 {
-		t.Fatalf("migration ledger rows = %d, want 1", count)
+	if count != minimumSchemaVersion {
+		t.Fatalf("migration ledger rows = %d, want %d", count, minimumSchemaVersion)
 	}
+}
+
+func TestIdentityFoundationRejectsPopulatedPrototypeAccounts(t *testing.T) {
+	pool := newMigrationTestPool(t)
+	ctx := t.Context()
+
+	initial := newMigration(1, "initial", mustReadMigrationFile(t, "schema.sql"))
+	if _, err := pool.Exec(ctx, initial.SQL); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `
+		create table schema_migrations (
+			version integer primary key check (version > 0),
+			name text not null,
+			checksum char(64) not null,
+			applied_at timestamptz not null default now()
+		)
+	`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into schema_migrations (version, name, checksum) values ($1, $2, $3)
+	`, initial.Version, initial.Name, initial.Checksum); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into people (email, password_hash)
+		values ('retained@example.test', 'bcrypt$placeholder')
+	`); err != nil {
+		t.Fatal(err)
+	}
+
+	err := RunMigrations(ctx, pool)
+	if err == nil || !strings.Contains(err.Error(), "inventory retained accounts before migration") {
+		t.Fatalf("RunMigrations() error = %v, want retained-account inventory gate", err)
+	}
+
+	version, err := CurrentSchemaVersion(ctx, pool)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if version != 1 {
+		t.Fatalf("schema version = %d, want failed migration to preserve version 1", version)
+	}
+	var email string
+	if err := pool.QueryRow(ctx, `select email from people`).Scan(&email); err != nil {
+		t.Fatal(err)
+	}
+	if email != "retained@example.test" {
+		t.Fatalf("retained account changed to %q", email)
+	}
+}
+
+func TestIdentityFoundationCreatesCanonicalTables(t *testing.T) {
+	pool := newMigrationTestPool(t)
+	ctx := t.Context()
+	if err := RunMigrations(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, table := range []string{"email_identities", "identity_challenges", "identity_sessions", "did_links", "auth_audit_events"} {
+		var exists bool
+		if err := pool.QueryRow(ctx, `select to_regclass($1) is not null`, table).Scan(&exists); err != nil {
+			t.Fatal(err)
+		}
+		if !exists {
+			t.Fatalf("expected %s table", table)
+		}
+	}
+}
+
+func mustReadMigrationFile(t *testing.T, name string) []byte {
+	t.Helper()
+	body, err := migrationFS.ReadFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return body
 }
 
 func newMigrationTestPool(t *testing.T) *pgxpool.Pool {
