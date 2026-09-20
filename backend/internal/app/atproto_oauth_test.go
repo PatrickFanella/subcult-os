@@ -188,15 +188,18 @@ func oauthEnabledTestConfig(settings atprotocol.OAuthClientSettings) Config {
 }
 
 type fakeATProtoLinkFlow struct {
+	startErr        error
+	startCalls      int
 	completeErr     error
 	startPersonID   string
 	startIdentifier string
 }
 
 func (f *fakeATProtoLinkFlow) StartLink(_ context.Context, personID, identifier string) (string, error) {
+	f.startCalls++
 	f.startPersonID = personID
 	f.startIdentifier = identifier
-	return "https://auth.example/authorize", nil
+	return "https://auth.example/authorize", f.startErr
 }
 
 func (f *fakeATProtoLinkFlow) CompleteLink(context.Context, url.Values) (atprotocol.OAuthLinkResult, error) {

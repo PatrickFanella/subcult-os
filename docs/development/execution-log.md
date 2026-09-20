@@ -1,5 +1,11 @@
 # Development execution log
 
+## 2026-09-20 — ARCH-01 protocol failure isolation
+
+Reused the complete local-event lifecycle assertion for a second scenario with an enabled AT link flow that returns a synthetic provider error. The AT request returns 502, then local create/publish/free-reserve/duplicate-check-in/closeout succeeds with one settlement/archive. The provider is called exactly once and no DID link is created. Focused and complete database gates plus `make verify` pass. This tests the existing application seam, not a live network partition or offline mobile mode.
+
+The architecture document now distinguishes implemented account/session and AT seams from design-only cultural validator/projection/publication contracts. It removes obsolete prototype identity/status claims and explicitly defers unused interface packages until a real caller exists. No public schema, record mapping or PDS publication was added. Hosted baseline runs 8911/8912 passed at `226fdf4`; later PostgreSQL service qualification is still queued.
+
 ## 2026-09-20 — Hosted database verification gate
 
 With the full local database suite restored, Gitea now declares a job-scoped PostgreSQL 17 service and runs the complete `make test-db` after `make verify`. The service has disposable test-only credentials, readiness checks, no host port and no retained volume. Test cases use private schemas. No application database, runner settings or deployment service is targeted.

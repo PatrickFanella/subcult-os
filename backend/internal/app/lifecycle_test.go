@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -3118,6 +3119,30 @@ func TestFirstEventLifecycleFixedPriceCreate(t *testing.T) {
 
 func TestFirstEventLifecycleCurrentCreatePublishFreeDoorEndOfNightFlow(t *testing.T) {
 	fx := newLifecycleFixture(t)
+	assertLocalEventLifecycle(t, fx)
+}
+
+func TestATProviderFailureDoesNotInterruptLocalEventLifecycle(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	flow := &fakeATProtoLinkFlow{startErr: errors.New("synthetic provider unavailable")}
+	fx.app.config.ATProtoOAuthEnabled = true
+	fx.app.atprotoFlow = flow
+	postJSON(t, fx.app, fx.ownerCookie, "/api/v1/auth/atproto/start", map[string]any{"identifier": "alice.example"}, http.StatusBadGateway)
+	assertLocalEventLifecycle(t, fx)
+	if flow.startCalls != 1 {
+		t.Fatalf("local event work unexpectedly called the AT provider: calls=%d", flow.startCalls)
+	}
+	var links int
+	if err := fx.app.db.QueryRow(t.Context(), `select count(*) from did_links`).Scan(&links); err != nil {
+		t.Fatal(err)
+	}
+	if links != 0 {
+		t.Fatalf("failed provider created %d identity links", links)
+	}
+}
+
+func assertLocalEventLifecycle(t *testing.T, fx lifecycleFixture) {
+	t.Helper()
 	event := createEvent(t, fx, "Night Market", 2)
 	eventID := mustString(t, event, "id")
 	slug := mustString(t, publishEvent(t, fx, eventID), "publicSlug")
