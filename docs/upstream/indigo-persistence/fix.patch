@@ -1,0 +1,14 @@
+diff --git a/atproto/auth/oauth/oauth.go b/atproto/auth/oauth/oauth.go
+--- a/atproto/auth/oauth/oauth.go
++++ b/atproto/auth/oauth/oauth.go
+@@ -576,7 +576,9 @@ func (app *ClientApp) StartAuthFlow(ctx context.Context, identifier string) (string,
+ 	}
+ 
+ 	// persist auth request info
+-	app.Store.SaveAuthRequestInfo(ctx, *info)
++	if err := app.Store.SaveAuthRequestInfo(ctx, *info); err != nil {
++		return "", fmt.Errorf("persist auth request info: %w", err)
++	}
+ 
+ 	params := url.Values{}
+ 	params.Set("client_id", app.Config.ClientID)

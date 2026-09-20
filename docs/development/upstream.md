@@ -11,6 +11,7 @@ Use the integrated application as a test bed for small reusable contributions, n
 6. Keep application-specific behavior out of a core proposal unless multiple independent consumers need it.
 
 ## Candidate packages
+- The [Indigo persistence contribution package](../upstream/indigo-persistence/README.md) includes a standalone synthetic test and minimal patch. The pinned/current source fails the test; the patched disposable source passes the OAuth race suite. It is prepared, not submitted, and does not change the application dependency.
 - Indigo `StartAuthFlow` persistence error propagation: the pinned helper calls `SaveAuthRequestInfo` without checking its returned error, so callers can receive an authorization redirect for state that was never stored. Subcult OS has a failing-store regression fixture and a local capture wrapper suitable for reducing into an upstream test and patch.
 - Indigo outbound-policy options: the default public-only transports still honor environment proxies and resolver clients follow redirects. Propose constructor options or a documented strict profile that disables proxies and redirects across OAuth metadata, token, handle and DID requests while preserving public-IP dial checks.
 - Record lifecycle fixture harness: create/update/delete, stale CID, lost response, replay and recovery.
