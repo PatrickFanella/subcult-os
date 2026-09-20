@@ -10,17 +10,30 @@ export class ApiError extends Error {
   }
 }
 
-export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const headers = new Headers(options.headers);
-  if (!headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json');
-  }
+let refreshPromise: Promise<boolean> | null = null;
 
-  const response = await fetch(path, {
-    ...options,
-    credentials: 'include',
-    headers,
-  });
+async function request(path: string, options: RequestInit) {
+  const headers = new Headers(options.headers);
+  if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  return fetch(path, { ...options, credentials: 'include', headers });
+}
+
+async function refreshSession() {
+  if (!refreshPromise) {
+    refreshPromise = request('/api/auth/refresh', { method: 'POST', body: '{}' })
+      .then((response) => response.ok)
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+}
+
+export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+  let response = await request(path, options);
+  if (response.status === 401 && !path.startsWith('/api/auth/') && await refreshSession()) {
+    response = await request(path, options);
+  }
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {

@@ -14,12 +14,14 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const { signIn, signUp, loading } = useAuth();
 
   async function submit() {
     const trimmedEmail = email.trim();
     const trimmedDisplayName = displayName.trim();
     setError(null);
+    setNotice(null);
 
     if (!trimmedEmail || !trimmedEmail.includes('@')) {
       setError('Enter a valid email address.');
@@ -32,7 +34,9 @@ export default function LoginScreen() {
 
     try {
       if (mode === 'signup') {
-        await signUp(trimmedEmail, password, trimmedDisplayName || undefined);
+        const result = await signUp(trimmedEmail, password, trimmedDisplayName || undefined);
+        setNotice(`Check ${result.email} for a verification link before signing in.`);
+        return;
       } else {
         await signIn(trimmedEmail, password);
       }
@@ -86,6 +90,7 @@ export default function LoginScreen() {
           style={styles.input}
         />
         {error ? <Text style={styles.error}>{error}</Text> : null}
+        {notice ? <Text style={styles.notice}>{notice}</Text> : null}
         <Pressable disabled={loading} onPress={submit} style={[styles.button, loading && styles.buttonDisabled]}>
           <Text style={styles.buttonText}>{loading ? 'Working…' : mode === 'signup' ? 'Create account' : 'Sign in'}</Text>
         </Pressable>
@@ -108,6 +113,7 @@ const styles = StyleSheet.create({
   card: { marginTop: 8, gap: 12, backgroundColor: '#f5f5f5', borderRadius: 28, padding: 20 },
   input: { minHeight: 54, borderRadius: 16, backgroundColor: '#ffffff', color: '#171717', paddingHorizontal: 14, fontSize: 15, fontWeight: '600' },
   error: { color: '#dc2626', fontWeight: '700', lineHeight: 20 },
+  notice: { color: '#166534', fontWeight: '700', lineHeight: 20 },
   button: { minHeight: 56, borderRadius: 18, backgroundColor: '#171717', alignItems: 'center', justifyContent: 'center', marginTop: 4 },
   buttonDisabled: { opacity: 0.55 },
   buttonText: { color: '#ffffff', fontWeight: '800', fontSize: 16 },

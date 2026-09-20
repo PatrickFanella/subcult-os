@@ -2,7 +2,7 @@ import type { PropsWithChildren } from 'react';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 import * as authAPI from '@/api/auth';
-import type { CurrentUserDTO } from '@/api/types';
+import type { CurrentUserDTO, SignupResultDTO } from '@/api/types';
 
 type AuthContextValue = {
   user: CurrentUserDTO | null;
@@ -10,7 +10,8 @@ type AuthContextValue = {
   error: string | null;
   refresh: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, displayName?: string) => Promise<void>;
+  signUp: (email: string, password: string, displayName?: string) => Promise<SignupResultDTO>;
+  verifyEmail: (token: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -55,9 +56,23 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setLoading(true);
     setError(null);
     try {
-      setUser(await authAPI.signup({ email, password, displayName }));
+      return await authAPI.signup({ email, password, displayName });
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : 'Unable to create account';
+      setError(message);
+      throw new Error(message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function verifyEmail(token: string) {
+    setLoading(true);
+    setError(null);
+    try {
+      setUser(await authAPI.verifyEmail(token));
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : 'Unable to verify email';
       setError(message);
       throw new Error(message);
     } finally {
@@ -80,7 +95,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     void refresh();
   }, []);
 
-  const value = useMemo(() => ({ user, loading, error, refresh, signIn, signUp, signOut }), [user, loading, error]);
+  const value = useMemo(() => ({ user, loading, error, refresh, signIn, signUp, verifyEmail, signOut }), [user, loading, error]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

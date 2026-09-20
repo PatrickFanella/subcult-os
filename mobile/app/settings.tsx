@@ -26,13 +26,10 @@ export default function SettingsScreen() {
       const sessionState = await getSessionDebugState();
       const lines = [
         `stored session: ${storedSession ? 'yes' : 'no'}`,
-        `memory session: ${sessionState.hasSessionCookie ? 'yes' : 'no'}`,
-        `bearer token: ${sessionState.hasBearerToken ? 'yes' : 'no'}`,
-        `cookie prefix: ${sessionState.sessionCookiePrefix || 'none'}`,
-        `server cookie: ${serverDebug.hasCookie ? 'yes' : 'no'}`,
-        `server auth header: ${serverDebug.hasAuthorization ? 'yes' : 'no'}`,
-        `server session header: ${serverDebug.hasSessionHeader ? 'yes' : 'no'}`,
-        `server token header: ${serverDebug.hasTokenHeader ? 'yes' : 'no'}`,
+        `memory access token: ${sessionState.hasAccessToken ? 'yes' : 'no'}`,
+        `memory refresh token: ${sessionState.hasRefreshToken ? 'yes' : 'no'}`,
+        `server access token: ${serverDebug.hasAccessToken ? 'yes' : 'no'}`,
+        `server refresh token: ${serverDebug.hasRefreshToken ? 'yes' : 'no'}`,
         `server token recognized: ${serverDebug.recognized ? 'yes' : 'no'}`,
         `/api/me: ${current.email}`,
         `workspaces: ${current.workspaces.length}`,
@@ -53,10 +50,8 @@ export default function SettingsScreen() {
       try {
         const serverDebug = await getMobileAuthDebug();
         serverLines = [
-          `server cookie: ${serverDebug.hasCookie ? 'yes' : 'no'}`,
-          `server auth header: ${serverDebug.hasAuthorization ? 'yes' : 'no'}`,
-          `server session header: ${serverDebug.hasSessionHeader ? 'yes' : 'no'}`,
-          `server token header: ${serverDebug.hasTokenHeader ? 'yes' : 'no'}`,
+          `server access token: ${serverDebug.hasAccessToken ? 'yes' : 'no'}`,
+          `server refresh token: ${serverDebug.hasRefreshToken ? 'yes' : 'no'}`,
           `server token recognized: ${serverDebug.recognized ? 'yes' : 'no'}`,
         ];
       } catch (debugError) {
@@ -64,9 +59,8 @@ export default function SettingsScreen() {
       }
       setDebugOutput([
         `stored session: ${storedSession ? 'yes' : 'no'}`,
-        `memory session: ${sessionState.hasSessionCookie ? 'yes' : 'no'}`,
-        `bearer token: ${sessionState.hasBearerToken ? 'yes' : 'no'}`,
-        `cookie prefix: ${sessionState.sessionCookiePrefix || 'none'}`,
+        `memory access token: ${sessionState.hasAccessToken ? 'yes' : 'no'}`,
+        `memory refresh token: ${sessionState.hasRefreshToken ? 'yes' : 'no'}`,
         ...serverLines,
         `/api/me failed: ${caught instanceof Error ? caught.message : 'unknown error'}`,
       ].join('\n'));

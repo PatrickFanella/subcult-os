@@ -1,5 +1,4 @@
 export {
-  clearSession as removeStoredSessionCookie,
-  loadStoredSessionCookie,
-  storeSessionCookie,
+	clearSession as removeStoredSessionCookie,
+	loadStoredSessionCookie,
 } from './sessionAdapter';

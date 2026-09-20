@@ -1,105 +1,75 @@
 import { loadPersistedValue, removePersistedValue, savePersistedValue } from '@/modules/storage/persistedStore';
 
-const sessionCookieKey = 'subcult_os_session_cookie';
-const sessionCookieName = 'subcult_session';
+const accessTokenKey = 'subcult_os_access_token';
+const refreshTokenKey = 'subcult_os_refresh_token';
+const legacySessionCookieKey = 'subcult_os_session_cookie';
+const accessTokenHeader = 'x-subcult-access-token';
+const refreshTokenHeader = 'x-subcult-refresh-token';
 
 export type SessionHeaders = Record<string, string>;
 
-let sessionCookie: string | null = null;
-let loadedStoredCookie = false;
-
-function sessionCookieFromHeader(value: string | null) {
-  if (!value) {
-    return null;
-  }
-
-  const [cookie] = value.split(';');
-  if (!cookie.includes(`${sessionCookieName}=`)) {
-    return null;
-  }
-
-  const trimmed = cookie.trim();
-  return trimmed || null;
-}
-
-function bearerTokenFromSessionCookie(value: string | null) {
-  if (!value?.startsWith(`${sessionCookieName}=`)) {
-    return null;
-  }
-
-  return value.slice(`${sessionCookieName}=`.length) || null;
-}
+let accessToken: string | null = null;
+let refreshToken: string | null = null;
+let loadedStoredTokens = false;
 
 async function ensureSessionLoaded() {
-  if (loadedStoredCookie) {
-    return;
-  }
-
-  sessionCookie = await loadPersistedValue(sessionCookieKey);
-  loadedStoredCookie = true;
+  if (loadedStoredTokens) return;
+  [accessToken, refreshToken] = await Promise.all([
+    loadPersistedValue(accessTokenKey),
+    loadPersistedValue(refreshTokenKey),
+  ]);
+  await removePersistedValue(legacySessionCookieKey);
+  loadedStoredTokens = true;
 }
 
-async function persistSessionCookie(value: string | null) {
-  sessionCookie = value;
-  loadedStoredCookie = true;
-  if (value) {
-    await savePersistedValue(sessionCookieKey, value);
-    return;
-  }
-
-  await removePersistedValue(sessionCookieKey);
+async function persistToken(key: string, value: string | null) {
+  if (value) await savePersistedValue(key, value);
+  else await removePersistedValue(key);
 }
 
-function sessionHeadersFromCookie(cookie: string | null): SessionHeaders {
-  const token = bearerTokenFromSessionCookie(cookie);
-  if (!cookie || !token) {
-    return {};
-  }
-
-  return {
-    Cookie: cookie,
-    'X-Subcult-Session': cookie,
-    'X-Subcult-Session-Token': token,
-    Authorization: `Bearer ${token}`,
-  };
-}
-
-export async function loadStoredSessionCookie() {
+export async function loadSessionHeaders(): Promise<SessionHeaders> {
   await ensureSessionLoaded();
-  return sessionCookie;
+  if (!accessToken) return {};
+  return { Authorization: `Bearer ${accessToken}`, 'X-Subcult-Access-Token': accessToken };
 }
 
-export async function storeSessionCookie(value: string) {
-  await persistSessionCookie(value);
-}
-
-export async function removeStoredSessionCookie() {
-  await persistSessionCookie(null);
-}
-
-export async function loadSessionHeaders() {
+export async function loadRefreshHeaders(): Promise<SessionHeaders> {
   await ensureSessionLoaded();
-  return sessionHeadersFromCookie(sessionCookie);
+  return refreshToken ? { 'X-Subcult-Refresh-Token': refreshToken } : {};
 }
 
 export async function absorbSessionHeaders(headers: Headers) {
-  const cookie = sessionCookieFromHeader(headers.get('set-cookie')) ?? sessionCookieFromHeader(headers.get('x-subcult-session'));
-  if (cookie) {
-    await persistSessionCookie(cookie);
+  const nextAccess = headers.get(accessTokenHeader);
+  const nextRefresh = headers.get(refreshTokenHeader);
+  if (nextAccess) {
+    accessToken = nextAccess;
+    await persistToken(accessTokenKey, nextAccess);
   }
+  if (nextRefresh) {
+    refreshToken = nextRefresh;
+    await persistToken(refreshTokenKey, nextRefresh);
+  }
+  loadedStoredTokens = true;
 }
 
 export async function clearSession() {
-  await persistSessionCookie(null);
+  accessToken = null;
+  refreshToken = null;
+  loadedStoredTokens = true;
+  await Promise.all([persistToken(accessTokenKey, null), persistToken(refreshTokenKey, null)]);
 }
 
 export async function getSessionDebugState() {
   await ensureSessionLoaded();
-  const token = bearerTokenFromSessionCookie(sessionCookie) ?? '';
-  return {
-    loadedStoredCookie,
-    hasSessionCookie: Boolean(sessionCookie),
-    hasBearerToken: Boolean(token),
-    sessionCookiePrefix: sessionCookie ? sessionCookie.slice(0, `${sessionCookieName}=`.length) : '',
-  };
+  return { loadedStoredTokens, hasAccessToken: Boolean(accessToken), hasRefreshToken: Boolean(refreshToken) };
+}
+
+// Temporary compatibility read for the settings screen during the token-store cutover.
+export async function loadStoredSessionCookie() {
+  await ensureSessionLoaded();
+  return accessToken;
+}
+
+export async function removeStoredSessionCookie() {
+  await clearSession();
 }

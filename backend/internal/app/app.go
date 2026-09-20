@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"net/url"
@@ -10,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	atprotocol "git.subcult.tv/PatrickFanella/subcult-os/internal/atproto"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -22,20 +24,49 @@ func Greeting(name string) string {
 }
 
 type App struct {
-	config        Config
-	db            *pgxpool.Pool
-	payments      paymentProvider
-	media         mediaStorage
-	mediaErr      error
-	discovery     discoveryPolicy
-	mux           *http.ServeMux
-	loginMu       sync.Mutex
-	loginAttempts map[string]loginAttempt
+	config         Config
+	db             *pgxpool.Pool
+	payments       paymentProvider
+	media          mediaStorage
+	mediaErr       error
+	discovery      discoveryPolicy
+	identity       *identityProtector
+	identityErr    error
+	atprotoOAuth   *atprotocol.OAuthClient
+	atprotoErr     error
+	atprotoStore   *atprotocol.OAuthStore
+	atprotoFlow    atprotoLinkFlow
+	atprotoFlowErr error
+	mux            *http.ServeMux
+	loginMu        sync.Mutex
+	loginAttempts  map[string]loginAttempt
 }
 
 func New(config Config, db *pgxpool.Pool) *App {
 	media, mediaErr := newMediaStorage(config)
-	a := &App{config: config, db: db, payments: newStripePaymentProvider(config.StripeSecretKey), media: media, mediaErr: mediaErr, discovery: newDiscoveryPolicy(), mux: http.NewServeMux(), loginAttempts: map[string]loginAttempt{}}
+	identity, identityErr := newIdentityProtector(config.IdentityProtectionKey, config.SessionSecret)
+	var atprotoOAuth *atprotocol.OAuthClient
+	var atprotoErr error
+	if config.ATProtoOAuthEnabled {
+		atprotoOAuth, atprotoErr = atprotocol.NewOAuthClient(config.atprotoOAuthSettings())
+	}
+	var atprotoFlow atprotoLinkFlow
+	var atprotoFlowErr error
+	var atprotoStore *atprotocol.OAuthStore
+	if config.ATProtoOAuthEnabled && atprotoErr == nil {
+		if db == nil {
+			atprotoFlowErr = errors.New("AT OAuth flow requires a database")
+		} else {
+			store, err := atprotocol.NewOAuthStore(db, config.IdentityProtectionKey, config.SessionSecret)
+			if err != nil {
+				atprotoFlowErr = err
+			} else {
+				atprotoStore = store
+				atprotoFlow, atprotoFlowErr = atprotoOAuth.NewOAuthFlow(store)
+			}
+		}
+	}
+	a := &App{config: config, db: db, payments: newStripePaymentProvider(config.StripeSecretKey), media: media, mediaErr: mediaErr, discovery: newDiscoveryPolicy(), identity: identity, identityErr: identityErr, atprotoOAuth: atprotoOAuth, atprotoErr: atprotoErr, atprotoStore: atprotoStore, atprotoFlow: atprotoFlow, atprotoFlowErr: atprotoFlowErr, mux: http.NewServeMux(), loginAttempts: map[string]loginAttempt{}}
 	a.routes()
 	return a
 }
@@ -48,11 +79,32 @@ func (a *App) routes() {
 	})
 	a.mux.HandleFunc("GET /api/ready", a.handleReady)
 	a.mux.HandleFunc("POST /api/auth/signup", a.handleSignup)
+	a.mux.HandleFunc("POST /api/auth/verify-email", a.handleVerifyEmail)
+	a.mux.HandleFunc("POST /api/auth/request-verification", a.handleRequestVerification)
 	a.mux.HandleFunc("POST /api/auth/login", a.handleLogin)
+	a.mux.HandleFunc("POST /api/auth/refresh", a.handleRefreshSession)
 	a.mux.HandleFunc("POST /api/auth/logout", a.handleLogout)
+	a.mux.HandleFunc("POST /api/auth/logout-all", a.handleLogoutAll)
+	a.mux.HandleFunc("POST /api/auth/recovery/request", a.handleRequestRecovery)
+	a.mux.HandleFunc("POST /api/auth/recovery/complete", a.handleCompleteRecovery)
+	a.mux.HandleFunc("POST /api/mobile/auth/signup", a.handleSignup)
+	a.mux.HandleFunc("POST /api/mobile/auth/verify-email", a.handleVerifyEmail)
+	a.mux.HandleFunc("POST /api/mobile/auth/request-verification", a.handleRequestVerification)
+	a.mux.HandleFunc("POST /api/mobile/auth/login", a.handleLogin)
+	a.mux.HandleFunc("POST /api/mobile/auth/refresh", a.handleRefreshSession)
+	a.mux.HandleFunc("POST /api/mobile/auth/logout", a.handleLogout)
+	a.mux.HandleFunc("POST /api/mobile/auth/logout-all", a.handleLogoutAll)
+	a.mux.HandleFunc("POST /api/mobile/auth/recovery/request", a.handleRequestRecovery)
+	a.mux.HandleFunc("POST /api/mobile/auth/recovery/complete", a.handleCompleteRecovery)
 	a.mux.HandleFunc("GET /api/me", a.handleMe)
 	a.mux.HandleFunc("GET /api/debug/mobile-auth", a.handleMobileAuthDebug)
 	a.mux.HandleFunc("GET /api/dev/email-outbox", a.handleDevEmailOutbox)
+	a.mux.HandleFunc("GET /api/v1/auth/atproto/client-metadata", a.handleATProtoClientMetadata)
+	a.mux.HandleFunc("GET /api/v1/auth/atproto/jwks", a.handleATProtoJWKS)
+	a.mux.HandleFunc("POST /api/v1/auth/atproto/start", a.handleATProtoStart)
+	a.mux.HandleFunc("GET /api/v1/auth/atproto/callback", a.handleATProtoCallback)
+	a.mux.HandleFunc("GET /api/v1/auth/atproto/links", a.handleATProtoLinks)
+	a.mux.HandleFunc("DELETE /api/v1/auth/atproto/links/{did}", a.handleATProtoUnlink)
 	a.mux.HandleFunc("POST /api/workspaces", a.handleCreateWorkspace)
 	a.mux.HandleFunc("GET /api/workspaces/current", a.handleCurrentWorkspace)
 	a.mux.HandleFunc("GET /api/workspaces/{workspaceID}", a.handleGetWorkspace)
@@ -151,9 +203,9 @@ func (a *App) cors(next http.Handler) http.Handler {
 		if origin := strings.TrimSpace(r.Header.Get("Origin")); origin != "" && a.allowedOrigin(r) {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, "+authSessionHeader+", "+authTokenHeader)
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, "+authTokenHeader+", "+refreshTokenHeader)
 			w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, POST, PATCH, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Expose-Headers", authSessionHeader)
+			w.Header().Set("Access-Control-Expose-Headers", authTokenHeader+", "+refreshTokenHeader)
 			w.Header().Add("Vary", "Origin")
 		}
 		if r.Method == http.MethodOptions {
@@ -194,7 +246,9 @@ func requestNeedsOriginCheck(r *http.Request) bool {
 	if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
 		return false
 	}
-	if _, err := r.Cookie(authCookieName); err != nil && strings.TrimSpace(r.Header.Get(authSessionHeader)) == "" && strings.TrimSpace(r.Header.Get(authTokenHeader)) == "" && strings.TrimSpace(r.Header.Get("Authorization")) == "" {
+	_, accessCookieErr := r.Cookie(authCookieName)
+	_, refreshCookieErr := r.Cookie(refreshCookieName)
+	if accessCookieErr != nil && refreshCookieErr != nil && strings.TrimSpace(r.Header.Get(authTokenHeader)) == "" && strings.TrimSpace(r.Header.Get(refreshTokenHeader)) == "" && strings.TrimSpace(r.Header.Get("Authorization")) == "" {
 		return false
 	}
 	return r.Header.Get("Origin") != ""

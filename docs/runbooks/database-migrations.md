@@ -1,58 +1,64 @@
 # Database Migrations Runbook
 
-`subcult-os` currently uses one embedded idempotent schema file:
+`subcult-os` uses an embedded, ordered, forward-only migration history:
 
-- Source: `backend/internal/app/schema.sql`
-- Embed/wiring: `backend/internal/app/db.go`
-- Startup call: `backend/cmd/app/main.go` calls `RunMigrations(ctx, db)` before serving traffic.
+- Version 1 baseline: `backend/internal/app/schema.sql`
+- Later migrations: `backend/internal/app/migrations/NNNNNN_name.sql`
+- Embed/runner: `backend/internal/app/db.go`
+- Explicit command: `backend/cmd/migrate/main.go`
+- Startup gate: `backend/cmd/app/main.go` runs `RunMigrations` before serving traffic
 
-## Current behavior
+## Guarantees
 
-`RunMigrations` reads `schema.sql` and executes it as one SQL batch. The schema uses `create table if not exists`, constraints, and indexes that are safe for the current alpha database shape.
+The runner opens one PostgreSQL transaction, takes a transaction-scoped advisory lock and applies every unapplied version in order. `schema_migrations` records the version, name, SHA-256 checksum and application time. Replay is safe; an applied file whose name or bytes changed is rejected. A failed migration rolls back its schema changes and ledger entry. A database ahead of the binary fails closed.
 
-This is acceptable while the app is in alpha and schema changes are additive.
+Version 1 is the accepted clean OS baseline. Do not modify `schema.sql` after it has been used outside disposable development. Add the next gap-free file under `migrations/` instead. Never rewrite a recorded migration to make a check pass.
 
-## Local Make commands
-
-The local Docker stack exposes a small alpha migration command set:
+## Local commands
 
 ```bash
-make migrate         # start local Postgres if needed, then apply backend/internal/app/schema.sql
-make migrate-status  # list public tables and indexes in the running Postgres container
-make migrate-reset   # reset local Docker Postgres data, restart, then apply schema.sql
+make migrate         # start Postgres, build the migration binary, apply pending versions
+make migrate-status  # show the immutable ledger, public tables and indexes
+make migrate-reset   # destructive: recreate local Docker data and apply ordered migrations
+make test-db         # run lifecycle and migration integration tests against TEST_DATABASE_URL
 ```
 
-`make migrate` starts the local Postgres service if it is not already running. `make migrate-status` expects Postgres to be running.
-The app also runs `RunMigrations` on backend startup, so `make migrate` is mainly for explicit local checks after schema edits.
+`make migrate` uses the same image, configuration and embedded runner as application startup. It does not feed SQL directly to `psql`.
 
-## Current limitation
+## Adding a migration
 
-There is no ordered migration history yet. Do not use the current approach for destructive changes, backfills, long-running data rewrites, or any production database that needs reversible deploys.
+1. Inventory the target database read-only and classify its data as disposable, reproducible or retained.
+2. Add exactly the next six-digit version, for example `000002_identity_foundation.sql`.
+3. Prefer additive, short transactions. For consequential backfills, document batching, compatibility and forward-fix behavior before implementation.
+4. Add focused fresh/replay/failure tests and any specifically required populated-upgrade fixture.
+5. Run `make test-db` against disposable PostgreSQL, then the broader repository gates.
+6. Back up and restore representative retained data before an authorized deployment.
 
-## Before external production data
+Do not add a legacy upgrade path merely to preserve unused prototype data. If retained real accounts, tickets or external identifiers are found, their inventory and acceptance rules must precede the migration.
 
-Before running against external production data, add a real migration tool or repository-local migration runner that provides:
+## Rollback and recovery
 
-1. ordered migration files,
-2. a migration history table,
-3. repeatable local/CI execution,
-4. explicit rollback or forward-fix guidance,
-5. backup instructions before destructive changes.
+Migrations are forward-only. A source rollback is safe only while the older binary supports the current database version; the runner otherwise rejects the mismatch. Prefer a reviewed forward fix. Before destructive or shape-changing work, capture an independently restorable backup and exact schema/application versions.
 
-## Safe alpha change rules
+A database restore can lose writes made after the backup. Once non-synthetic data exists, reconcile those writes and all external side effects before recovery. Database rollback cannot undo PDS publication, payment, sent mail or another provider action.
 
-- Additive tables and nullable columns are acceptable in `schema.sql`.
-- New constraints must be compatible with existing local data.
-- Data deletion, column renames, type changes, and non-null migrations with existing rows require a migration tool first.
-- Run `make verify` after schema edits.
-- When local credentials or schema assumptions change, reset local data with `make reset-db` if preserving local rows is not required.
+For disposable local data only, `make migrate-reset` is available. It deletes the Compose volume and must not be used against an unresolved or retained database.
 
-## Local verification
+## Verification matrix
+
+- Fresh database: every version applies and the ledger reaches the binary version.
+- Replay: no duplicate ledger or schema change.
+- Concurrency: advisory locking serializes runners.
+- Tamper: changed applied migration is rejected.
+- Failure: schema and ledger changes in the failed transaction disappear.
+- Ahead-of-binary: startup and explicit migration fail closed.
+- Backup/restore: schema version and representative row counts match after restore.
+
+For a local application rehearsal:
 
 ```bash
 make up-build
 make migrate-status
-make migrate
 make smoke
 make alpha-qa
 make verify

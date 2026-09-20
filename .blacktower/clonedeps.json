@@ -1,0 +1,15 @@
+{
+  "version": "1.0.0",
+  "updatedAt": "2026-09-20T10:04:49-05:00",
+  "dependencies": [
+    {
+      "name": "github.com/bluesky-social/indigo",
+      "resolvedVersion": "v0.0.0-20260903211445-41278964ec8e",
+      "repoUrl": "https://github.com/bluesky-social/indigo.git",
+      "ref": "41278964ec8e3253e70d4e919dfb8e34211c543d",
+      "path": ".blacktower/clonedeps/repos/bluesky-social__indigo",
+      "packagePath": "atproto/auth/oauth",
+      "reason": "Inspect the unstable pinned AT Protocol OAuth implementation before extending the Subcult OS adapter"
+    }
+  ]
+}

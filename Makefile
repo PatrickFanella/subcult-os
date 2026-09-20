@@ -5,7 +5,7 @@ PROJECT_NAME := subcult-os
 COMPOSE_PROJECT_NAME ?= $(PROJECT_NAME)
 BACKEND_BIN ?= bin/$(PROJECT_NAME)
 
-.PHONY: help deps deps-web deps-mobile verify quick fmt lint lint-mobile test test-backend test-db test-web test-mobile build build-backend build-web run-backend dev dev-mobile up up-build down reset-db restart logs ps urls smoke alpha-qa alpha-qa-paid fake-event-qa compose-config db-shell migrate migrate-status migrate-reset clean open-pilot-check check-contracts
+.PHONY: help deps deps-web deps-mobile verify quick fmt lint lint-mobile test test-backend test-db test-web test-mobile build build-backend build-web run-backend generate-atproto-key dev dev-mobile up up-build down reset-db restart logs ps urls smoke alpha-qa alpha-qa-paid fake-event-qa compose-config db-shell migrate migrate-status migrate-reset clean open-pilot-check check-contracts
 
 help:
 	@awk 'BEGIN {FS = ":.*##"; printf "$(PROJECT_NAME) commands:\n"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -44,7 +44,8 @@ test-db: ## Run DB-backed Go integration tests when TEST_DATABASE_URL is set
 		echo "TEST_DATABASE_URL is required for DB-backed tests"; \
 		exit 1; \
 	fi
-	cd backend && go test ./internal/app -run 'TestFirstEventLifecycleCurrentCreatePublishFreeDoorEndOfNightFlow|TestTicketReservationCurrentCapacityAndDoorRules|TestRunMigrationsCreatesEventsTable' -count=1 -v
+	cd backend && go test ./internal/app -run 'TestFirstEventLifecycleCurrentCreatePublishFreeDoorEndOfNightFlow|TestTicketReservationCurrentCapacityAndDoorRules|TestRunMigrations|TestIdentity|TestRotatedRefresh|TestSessionExpiry|TestPasswordRecovery|TestPrototypeSession' -count=1 -v
+	cd backend && go test ./internal/atproto -run 'TestOAuthStore' -count=1 -v
 
 test-web: ## Run frontend tests
 	pnpm --dir web run test
@@ -66,6 +67,9 @@ build-web: ## Build the frontend assets
 
 run-backend: build-backend ## Run the local backend binary
 	./$(BACKEND_BIN)
+
+generate-atproto-key: ## Print a new AT OAuth P-256 private key; send it directly to a secret manager
+	@cd backend && go run ./cmd/atproto-keygen
 
 dev-mobile: ## Start the Expo mobile app
 	EXPO_PUBLIC_API_URL=http://10.0.0.50:38080 pnpm --dir mobile run start --clear
@@ -141,14 +145,15 @@ compose-config: ## Validate Docker Compose config
 db-shell: ## Open a psql shell in the Postgres container
 	docker compose -p $(COMPOSE_PROJECT_NAME) exec postgres sh -c 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"'
 
-migrate: ## Apply the alpha schema.sql to local Postgres, starting it if needed
+migrate: ## Apply ordered migrations to local Postgres, starting it if needed
 	docker compose -p $(COMPOSE_PROJECT_NAME) up -d --wait postgres
-	docker compose -p $(COMPOSE_PROJECT_NAME) exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"' < backend/internal/app/schema.sql
+	docker compose -p $(COMPOSE_PROJECT_NAME) build api
+	docker compose -p $(COMPOSE_PROJECT_NAME) run --rm --no-deps api /app/migrate
 
-migrate-status: ## Show local Postgres tables and applied alpha schema objects
-	docker compose -p $(COMPOSE_PROJECT_NAME) exec -T postgres sh -c 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c "\dt public.*" -c "\di public.*"'
+migrate-status: ## Show local Postgres migration ledger, tables, and indexes
+	docker compose -p $(COMPOSE_PROJECT_NAME) exec -T postgres sh -c 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c "select version, name, checksum, applied_at from schema_migrations order by version" -c "\dt public.*" -c "\di public.*"'
 
-migrate-reset: reset-db migrate ## Reset local Postgres data, restart stack, and apply schema.sql
+migrate-reset: reset-db migrate ## Reset local Postgres data, restart stack, and apply ordered migrations
 
 clean: ## Remove local build outputs
 	rm -rf bin web/dist mobile/.expo mobile/dist

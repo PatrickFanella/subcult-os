@@ -1,0 +1,26 @@
+{
+  "source": "Independent cases reduced from atproto.com/specs on 2026-09-20; no Subcults source copied.",
+  "accountIdentifiers": [
+    { "value": "did:plc:vwzwgnygau7ed7b7wt5ux7y2", "valid": true },
+    { "value": "User.Example.COM", "valid": true },
+    { "value": "@user.example.com", "valid": false },
+    { "value": "example.com:3000", "valid": false },
+    { "value": "", "valid": false }
+  ],
+  "collections": [
+    { "value": "com.example.fooBar", "valid": true },
+    { "value": "net.users.bob.ping", "valid": true },
+    { "value": "com.example", "valid": false },
+    { "value": "com.example.3", "valid": false },
+    { "value": "com.exa💩ple.thing", "valid": false }
+  ],
+  "recordRefs": [
+    { "value": "at://did:plc:vwzwgnygau7ed7b7wt5ux7y2/app.bsky.feed.post/3k5nobkf2w72g", "valid": true },
+    { "value": "at://retr0.id/app.bsky.feed.post/3k5nobkf2w72g", "valid": true },
+    { "value": "at://did:plc:vwzwgnygau7ed7b7wt5ux7y2", "valid": false },
+    { "value": "at://did:plc:vwzwgnygau7ed7b7wt5ux7y2/app.bsky.feed.post", "valid": false },
+    { "value": "at://foo.com/", "valid": false },
+    { "value": "at://user:pass@foo.com/app.bsky.feed.post/key", "valid": false },
+    { "value": "https://example.com/app.bsky.feed.post/key", "valid": false }
+  ]
+}

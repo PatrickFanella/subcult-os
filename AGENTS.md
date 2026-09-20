@@ -18,3 +18,10 @@ make verify
 ```
 
 Use narrower commands only when an issue explicitly asks for a smaller check.
+
+## Cloned Dependency Source
+
+Read-only dependency source repositories are available under
+`.blacktower/clonedeps/repos/` for inspection. Do not edit these clones.
+
+- `.blacktower/clonedeps/repos/bluesky-social__indigo/` — `bluesky-social/indigo` at `41278964ec8e3253e70d4e919dfb8e34211c543d`; use it to inspect the pinned unstable AT Protocol syntax and OAuth implementation.

@@ -31,6 +31,16 @@ Production must set:
 - `SESSION_SECRET` as a non-default random value with at least 24 characters
 - `PUBLIC_WEB_URL` as the HTTPS browser origin
 - `API_ADDR` for the bind address, usually `:8080` inside a container
+- `IDENTITY_PROTECTION_KEY` as base64 for exactly 32 random bytes
+
+When AT OAuth is enabled, production must also set:
+
+- `ATPROTO_OAUTH_ENABLED=true`
+- `ATPROTO_OAUTH_CLIENT_ID`, `ATPROTO_OAUTH_CALLBACK_URL`, and `ATPROTO_OAUTH_JWKS_URL` to same-origin HTTPS URLs
+- `ATPROTO_OAUTH_CLIENT_PRIVATE_KEY` to a secret-store-backed multibase P-256 key
+- `ATPROTO_OAUTH_CLIENT_KEY_ID` to the public key identifier
+
+Do not enable AT OAuth until bounded live start/callback, refresh, provider-revocation and replay-negative journeys have passed. Passing local handlers, browser UI and metadata/JWKS checks alone is not a qualified login flow.
 
 Do not commit real secrets to `.env`, `.env.example`, docs, or compose files.
 
@@ -64,3 +74,5 @@ Before any non-additive schema change:
 ## Rollback notes
 
 The current alpha uses a single Go API and static web build. Rollback means redeploying the previous API/web image or artifact. If schema changed, rollback may require restoring a database backup unless the change was additive and backward-compatible.
+
+Replacing the existing app at `subcults.subcult.tv` has a separate [cutover runbook](subcults-cutover.md). Do not stop or overwrite the legacy service as a staging mechanism.

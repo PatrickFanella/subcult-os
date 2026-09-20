@@ -3,9 +3,7 @@ package app
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"database/sql"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -1224,7 +1222,7 @@ func TestPrivateMemoryBoundaries(t *testing.T) {
 func TestPublicEventDiscoveryAPI(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	draft := createEvent(t, fx, "Draft Night", 20)
-	published := createEventWithPricing(t, fx, "Published Market", 40, "fixed", 1500, "usd")
+	published := createEvent(t, fx, "Published Market", 40)
 	privateApplications := createEvent(t, fx, "Members Night", 30)
 	closed := createEvent(t, fx, "Closed Night", 30)
 
@@ -1240,8 +1238,8 @@ func TestPublicEventDiscoveryAPI(t *testing.T) {
 	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+publishedID+"/roles", map[string]any{"name": "Performer", "description": "Play a 20-minute set.", "capacity": 3, "public": true}, http.StatusOK)
 	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+privateApplicationsID+"/roles", map[string]any{"name": "Backstage", "description": "Private notes.", "capacity": 1, "public": false}, http.StatusOK)
 	postJSON(t, fx.app, nil, "/api/public/events/"+publishedSlug+"/reservations", map[string]any{
-		"name":  "Ada",
-		"email": "ada@example.com",
+		"displayName": "Ada",
+		"email":       "ada@example.com",
 	}, http.StatusOK)
 
 	resp := getJSON(t, fx.app, nil, "/api/public/events", http.StatusOK)
@@ -1274,7 +1272,7 @@ func TestPublicEventDiscoveryAPI(t *testing.T) {
 	if int(publishedEvent["remainingTickets"].(float64)) != 39 || publishedEvent["isFull"].(bool) {
 		t.Fatalf("unexpected availability: %#v", publishedEvent)
 	}
-	if !strings.HasPrefix(publishedEvent["publicUrl"].(string), "http://example.test/e/") {
+	if !strings.HasPrefix(publishedEvent["publicUrl"].(string), "http://public.test/e/") {
 		t.Fatalf("unexpected public url: %#v", publishedEvent["publicUrl"])
 	}
 
@@ -3175,6 +3173,10 @@ func TestTicketReservationCurrentCapacityAndDoorRules(t *testing.T) {
 	event := createEvent(t, fx, "Night Market", 1)
 	eventID := mustString(t, event, "id")
 	slug := mustString(t, publishEvent(t, fx, eventID), "publicSlug")
+	const publicImageURL = "https://media.example.test/night-market.jpg"
+	if _, err := fx.app.db.Exec(t.Context(), `update events set image_url = $1 where id = $2`, publicImageURL, eventID); err != nil {
+		t.Fatal(err)
+	}
 
 	firstReservation := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/reservations", map[string]any{"email": fx.email("guest-a"), "displayName": "Guest One"}, http.StatusOK)
 	postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/reservations", map[string]any{"email": fx.email("guest-b"), "displayName": "Guest Two"}, http.StatusConflict)
@@ -3187,8 +3189,16 @@ func TestTicketReservationCurrentCapacityAndDoorRules(t *testing.T) {
 	}
 
 	publicEvent := getJSON(t, fx.app, nil, "/api/public/events/"+slug, http.StatusOK).JSON.(map[string]any)
-	if int(publicEvent["reservedCount"].(float64)) != 1 || int(publicEvent["remainingTickets"].(float64)) != 0 || !publicEvent["isFull"].(bool) {
+	if int(publicEvent["remainingTickets"].(float64)) != 0 || !publicEvent["isFull"].(bool) {
 		t.Fatalf("expected event to stay full after one reservation: %#v", publicEvent)
+	}
+	if publicEvent["imageUrl"] != publicImageURL {
+		t.Fatalf("expected public event image parity, got %#v", publicEvent["imageUrl"])
+	}
+	for _, forbidden := range []string{"workspaceId", "ticketAllocation", "reservedCount", "checkedInCount", "staffingOpenCount", "staffingAssignedCount", "staffingCompletedCount", "staffingCancelledCount", "staffingItems", "settlement", "archive", "notes"} {
+		if _, ok := publicEvent[forbidden]; ok {
+			t.Fatalf("public event detail leaked operational field %q: %#v", forbidden, publicEvent)
+		}
 	}
 }
 
@@ -3494,7 +3504,7 @@ func TestFirstEventLifecycleFullCapacity(t *testing.T) {
 	postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/reservations", map[string]any{"email": secondGuest, "displayName": "Guest Two"}, http.StatusConflict)
 
 	publicEvent := getJSON(t, fx.app, nil, "/api/public/events/"+slug, http.StatusOK)
-	if int(publicEvent.JSON.(map[string]any)["reservedCount"].(float64)) != 1 || int(publicEvent.JSON.(map[string]any)["remainingTickets"].(float64)) != 0 || publicEvent.JSON.(map[string]any)["isFull"].(bool) != true {
+	if int(publicEvent.JSON.(map[string]any)["remainingTickets"].(float64)) != 0 || publicEvent.JSON.(map[string]any)["isFull"].(bool) != true {
 		t.Fatalf("event should remain full with one reservation: %#v", publicEvent.JSON)
 	}
 }
@@ -3599,44 +3609,25 @@ func TestGetSpecificWorkspace(t *testing.T) {
 		t.Fatalf("unexpected workspace response: %#v", loaded)
 	}
 
-	otherCookie := postJSON(t, fx.app, nil, "/api/auth/signup", map[string]any{"email": fx.email("other"), "password": "secret1234", "displayName": "Other"}, http.StatusOK).Cookie
+	otherCookie := signupAndVerifyCookie(t, fx.app, fx.email("other"), "Other")
 	getJSON(t, fx.app, otherCookie, "/api/workspaces/"+secondID, http.StatusForbidden)
 }
 
 func TestSignupStoresBcryptPasswordHash(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	email := fx.email("bcrypt")
-	postJSON(t, fx.app, nil, "/api/auth/signup", map[string]any{"email": email, "password": "secret1234", "displayName": "Hash"}, http.StatusOK)
-
-	var storedHash string
-	if err := fx.app.db.QueryRow(t.Context(), `select password_hash from people where email = $1`, email).Scan(&storedHash); err != nil {
-		t.Fatal(err)
-	}
-	if !strings.HasPrefix(storedHash, passwordScheme+"$") || strings.Contains(storedHash, legacySHA256Scheme+"$") {
-		t.Fatalf("expected bcrypt password hash, got %q", storedHash)
-	}
-	valid, upgraded := verifyPassword("secret1234", storedHash)
-	if !valid || upgraded != "" {
-		t.Fatalf("expected bcrypt password to verify without upgrade, valid=%v upgraded=%q", valid, upgraded)
-	}
-}
-
-func TestLegacyPasswordHashUpgradesOnLogin(t *testing.T) {
-	fx := newLifecycleFixture(t)
-	email := fx.email("legacy")
-	legacyHash := legacyPasswordHashForTest(t, "secret1234")
-	if _, err := fx.app.db.Exec(t.Context(), `insert into people (email, password_hash) values ($1, $2)`, email, legacyHash); err != nil {
-		t.Fatal(err)
-	}
-
-	postJSON(t, fx.app, nil, "/api/auth/login", map[string]any{"email": email, "password": "secret1234"}, http.StatusOK)
+	postJSON(t, fx.app, nil, "/api/auth/signup", map[string]any{"email": email, "password": "secret1234", "displayName": "Hash"}, http.StatusAccepted)
 
 	var storedHash string
 	if err := fx.app.db.QueryRow(t.Context(), `select password_hash from people where email = $1`, email).Scan(&storedHash); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.HasPrefix(storedHash, passwordScheme+"$") {
-		t.Fatalf("expected legacy hash to upgrade to bcrypt, got %q", storedHash)
+		t.Fatalf("expected bcrypt password hash, got %q", storedHash)
+	}
+	valid, upgraded := verifyPassword("secret1234", storedHash)
+	if !valid || upgraded != "" {
+		t.Fatalf("expected bcrypt password to verify without upgrade, valid=%v upgraded=%q", valid, upgraded)
 	}
 }
 
@@ -3698,11 +3689,11 @@ func newLifecycleFixture(t *testing.T) lifecycleFixture {
 	ownerEmail := "owner+" + suffix + "@example.test"
 	memberEmail := "member+" + suffix + "@example.test"
 
-	ownerCookie := postJSON(t, app, nil, "/api/auth/signup", map[string]any{"email": ownerEmail, "password": "secret1234", "displayName": "Owner"}, http.StatusOK).Cookie
+	ownerCookie := signupAndVerifyCookie(t, app, ownerEmail, "Owner")
 	workspace := postJSON(t, app, ownerCookie, "/api/workspaces", map[string]any{"name": "Signal Collective"}, http.StatusOK)
 	workspaceID := mustString(t, workspace.JSON, "id")
 	invite := postJSON(t, app, ownerCookie, "/api/workspaces/"+workspaceID+"/invitations", map[string]any{"email": memberEmail}, http.StatusOK)
-	memberCookie := postJSON(t, app, nil, "/api/auth/signup", map[string]any{"email": memberEmail, "password": "secret1234", "displayName": "Door"}, http.StatusOK).Cookie
+	memberCookie := signupAndVerifyCookie(t, app, memberEmail, "Door")
 	postJSON(t, app, memberCookie, "/api/invitations/"+mustString(t, invite.JSON, "token")+"/accept", map[string]any{}, http.StatusOK)
 
 	return lifecycleFixture{app: app, ownerCookie: ownerCookie, memberCookie: memberCookie, workspaceID: workspaceID, suffix: suffix}
@@ -3994,13 +3985,15 @@ func mustString(t *testing.T, value any, key string) string {
 	return v
 }
 
-func legacyPasswordHashForTest(t *testing.T, password string) string {
+func signupAndVerifyCookie(t *testing.T, app *App, email, displayName string) *http.Cookie {
 	t.Helper()
-	salt := make([]byte, passwordSaltBytes)
-	if _, err := rand.Read(salt); err != nil {
-		t.Fatal(err)
+	postJSON(t, app, nil, "/api/auth/signup", map[string]any{"email": email, "password": "secret1234", "displayName": displayName}, http.StatusAccepted)
+	token := latestIdentityToken(t, app, "identity_verification")
+	result := postJSON(t, app, nil, "/api/auth/verify-email", map[string]any{"token": token}, http.StatusOK)
+	if result.Cookie == nil {
+		t.Fatal("expected verification to issue an access cookie")
 	}
-	return fmt.Sprintf("%s$%s$%s", legacySHA256Scheme, base64.RawURLEncoding.EncodeToString(salt), passwordSum(salt, password))
+	return result.Cookie
 }
 
 func auditMetadataForAction(t *testing.T, db *pgxpool.Pool, action string) string {
