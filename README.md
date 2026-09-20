@@ -6,7 +6,7 @@ Bootstrapped from `subculture-collective/project-template`.
 
 ## Future development
 
-See the [Subcult.tv platform development handoff](docs/development/README.md), [ADR 0005](docs/adr/0005-subcult-os-platform-core.md), and [ADR 0006](docs/adr/0006-no-prototype-compatibility-contract.md). Subcult OS is the accepted receiving repository; selected Subcults capabilities will be extracted behind OS-native boundaries rather than merged wholesale. Prototype API/schema compatibility is not required by default. Consolidation is planned, not implemented by those documents.
+See the [Subcult.tv platform development handoff](docs/development/README.md), [AT Protocol kernel](docs/development/atproto-kernel.md), [ADR 0005](docs/adr/0005-subcult-os-platform-core.md), and [ADR 0006](docs/adr/0006-no-prototype-compatibility-contract.md). Subcult OS is the accepted receiving repository; selected Subcults capabilities are being rewritten behind OS-native boundaries rather than merged wholesale. Prototype API/schema compatibility is not required by default. Canonical identity, the minimal AT syntax kernel and encrypted identity-only OAuth persistence are implemented; live OAuth routes, resolver traffic, Lexicons and publication are not.
 
 ## Quick start
 
@@ -106,6 +106,7 @@ Event image uploads are backend-proxied to S3-compatible storage such as MinIO. 
 - Email identity lookup uses keyed hashes and encrypted address material. The current `people.email` column remains an operational projection for existing workspace workflows, not the authentication lookup authority.
 - Browser sessions use short-lived HttpOnly access cookies plus rotating refresh cookies. Native auth transport is isolated under `/api/mobile/auth/*` and returns separate access and refresh credentials for secure storage; ordinary browser auth responses never expose those credentials as JavaScript-readable headers. Replaying a rotated refresh credential revokes its session family.
 - Account recovery revokes every existing session. Matching email text or DID never merges accounts automatically.
+- AT OAuth request and session secrets use authenticated encryption under a protocol-specific derived key. The store accepts only identity-level `atproto` scope, one-time callback state, and a DID not owned by another local account; no OAuth HTTP route is enabled yet.
 - Cookie-authenticated mutating API requests with an `Origin` header must come from the same host or `PUBLIC_WEB_URL`.
 - Login attempts are lightly throttled per email/IP in process memory.
 - Public free ticket reservations remain guest-accessible without account login.
@@ -117,7 +118,7 @@ Event image uploads are backend-proxied to S3-compatible storage such as MinIO. 
 - Set `APP_ENV=production`.
 - Set a real `DATABASE_URL`; production startup fails without it.
 - Set a non-default `SESSION_SECRET` with at least 24 characters.
-- Set `IDENTITY_PROTECTION_KEY` to a base64-encoded 32-byte key held in the deployment secret store. Losing it makes protected identity material unreadable; rotating it requires a designed data migration.
+- Set `IDENTITY_PROTECTION_KEY` to a base64-encoded 32-byte key held in the deployment secret store. Distinct derived domains protect email identity and AT OAuth material. Losing it makes protected material unreadable; rotating it requires a designed data migration.
 - Set `PUBLIC_WEB_URL` to the HTTPS web origin used by browsers.
 - Stripe paid ticketing is optional until an Event uses paid pricing; when enabled, set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`.
 - For event image uploads, configure S3-compatible media storage and expose `MEDIA_PUBLIC_BASE_URL` without auth so attendee/mobile clients can render images.

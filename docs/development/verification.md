@@ -36,6 +36,7 @@ Read Subcults docs/TESTING.md and docs/product/PUBLIC_BETA_RELEASE_STATUS.md for
 | T-ACCOUNT | Canonical identity claim | Matching email without current proof cannot merge or claim an account |
 | T-SESSION | Session-family rotation | Replay of a rotated token revokes its active descendants |
 | T-SYNTAX | Cross-language protocol syntax | Same account/NSID/exact-record fixture differs between pinned Go Indigo and TypeScript `@atproto/syntax`; must fail |
+| T-OAUTH-STORE | AT identity-link persistence | Concurrent/replayed/expired state, plaintext secret, extra scope, revoked link or cross-account DID claim is accepted; must fail |
 | T-LEX | Cross-language Lexicon conformance | Same valid/invalid corpus differs between Go and `@atproto/lex`; must fail |
 | T-LINK | Operator/public occurrence authorization | Different workspace reads/changes the same relation; must deny |
 | T-URI | Resolver network boundary | Private-network/unsupported URI input; no outbound private request |

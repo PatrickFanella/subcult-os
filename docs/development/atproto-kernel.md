@@ -1,10 +1,10 @@
 # AT Protocol kernel
 
-Status: syntax foundation implemented on 2026-09-20; OAuth, Lexicon admission, DID resolution and publication are not implemented.
+Status: syntax foundation and encrypted identity-only OAuth persistence implemented on 2026-09-20; OAuth HTTP flows, Lexicon admission, DID resolution and publication are not implemented.
 
 ## Dependency boundary
 
-The Go backend pins Indigo at `v0.0.0-20260903211445-41278964ec8e` and imports only `github.com/bluesky-social/indigo/atproto/syntax`. Indigo explicitly describes its APIs as unstable, so `backend/internal/atproto` converts upstream values into OS-owned plain-string structures. Other application modules must not import Indigo directly without extending this boundary and its drift tests.
+The Go backend pins Indigo at `v0.0.0-20260903211445-41278964ec8e`. Production imports are confined to the OS-owned `backend/internal/atproto` boundary: `atproto/syntax` supplies validated syntax values and `atproto/auth/oauth` supplies the exact persistence interface and payload types. Indigo explicitly describes its APIs as unstable, so syntax values leave this package only as OS-owned plain-string structures. Other application modules must not import Indigo directly without extending this boundary and its drift tests.
 
 The independent TypeScript path pins `@atproto/syntax` at `0.7.6`. Both implementations consume `contracts/atproto-syntax.fixtures.json`. The fixture cases were reduced from the current public [handle](https://atproto.com/specs/handle), [NSID](https://atproto.com/specs/nsid), [AT URI](https://atproto.com/specs/at-uri-scheme), and [record-key](https://atproto.com/specs/record-key) specifications; no Subcults source or fixtures were copied.
 
@@ -47,7 +47,11 @@ The application still owns security properties that Indigo intentionally delegat
 - stricter redirect and outbound-resolution policy around metadata discovery;
 - atomic persistence when token or DPoP nonce rotation updates a session.
 
-No OAuth routes are enabled by this review. Production flow work remains blocked on public metadata/callback URLs and the public-versus-confidential client decision, but the local encrypted persistence layer can be built independently.
+Migration 4 and `backend/internal/atproto.OAuthStore` now implement that local persistence layer. It binds a start request to an already-authenticated local person, HMAC-indexes state, encrypts the full request/session payload with a protocol-specific derived key, atomically claims each callback once, expires requests after ten minutes, accepts only the single `atproto` identity scope, atomically creates the DID link and session, rejects cross-account DID claims, records the link audit event, and refuses to refresh a revoked link. Expired request cleanup is explicit and safe to schedule. The same deployment root key is used through a separate derivation domain; no protocol secret shares ciphertext or lookup keys with email identity data.
+
+Importing the pinned Indigo OAuth package to satisfy its store interface adds its current JWT, identity, CID/multibase and Prometheus-related transitive modules to the backend build. This is the reviewed cost of compiling against the actual unstable interface rather than maintaining a lookalike local contract.
+
+No OAuth routes are enabled by this persistence slice. Production flow work remains blocked on public metadata/callback URLs and the public-versus-confidential client decision.
 
 ## Lexicon boundary
 
@@ -57,7 +61,8 @@ No `tv.subcult.*` Lexicon has been admitted or published. The old schemas remain
 
 ```bash
 cd backend && go test ./internal/atproto -count=1
+cd backend && TEST_DATABASE_URL=postgres://... go test ./internal/atproto -run TestOAuthStore -count=1
 cd web && pnpm run test -- atprotoSyntaxConformance
 ```
 
-These checks prove local cross-language syntax agreement for the checked-in corpus. They do not prove handle resolution, live OAuth interoperability, a PDS write, Lexicon compatibility or publication authority.
+These checks prove local cross-language syntax agreement for the checked-in corpus and, with PostgreSQL configured, the encrypted store's expiry, replay, scope, rotation, audit and non-merging invariants. They do not prove handle resolution, live OAuth interoperability, a PDS write, Lexicon compatibility or publication authority.

@@ -1,5 +1,5 @@
 # Subcult.tv platform development handoff
-Updated: 2026-09-20. Status: **Subcult OS is the platform core; API privacy, ordered migrations, canonical identity, selective extraction and the AT syntax kernel are implemented**, not a completed protocol integration or release approval.
+Updated: 2026-09-20. Status: **Subcult OS is the platform core; API privacy, ordered migrations, canonical identity, selective extraction, the AT syntax kernel and encrypted identity-only OAuth persistence are implemented**, not a completed protocol integration or release approval.
 
 This directory converts the Subcult research and funding work into an engineering handoff. It is the canonical copy for this task. Subcults was inspected read-only and remains source material rather than the destination repository. The directory can also be copied into an Obsidian vault because internal links are relative Markdown links.
 

@@ -250,7 +250,7 @@ func TestIdentityFoundationCreatesCanonicalTables(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for _, table := range []string{"email_identities", "identity_challenges", "identity_sessions", "did_links", "auth_audit_events"} {
+	for _, table := range []string{"email_identities", "identity_challenges", "identity_sessions", "did_links", "auth_audit_events", "atproto_oauth_requests", "atproto_oauth_sessions"} {
 		var exists bool
 		if err := pool.QueryRow(ctx, `select to_regclass($1) is not null`, table).Scan(&exists); err != nil {
 			t.Fatal(err)
