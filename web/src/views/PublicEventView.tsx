@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { api, postJSON } from '../api';
 import type { EventRoleApplicationDTO, EventRoleDTO, PaidReservationDTO, PublicEventDTO, TicketReservationDTO } from '../domain';
+import { reserveFreeTicket } from '../modules/publicEvent/reservation';
 import {
   publicEventConversionSummary,
   publicEventPrimaryCtaLabel,
@@ -78,6 +79,7 @@ export function PublicEventView({ slug }: { slug: string }) {
   const [reservation, setReservation] = useState<TicketReservationDTO | null>(null);
   const [roles, setRoles] = useState<EventRoleDTO[] | null>(null);
   const [applicationDrafts, setApplicationDrafts] = useState<Record<string, RoleApplicationDraft>>({});
+  const [availabilityKnown, setAvailabilityKnown] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,6 +93,7 @@ export function PublicEventView({ slug }: { slug: string }) {
       setReserving(false);
       setRoles(null);
       setApplicationDrafts({});
+      setAvailabilityKnown(true);
 
       try {
         const loaded = await api<PublicEventDTO>(`/api/public/events/${slug}`);
@@ -228,12 +231,14 @@ export function PublicEventView({ slug }: { slug: string }) {
         return;
       }
 
-      const ticket = await postJSON<TicketReservationDTO>(`/api/public/events/${slug}/reservations`, {
+      const result = await reserveFreeTicket(slug, {
         email: trimmedEmail,
         displayName: trimmedDisplayName || undefined,
       });
 
-      setReservation(ticket);
+      setReservation(result.ticket);
+      setAvailabilityKnown(result.event !== null);
+      if (result.event) setEvent(result.event);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to reserve ticket');
     } finally {
@@ -255,14 +260,14 @@ export function PublicEventView({ slug }: { slug: string }) {
                 Discover more events
               </a>
               {event?.pricingMode === 'fixed' ? <span className={publicStatusPillClass()}>Secure checkout</span> : null}
-              <span className={publicStatusPillClass(event?.isFull ? 'danger' : 'success')}>{event?.isFull ? 'Sold out' : `${event?.remainingTickets ?? '—'} remaining`}</span>
+              <span className={publicStatusPillClass(event?.isFull ? 'danger' : 'success')}>{!availabilityKnown ? 'Availability unavailable' : event?.isFull ? 'Sold out' : `${event?.remainingTickets ?? '—'} remaining`}</span>
             </div>
 
             <div className="mt-5 grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
               <div>
                 <p className={publicEyebrowClass}>{event ? pricingLabel(event) : 'Free guest reservation'}</p>
                 <h1 className="mt-3 text-4xl font-black tracking-tight text-[#171717] sm:text-5xl">{event?.title ?? 'Reserve your free ticket'}</h1>
-                <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">{publicEventConversionSummary(event, pricingLabel(event))}</p>
+                <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">{availabilityKnown ? publicEventConversionSummary(event, pricingLabel(event)) : 'Your ticket is reserved. Current availability could not be refreshed.'}</p>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
@@ -276,7 +281,7 @@ export function PublicEventView({ slug }: { slug: string }) {
                 </div>
                 <div className="rounded-3xl bg-[#f5f5f5] p-4">
                   <p className={publicEyebrowClass}>Tickets</p>
-                  <p className={`mt-2 text-sm font-bold ${event?.isFull ? 'text-rose-700' : 'text-[#171717]'}`}>{event ? (event.isFull ? 'Sold out' : `${event.remainingTickets} left`) : 'Loading availability…'}</p>
+                  <p className={`mt-2 text-sm font-bold ${event?.isFull ? 'text-rose-700' : 'text-[#171717]'}`}>{!availabilityKnown ? 'Availability unavailable' : event ? (event.isFull ? 'Sold out' : `${event.remainingTickets} left`) : 'Loading availability…'}</p>
                 </div>
                 <div className="rounded-3xl bg-[#f5f5f5] p-4">
                   <p className={publicEyebrowClass}>Pricing</p>
