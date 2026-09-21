@@ -2,6 +2,10 @@
 
 ## 2026-09-20 — Five-issue delivery batch after merge checkpoint
 
+### #103 — Resend provider adapter
+
+Added one standard-library Go HTTPS adapter with stable message idempotency, bounded responses/timeouts, no redirects/proxy and typed redacted errors. Synthetic transport cases cover successful acceptance, malformed/oversized responses, credential rejection, both idempotency conflict classes, throttling, provider failure and invalid input. See `docs/runbooks/transactional-email.md` for sourced contracts and setup boundaries. This does not activate a worker or live sending.
+
 The owner approved batches of five to ten issues, followed by combined verification and merging before further feature work. Baseline: `966a111` on main, verified by hosted runs 8929/8930 and local database/race tests. Current batch: #101 reservation inventory, #102 protected-session expiry, #103 Resend adapter, #104 durable delivery, #105 signed delivery feedback/suppression. Each receives a stacked PR. Parent roadmap issues remain open where live-provider, device or deployment acceptance is still missing.
 
 ### #101 — Reservation inventory
