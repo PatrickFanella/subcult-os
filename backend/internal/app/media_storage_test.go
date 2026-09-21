@@ -111,6 +111,12 @@ func TestHandleUploadEventImageRejectsUnavailableMediaStorage(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/events/test-event/image", nil)
 	rec := httptest.NewRecorder()
 	fx.app.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous media request status=%d, want 401", rec.Code)
+	}
+	req.AddCookie(fx.ownerCookie)
+	rec = httptest.NewRecorder()
+	fx.app.Handler().ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Fatalf("expected service unavailable, got %d: %s", rec.Code, rec.Body.String())

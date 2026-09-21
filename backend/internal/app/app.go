@@ -71,7 +71,31 @@ func New(config Config, db *pgxpool.Pool) *App {
 	return a
 }
 
-func (a *App) Handler() http.Handler { return a.requestLogger(a.cors(a.originGuard(a.mux))) }
+func (a *App) Handler() http.Handler {
+	return a.requestLogger(a.cors(a.originGuard(a.operatorSession(a.mux))))
+}
+
+type operatorPersonKey struct{}
+
+// Operator namespaces require authentication before resource authorization.
+// 401 lets web/native clients refresh; 403 remains an actual permission denial.
+func (a *App) operatorSession(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		original := r
+		path := r.URL.Path
+		if path == "/api/workspaces" || strings.HasPrefix(path, "/api/workspaces/") || strings.HasPrefix(path, "/api/events/") {
+			person, ok := a.requirePersonID(r)
+			if !ok {
+				writeError(w, http.StatusUnauthorized, "unauthorized")
+				return
+			}
+			r = r.WithContext(context.WithValue(r.Context(), operatorPersonKey{}, person))
+		}
+		next.ServeHTTP(w, r)
+		// Preserve the server-owned route template for the outer safe logger.
+		original.Pattern = r.Pattern
+	})
+}
 
 func (a *App) routes() {
 	a.mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {

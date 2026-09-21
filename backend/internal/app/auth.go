@@ -509,6 +509,9 @@ func (a *App) handleMobileAuthDebug(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) requirePersonID(r *http.Request) (string, bool) {
+	if person, ok := r.Context().Value(operatorPersonKey{}).(string); ok && person != "" {
+		return person, true
+	}
 	if a.db == nil {
 		return "", false
 	}

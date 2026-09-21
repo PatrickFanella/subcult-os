@@ -8,6 +8,12 @@ The owner approved batches of five to ten issues, followed by combined verificat
 
 Free RSVP now reloads authoritative event inventory instead of leaving pre-reservation counts or decrementing locally. A failed refresh preserves the issued ticket and labels availability unknown. Unit checks cover confirmed, failed-refresh and rejected-reservation cases. `make verify` passed (123 web and 27 mobile tests). A real Chromium browser against the disposable PostgreSQL/API/Vite runtime reserved the last ticket: both availability indicators changed to sold out while the confirmation and ticket link remained visible. This was synthetic local data, not delivery or production qualification.
 
+### #102 — Protected operator session expiry
+
+Workspace/event namespaces now authenticate before resource authorization: missing or expired sessions return 401, while authenticated foreign-workspace denial stays 403. The request-scoped identity avoids redundant authentication and preserves the server-owned logging route template. Anonymous media requests now require authentication before exposing adapter availability; the media test covers both that boundary and authenticated 503 behavior.
+
+The complete database suite passed, including expired access, refresh, denied mutation and cross-workspace regression. Web tests prove one refresh/retry with the unchanged mutation payload and no retry for real 403. Chromium loaded an event after controlled access expiry and saved an allowed location edit after a second expiry; session generations rotated. A disallowed published-title change remained 409 and was not falsely called successful. No natural expiry soak, native device or production behavior is claimed.
+
 ## 2026-09-20 — ARCH-01 protocol failure isolation
 
 Reused the complete local-event lifecycle assertion for a second scenario with an enabled AT link flow that returns a synthetic provider error. The AT request returns 502, then local create/publish/free-reserve/duplicate-check-in/closeout succeeds with one settlement/archive. The provider is called exactly once and no DID link is created. Focused and complete database gates plus `make verify` pass. This tests the existing application seam, not a live network partition or offline mobile mode.

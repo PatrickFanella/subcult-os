@@ -5,6 +5,25 @@ import { api } from './api';
 afterEach(() => vi.unstubAllGlobals());
 
 describe('api session refresh', () => {
+
+  it('refreshes an expired operator mutation and retries the same payload once', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response('{"error":"unauthorized"}', { status: 401 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }))
+      .mockResolvedValueOnce(new Response('{"title":"Updated"}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const options = { method: 'PATCH', body: '{"title":"Updated"}' };
+    await expect(api('/api/events/test-event', options)).resolves.toEqual({ title: 'Updated' });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[0]?.[1]).toEqual(fetchMock.mock.calls[2]?.[1]);
+  });
+
+  it('does not refresh or retry a real permission denial', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{"error":"forbidden"}', { status: 403 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(api('/api/events/foreign')).rejects.toMatchObject({ status: 403 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
   it('rotates an expired browser session once and retries the request', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 }))

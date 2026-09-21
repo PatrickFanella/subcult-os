@@ -87,7 +87,7 @@ func TestFirstEventLifecycleSettlementAPI(t *testing.T) {
 		t.Fatalf("expected empty adjustments, got %#v", settlement["adjustments"])
 	}
 
-	getJSON(t, fx.app, nil, "/api/events/"+eventID+"/settlement", http.StatusForbidden)
+	getJSON(t, fx.app, nil, "/api/events/"+eventID+"/settlement", http.StatusUnauthorized)
 	otherFx := newLifecycleFixture(t, fx.app)
 	getJSON(t, fx.app, otherFx.memberCookie, "/api/events/"+eventID+"/settlement", http.StatusForbidden)
 	postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/settlement/adjustments", map[string]any{"amountCents": 100, "label": "Member"}, http.StatusForbidden)
@@ -146,7 +146,7 @@ func TestWorkspaceContactsListAPI(t *testing.T) {
 	}
 
 	otherFx := newLifecycleFixture(t, fx.app)
-	getJSON(t, fx.app, nil, "/api/workspaces/"+workspaceID+"/contacts", http.StatusForbidden)
+	getJSON(t, fx.app, nil, "/api/workspaces/"+workspaceID+"/contacts", http.StatusUnauthorized)
 	getJSON(t, fx.app, otherFx.ownerCookie, "/api/workspaces/"+workspaceID+"/contacts", http.StatusForbidden)
 }
 
@@ -263,7 +263,7 @@ func TestEventTemplatesListAPI(t *testing.T) {
 	}
 
 	otherFx := newLifecycleFixture(t, fx.app)
-	getJSON(t, fx.app, nil, "/api/workspaces/"+fx.workspaceID+"/event-templates", http.StatusForbidden)
+	getJSON(t, fx.app, nil, "/api/workspaces/"+fx.workspaceID+"/event-templates", http.StatusUnauthorized)
 	getJSON(t, fx.app, otherFx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/event-templates", http.StatusForbidden)
 }
 
@@ -492,7 +492,7 @@ func TestCommitmentsAPI(t *testing.T) {
 	}
 
 	postJSON(t, fx.app, fx.memberCookie, "/api/workspaces/"+fx.workspaceID+"/commitments", map[string]any{"title": "member"}, http.StatusForbidden)
-	getJSON(t, fx.app, nil, "/api/workspaces/"+fx.workspaceID+"/commitments", http.StatusForbidden)
+	getJSON(t, fx.app, nil, "/api/workspaces/"+fx.workspaceID+"/commitments", http.StatusUnauthorized)
 	otherFx := newLifecycleFixture(t, fx.app)
 	getJSON(t, fx.app, otherFx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments", http.StatusForbidden)
 
@@ -566,7 +566,7 @@ func TestFirstEventLifecycleArchiveAPI(t *testing.T) {
 		t.Fatalf("expected empty notes array, got %#v", archive["notes"])
 	}
 
-	getJSON(t, fx.app, nil, "/api/events/"+eventID+"/archive", http.StatusForbidden)
+	getJSON(t, fx.app, nil, "/api/events/"+eventID+"/archive", http.StatusUnauthorized)
 	otherFx := newLifecycleFixture(t, fx.app)
 	getJSON(t, fx.app, otherFx.memberCookie, "/api/events/"+eventID+"/archive", http.StatusForbidden)
 }
@@ -748,7 +748,7 @@ func TestNotificationLedgerAPI(t *testing.T) {
 
 	otherFx := newLifecycleFixture(t, fx.app)
 	getJSON(t, fx.app, otherFx.memberCookie, "/api/events/"+eventID+"/notifications", http.StatusForbidden)
-	getJSON(t, fx.app, nil, "/api/events/"+eventID+"/notifications", http.StatusForbidden)
+	getJSON(t, fx.app, nil, "/api/events/"+eventID+"/notifications", http.StatusUnauthorized)
 }
 
 func TestReminderLedgerAPI(t *testing.T) {
@@ -791,7 +791,7 @@ func TestReminderLedgerAPI(t *testing.T) {
 	}
 
 	otherFx := newLifecycleFixture(t, fx.app)
-	getJSON(t, fx.app, nil, "/api/workspaces/"+fx.workspaceID+"/reminders", http.StatusForbidden)
+	getJSON(t, fx.app, nil, "/api/workspaces/"+fx.workspaceID+"/reminders", http.StatusUnauthorized)
 	getJSON(t, fx.app, otherFx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/reminders", http.StatusForbidden)
 	getJSON(t, fx.app, otherFx.memberCookie, "/api/events/"+eventID+"/reminders", http.StatusForbidden)
 }
@@ -1460,7 +1460,7 @@ func TestEventStaffingListAPI(t *testing.T) {
 		t.Fatalf("unexpected completed staffing item: %#v", completed)
 	}
 
-	getJSON(t, fx.app, nil, "/api/events/"+eventID+"/staffing", http.StatusForbidden)
+	getJSON(t, fx.app, nil, "/api/events/"+eventID+"/staffing", http.StatusUnauthorized)
 	otherFx := newLifecycleFixture(t, fx.app)
 	getJSON(t, fx.app, otherFx.memberCookie, "/api/events/"+eventID+"/staffing", http.StatusForbidden)
 	getJSON(t, fx.app, fx.ownerCookie, "/api/events/does-not-exist/staffing", http.StatusNotFound)
@@ -2654,7 +2654,7 @@ func TestEventParticipantRosterAPI(t *testing.T) {
 		}
 	}
 
-	getJSON(t, fx.app, nil, "/api/events/"+eventID+"/participants", http.StatusForbidden)
+	getJSON(t, fx.app, nil, "/api/events/"+eventID+"/participants", http.StatusUnauthorized)
 	otherFx := newLifecycleFixture(t, fx.app)
 	getJSON(t, fx.app, otherFx.memberCookie, "/api/events/"+eventID+"/participants", http.StatusForbidden)
 }
@@ -2745,7 +2745,7 @@ func TestWorkspaceArchiveIndexAPI(t *testing.T) {
 	getJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/archives?q="+tooLongQuery, http.StatusBadRequest)
 
 	getJSON(t, fx.app, fx.memberCookie, "/api/workspaces/"+fx.workspaceID+"/archives", http.StatusOK)
-	getJSON(t, fx.app, nil, "/api/workspaces/"+fx.workspaceID+"/archives", http.StatusForbidden)
+	getJSON(t, fx.app, nil, "/api/workspaces/"+fx.workspaceID+"/archives", http.StatusUnauthorized)
 	getJSON(t, fx.app, other.memberCookie, "/api/workspaces/"+fx.workspaceID+"/archives", http.StatusForbidden)
 }
 
@@ -2861,7 +2861,7 @@ func TestFirstEventLifecycleArchiveSeedsDraftWithoutPrivateData(t *testing.T) {
 	}
 
 	postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/archive/seed-draft", map[string]any{}, http.StatusForbidden)
-	postJSON(t, fx.app, nil, "/api/events/"+eventID+"/archive/seed-draft", map[string]any{}, http.StatusForbidden)
+	postJSON(t, fx.app, nil, "/api/events/"+eventID+"/archive/seed-draft", map[string]any{}, http.StatusUnauthorized)
 
 	otherEvent := createEvent(t, fx, "Second Night", 10)
 	otherEventID := mustString(t, otherEvent, "id")
