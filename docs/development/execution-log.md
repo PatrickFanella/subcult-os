@@ -1,5 +1,13 @@
 # Development execution log
 
+## 2026-09-22 — #105 signed email feedback
+
+Added a disabled-by-default Resend webhook, raw-body signature verification and duplicate-safe minimal receipts. Tests use the independent published Svix vector and locally signed synthetic requests. Early receipts correlate after acknowledgement; adverse outcomes cannot be cleared by late delivery events. Suppression uses only our stored recipient, and workers exclude both durable suppression and unprocessed adverse receipts. Generic provider failures do not suppress a recipient.
+
+The owner deferred live Resend setup. No account, DNS, live delivery or production changes are included. Full local and hosted verification precede the batch merge checkpoint. Minimal receipt retention and audited unsuppression remain follow-ups; no cleanup silently enables sending.
+
+Hosted worker runs 9254/9255 exposed a test-fixture race: the version-five fixture executed the database-wide extension creation outside the migration advisory lock while AT integration tests ran in another package. The fixture now uses the same lock and one transaction. Production migration SQL and assertions are unchanged. The failed hosted results remain part of the record; verification is repeated against a fresh disposable database as well as the existing synthetic test database.
+
 ## 2026-09-22 — #104 durable transactional delivery
 
 Added an opt-in delivery command and additive version-6 ledger. Historical and disabled-mode inserts remain held; enabled inserts freeze the sender and reply-to. Leased claims use row locking and fenced acknowledgements. Retries retain one provider idempotency key, stop after eight attempts or 23 hours, and respect identity-challenge expiry/consumption. Terminal outcomes clear message bodies. Aggregate status does not contact Resend.

@@ -39,16 +39,29 @@ func TestEmailMigrationHoldsLegacyAndDisabledMessages(t *testing.T) {
 	}
 	// Build a genuine version-five fixture without weakening the current
 	// binary's minimum-version guard. Only this private test schema is touched.
-	if _, err := db.Exec(t.Context(), `create table schema_migrations(version integer primary key,name text not null,checksum char(64) not null,applied_at timestamptz not null default now())`); err != nil {
+	tx, err := db.Begin(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(t.Context())
+	// Version one creates a database-wide extension. Share the production
+	// migration lock with the independently running AT integration package.
+	if _, err := tx.Exec(t.Context(), `select pg_advisory_xact_lock($1)`, migrationLockID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tx.Exec(t.Context(), `create table schema_migrations(version integer primary key,name text not null,checksum char(64) not null,applied_at timestamptz not null default now())`); err != nil {
 		t.Fatal(err)
 	}
 	for _, m := range migrations[:5] {
-		if _, err := db.Exec(t.Context(), m.SQL); err != nil {
+		if _, err := tx.Exec(t.Context(), m.SQL); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := db.Exec(t.Context(), `insert into schema_migrations(version,name,checksum) values($1,$2,$3)`, m.Version, m.Name, m.Checksum); err != nil {
+		if _, err := tx.Exec(t.Context(), `insert into schema_migrations(version,name,checksum) values($1,$2,$3)`, m.Version, m.Name, m.Checksum); err != nil {
 			t.Fatal(err)
 		}
+	}
+	if err := tx.Commit(t.Context()); err != nil {
+		t.Fatal(err)
 	}
 	if _, err := db.Exec(t.Context(), `insert into email_outbox(recipient_email,subject,body,related_type) values('old@example.test','old','old token','test')`); err != nil {
 		t.Fatal(err)
@@ -215,7 +228,7 @@ func TestEmailDeliveryConfiguration(t *testing.T) {
 	if LoadConfig().Validate() == nil {
 		t.Fatal("invalid enable flag accepted")
 	}
-	c := Config{Addr: ":8080", MailDeliveryEnabled: true, MailFrom: "notify@example.test", ResendAPIKey: "synthetic"}
+	c := Config{Addr: ":8080", MailDeliveryEnabled: true, MailFrom: "notify@example.test", ResendAPIKey: "synthetic", ResendWebhookSecret: testWebhookSecret}
 	if err := c.Validate(); err != nil {
 		t.Fatal(err)
 	}

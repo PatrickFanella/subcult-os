@@ -17,6 +17,7 @@ type EmailDeliveryReport struct {
 	Failed      int `json:"failed"`
 	Quarantined int `json:"quarantined"`
 	Superseded  int `json:"superseded"`
+	Suppressed  int `json:"suppressed"`
 }
 
 func RunEmailDeliveries(ctx context.Context, config Config, db *pgxpool.Pool, limit int, statusOnly bool) (any, error) {
@@ -62,6 +63,19 @@ func (a *App) processEmailDeliveries(ctx context.Context, send func(context.Cont
 	if send == nil || limit < 1 || limit > 100 {
 		return report, errors.New("email batch limit must be 1..100")
 	}
+	if err := a.reconcileEmailFeedback(ctx); err != nil {
+		return report, err
+	}
+	suppressed, err := a.db.Exec(ctx, `with blocked as (
+	 select e.id from email_outbox e join email_suppressions s on s.recipient_email=lower(trim(e.recipient_email))
+	 where e.delivery_status='pending' or (e.delivery_status='leased' and e.lease_until<=now())
+	 order by e.id limit 100 for update of e skip locked)
+	 update email_outbox e set delivery_status='suppressed',body='',lease_token=null,lease_until=null,last_error_code='recipient_suppressed'
+	 from blocked where e.id=blocked.id`)
+	if err != nil {
+		return report, errors.New("email suppression unavailable")
+	}
+	report.Suppressed = int(suppressed.RowsAffected())
 	// Never retry after the provider's 24-hour idempotency retention. The
 	// 23-hour local limit leaves margin and also bounds late crash recovery.
 	expired, err := a.db.Exec(ctx, `with expired as (
@@ -81,6 +95,10 @@ func (a *App) processEmailDeliveries(ctx context.Context, send func(context.Cont
 		var attempts int
 		err := a.db.QueryRow(ctx, `with candidate as (
 		 select id from email_outbox where expires_at>now() and attempts<8 and
+		 not exists(select 1 from email_suppressions s where s.recipient_email=lower(trim(email_outbox.recipient_email))) and
+		 not exists(select 1 from email_provider_events p join email_outbox prior on prior.provider_message_id=p.provider_message_id
+		 where p.processed_at is null and p.event_type in ('email.bounced','email.complained','email.suppressed')
+		 and lower(trim(prior.recipient_email))=lower(trim(email_outbox.recipient_email))) and
 		 not exists(select 1 from identity_challenges c where c.id=email_outbox.related_id and c.consumed_at is not null) and
 		 (first_attempt_at is null or first_attempt_at>now()-interval '23 hours') and
 		 ((delivery_status='pending' and next_attempt_at<=now()) or (delivery_status='leased' and lease_until<=now()))
@@ -134,6 +152,9 @@ func (a *App) processEmailDeliveries(ctx context.Context, send func(context.Cont
 		if ack.RowsAffected() == 0 {
 			report.Superseded++
 			continue
+		}
+		if err := a.reconcileEmailFeedback(ctx); err != nil {
+			return report, err
 		}
 		switch status {
 		case "accepted":

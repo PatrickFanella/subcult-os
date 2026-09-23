@@ -13,6 +13,8 @@ The optional `atproto-workers` Compose profile runs the revocation command from 
 
 The optional `mail-workers` profile runs `email-deliver -send -watch`. Sending additionally requires `MAIL_DELIVERY_ENABLED=true`, configured Resend credentials and approved sender settings. Old/development outbox rows remain held. The default `email-deliver` command prints aggregate status only; never send live messages during automated qualification.
 
+Resend feedback requires `RESEND_WEBHOOK_SECRET`; enabled sending also requires this secret. Keep signature checks on raw bytes and recipient suppression independent of webhook-supplied addresses. Feedback may continue while sending is disabled. Never roll back to a worker without suppression enforcement while sending remains enabled.
+
 ## Verification
 
 Run:

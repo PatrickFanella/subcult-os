@@ -36,6 +36,7 @@ type Config struct {
 	MailDeliveryEnabled    bool
 	mailDeliveryEnabledRaw string
 	ResendAPIKey           string
+	ResendWebhookSecret    string
 	MailFrom               string
 	MailReplyTo            string
 }
@@ -47,6 +48,7 @@ func LoadConfig() Config {
 		MailDeliveryEnabled:    parseEnvBool(mailDeliveryEnabledRaw),
 		mailDeliveryEnabledRaw: mailDeliveryEnabledRaw,
 		ResendAPIKey:           env("RESEND_API_KEY", ""),
+		ResendWebhookSecret:    env("RESEND_WEBHOOK_SECRET", ""),
 		MailFrom:               env("MAIL_FROM", ""),
 		MailReplyTo:            env("MAIL_REPLY_TO", ""),
 		AppEnv:                 env("APP_ENV", "development"),
@@ -75,12 +77,18 @@ func LoadConfig() Config {
 
 func (c Config) Validate() error {
 	var problems []string
+	if c.ResendWebhookSecret != "" && !mailprovider.ValidWebhookSecret(c.ResendWebhookSecret) {
+		problems = append(problems, "RESEND_WEBHOOK_SECRET must be a valid signing secret")
+	}
 	if raw := c.mailDeliveryEnabledRaw; raw != "" {
 		if _, err := strconv.ParseBool(raw); err != nil {
 			problems = append(problems, "MAIL_DELIVERY_ENABLED must be a boolean")
 		}
 	}
 	if c.MailDeliveryEnabled {
+		if !mailprovider.ValidWebhookSecret(c.ResendWebhookSecret) {
+			problems = append(problems, "RESEND_WEBHOOK_SECRET is required for mail delivery")
+		}
 		if _, err := mailprovider.NewResend(c.ResendAPIKey); err != nil {
 			problems = append(problems, "RESEND_API_KEY is required for mail delivery")
 		}

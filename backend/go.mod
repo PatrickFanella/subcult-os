@@ -4,6 +4,7 @@ go 1.26
 
 require (
 	github.com/bluesky-social/indigo v0.0.0-20260903211445-41278964ec8e
+	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/minio/minio-go/v7 v7.2.0
 	github.com/stripe/stripe-go/v85 v85.2.0
@@ -17,7 +18,6 @@ require (
 	github.com/earthboundkid/versioninfo/v2 v2.24.1 // indirect
 	github.com/golang-jwt/jwt/v5 v5.2.2 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
