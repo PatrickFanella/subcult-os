@@ -142,6 +142,9 @@ alpha-qa-paid: ## Run paid alpha lifecycle QA against the running stack
 fake-event-qa: ## Run organizer fake-event rehearsal QA against the running stack
 	bash scripts/fake-event-qa.sh
 
+operations-qa: ## Run operations-panel rehearsal QA (contacts, commitments, staffing, templates, roles, reminders) against the running stack
+	bash scripts/qa-operations.sh
+
 compose-config: ## Validate Docker Compose config
 	docker compose -p $(COMPOSE_PROJECT_NAME) config --quiet
 
