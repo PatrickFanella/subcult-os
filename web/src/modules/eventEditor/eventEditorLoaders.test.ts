@@ -10,6 +10,7 @@ import {
 	loadEventEditorReport,
 	loadEventEditorReminders,
 	loadEventEditorTemplates,
+	loadEventEditorWorkspace,
 	type ApiClient,
 } from './eventEditorLoaders';
 
@@ -111,8 +112,24 @@ describe('event editor loaders', () => {
 		expect((closedApiClient as unknown as { mock: { calls: unknown[][] } }).mock.calls.map(([path]) => path)).toEqual(['/api/events/event-1/report']);
 
 		await expect(loadEventEditorReport((async () => {
-			throw new Error('report unavailable');
+			throw new ApiError(404, 'report not found', {});
 		}) as unknown as ApiClient, 'event-1')).resolves.toBeNull();
+	});
+
+	it.each([401, 403, 429, 500, 503])('preserves report and authority errors (%s)', async (status) => {
+		const error = new ApiError(status, 'Unavailable', {});
+		const client = vi.fn().mockRejectedValue(error) as ApiClient;
+		await expect(loadEventEditorReport(client, 'event-1')).rejects.toBe(error);
+		await expect(loadEventEditorWorkspace(client, 'workspace-1')).rejects.toBe(error);
+	});
+
+	it('does not hide a missing workspace or a transport failure', async () => {
+		const missing = new ApiError(404, 'Workspace not found', {});
+		await expect(loadEventEditorWorkspace(vi.fn().mockRejectedValue(missing) as ApiClient, 'workspace-1')).rejects.toBe(missing);
+		const error = new TypeError('Network unavailable');
+		const client = vi.fn().mockRejectedValue(error) as ApiClient;
+		await expect(loadEventEditorReport(client, 'event-1')).rejects.toBe(error);
+		await expect(loadEventEditorWorkspace(client, 'workspace-1')).rejects.toBe(error);
 	});
 
 	it('normalizes missing resources and orders returned collections', async () => {

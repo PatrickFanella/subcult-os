@@ -139,6 +139,10 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   const [templateApplying, setTemplateApplying] = useState(false);
   const [templateSavingFromEvent, setTemplateSavingFromEvent] = useState(false);
   const [reminders, setReminders] = useState<ReminderEventDTO[] | null | undefined>(undefined);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [reportRefreshTick, setReportRefreshTick] = useState(0);
+  const [workspaceError, setWorkspaceError] = useState<string | null>(null);
+  const [workspaceRefreshTick, setWorkspaceRefreshTick] = useState(0);
   const commitmentsRevisionRef = useRef(0);
 
   const hasWorkspace = workspaceId !== '';
@@ -202,12 +206,6 @@ export function EventEditorView({ eventId }: { eventId: string }) {
         setInitialForm(loadedForm);
         setReport(null);
 
-        if (isClosedEvent(loadedEvent.status)) {
-          const loadedReport = await loadEventEditorReport(api, eventId);
-          if (!cancelled) {
-            setReport(loadedReport);
-          }
-        }
       } catch (caught) {
         if (!cancelled) {
           setError(caught instanceof Error ? caught.message : 'Unable to load event');
@@ -225,6 +223,24 @@ export function EventEditorView({ eventId }: { eventId: string }) {
       cancelled = true;
     };
   }, [creating, eventId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setReportError(null);
+    if (!event || !isClosedEvent(event.status)) {
+      setReport(null);
+      return;
+    }
+    setReport((current) => current?.eventId === event.id ? current : null);
+
+    void loadEventEditorReport(api, event.id).then((loaded) => {
+      if (!cancelled) setReport(loaded);
+    }).catch((caught) => {
+      if (!cancelled) setReportError(caught instanceof Error ? caught.message : 'Unable to load report');
+    });
+
+    return () => { cancelled = true; };
+  }, [event?.id, event?.status, reportRefreshTick]);
 
   useEffect(() => {
     let cancelled = false;
@@ -283,14 +299,17 @@ export function EventEditorView({ eventId }: { eventId: string }) {
     let cancelled = false;
 
     async function loadEventWorkspace() {
+      setCurrentWorkspace(null);
+      setWorkspaceError(null);
       if (!event?.workspaceId) {
-        setCurrentWorkspace(null);
         return;
       }
 
-      const loaded = await loadEventEditorWorkspace(api, event.workspaceId);
-      if (!cancelled) {
-        setCurrentWorkspace(loaded);
+      try {
+        const loaded = await loadEventEditorWorkspace(api, event.workspaceId);
+        if (!cancelled) setCurrentWorkspace(loaded);
+      } catch (caught) {
+        if (!cancelled) setWorkspaceError(caught instanceof Error ? caught.message : 'Unable to load workspace authority');
       }
     }
 
@@ -299,7 +318,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [event?.workspaceId]);
+  }, [event?.workspaceId, workspaceRefreshTick]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1056,6 +1075,14 @@ export function EventEditorView({ eventId }: { eventId: string }) {
 
         {loading ? <div className="rounded-[1.75rem] border border-white/10 bg-white/5 p-6 text-sm text-zinc-400">Loading event…</div> : null}
         {error ? <p className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error}</p> : null}
+        {workspaceError ? <div role="alert" className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+          <p>Workspace access could not be loaded: {workspaceError}</p>
+          <button type="button" className="mt-3 rounded-full border border-white/20 px-4 py-2" onClick={() => setWorkspaceRefreshTick((value) => value + 1)}>Retry workspace access</button>
+        </div> : null}
+        {reportError ? <div role="alert" className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+          <p>Report could not be loaded: {reportError}</p>
+          <button type="button" className="mt-3 rounded-full border border-white/20 px-4 py-2" onClick={() => setReportRefreshTick((value) => value + 1)}>Retry report</button>
+        </div> : null}
         {message ? <p className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">{message}</p> : null}
 
         {!loading ? (

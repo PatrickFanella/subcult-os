@@ -1,5 +1,11 @@
 # Development execution log
 
+## 2026-09-22 — #113 event editor read recovery
+
+The report loader treats only a 404 as an absent report. Workspace authority failures are explicit rather than silently hiding owner tools. Both reads have independent error state and scoped retries; neither retry reloads the event form. Authority-dependent controls remain unavailable until the workspace read succeeds. An already known report snapshot is retained during a refresh, with any refresh error still visible.
+
+Local `make verify` passed, including status/transport regression cases. Browser checks against a disposable synthetic API confirmed an authority outage, recovery of owner tools while an unsaved title stayed intact, and report outage/retry recovery. The fixture recorded no event refetch during authority recovery and only the report endpoint during report retry. These are controlled UI checks, not production or real-backend qualification. No live email or deployment was performed.
+
 ## 2026-09-22 — #111 workspace loading boundaries
 
 Workspace selection now falls back only after an explicit 403 or 404. Server, authentication and transport failures remain errors, and fallback membership is loaded from the authorized workspace endpoint rather than fabricated from the account summary. Event and archive outages no longer become empty lists. The dashboard is committed only after its required overview loads, with a retry action for initial failures.

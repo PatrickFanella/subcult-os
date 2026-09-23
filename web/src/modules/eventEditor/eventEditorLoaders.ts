@@ -29,7 +29,12 @@ export async function loadEventEditorEvent(apiClient: ApiClient, eventId: string
 }
 
 export async function loadEventEditorReport(apiClient: ApiClient, eventId: string) {
-	return apiClient<EventReportDTO>(`/api/events/${eventId}/report`).catch(() => null);
+	try {
+		return await apiClient<EventReportDTO>(`/api/events/${eventId}/report`);
+	} catch (caught) {
+		if (caught instanceof ApiError && caught.status === 404) return null;
+		throw caught;
+	}
 }
 
 export async function loadEventEditorArchive(apiClient: ApiClient, eventId: string) {
@@ -45,11 +50,7 @@ export async function loadEventEditorArchive(apiClient: ApiClient, eventId: stri
 }
 
 export async function loadEventEditorWorkspace(apiClient: ApiClient, workspaceId: string) {
-	try {
-		return await apiClient<CurrentWorkspaceDTO>(`/api/workspaces/${workspaceId}`);
-	} catch {
-		return null;
-	}
+	return apiClient<CurrentWorkspaceDTO>(`/api/workspaces/${workspaceId}`);
 }
 
 export async function loadEventEditorRoleApplications(apiClient: ApiClient, eventId: string) {
