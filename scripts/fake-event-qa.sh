@@ -13,6 +13,10 @@ if [[ -z "${api_url}" ]]; then
   api_url="http://localhost:${api_port}"
 fi
 
+# shellcheck source=scripts/qa-identity.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/qa-identity.sh"
+qa_require_disposable_target
+
 tmpdir="$(mktemp -d /tmp/subcult-fake-event-qa.XXXXXX)"
 trap 'rm -rf "${tmpdir}"' EXIT
 
@@ -33,7 +37,8 @@ echo "Fake-event organizer QA against ${api_url}"
 curl -fsS -c "${cookie}" -H 'Content-Type: application/json' \
   -d "{\"email\":\"${email}\",\"password\":\"secret1234\",\"displayName\":\"Fake Event Organizer\"}" \
   "${api_url}/api/auth/signup" >/dev/null
-echo "✓ organizer account created"
+qa_verify_signup "$cookie" "$email"
+echo "✓ organizer account created and verified"
 
 workspace_json="$(curl -fsS -b "${cookie}" -H 'Content-Type: application/json' \
   -d '{"name":"Fake Event Rehearsal Workspace"}' \

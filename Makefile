@@ -34,7 +34,11 @@ lint: ## Run Go vet and frontend lint
 lint-mobile: ## Type-check the Expo mobile app
 	pnpm --dir mobile run lint
 
-test: test-backend test-web test-mobile ## Run backend, frontend, and mobile tests
+test: test-backend test-web test-mobile test-qa-scripts ## Run backend, frontend, mobile and rehearsal helper tests
+
+.PHONY: test-qa-scripts
+test-qa-scripts: ## Check rehearsal safety guards without a database or network
+	bash scripts/qa-identity.test.sh
 
 test-backend: ## Run non-DB Go tests
 	cd backend && TEST_DATABASE_URL= go test ./...

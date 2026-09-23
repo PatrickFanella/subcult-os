@@ -158,6 +158,7 @@ stripe listen --forward-to localhost:38080/api/stripe/webhook
 The paid ticketing runbook is `docs/runbooks/stripe-local-testing.md`.
 
 - `make alpha-qa` stays the default free-ticket lifecycle check.
+- Both rehearsal scripts require a loopback development API with mail delivery disabled, a matching disposable PostgreSQL database named `subcult_qa_*`, `QA_DATABASE_URL` pointing to it, and `QA_DISPOSABLE_DATABASE=1`. They also need `psql`, Node, Python and curl. Set `API_URL` explicitly when not using Compose. They read only held verification messages for their synthetic `example.test` accounts, then use the normal verification endpoint to establish sessions. This tests verification-token consumption, not email delivery. Never point them at retained application data; the opt-in acknowledges that they create synthetic accounts and events.
 - `make alpha-qa-paid` runs the optional paid API QA when `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` are set.
 
 Stripe keys are not required unless you configure a paid Event. Use the Stripe test card `4242 4242 4242 4242`, and treat the webhook as the source of truth for fulfillment.

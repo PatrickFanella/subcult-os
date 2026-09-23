@@ -38,6 +38,10 @@ if [[ -z "${api_url}" ]]; then
   api_url="http://localhost:${api_port}"
 fi
 
+# shellcheck source=scripts/qa-identity.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/qa-identity.sh"
+qa_require_disposable_target
+
 tmpdir="$(mktemp -d /tmp/subcult-alpha-qa.XXXXXX)"
 trap 'rm -rf "${tmpdir}"' EXIT
 
@@ -57,6 +61,7 @@ echo "Alpha QA against ${api_url}"
 curl -fsS -c "${owner_cookie}" -H 'Content-Type: application/json' \
   -d "{\"email\":\"${owner}\",\"password\":\"secret1234\",\"displayName\":\"Owner\"}" \
   "${api_url}/api/auth/signup" >/dev/null
+qa_verify_signup "$owner_cookie" "$owner"
 
 workspace_json="$(curl -fsS -b "${owner_cookie}" -H 'Content-Type: application/json' \
   -d '{"name":"Alpha QA Collective"}' \
@@ -74,6 +79,7 @@ INVITE_TOKEN="${invite_token}" python -c 'import json,os,sys; data=json.load(sys
 curl -fsS -c "${member_cookie}" -H 'Content-Type: application/json' \
   -d "{\"email\":\"${member}\",\"password\":\"secret1234\",\"displayName\":\"Door\"}" \
   "${api_url}/api/auth/signup" >/dev/null
+qa_verify_signup "$member_cookie" "$member"
 
 curl -fsS -b "${member_cookie}" -H 'Content-Type: application/json' \
   -d '{}' \

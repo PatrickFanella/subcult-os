@@ -1,5 +1,11 @@
 # Development execution log
 
+## 2026-09-22 — #121 verified rehearsal accounts
+
+The real-backend checkpoint at `f206b4f` found both legacy rehearsal scripts failing with 401 after signup: they assumed signup issued a session. They now require explicit loopback/disposable-database opt-in, read the held verification message for their own synthetic recipient, and consume its challenge through the normal verification endpoint. They never mark identities verified directly, print tokens, or send mail. The shared helper rejects retained/remote targets and propagates database, missing-message and HTTP failures; its network-free tests run in `make verify`.
+
+After correcting a column-name error in the first helper attempt, both free API rehearsals passed against `subcult_qa_batch_f206b4f` and the unchanged Go binary built from `f206b4f`. Coverage includes verified signup, invitation acceptance, publish, capacity rejection, door search/idempotent check-in, end-of-night counts, role visibility/review and staffing edits. These API checks do not replace served browser journeys, native-device tests or live provider qualification. The earlier 401 results remain evidence of the inherited script defect.
+
 ## 2026-09-22 — #119 payment-aware ticket presentation
 
 Admission messages now require free or paid status. Pending, cancelled and unknown payment values never claim readiness or granted access, even when a prior check-in is recorded. Codes remain available for support with an explicit statement that they do not bypass payment. Cancelled-payment copy no longer invents a resumable checkout. Already scanned free/paid tickets say "Already checked in" rather than implying a new grant of access.
