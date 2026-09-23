@@ -2476,7 +2476,7 @@ describe('App routes', () => {
 
 	it('renders the ticket route', () => {
     const rendered = renderAt('/tickets/ticket-123');
-    expect(rendered).toContain('Show this at the door');
+    expect(rendered).toContain('Your ticket');
     expect(rendered).toContain('Your reservation lives here');
     expect(rendered).not.toContain('Private note:');
     expect(rendered).not.toContain('Keep private');
@@ -2549,7 +2549,7 @@ describe('App routes', () => {
         checkedInAt: null,
       },
       'Payment cancelled',
-      'Finish checkout to activate this ticket',
+      'This ticket is not valid for entry',
     ],
   ])('renders the ticket payment %s banner', (_label, ticket, banner, summary) => {
     const rendered = renderWithState('/tickets/ticket-123', <TicketView code="ticket-123" />, [ticket, null, false, null]);
@@ -2560,6 +2560,15 @@ describe('App routes', () => {
     expect(rendered).toContain('Preparing QR');
     expect(rendered).toContain(ticket.code);
     expect(rendered).toContain('Refresh ticket status');
+    if (ticket.paymentStatus === 'pending' || ticket.paymentStatus === 'cancelled') {
+      expect(rendered).toContain('Not ready for entry');
+      expect(rendered).not.toContain('Reserved and ready');
+      expect(rendered).not.toContain('Bring to door');
+      expect(rendered).not.toContain('Access granted');
+      expect(rendered).not.toContain('Show this QR code or ticket code at the door.');
+    } else {
+      expect(rendered).toContain('Bring to door');
+    }
     expect(rendered).toContain(`href="/door/${ticket.eventId}"`);
     expect(rendered).not.toContain('Private note:');
     expect(rendered).not.toContain('Keep private');

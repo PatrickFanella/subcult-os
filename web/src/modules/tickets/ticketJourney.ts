@@ -22,16 +22,24 @@ export function ticketJourneyStatusTone(status: TicketDTO['status']) {
 		: 'border-amber-300/30 bg-amber-300/10 text-amber-50';
 }
 
-export function ticketJourneyStatusBadge(status: TicketDTO['status']) {
-	return status === 'checked_in' ? 'Access granted' : 'Bring to door';
+type AdmissionTicket = Pick<TicketDTO, 'status' | 'paymentStatus'>;
+
+export function ticketPaymentAllowsAdmission(paymentStatus: TicketDTO['paymentStatus']) {
+	return paymentStatus === 'free' || paymentStatus === 'paid';
+}
+
+export function ticketJourneyStatusBadge(ticket: AdmissionTicket) {
+	if (!ticketPaymentAllowsAdmission(ticket.paymentStatus)) return 'Not ready for entry';
+	return ticket.status === 'checked_in' ? 'Already checked in' : 'Bring to door';
 }
 
 export function ticketJourneyDoorStatusBadge(status: TicketDTO['status']) {
 	return status === 'checked_in' ? 'Door ready' : 'Needs check-in';
 }
 
-export function ticketJourneyStatusCopy(status: TicketDTO['status'], checkedInAt: string) {
-	return status === 'checked_in'
+export function ticketJourneyStatusCopy(ticket: AdmissionTicket, checkedInAt: string) {
+	if (!ticketPaymentAllowsAdmission(ticket.paymentStatus)) return 'Payment is not confirmed. This ticket is not ready for entry.';
+	return ticket.status === 'checked_in'
 		? `Checked in at ${checkedInAt}`
 		: 'Reserved and ready. Show the code below at the door.';
 }
@@ -48,8 +56,9 @@ export function doorCheckInButtonLabel(checkingIn: boolean, checkedIn: boolean) 
 	return checkedIn ? 'Checked in' : 'Check in';
 }
 
-export function ticketJourneyCodeCopy(status: TicketDTO['status']) {
-	return status === 'checked_in'
+export function ticketJourneyCodeCopy(ticket: AdmissionTicket) {
+	if (!ticketPaymentAllowsAdmission(ticket.paymentStatus)) return 'Keep this code for support. It does not bypass payment requirements.';
+	return ticket.status === 'checked_in'
 		? 'This reservation has already been scanned.'
 		: 'This code is what the door team needs to check you in.';
 }
@@ -65,7 +74,7 @@ export function ticketJourneyPaymentLabel(paymentStatus: TicketDTO['paymentStatu
 		case 'cancelled':
 			return 'Payment cancelled';
 		default:
-			return 'Reserved';
+			return 'Payment unavailable';
 	}
 }
 
@@ -90,11 +99,11 @@ export function ticketJourneyPaymentBadge(ticket: Pick<TicketDTO, 'paymentStatus
 		case 'pending':
 			return 'Checkout open';
 		case 'cancelled':
-			return 'Needs checkout';
+			return 'Not valid for entry';
 		case 'free':
 			return 'No payment';
 		default:
-			return 'No payment';
+			return 'Unverified';
 	}
 }
 
@@ -107,8 +116,8 @@ export function ticketJourneyPaymentSummary(ticket: Pick<TicketDTO, 'paymentStat
 		case 'pending':
 			return 'Checkout may still be processing. This ticket is not final until payment completes.';
 		case 'cancelled':
-			return 'Payment was cancelled. Finish checkout to activate this ticket.';
+			return 'Payment was cancelled. This ticket is not valid for entry. Contact the organizer if you need help.';
 		default:
-			return 'No payment needed.';
+			return 'Payment status is unavailable. Refresh before relying on this ticket for entry.';
 	}
 }

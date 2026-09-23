@@ -1,5 +1,11 @@
 # Development execution log
 
+## 2026-09-22 — #119 payment-aware ticket presentation
+
+Admission messages now require free or paid status. Pending, cancelled and unknown payment values never claim readiness or granted access, even when a prior check-in is recorded. Codes remain available for support with an explicit statement that they do not bypass payment. Cancelled-payment copy no longer invents a resumable checkout. Already scanned free/paid tickets say "Already checked in" rather than implying a new grant of access.
+
+Full local `make verify` passed. Tests cover all four payment values plus unknown input across reserved/checked-in states, and rendered pending/cancelled pages reject conflicting ready-for-entry text. A browser with a synthetic pending ticket confirmed the corrected warning, payment explanation and support-code copy. No live payment, admission or deployment was performed. The five-issue batch now enters combined verification and hosted CI review before merge.
+
 ## 2026-09-22 — #117 ticket recovery
 
 Ticket pages now provide an in-page read retry/refresh. A failed refresh retains the last loaded pass and explicitly warns that payment/check-in status may have changed. Changing ticket codes clears the prior ticket and QR; cancelled asynchronous loads cannot replace the new result. QR generation failure shows manual-code instructions instead of an indefinite preparation message.

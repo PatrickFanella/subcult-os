@@ -22,6 +22,7 @@ import {
   ticketJourneyStatusBadge,
   ticketJourneyStatusCopy,
   ticketJourneyStatusLabel,
+  ticketPaymentAllowsAdmission,
 } from '../modules/tickets/ticketJourney';
 
 function formatHumanTime(value: string | null) {
@@ -38,8 +39,9 @@ function formatHumanTime(value: string | null) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(timestamp);
 }
 
-function ticketStatusTone(status: TicketDTO['status']) {
-  return status === 'checked_in' ? 'success' : 'warning';
+function ticketStatusTone(ticket: TicketDTO) {
+  if (!ticketPaymentAllowsAdmission(ticket.paymentStatus)) return ticket.paymentStatus === 'cancelled' ? 'danger' : 'warning';
+  return ticket.status === 'checked_in' ? 'success' : 'warning';
 }
 
 function ticketPaymentTone(paymentStatus: TicketDTO['paymentStatus']) {
@@ -56,9 +58,9 @@ function ticketPaymentTone(paymentStatus: TicketDTO['paymentStatus']) {
 }
 
 function ticketArrivalNotes(paymentStatus: TicketDTO['paymentStatus']) {
-  return paymentStatus === 'pending'
-    ? 'Payment is still pending. Refresh after checkout completes; the door will only accept paid/free tickets.'
-    : 'Show this QR code or ticket code at the door. Staff scanners read the ticket code embedded in the QR pass.';
+  if (paymentStatus === 'pending') return 'Payment is still pending. Refresh after checkout completes; the door will only accept paid/free tickets.';
+  if (!ticketPaymentAllowsAdmission(paymentStatus)) return 'This ticket is not ready for entry. Contact the organizer if you need help with payment.';
+  return 'Show this QR code or ticket code at the door. Staff scanners read the ticket code embedded in the QR pass.';
 }
 
 export function TicketView({ code }: { code: string }) {
@@ -151,7 +153,7 @@ export function TicketView({ code }: { code: string }) {
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className={publicEyebrowClass}>Ticket</p>
-            <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] text-[#171717] sm:text-4xl">Show this at the door</h1>
+            <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] text-[#171717] sm:text-4xl">Your ticket</h1>
           </div>
           <a className={publicSecondaryButtonClass} href="/">
             Workspace
@@ -174,7 +176,7 @@ export function TicketView({ code }: { code: string }) {
             <>
               <div className="overflow-hidden rounded-[32px] border border-neutral-200 bg-white p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
-                  <span className={publicStatusPillClass(ticketStatusTone(ticket.status))}>{ticketJourneyStatusBadge(ticket.status)}</span>
+                  <span className={publicStatusPillClass(ticketStatusTone(ticket))}>{ticketJourneyStatusBadge(ticket)}</span>
                   <span className="rounded-full bg-white p-3 text-xl shadow-sm" aria-hidden="true">
                     ↗
                   </span>
@@ -203,7 +205,7 @@ export function TicketView({ code }: { code: string }) {
                     )}
                   </div>
                   <p className="mt-4 break-words font-mono text-sm tracking-[0.28em] text-neutral-600">{ticket.code}</p>
-                  <p className="mt-2 text-sm text-neutral-500">{ticketJourneyCodeCopy(ticket.status)}</p>
+                  <p className="mt-2 text-sm text-neutral-500">{ticketJourneyCodeCopy(ticket)}</p>
                 </div>
               </div>
 
@@ -226,11 +228,11 @@ export function TicketView({ code }: { code: string }) {
                       <p className={publicEyebrowClass}>Status</p>
                       <p className="mt-2 text-2xl font-black tracking-[-0.03em] text-[#171717]">{ticketJourneyStatusLabel(ticket.status)}</p>
                     </div>
-                    <span className={publicStatusPillClass(ticketStatusTone(ticket.status))}>{ticketJourneyStatusBadge(ticket.status)}</span>
+                    <span className={publicStatusPillClass(ticketStatusTone(ticket))}>{ticketJourneyStatusBadge(ticket)}</span>
                   </div>
 
                   <p className="mt-3 text-sm leading-6 text-neutral-600">
-                    {ticketJourneyStatusCopy(ticket.status, formatHumanTime(ticket.checkedInAt))}
+                    {ticketJourneyStatusCopy(ticket, formatHumanTime(ticket.checkedInAt))}
                   </p>
                 </div>
               </div>
