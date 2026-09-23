@@ -173,7 +173,6 @@ update_contact() {
 }
 step "update contact" update_contact
 
-member_cannot_read_contacts_after_removal_placeholder() { return 0; } # reserved, unused
 
 # --- Commitments ---------------------------------------------------------
 

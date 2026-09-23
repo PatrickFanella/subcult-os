@@ -64,7 +64,7 @@ identical output: **36 passed, 0 failed**, exit code 0.
 | 12 | update contact (PATCH displayName/tags) | PASS |
 | 13 | create commitment linked to event and contact | PASS |
 | 14 | commitment update rejects an invalid status (400) | PASS |
-| 15 | mark commitment done sets `completedAt`/`completedByPersonId` | PASS |
+| 15 | mark commitment done sets `completedAt` | PASS |
 | 16 | create overdue open commitment for reminder sweep | PASS |
 | 17 | create far-future open commitment that must not trigger a reminder | PASS |
 | 18 | member cannot create staffing items (403, owner-only boundary) | PASS |
