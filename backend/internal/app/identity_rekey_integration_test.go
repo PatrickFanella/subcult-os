@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"testing"
 
 	atprotocol "git.subcult.tv/PatrickFanella/subcult-os/internal/atproto"
@@ -174,5 +175,78 @@ func TestIdentityRekeyRequiresValidConfig(t *testing.T) {
 	badConfig := Config{AppEnv: "production", Addr: ":8080", DatabaseURL: "postgres://ignored", SessionSecret: "replace-with-a-long-random-secret", PublicWebURL: "https://subcult.example"}
 	if _, err := RunIdentityRekey(t.Context(), badConfig, pool, 100, true); err == nil {
 		t.Fatal("RunIdentityRekey() should fail without a valid IDENTITY_PROTECTION_KEY in production")
+	}
+}
+
+// TestIdentityRekeySweepsPastCurrentRowsWithSmallBatches proves the sweep is
+// not stalled by rows that already use the current key: with a batch limit
+// smaller than the table, every previous-key row is still rewritten in one
+// command run, and the run reports the whole table as scanned.
+func TestIdentityRekeySweepsPastCurrentRowsWithSmallBatches(t *testing.T) {
+	pool := newMigrationTestPool(t)
+	if err := RunMigrations(t.Context(), pool); err != nil {
+		t.Fatal(err)
+	}
+	oldIdentity, err := newIdentityProtector(testIdentityProtectionKeyPrevious, "", "sweep-secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	currentIdentity, err := newIdentityProtector(testIdentityProtectionKey, "", "sweep-secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	seed := func(i int, protector *identityProtector) {
+		email := fmt.Sprintf("sweep-%d@example.test", i)
+		ciphertext, lookup, err := protector.protectEmail(email)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var personID string
+		if err := pool.QueryRow(t.Context(), `insert into people (email, password_hash) values ($1, 'not-a-login-hash') returning id`, email).Scan(&personID); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := pool.Exec(t.Context(), `insert into email_identities (person_id, email_ciphertext, email_lookup_hash, verified_at) values ($1, $2, $3, now())`, personID, ciphertext, lookup); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Mix rows already sealed under the current key with rows still under the
+	// previous key; uuid ordering makes their relative position arbitrary.
+	for i := 0; i < 4; i++ {
+		seed(i, currentIdentity)
+	}
+	for i := 4; i < 9; i++ {
+		seed(i, oldIdentity)
+	}
+
+	rotatedConfig := Config{
+		AppEnv: "test", SessionSecret: "sweep-secret", Addr: ":8080",
+		IdentityProtectionKey: testIdentityProtectionKey, IdentityProtectionKeyPrevious: testIdentityProtectionKeyPrevious,
+	}
+	result, err := RunIdentityRekey(t.Context(), rotatedConfig, pool, 2, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, ok := result.(IdentityRekeyReport)
+	if !ok || report.EmailIdentitiesScanned != 9 || report.EmailIdentitiesRekeyed != 5 {
+		t.Fatalf("rekey report with batch limit 2 = %#v", result)
+	}
+
+	var stale int
+	rows, err := pool.Query(t.Context(), `select email_ciphertext from email_identities`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var ciphertext []byte
+		if err := rows.Scan(&ciphertext); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := currentIdentity.revealEmail(ciphertext); err != nil {
+			stale++
+		}
+	}
+	if stale != 0 {
+		t.Fatalf("%d rows still unreadable with the current key alone", stale)
 	}
 }

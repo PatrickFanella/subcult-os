@@ -34,9 +34,10 @@ type IdentityRekeyStatus struct {
 // RunIdentityRekey is the explicit, resumable IDENTITY_PROTECTION_KEY
 // rotation command. It requires both IDENTITY_PROTECTION_KEY (current) and,
 // to do any rewriting, IDENTITY_PROTECTION_KEY_PREVIOUS (the retiring key).
-// It processes at most limit rows per table per call and is idempotent: a
-// row already sealed under the current key is left untouched, so rerunning
-// it (for example under -watch) is always safe. It never logs or returns an
+// It sweeps every row of each table, committing at most limit rows per
+// transaction, and is idempotent: a row already sealed under the current key
+// is left untouched, so rerunning it (for example under -watch) is always
+// safe. It never logs or returns an
 // email, DID, session identifier or any ciphertext -- only counts.
 func RunIdentityRekey(ctx context.Context, config Config, db *pgxpool.Pool, limit int, statusOnly bool) (any, error) {
 	if err := config.Validate(); err != nil {
@@ -92,27 +93,49 @@ func RunIdentityRekey(ctx context.Context, config Config, db *pgxpool.Pool, limi
 	return report, nil
 }
 
-// rekeyEmailIdentities claims a bounded batch of email_identities rows with
-// FOR UPDATE SKIP LOCKED (safe to run concurrently with normal traffic and
-// with another rekey run), decrypts each with the current key first, then
-// the previous key, and rewrites only the rows that were not already
-// current. It never returns or logs plaintext email or ciphertext.
+// rekeyEmailIdentities walks the whole email_identities table in id order,
+// claiming at most limit rows per transaction with FOR UPDATE SKIP LOCKED
+// (safe to run concurrently with normal traffic and with another rekey run).
+// It decrypts each row with the current key first, then the previous key,
+// and rewrites only the rows that were not already current. A keyset cursor
+// advances past rows that need no work, so tables larger than one batch are
+// still fully swept. It never returns or logs plaintext email or ciphertext.
 func rekeyEmailIdentities(ctx context.Context, db *pgxpool.Pool, identity *identityProtector, limit int) (scanned, rekeyed int, err error) {
+	if identity.prevAEAD == nil {
+		return 0, 0, nil
+	}
+	cursor := ""
+	for {
+		batchScanned, batchRekeyed, nextCursor, err := rekeyEmailIdentityBatch(ctx, db, identity, cursor, limit)
+		scanned += batchScanned
+		rekeyed += batchRekeyed
+		if err != nil {
+			return scanned, rekeyed, err
+		}
+		if batchScanned < limit || nextCursor == "" {
+			return scanned, rekeyed, nil
+		}
+		cursor = nextCursor
+	}
+}
+
+func rekeyEmailIdentityBatch(ctx context.Context, db *pgxpool.Pool, identity *identityProtector, cursor string, limit int) (scanned, rekeyed int, lastID string, err error) {
 	tx, err := db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
-		return 0, 0, fmt.Errorf("begin identity rekey: %w", err)
+		return 0, 0, "", fmt.Errorf("begin identity rekey: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	rows, err := tx.Query(ctx, `
 		select id, email_ciphertext
 		from email_identities
+		where $1 = '' or id > $1::uuid
 		order by id
-		limit $1
+		limit $2
 		for update skip locked
-	`, limit)
+	`, cursor, limit)
 	if err != nil {
-		return 0, 0, fmt.Errorf("scan identity rekey candidates: %w", err)
+		return 0, 0, "", fmt.Errorf("scan identity rekey candidates: %w", err)
 	}
 	type candidate struct {
 		id         string
@@ -123,23 +146,24 @@ func rekeyEmailIdentities(ctx context.Context, db *pgxpool.Pool, identity *ident
 		var c candidate
 		if err := rows.Scan(&c.id, &c.ciphertext); err != nil {
 			rows.Close()
-			return 0, 0, fmt.Errorf("read identity rekey candidate: %w", err)
+			return 0, 0, "", fmt.Errorf("read identity rekey candidate: %w", err)
 		}
 		candidates = append(candidates, c)
 	}
 	if err := rows.Err(); err != nil {
-		return 0, 0, fmt.Errorf("read identity rekey candidates: %w", err)
+		return 0, 0, "", fmt.Errorf("read identity rekey candidates: %w", err)
 	}
 	rows.Close()
 
 	for _, c := range candidates {
 		if err := ctx.Err(); err != nil {
-			return scanned, rekeyed, err
+			return scanned, rekeyed, lastID, err
 		}
 		scanned++
+		lastID = c.id
 		newCiphertext, newLookupHash, rotated, err := identity.reencryptEmail(c.ciphertext)
 		if err != nil {
-			return scanned, rekeyed, errors.New("decrypt identity secret for rekey")
+			return scanned, rekeyed, lastID, errors.New("decrypt identity secret for rekey")
 		}
 		if !rotated {
 			continue
@@ -149,12 +173,12 @@ func rekeyEmailIdentities(ctx context.Context, db *pgxpool.Pool, identity *ident
 			set email_ciphertext = $2, email_lookup_hash = $3, updated_at = now()
 			where id = $1
 		`, c.id, newCiphertext, newLookupHash); err != nil {
-			return scanned, rekeyed, fmt.Errorf("update rekeyed identity: %w", err)
+			return scanned, rekeyed, lastID, fmt.Errorf("update rekeyed identity: %w", err)
 		}
 		rekeyed++
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return scanned, rekeyed, fmt.Errorf("commit identity rekey: %w", err)
+		return scanned, rekeyed, lastID, fmt.Errorf("commit identity rekey: %w", err)
 	}
-	return scanned, rekeyed, nil
+	return scanned, rekeyed, lastID, nil
 }

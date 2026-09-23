@@ -76,16 +76,16 @@ becomes unreadable mid-rotation:
 
    ```bash
    make identity-rekey-status   # counts only; decrypts nothing
-   make identity-rekey          # processes one batch (default 500 rows per table)
+   make identity-rekey          # sweeps every table, committing 500 rows per transaction
    ```
 
    `identity-rekey` (`backend/cmd/identity-rekey`, wired into
    `backend/internal/app/identity_rekey.go` and
    `backend/internal/atproto/oauth_rekey.go`) is resumable and idempotent: it
-   claims rows with `FOR UPDATE SKIP LOCKED`, skips anything already sealed
-   under the current key, and is safe to rerun (or run under `-watch`) until
-   `identity-rekey-status` reports no rows left protected only by the
-   previous key. It rewrites `email_identities` (ciphertext and lookup hash
+   walks each table in id order with a keyset cursor, claims rows with
+   `FOR UPDATE SKIP LOCKED` in bounded transactions, skips anything already
+   sealed under the current key, and is safe to rerun (or run under `-watch`)
+   if a run is interrupted. It rewrites `email_identities` (ciphertext and lookup hash
    together, so a row's ciphertext and hash are never inconsistent) and AT
    OAuth `atproto_oauth_sessions` / `atproto_oauth_revocations` payloads. It
    prints aggregate counts only — never an email, DID, session identifier, or

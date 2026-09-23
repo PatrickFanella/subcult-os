@@ -17,9 +17,10 @@ previous key second on both decrypt and lookup-hash matching, and always
 write under the current key. A new resumable `identity-rekey` command
 (`backend/cmd/identity-rekey`, `backend/internal/app/identity_rekey.go`,
 `backend/internal/atproto/oauth_rekey.go`) re-encrypts `email_identities`,
-`atproto_oauth_sessions` and `atproto_oauth_revocations` in bounded
-`FOR UPDATE SKIP LOCKED` batches, is idempotent, and prints aggregate counts
-only. The AT OAuth JWKS
+`atproto_oauth_sessions` and `atproto_oauth_revocations` with a keyset
+cursor in bounded `FOR UPDATE SKIP LOCKED` transactions, is idempotent, and
+prints aggregate counts only. Review added a test that a batch limit smaller
+than the table still rewrites every previous-key row in one run. The AT OAuth JWKS
 (`backend/internal/atproto/oauth_client.go`) can publish a previous public
 key alongside the current one during a signing-key transition; the private
 key that signs new assertions is always the current one.
@@ -39,7 +40,7 @@ application database) and ran `go test ./internal/app ./internal/atproto
 end-to-end test that seeds email and AT OAuth rows under a previous key,
 runs `identity-rekey`, confirms the previous key can then be removed while
 reads still succeed, and confirms a second run changes nothing. `make verify`
-passed locally (see the changed-files diff for exact command output).
+passed locally.
 
 Open and out of reach here: provisioning either key through a real deployed
 secret store, a live rehearsal of a deployed rotation (this environment has

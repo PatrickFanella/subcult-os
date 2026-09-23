@@ -19,9 +19,9 @@ type RekeyReport struct {
 
 // RekeySessions rewrites atproto_oauth_sessions payloads still sealed under
 // the previous IDENTITY_PROTECTION_KEY so they are sealed under the current
-// key. It processes at most limit rows per call, is safe to call repeatedly,
-// and is a no-op (report all zero) once every row is already current or no
-// previous key is configured.
+// key. It sweeps the whole table, committing at most limit rows per
+// transaction, is safe to call repeatedly, and is a no-op (report all zero)
+// once every row is already current or no previous key is configured.
 func (s *OAuthStore) RekeySessions(ctx context.Context, limit int) (RekeyReport, error) {
 	return s.rekeyPayloadTable(ctx, "atproto_oauth_sessions", "", limit)
 }
@@ -58,13 +58,34 @@ func (s *OAuthStore) rekeyPayloadTable(ctx context.Context, table, extraWhere st
 	if s.prevAEAD == nil {
 		return report, nil
 	}
+	// Keyset cursor: each transaction claims the next limit rows after the
+	// last id seen, so rows that already use the current key never stall the
+	// sweep on tables larger than one batch.
+	cursor := ""
+	for {
+		batch, lastID, err := s.rekeyPayloadBatch(ctx, table, extraWhere, cursor, limit)
+		report.Scanned += batch.Scanned
+		report.Rekeyed += batch.Rekeyed
+		if err != nil {
+			return report, err
+		}
+		if batch.Scanned < limit || lastID == "" {
+			return report, nil
+		}
+		cursor = lastID
+	}
+}
+
+func (s *OAuthStore) rekeyPayloadBatch(ctx context.Context, table, extraWhere, cursor string, limit int) (RekeyReport, string, error) {
+	report := RekeyReport{}
+	lastID := ""
 	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
-		return report, fmt.Errorf("begin AT OAuth rekey: %w", err)
+		return report, lastID, fmt.Errorf("begin AT OAuth rekey: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	where := "payload_ciphertext is not null"
+	where := "payload_ciphertext is not null and ($1 = '' or id > $1::uuid)"
 	if extraWhere != "" {
 		where += " and " + extraWhere
 	}
@@ -73,11 +94,11 @@ func (s *OAuthStore) rekeyPayloadTable(ctx context.Context, table, extraWhere st
 		from %s
 		where %s
 		order by id
-		limit $1
+		limit $2
 		for update skip locked
-	`, table, where), limit)
+	`, table, where), cursor, limit)
 	if err != nil {
-		return report, fmt.Errorf("scan AT OAuth rekey candidates: %w", err)
+		return report, lastID, fmt.Errorf("scan AT OAuth rekey candidates: %w", err)
 	}
 	type candidate struct {
 		id, did, sessionID string
@@ -88,41 +109,42 @@ func (s *OAuthStore) rekeyPayloadTable(ctx context.Context, table, extraWhere st
 		var c candidate
 		if err := rows.Scan(&c.id, &c.did, &c.sessionID, &c.payload); err != nil {
 			rows.Close()
-			return report, fmt.Errorf("read AT OAuth rekey candidate: %w", err)
+			return report, lastID, fmt.Errorf("read AT OAuth rekey candidate: %w", err)
 		}
 		candidates = append(candidates, c)
 	}
 	if err := rows.Err(); err != nil {
-		return report, fmt.Errorf("read AT OAuth rekey candidates: %w", err)
+		return report, lastID, fmt.Errorf("read AT OAuth rekey candidates: %w", err)
 	}
 	rows.Close()
 
 	for _, c := range candidates {
 		if err := ctx.Err(); err != nil {
-			return report, err
+			return report, lastID, err
 		}
 		report.Scanned++
+		lastID = c.id
 		aad := sessionAAD(syntax.DID(c.did), c.sessionID)
 		if s.sealedWithCurrentKey(aad, c.payload) {
 			continue
 		}
 		plaintext, err := openWithOAuthAEAD(s.prevAEAD, aad, c.payload)
 		if err != nil {
-			return report, errors.New("decrypt AT OAuth secret for rekey")
+			return report, lastID, errors.New("decrypt AT OAuth secret for rekey")
 		}
 		nonce := make([]byte, s.aead.NonceSize())
 		if _, err := rand.Read(nonce); err != nil {
-			return report, fmt.Errorf("generate AT OAuth rekey nonce: %w", err)
+			return report, lastID, fmt.Errorf("generate AT OAuth rekey nonce: %w", err)
 		}
 		newPayload := s.aead.Seal(nonce, nonce, plaintext, []byte(aad))
 		if _, err := tx.Exec(ctx, fmt.Sprintf(`update %s set payload_ciphertext = $2, updated_at = $3 where id = $1`, table),
 			c.id, newPayload, s.now()); err != nil {
-			return report, fmt.Errorf("update AT OAuth rekeyed row: %w", err)
+			return report, lastID, fmt.Errorf("update AT OAuth rekeyed row: %w", err)
 		}
 		report.Rekeyed++
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return report, fmt.Errorf("commit AT OAuth rekey: %w", err)
+		return report, lastID, fmt.Errorf("commit AT OAuth rekey: %w", err)
 	}
-	return report, nil
+	return report, lastID, nil
 }
