@@ -209,7 +209,7 @@ func TestIdentityATProtoLinkListAndUnlink(t *testing.T) {
 	if err := application.db.QueryRow(t.Context(), `select person_id from identity_sessions where access_token_hash = $1`, tokenHash(session.AccessToken)).Scan(&personID); err != nil {
 		t.Fatal(err)
 	}
-	store, err := atprotocol.NewOAuthStore(application.db, "", "identity-atproto-status-test")
+	store, err := atprotocol.NewOAuthStore(application.db, "", "", "identity-atproto-status-test")
 	if err != nil {
 		t.Fatal(err)
 	}

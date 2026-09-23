@@ -12,15 +12,22 @@ import (
 )
 
 type OAuthClientSettings struct {
-	ClientID          string
-	CallbackURL       string
-	JWKSURL           string
-	PrivateKey        string
-	KeyID             string
-	UserAgent         string
-	ClientName        string
-	ClientHomepageURL string
-	PolicyURL         string
+	ClientID    string
+	CallbackURL string
+	JWKSURL     string
+	PrivateKey  string
+	KeyID       string
+	// PreviousPrivateKey/PreviousKeyID are optional. When set, their public key
+	// is published in the JWKS alongside the current key so in-flight tokens
+	// signed against the retiring key still validate during a transition
+	// window. The private signing key itself is never used for new signing;
+	// only PrivateKey/KeyID sign new client assertions.
+	PreviousPrivateKey string
+	PreviousKeyID      string
+	UserAgent          string
+	ClientName         string
+	ClientHomepageURL  string
+	PolicyURL          string
 }
 
 // OAuthClient owns the unstable Indigo client configuration and exposes only
@@ -73,11 +80,42 @@ func NewOAuthClient(settings OAuthClientSettings) (*OAuthClient, error) {
 	if err != nil {
 		return nil, fmt.Errorf("encode AT OAuth client metadata: %w", err)
 	}
-	jwksJSON, err := json.Marshal(config.PublicJWKS())
+	jwks := config.PublicJWKS()
+	if strings.TrimSpace(settings.PreviousPrivateKey) != "" {
+		previousJWK, err := publicJWKForPrivateMultibase(settings.PreviousPrivateKey, settings.PreviousKeyID)
+		if err != nil {
+			return nil, fmt.Errorf("encode previous AT OAuth JWK: %w", err)
+		}
+		jwks.Keys = append(jwks.Keys, *previousJWK)
+	}
+	jwksJSON, err := json.Marshal(jwks)
 	if err != nil {
 		return nil, fmt.Errorf("encode AT OAuth JWKS: %w", err)
 	}
 	return &OAuthClient{config: config, metadata: metadataJSON, jwks: jwksJSON}, nil
+}
+
+// publicJWKForPrivateMultibase derives the public JWK for a retiring signing
+// key so it can be published in the JWKS during a rotation transition
+// window, without ever using the private key for new signatures.
+func publicJWKForPrivateMultibase(privateKeyMultibase, keyID string) (*atcrypto.JWK, error) {
+	privateKey, err := atcrypto.ParsePrivateMultibase(privateKeyMultibase)
+	if err != nil {
+		return nil, fmt.Errorf("parse previous AT OAuth client key: %w", err)
+	}
+	if _, ok := privateKey.(*atcrypto.PrivateKeyP256); !ok {
+		return nil, errors.New("only P-256 (ES256) private keys supported for atproto OAuth")
+	}
+	publicKey, err := privateKey.PublicKey()
+	if err != nil {
+		return nil, fmt.Errorf("derive previous AT OAuth public key: %w", err)
+	}
+	jwk, err := publicKey.JWK()
+	if err != nil {
+		return nil, fmt.Errorf("encode previous AT OAuth JWK: %w", err)
+	}
+	jwk.KeyID = stringPtr(keyID)
+	return jwk, nil
 }
 
 func ValidateOAuthClientSettings(settings OAuthClientSettings) error {
@@ -111,6 +149,19 @@ func ValidateOAuthClientSettings(settings OAuthClientSettings) error {
 	probe := atprotocoloauth.NewPublicConfig(settings.ClientID, settings.CallbackURL, []string{"atproto"})
 	if err := probe.SetClientSecret(privateKey, settings.KeyID); err != nil {
 		return fmt.Errorf("validate AT OAuth confidential client key: %w", err)
+	}
+	previousKey := strings.TrimSpace(settings.PreviousPrivateKey)
+	previousKeyID := strings.TrimSpace(settings.PreviousKeyID)
+	if (previousKey == "") != (previousKeyID == "") {
+		return errors.New("AT OAuth previous private key and previous key ID must be set together")
+	}
+	if previousKey != "" {
+		if previousKeyID == strings.TrimSpace(settings.KeyID) {
+			return errors.New("AT OAuth previous key ID must differ from the current key ID")
+		}
+		if _, err := publicJWKForPrivateMultibase(previousKey, previousKeyID); err != nil {
+			return fmt.Errorf("AT OAuth previous private key is invalid: %w", err)
+		}
 	}
 	return nil
 }

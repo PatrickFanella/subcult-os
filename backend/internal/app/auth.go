@@ -253,15 +253,15 @@ func (a *App) handleRequestVerification(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
-	lookupHash := a.identity.emailLookupHash(req.Email)
+	lookupHashes := a.identity.emailLookupHashCandidates(req.Email)
 	var personID, identityID string
 	var ciphertext []byte
 	var verifiedAt sql.NullTime
 	err := a.db.QueryRow(r.Context(), `
 		select person_id, id, email_ciphertext, verified_at
 		from email_identities
-		where email_lookup_hash = $1
-	`, lookupHash).Scan(&personID, &identityID, &ciphertext, &verifiedAt)
+		where email_lookup_hash = any($1)
+	`, lookupHashes).Scan(&personID, &identityID, &ciphertext, &verifiedAt)
 	if err == nil && !verifiedAt.Valid {
 		email, revealErr := a.identity.revealEmail(ciphertext)
 		if revealErr == nil {
@@ -303,8 +303,8 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 		select p.id, p.display_name, p.password_hash, ei.email_ciphertext, ei.verified_at
 		from email_identities ei
 		join people p on p.id = ei.person_id
-		where ei.email_lookup_hash = $1
-	`, a.identity.emailLookupHash(email)).Scan(&person.ID, &person.DisplayName, &person.PasswordHash, &person.EmailCiphertext, &person.VerifiedAt)
+		where ei.email_lookup_hash = any($1)
+	`, a.identity.emailLookupHashCandidates(email)).Scan(&person.ID, &person.DisplayName, &person.PasswordHash, &person.EmailCiphertext, &person.VerifiedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		a.recordLoginFailure(loginKey)
 		_ = a.recordAuthEvent(r.Context(), a.db, "", "", "login_failed")
@@ -416,8 +416,8 @@ func (a *App) handleRequestRecovery(w http.ResponseWriter, r *http.Request) {
 	err := a.db.QueryRow(r.Context(), `
 		select person_id, id, email_ciphertext, verified_at
 		from email_identities
-		where email_lookup_hash = $1
-	`, a.identity.emailLookupHash(req.Email)).Scan(&personID, &identityID, &ciphertext, &verifiedAt)
+		where email_lookup_hash = any($1)
+	`, a.identity.emailLookupHashCandidates(req.Email)).Scan(&personID, &identityID, &ciphertext, &verifiedAt)
 	if err == nil && verifiedAt.Valid {
 		email, revealErr := a.identity.revealEmail(ciphertext)
 		if revealErr == nil {

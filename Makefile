@@ -5,7 +5,7 @@ PROJECT_NAME := subcult-os
 COMPOSE_PROJECT_NAME ?= $(PROJECT_NAME)
 BACKEND_BIN ?= bin/$(PROJECT_NAME)
 
-.PHONY: help deps deps-web deps-mobile verify quick fmt lint lint-mobile test test-backend test-db test-web test-mobile build build-backend build-web run-backend generate-atproto-key dev dev-mobile up up-build down reset-db restart logs ps urls smoke alpha-qa alpha-qa-paid fake-event-qa compose-config db-shell migrate migrate-status migrate-reset clean open-pilot-check check-contracts
+.PHONY: help deps deps-web deps-mobile verify quick fmt lint lint-mobile test test-backend test-db test-web test-mobile build build-backend build-web run-backend generate-atproto-key dev dev-mobile up up-build down reset-db restart logs ps urls smoke alpha-qa alpha-qa-paid fake-event-qa compose-config db-shell migrate migrate-status migrate-reset clean open-pilot-check check-contracts identity-rekey-status identity-rekey
 
 help:
 	@awk 'BEGIN {FS = ":.*##"; printf "$(PROJECT_NAME) commands:\n"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -73,6 +73,12 @@ run-backend: build-backend ## Run the local backend binary
 
 generate-atproto-key: ## Print a new AT OAuth P-256 private key; send it directly to a secret manager
 	@cd backend && go run ./cmd/atproto-keygen
+
+identity-rekey-status: ## Show aggregate identity/AT-OAuth rekey row counts against the running stack, no decryption
+	docker compose -p $(COMPOSE_PROJECT_NAME) run --rm --no-deps api /app/identity-rekey -status
+
+identity-rekey: ## Re-encrypt identity/AT-OAuth rows from IDENTITY_PROTECTION_KEY_PREVIOUS to IDENTITY_PROTECTION_KEY in bounded batches
+	docker compose -p $(COMPOSE_PROJECT_NAME) run --rm --no-deps api /app/identity-rekey -limit 500
 
 dev-mobile: ## Start the Expo mobile app
 	EXPO_PUBLIC_API_URL=http://10.0.0.50:38080 pnpm --dir mobile run start --clear

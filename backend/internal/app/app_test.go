@@ -191,3 +191,44 @@ func TestConfigValidateAllowsCompleteStripeConfig(t *testing.T) {
 		t.Fatalf("complete Stripe config should validate: %v", err)
 	}
 }
+
+var testIdentityProtectionKeyPrevious = base64.StdEncoding.EncodeToString([]byte("abcdef0123456789abcdef0123456789"))
+
+func TestConfigValidateAllowsRotationWithPreviousKey(t *testing.T) {
+	config := Config{
+		AppEnv:                        "production",
+		Addr:                          ":8080",
+		DatabaseURL:                   "postgres://app:secret@db:5432/app?sslmode=require",
+		SessionSecret:                 "replace-with-a-long-random-secret",
+		IdentityProtectionKey:         testIdentityProtectionKey,
+		IdentityProtectionKeyPrevious: testIdentityProtectionKeyPrevious,
+		PublicWebURL:                  "https://subcult.example",
+	}
+	if err := config.Validate(); err != nil {
+		t.Fatalf("production config with a previous identity key should validate: %v", err)
+	}
+}
+
+func TestConfigValidateRejectsMalformedPreviousKey(t *testing.T) {
+	config := Config{
+		AppEnv:                        "production",
+		Addr:                          ":8080",
+		DatabaseURL:                   "postgres://app:secret@db:5432/app?sslmode=require",
+		SessionSecret:                 "replace-with-a-long-random-secret",
+		IdentityProtectionKey:         testIdentityProtectionKey,
+		IdentityProtectionKeyPrevious: "not-base64",
+		PublicWebURL:                  "https://subcult.example",
+	}
+	err := config.Validate()
+	if err == nil || !strings.Contains(err.Error(), "IDENTITY_PROTECTION_KEY_PREVIOUS") {
+		t.Fatalf("expected IDENTITY_PROTECTION_KEY_PREVIOUS validation error, got %v", err)
+	}
+}
+
+func TestConfigValidateRejectsMissingIdentityKeyInProductionWithClearMessage(t *testing.T) {
+	config := Config{AppEnv: "production", Addr: ":8080", DatabaseURL: "postgres://app:secret@db:5432/app?sslmode=require", SessionSecret: "replace-with-a-long-random-secret", PublicWebURL: "https://subcult.example"}
+	err := config.Validate()
+	if err == nil || !strings.Contains(err.Error(), "IDENTITY_PROTECTION_KEY must be base64 for exactly 32 bytes in production") {
+		t.Fatalf("expected a clear IDENTITY_PROTECTION_KEY validation message, got %v", err)
+	}
+}

@@ -21,7 +21,7 @@ import (
 
 func TestOAuthStoreClaimsEncryptsLinksAndRotates(t *testing.T) {
 	db := newOAuthStoreTestPool(t)
-	store, err := atprotocol.NewOAuthStore(db, "", "oauth-store-test")
+	store, err := atprotocol.NewOAuthStore(db, "", "", "oauth-store-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +161,7 @@ func TestOAuthStoreClaimsEncryptsLinksAndRotates(t *testing.T) {
 
 func TestOAuthStoreRejectsExpiredScopeAndCrossAccountLink(t *testing.T) {
 	db := newOAuthStoreTestPool(t)
-	store, err := atprotocol.NewOAuthStore(db, "", "oauth-store-test")
+	store, err := atprotocol.NewOAuthStore(db, "", "", "oauth-store-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,7 +220,7 @@ func TestOAuthStoreRejectsExpiredScopeAndCrossAccountLink(t *testing.T) {
 
 func TestOAuthStoreListsAndLocallyRevokesLink(t *testing.T) {
 	db := newOAuthStoreTestPool(t)
-	store, err := atprotocol.NewOAuthStore(db, "", "oauth-store-test")
+	store, err := atprotocol.NewOAuthStore(db, "", "", "oauth-store-test")
 	if err != nil {
 		t.Fatal(err)
 	}
