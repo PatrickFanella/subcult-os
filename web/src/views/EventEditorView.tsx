@@ -630,6 +630,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
 
   async function handleSubmit(formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault();
+    if (saving || actioning) return;
     setSaving(true);
     setMessage(null);
     setError(null);
@@ -648,7 +649,11 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   }
 
   async function handlePublish() {
-    if (!event) return;
+    if (!event || saving || actioning) return;
+    if (dirty) {
+      setError('Save your changes before publishing.');
+      return;
+    }
     setActioning(true);
     setMessage(null);
     setError(null);
@@ -668,7 +673,11 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   }
 
   async function handleEndOfNight() {
-    if (!event) return;
+    if (!event || saving || actioning) return;
+    if (dirty) {
+      setError('Save your changes before ending the night.');
+      return;
+    }
     setActioning(true);
     setMessage(null);
     setError(null);
@@ -1105,6 +1114,8 @@ export function EventEditorView({ eventId }: { eventId: string }) {
               </section>
             ) : (
               <form className="space-y-4 rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6" onSubmit={handleSubmit}>
+                <fieldset className="min-w-0 space-y-4 border-0 p-0" disabled={saving || actioning}>
+                <legend className="sr-only">Event details</legend>
                 <label className="block space-y-2 text-sm">
                   <span className="text-zinc-300">Title</span>
                   <input
@@ -1239,12 +1250,13 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                 </fieldset>
 
                 {!closed ? (
-                  <button className="w-full rounded-2xl bg-amber-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-amber-300/60" type="submit" disabled={saving || !dirty}>
+                  <button className="w-full rounded-2xl bg-amber-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-amber-300/60" type="submit" disabled={saving || actioning || !dirty}>
                     {saving ? 'Saving…' : dirty ? (creating ? 'Create event' : 'Save event') : creating ? 'Fill in details' : 'No changes'}
                   </button>
                 ) : (
                   <p className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-400">This event is closed. Editing is disabled.</p>
                 )}
+                </fieldset>
               </form>
             )}
 
@@ -1364,7 +1376,8 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                     <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white">
                       Reserved {effective.reservedCount} · Checked in {effective.checkedInCount}
                     </div>
-                    <button className="door-action w-full rounded-2xl bg-white px-4 py-3 text-left font-medium text-zinc-950 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:bg-white/70" type="button" onClick={handleEndOfNight} disabled={actioning}>
+                    {dirty ? <p className="text-sm text-amber-200">Save your changes before ending the night.</p> : null}
+                    <button className="door-action w-full rounded-2xl bg-white px-4 py-3 text-left font-medium text-zinc-950 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:bg-white/70" type="button" onClick={handleEndOfNight} disabled={actioning || saving || dirty}>
                       End of night
                     </button>
                   </div>
@@ -2080,8 +2093,9 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                 <section className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
                   <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Actions</p>
                   <div className="mt-4 flex flex-col gap-3">
+                    {isDraftEvent(effective.status) && dirty ? <p className="text-sm text-amber-200">Save your changes before publishing.</p> : null}
                     {isDraftEvent(effective.status) ? (
-                      <button className="door-action rounded-2xl bg-white px-4 py-3 text-left font-medium text-zinc-950 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:bg-white/70" type="button" onClick={handlePublish} disabled={actioning}>
+                      <button className="door-action rounded-2xl bg-white px-4 py-3 text-left font-medium text-zinc-950 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:bg-white/70" type="button" onClick={handlePublish} disabled={actioning || saving || dirty}>
                         Publish public page
                       </button>
                     ) : null}

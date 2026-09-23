@@ -1,5 +1,11 @@
 # Development execution log
 
+## 2026-09-22 — #115 saved-state lifecycle transitions
+
+Publish and end-of-night now require a clean, saved event form and explain why the action is disabled when edits remain. Save and lifecycle handlers reject overlapping actions, and event detail inputs are locked during their requests so a response cannot replace edits made in flight. No unsaved content is automatically published.
+
+Full local `make verify` passed after correcting a type annotation in the new test fixture; the first failed check is retained in the local verification log. Rendering regressions cover both lifecycle actions with dirty forms and both busy states. A browser against the synthetic API showed publish enabled for a clean draft, disabled with the save-first explanation after a title edit, and enabled again when the saved title was restored. No publish, close, payment or live mail request was made during that browser check. Hosted verification is a separate gate.
+
 ## 2026-09-22 — #113 event editor read recovery
 
 The report loader treats only a 404 as an absent report. Workspace authority failures are explicit rather than silently hiding owner tools. Both reads have independent error state and scoped retries; neither retry reloads the event form. Authority-dependent controls remain unavailable until the workspace read succeeds. An already known report snapshot is retained during a refresh, with any refresh error still visible.

@@ -7,6 +7,8 @@ import { PublicEventView } from './views/PublicEventView';
 import { TicketView } from './views/TicketView';
 import { WorkspaceView } from './views/WorkspaceView';
 import { normalizeCurrentWorkspace } from './modules/workspace/workspaceModel';
+import { formFromEvent } from './modules/eventEditor/eventEditorModel';
+import type { EventDTO } from './domain';
 
 vi.mock('react', async () => {
   const actual = await vi.importActual<typeof import('react')>('react');
@@ -115,6 +117,29 @@ afterEach(() => {
 });
 
 describe('App routes', () => {
+  it.each(['draft', 'published'] as const)('requires saved edits before a %s lifecycle transition', (status) => {
+    const event = { id: 'event-1', workspaceId: 'workspace-1', title: 'Saved title', startsAt: '2026-10-01T18:00:00Z', publicDescription: 'Description', locationDisplay: 'Room', ticketAllocation: 10, ticketPriceCents: 0, ticketCurrency: 'usd', pricingMode: 'free', status, reservedCount: 0, checkedInCount: 0 } as EventDTO;
+    const initial = formFromEvent(event);
+    const states: unknown[] = skipStates(11);
+    states[0] = event;
+    states[6] = { ...initial, title: 'Unsaved title' };
+    states[7] = initial;
+    states[8] = false;
+    const rendered = renderWithState('/events/event-1', <EventEditorView eventId="event-1" />, states);
+    const label = status === 'draft' ? 'Publish public page' : 'End of night';
+    expect(rendered).toMatch(new RegExp(`<button[^>]*disabled=""[^>]*>${label}</button>`));
+    expect(rendered).toContain('Save your changes before');
+    expect(rendered).toContain('value="Unsaved title"');
+  });
+
+  it.each([9, 10])('locks event details while save/lifecycle state %s is active', (busyIndex) => {
+    const states: unknown[] = skipStates(11);
+    states[8] = false;
+    states[busyIndex] = true;
+    const rendered = renderWithState('/events/new?workspaceId=workspace-1', <EventEditorView eventId="new" />, states);
+    expect(rendered).toMatch(/<fieldset[^>]*disabled=""/);
+  });
+
   it('renders the workspace route by default', () => {
     const rendered = renderAt('/');
     expect(rendered).toContain('Operator home');
