@@ -29,10 +29,8 @@ import {
 import {
 	loadDevEmailOutbox,
 	loadWorkspaceArchives,
-	loadWorkspaceCommitments,
-	loadWorkspaceContacts,
-	loadWorkspaceById,
-	loadWorkspaceFallback,
+	selectWorkspace,
+	loadWorkspaceOverview,
 	loadWorkspaceReminders,
 	loadWorkspaceTemplates,
 } from '../modules/workspace/workspaceLoaders';
@@ -328,15 +326,10 @@ export function WorkspaceView() {
     let cancelled = false;
 
     async function loadWorkspaceData(nextWorkspace: CurrentWorkspaceDTO) {
-      resetPrivateWorkspaceState();
-      setWorkspace(nextWorkspace);
-      const [loadedEvents, loadedArchives, loadedContacts, loadedCommitments] = await Promise.all([
-        api<EventDTO[]>(`/api/workspaces/${nextWorkspace.id}/events`).catch(() => []),
-        loadWorkspaceArchives(nextWorkspace.id, initialArchiveQuery, true),
-        loadWorkspaceContacts(nextWorkspace.id),
-        loadWorkspaceCommitments(nextWorkspace.id),
-      ]);
+      const {events: loadedEvents, archives: loadedArchives, contacts: loadedContacts, commitments: loadedCommitments} = await loadWorkspaceOverview(nextWorkspace.id, initialArchiveQuery);
       if (!cancelled) {
+        resetPrivateWorkspaceState();
+        setWorkspace(nextWorkspace);
         setEvents(loadedEvents ?? []);
         setArchives(loadedArchives ?? []);
         setContactsDenied(loadedContacts.denied);
@@ -363,41 +356,12 @@ export function WorkspaceView() {
           return;
         }
 
-        if (requestedWorkspaceId) {
-          try {
-            const selectedWorkspace = await loadWorkspaceById(requestedWorkspaceId);
-            if (cancelled) return;
-            await loadWorkspaceData(selectedWorkspace);
-            return;
-          } catch {
-            if (cancelled) return;
-
-            const fallback = await loadWorkspaceFallback(user);
-            if (cancelled) return;
-
-            if (fallback) {
-              setWorkspaceNotice(
-                fallback.source === 'current'
-                  ? 'That Workspace is not available. Showing your current Workspace instead.'
-                  : 'That Workspace is not available. Showing the first Workspace you can still access.',
-              );
-              await loadWorkspaceData(fallback.workspace);
-              return;
-            }
-
-            setError('That Workspace is not available, and there is no fallback Workspace to open.');
-            setWorkspace(null);
-            setEvents([]);
-            setArchives([]);
-            return;
-          }
-        }
-
-        const fallback = await loadWorkspaceFallback(user);
+        const fallback = await selectWorkspace(user, requestedWorkspaceId);
         if (cancelled) return;
 
         if (fallback) {
           await loadWorkspaceData(fallback.workspace);
+          if (!cancelled) setWorkspaceNotice(fallback.notice);
         } else {
           setWorkspace(null);
           setEvents([]);
@@ -913,7 +877,10 @@ export function WorkspaceView() {
           </div>
         </header>
 
-        {error ? <p className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error}</p> : null}
+        {error ? <div role="alert" className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+          <p>{error}</p>
+          {!workspace && !loading ? <button type="button" className="mt-3 rounded-full border border-white/20 px-4 py-2" onClick={() => window.location.reload()}>Retry workspace</button> : null}
+        </div> : null}
         {workspaceNotice ? <p className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">{workspaceNotice}</p> : null}
         {!loading && me ? <ATProtoIdentityPanel /> : null}
 

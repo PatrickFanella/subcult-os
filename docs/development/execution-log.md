@@ -1,5 +1,11 @@
 # Development execution log
 
+## 2026-09-22 — #111 workspace loading boundaries
+
+Workspace selection now falls back only after an explicit 403 or 404. Server, authentication and transport failures remain errors, and fallback membership is loaded from the authorized workspace endpoint rather than fabricated from the account summary. Event and archive outages no longer become empty lists. The dashboard is committed only after its required overview loads, with a retry action for initial failures.
+
+Local `make verify` passed. Fifteen loader cases cover selection errors, authorized fallback, overview outages and private-panel denial. A real browser against a disposable synthetic API confirmed event/archive error states, successful retry into the chosen workspace, no fallback on a selection outage, and an explicit notice when access denial permits fallback. This verifies controlled UI behavior, not production or a real backend lifecycle. Hosted CI remains a separate PR gate. No schema, live mail or deployment changes were made.
+
 ## 2026-09-22 — #105 signed email feedback
 
 Added a disabled-by-default Resend webhook, raw-body signature verification and duplicate-safe minimal receipts. Tests use the independent published Svix vector and locally signed synthetic requests. Early receipts correlate after acknowledgement; adverse outcomes cannot be cleared by late delivery events. Suppression uses only our stored recipient, and workers exclude both durable suppression and unprocessed adverse receipts. Generic provider failures do not suppress a recipient.

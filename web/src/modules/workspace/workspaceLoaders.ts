@@ -6,6 +6,7 @@ import type {
 	CurrentWorkspaceDTO,
 	DevEmailOutboxMessageDTO,
 	EventTemplateDTO,
+	EventDTO,
 	ReminderEventDTO,
 	WorkspaceArchiveSummaryDTO,
 } from '../../domain';
@@ -17,7 +18,12 @@ type CurrentWorkspaceResponse = Omit<CurrentWorkspaceDTO, 'members' | 'invitatio
 };
 
 export async function loadCurrentWorkspace() {
-	return api<CurrentWorkspaceResponse>('/api/workspaces/current').catch(() => null);
+	try {
+		return await api<CurrentWorkspaceResponse>('/api/workspaces/current');
+	} catch (caught) {
+		if (caught instanceof ApiError && caught.status === 404) return null;
+		throw caught;
+	}
 }
 
 export async function loadWorkspaceById(workspaceID: string) {
@@ -36,27 +42,40 @@ export async function loadWorkspaceFallback(user: CurrentUserDTO) {
 	}
 
 	return {
-		workspace: {
-			id: fallback.id,
-			name: fallback.name,
-			role: fallback.role,
-			members: [],
-			invitations: [],
-		},
+		workspace: await loadWorkspaceById(fallback.id),
 		source: 'default' as const,
 	};
 }
 
-export async function loadWorkspaceArchives(workspaceID: string, query: string, fallbackToEmpty = false) {
-	const path = query ? `/api/workspaces/${workspaceID}/archives?q=${encodeURIComponent(query)}` : `/api/workspaces/${workspaceID}/archives`;
-	try {
-		return await api<WorkspaceArchiveSummaryDTO[]>(path);
-	} catch (caught) {
-		if (!fallbackToEmpty || query) {
-			throw caught;
+export async function selectWorkspace(user: CurrentUserDTO, requestedID: string | null) {
+	if (requestedID) {
+		try {
+			return { workspace: await loadWorkspaceById(requestedID), notice: null };
+		} catch (caught) {
+			if (!(caught instanceof ApiError) || ![403, 404].includes(caught.status)) throw caught;
 		}
-		return [];
 	}
+	const fallback = await loadWorkspaceFallback(user);
+	if (!fallback) return null;
+	return {
+		workspace: fallback.workspace,
+		notice: requestedID ? 'That Workspace is not available. Showing an accessible Workspace instead.' : null,
+	};
+}
+
+export async function loadWorkspaceOverview(workspaceID: string, query: string) {
+	const [events, archives, contacts, commitments] = await Promise.all([
+		api<EventDTO[]>(`/api/workspaces/${workspaceID}/events`),
+		loadWorkspaceArchives(workspaceID, query),
+		loadWorkspaceContacts(workspaceID),
+		loadWorkspaceCommitments(workspaceID),
+	]);
+	return { events, archives, contacts, commitments };
+}
+
+export async function loadWorkspaceArchives(workspaceID: string, query: string) {
+	const path = query ? `/api/workspaces/${workspaceID}/archives?q=${encodeURIComponent(query)}` : `/api/workspaces/${workspaceID}/archives`;
+	return api<WorkspaceArchiveSummaryDTO[]>(path);
 }
 
 export async function loadWorkspaceContacts(workspaceID: string) {
