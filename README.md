@@ -1,5 +1,7 @@
 # subcult-os
 
+Transactional email uses an opt-in Resend worker while Proton remains the inbox. See [the email runbook](docs/runbooks/transactional-email.md) for setup and qualification gates. Normal startup does not send mail; existing outbox rows remain held. The `mail-workers` Compose profile and `MAIL_DELIVERY_ENABLED=true` must both be deliberately configured for continuous delivery.
+
 Gitea verification installs Node 24, pnpm 10.33.0 and Go 1.26.6 inside each job.
 The shared runner must provide Docker Compose for configuration validation. CI
 starts a job-scoped PostgreSQL 17 service with disposable credentials and no host

@@ -22,6 +22,10 @@ services:
     build: ./backend
     environment: &api_environment
       APP_ENV: ${APP_ENV:-development}
+      MAIL_DELIVERY_ENABLED: ${MAIL_DELIVERY_ENABLED:-false}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      MAIL_REPLY_TO: ${MAIL_REPLY_TO:-}
       API_ADDR: :8080
       DATABASE_URL: postgres://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-app}?sslmode=disable
       SESSION_SECRET: ${SESSION_SECRET:-dev-session-secret-change-me}
@@ -50,6 +54,16 @@ services:
     profiles: [atproto-workers]
     build: ./backend
     command: ["/app/atproto-revoke", "-watch"]
+    environment: *api_environment
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_started
+
+  email-deliveries:
+    profiles: [mail-workers]
+    build: ./backend
+    command: ["/app/email-deliver", "-send", "-watch"]
     environment: *api_environment
     restart: unless-stopped
     depends_on:

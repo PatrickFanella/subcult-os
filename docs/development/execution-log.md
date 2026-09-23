@@ -1,5 +1,11 @@
 # Development execution log
 
+## 2026-09-22 — #104 durable transactional delivery
+
+Added an opt-in delivery command and additive version-6 ledger. Historical and disabled-mode inserts remain held; enabled inserts freeze the sender and reply-to. Leased claims use row locking and fenced acknowledgements. Retries retain one provider idempotency key, stop after eight attempts or 23 hours, and respect identity-challenge expiry/consumption. Terminal outcomes clear message bodies. Aggregate status does not contact Resend.
+
+Focused disposable-PostgreSQL tests passed under the race detector, including concurrent claims, stale acknowledgements, crash recovery, terminal failures and identity deadlines. The full verification and database gates are rerun before publication. Live Resend setup is deferred at the owner's request; no credentials, DNS, live mail or production migration is part of this change. Approved reply-to and controlled test recipient: `info@subcult.tv`.
+
 ## 2026-09-20 — Five-issue delivery batch after merge checkpoint
 
 ### #103 — Resend provider adapter

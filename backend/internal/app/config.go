@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	atprotocol "git.subcult.tv/PatrickFanella/subcult-os/internal/atproto"
+	mailprovider "git.subcult.tv/PatrickFanella/subcult-os/internal/mail"
 )
 
 type Config struct {
@@ -32,11 +33,22 @@ type Config struct {
 	MediaS3Bucket          string
 	MediaS3Region          string
 	MediaPublicBaseURL     string
+	MailDeliveryEnabled    bool
+	mailDeliveryEnabledRaw string
+	ResendAPIKey           string
+	MailFrom               string
+	MailReplyTo            string
 }
 
 func LoadConfig() Config {
 	atProtoOAuthEnabledRaw := env("ATPROTO_OAUTH_ENABLED", "false")
+	mailDeliveryEnabledRaw := env("MAIL_DELIVERY_ENABLED", "false")
 	return Config{
+		MailDeliveryEnabled:    parseEnvBool(mailDeliveryEnabledRaw),
+		mailDeliveryEnabledRaw: mailDeliveryEnabledRaw,
+		ResendAPIKey:           env("RESEND_API_KEY", ""),
+		MailFrom:               env("MAIL_FROM", ""),
+		MailReplyTo:            env("MAIL_REPLY_TO", ""),
 		AppEnv:                 env("APP_ENV", "development"),
 		DatabaseURL:            env("DATABASE_URL", ""),
 		SessionSecret:          env("SESSION_SECRET", "dev-session-secret-change-me"),
@@ -63,6 +75,22 @@ func LoadConfig() Config {
 
 func (c Config) Validate() error {
 	var problems []string
+	if raw := c.mailDeliveryEnabledRaw; raw != "" {
+		if _, err := strconv.ParseBool(raw); err != nil {
+			problems = append(problems, "MAIL_DELIVERY_ENABLED must be a boolean")
+		}
+	}
+	if c.MailDeliveryEnabled {
+		if _, err := mailprovider.NewResend(c.ResendAPIKey); err != nil {
+			problems = append(problems, "RESEND_API_KEY is required for mail delivery")
+		}
+		if !mailprovider.ValidAddress(c.MailFrom) {
+			problems = append(problems, "MAIL_FROM must be a valid sender address")
+		}
+		if c.MailReplyTo != "" && !mailprovider.ValidAddress(c.MailReplyTo) {
+			problems = append(problems, "MAIL_REPLY_TO must be a valid address")
+		}
+	}
 	if raw := strings.TrimSpace(c.atProtoOAuthEnabledRaw); raw != "" {
 		if _, err := strconv.ParseBool(raw); err != nil {
 			problems = append(problems, "ATPROTO_OAUTH_ENABLED must be a boolean")
