@@ -42,7 +42,11 @@ type OAuthStore struct {
 	db        *pgxpool.Pool
 	aead      cipher.AEAD
 	lookupKey []byte
-	now       func() time.Time
+	// prevAEAD is set only during an IDENTITY_PROTECTION_KEY rotation window.
+	// It lets open() decrypt payloads sealed before rotation; seal() always
+	// uses the current key.
+	prevAEAD cipher.AEAD
+	now      func() time.Time
 }
 
 type OAuthLink struct {
@@ -59,8 +63,11 @@ func WithOAuthLinkPerson(ctx context.Context, personID string) context.Context {
 
 // NewOAuthStore constructs the encrypted persistence adapter required by
 // Indigo's ClientAuthStore. Production uses the same deployment root secret as
-// canonical identity storage, with a distinct derived key domain.
-func NewOAuthStore(db *pgxpool.Pool, encodedKey, developmentSeed string) (*OAuthStore, error) {
+// canonical identity storage (IDENTITY_PROTECTION_KEY), with a distinct
+// derived key domain. previousEncodedKey is optional and, when set, is used
+// only to decrypt payloads sealed before a rotation; every write always uses
+// the current key.
+func NewOAuthStore(db *pgxpool.Pool, encodedKey, previousEncodedKey, developmentSeed string) (*OAuthStore, error) {
 	if db == nil {
 		return nil, errors.New("AT OAuth store requires a database")
 	}
@@ -72,6 +79,30 @@ func NewOAuthStore(db *pgxpool.Pool, encodedKey, developmentSeed string) (*OAuth
 		keySum := sha256.Sum256([]byte("subcult-os/development-atproto/" + developmentSeed))
 		key = keySum[:]
 	}
+	aead, err := oauthAEADFromMasterKey(key)
+	if err != nil {
+		return nil, err
+	}
+	store := &OAuthStore{
+		db: db, aead: aead,
+		lookupKey: deriveOAuthKey(key, "state-lookup"),
+		now:       func() time.Time { return time.Now().UTC() },
+	}
+	if previous := strings.TrimSpace(previousEncodedKey); previous != "" {
+		previousKey, err := decodeOAuthProtectionKey(previous)
+		if err != nil {
+			return nil, fmt.Errorf("previous AT OAuth protection key: %w", err)
+		}
+		prevAEAD, err := oauthAEADFromMasterKey(previousKey)
+		if err != nil {
+			return nil, fmt.Errorf("previous AT OAuth protection key: %w", err)
+		}
+		store.prevAEAD = prevAEAD
+	}
+	return store, nil
+}
+
+func oauthAEADFromMasterKey(key []byte) (cipher.AEAD, error) {
 	block, err := aes.NewCipher(deriveOAuthKey(key, "payload-encryption"))
 	if err != nil {
 		return nil, fmt.Errorf("create AT OAuth cipher: %w", err)
@@ -80,11 +111,7 @@ func NewOAuthStore(db *pgxpool.Pool, encodedKey, developmentSeed string) (*OAuth
 	if err != nil {
 		return nil, fmt.Errorf("create AT OAuth AEAD: %w", err)
 	}
-	return &OAuthStore{
-		db: db, aead: aead,
-		lookupKey: deriveOAuthKey(key, "state-lookup"),
-		now:       func() time.Time { return time.Now().UTC() },
-	}, nil
+	return aead, nil
 }
 
 func (s *OAuthStore) SaveAuthRequestInfo(ctx context.Context, info atprotocoloauth.AuthRequestData) error {
@@ -418,12 +445,13 @@ func (s *OAuthStore) seal(aad string, value any) ([]byte, error) {
 	return s.aead.Seal(nonce, nonce, plaintext, []byte(aad)), nil
 }
 
+// open decrypts with the current key first, then the previous key during a
+// rotation window. Wrong keys and tampered ciphertext both fail.
 func (s *OAuthStore) open(aad string, ciphertext []byte, value any) error {
-	nonceSize := s.aead.NonceSize()
-	if len(ciphertext) <= nonceSize {
-		return errors.New("invalid encrypted AT OAuth secret")
+	plaintext, err := openWithOAuthAEAD(s.aead, aad, ciphertext)
+	if err != nil && s.prevAEAD != nil {
+		plaintext, err = openWithOAuthAEAD(s.prevAEAD, aad, ciphertext)
 	}
-	plaintext, err := s.aead.Open(nil, ciphertext[:nonceSize], ciphertext[nonceSize:], []byte(aad))
 	if err != nil {
 		return errors.New("decrypt AT OAuth secret")
 	}
@@ -431,6 +459,21 @@ func (s *OAuthStore) open(aad string, ciphertext []byte, value any) error {
 		return fmt.Errorf("decode AT OAuth secret: %w", err)
 	}
 	return nil
+}
+
+func openWithOAuthAEAD(aead cipher.AEAD, aad string, ciphertext []byte) ([]byte, error) {
+	nonceSize := aead.NonceSize()
+	if len(ciphertext) <= nonceSize {
+		return nil, errors.New("invalid encrypted AT OAuth secret")
+	}
+	return aead.Open(nil, ciphertext[:nonceSize], ciphertext[nonceSize:], []byte(aad))
+}
+
+// sealedWithCurrentKey reports whether ciphertext already decrypts under the
+// current key, so a re-encryption sweep can skip rows that need no work.
+func (s *OAuthStore) sealedWithCurrentKey(aad string, ciphertext []byte) bool {
+	_, err := openWithOAuthAEAD(s.aead, aad, ciphertext)
+	return err == nil
 }
 
 func (s *OAuthStore) stateHash(state string) string {

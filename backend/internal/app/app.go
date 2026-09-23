@@ -44,7 +44,7 @@ type App struct {
 
 func New(config Config, db *pgxpool.Pool) *App {
 	media, mediaErr := newMediaStorage(config)
-	identity, identityErr := newIdentityProtector(config.IdentityProtectionKey, config.SessionSecret)
+	identity, identityErr := newIdentityProtector(config.IdentityProtectionKey, config.IdentityProtectionKeyPrevious, config.SessionSecret)
 	var atprotoOAuth *atprotocol.OAuthClient
 	var atprotoErr error
 	if config.ATProtoOAuthEnabled {
@@ -57,7 +57,7 @@ func New(config Config, db *pgxpool.Pool) *App {
 		if db == nil {
 			atprotoFlowErr = errors.New("AT OAuth flow requires a database")
 		} else {
-			store, err := atprotocol.NewOAuthStore(db, config.IdentityProtectionKey, config.SessionSecret)
+			store, err := atprotocol.NewOAuthStore(db, config.IdentityProtectionKey, config.IdentityProtectionKeyPrevious, config.SessionSecret)
 			if err != nil {
 				atprotoFlowErr = err
 			} else {

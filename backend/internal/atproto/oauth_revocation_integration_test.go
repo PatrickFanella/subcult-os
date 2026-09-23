@@ -15,7 +15,7 @@ import (
 
 func TestOAuthStoreUnlinkOutboxAtomicityAndLateRotation(t *testing.T) {
 	db := newOAuthStoreTestPool(t)
-	store, err := atprotocol.NewOAuthStore(db, "", "oauth-store-test")
+	store, err := atprotocol.NewOAuthStore(db, "", "", "oauth-store-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +85,7 @@ func TestOAuthStoreUnlinkOutboxAtomicityAndLateRotation(t *testing.T) {
 func revocationFixture(t *testing.T) (*pgxpool.Pool, *atprotocol.OAuthStore, oauth.ClientSessionData) {
 	t.Helper()
 	db := newOAuthStoreTestPool(t)
-	store, err := atprotocol.NewOAuthStore(db, "", "revocation-worker-test")
+	store, err := atprotocol.NewOAuthStore(db, "", "", "revocation-worker-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -221,7 +221,7 @@ func TestOAuthStoreRevocationFencesLateRotationAndConcurrentWorkers(t *testing.T
 
 func TestOAuthStoreConcurrentUnlinkAndRefreshCannotResurrect(t *testing.T) {
 	db := newOAuthStoreTestPool(t)
-	store, err := atprotocol.NewOAuthStore(db, "", "oauth-store-test")
+	store, err := atprotocol.NewOAuthStore(db, "", "", "oauth-store-test")
 	if err != nil {
 		t.Fatal(err)
 	}

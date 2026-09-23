@@ -31,7 +31,10 @@ Production must set:
 - `SESSION_SECRET` as a non-default random value with at least 24 characters
 - `PUBLIC_WEB_URL` as the HTTPS browser origin
 - `API_ADDR` for the bind address, usually `:8080` inside a container
-- `IDENTITY_PROTECTION_KEY` as base64 for exactly 32 random bytes
+- `IDENTITY_PROTECTION_KEY` as base64 for exactly 32 random bytes. See
+  [key rotation](key-rotation.md) for ownership, backup expectations, and the
+  rotation/re-encryption procedure, including the optional
+  `IDENTITY_PROTECTION_KEY_PREVIOUS` transition variable.
 
 When AT OAuth is enabled, production must also set:
 
@@ -39,6 +42,10 @@ When AT OAuth is enabled, production must also set:
 - `ATPROTO_OAUTH_CLIENT_ID`, `ATPROTO_OAUTH_CALLBACK_URL`, and `ATPROTO_OAUTH_JWKS_URL` to same-origin HTTPS URLs
 - `ATPROTO_OAUTH_CLIENT_PRIVATE_KEY` to a secret-store-backed multibase P-256 key
 - `ATPROTO_OAUTH_CLIENT_KEY_ID` to the public key identifier
+
+See [key rotation](key-rotation.md) for the signing-key rotation procedure,
+including the optional `ATPROTO_OAUTH_CLIENT_PRIVATE_KEY_PREVIOUS` /
+`ATPROTO_OAUTH_CLIENT_KEY_ID_PREVIOUS` transition variables.
 
 Do not enable AT OAuth until bounded live start/callback, refresh, provider-revocation and replay-negative journeys have passed. Passing local handlers, browser UI and metadata/JWKS checks alone is not a qualified login flow.
 

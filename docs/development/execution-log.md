@@ -5,6 +5,53 @@
 New `scripts/qa-operations.sh` (`make operations-qa`) rehearses the QUAL-BASE second acceptance bullet: workspace invitations and switching, contacts, commitments, staffing assignments, event templates, roles/applications, and reminder-sweep boundaries. Built and ran against a fresh isolated Compose stack (`subcult-os-qual`, ports 45432/48080/48079, disposable database `subcult_qa_operations_c97f07a`) from revision `c97f07a58a70c2b20090cc6809bc056329f84342`. The script produced 36 PASS/0 FAIL across two consecutive runs, exit code 0, covering: invite-then-accept plus client-side workspace switching by ID; contact create/list/update; commitment create/status-validation/completion; an owner-only staffing create/assign/PATCH boundary (member gets 403); template create/apply-to-draft plus a 409 once the target event is published; public role application submit/review with an invalid-status 400 and an owner-only decision boundary; and a reminder sweep that is role-gated (403 for members), state-gated (only overdue open commitments produce a reminder; a 30-day-future commitment produces none), and idempotent (a repeat sweep creates zero additional reminders).
 
 This is API-level evidence only — no browser or native-device rehearsal was run for these panels. No product defects were found; all authorization and validation boundaries matched the code as read. Three bounded follow-ups are recorded in `docs/qa/operations-panels-2026-09-23.md`: the API has no recipient-level consent flag for reminders (only state/role gating), workspace "switching" is confirmed client-side-only with no server session state (documentation note, not a defect), and broader operations-panel browser/device coverage remains open for a future headed rehearsal. `make verify` passed after adding the script and docs.
+||||||| parent of 7b0a64e (feat(security): support identity/AT signing key rotation and re-encryption)
+
+## 2026-09-23 — #8 identity/AT signing key rotation
+
+`IDENTITY_PROTECTION_KEY` (verified email encryption/lookup) and the AT OAuth
+confidential client signing key now support a bounded rotation window rather
+than an all-or-nothing swap. `identityProtector` and `atproto.OAuthStore`
+each accept an optional previous key, try the current key first and the
+previous key second on both decrypt and lookup-hash matching, and always
+write under the current key. A new resumable `identity-rekey` command
+(`backend/cmd/identity-rekey`, `backend/internal/app/identity_rekey.go`,
+`backend/internal/atproto/oauth_rekey.go`) re-encrypts `email_identities`,
+`atproto_oauth_sessions` and `atproto_oauth_revocations` with a keyset
+cursor in bounded `FOR UPDATE SKIP LOCKED` transactions, is idempotent, and
+prints aggregate counts only. Review added a test that a batch limit smaller
+than the table still rewrites every previous-key row in one run. The AT OAuth JWKS
+(`backend/internal/atproto/oauth_client.go`) can publish a previous public
+key alongside the current one during a signing-key transition; the private
+key that signs new assertions is always the current one.
+
+Verified: unit tests for wrong-key rejection, tampered-ciphertext rejection,
+current-only vs. current+previous decrypt and lookup during rotation, and
+re-encryption idempotency (`backend/internal/app/identity_crypto_test.go`);
+production config validation failing closed with a named-variable message
+when `IDENTITY_PROTECTION_KEY` is missing or malformed, and accepting a
+well-formed previous key (`backend/internal/app/app_test.go`); JWKS
+containing both keys during a transition and only the current key afterward,
+plus rejection of malformed/colliding previous-key settings
+(`backend/internal/atproto/oauth_client_test.go`). Started a disposable
+`docker compose up -d postgres` (throwaway database, not a retained
+application database) and ran `go test ./internal/app ./internal/atproto
+-count=1` with `TEST_DATABASE_URL` set: all 271 cases passed, including a new
+end-to-end test that seeds email and AT OAuth rows under a previous key,
+runs `identity-rekey`, confirms the previous key can then be removed while
+reads still succeed, and confirms a second run changes nothing. `make verify`
+passed locally.
+
+Open and out of reach here: provisioning either key through a real deployed
+secret store, a live rehearsal of a deployed rotation (this environment has
+no deployed instance to rotate), and observing an actual AT Protocol
+resource server accept a token signed against the previous key during a
+JWKS transition (covered here only by asserting the JWKS document shape).
+`atproto_oauth_requests` rows are deliberately not re-encrypted; they expire
+in 10 minutes and are documented in `docs/runbooks/key-rotation.md` as a
+bounded, self-clearing exception. The pre-existing plaintext `people.email`
+column (a known prototype leftover, unrelated to this key) was left
+untouched — protecting it was out of scope for this issue.
 
 ## 2026-09-22 — #121 verified rehearsal accounts
 

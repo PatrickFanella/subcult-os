@@ -18,7 +18,7 @@ func RunATProtoRevocations(ctx context.Context, config Config, db *pgxpool.Pool,
 	if db == nil {
 		return nil, errors.New("revocation command requires a database")
 	}
-	store, err := atprotocol.NewOAuthStore(db, config.IdentityProtectionKey, config.SessionSecret)
+	store, err := atprotocol.NewOAuthStore(db, config.IdentityProtectionKey, config.IdentityProtectionKeyPrevious, config.SessionSecret)
 	if err != nil {
 		return nil, err
 	}

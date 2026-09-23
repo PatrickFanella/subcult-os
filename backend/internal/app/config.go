@@ -12,66 +12,72 @@ import (
 )
 
 type Config struct {
-	AppEnv                 string
-	DatabaseURL            string
-	SessionSecret          string
-	IdentityProtectionKey  string
-	PublicWebURL           string
-	ATProtoOAuthEnabled    bool
-	ATProtoOAuthClientID   string
-	ATProtoOAuthCallback   string
-	ATProtoOAuthJWKSURL    string
-	ATProtoOAuthKey        string
-	ATProtoOAuthKeyID      string
-	atProtoOAuthEnabledRaw string
-	Addr                   string
-	StripeSecretKey        string
-	StripeWebhookSecret    string
-	MediaS3Endpoint        string
-	MediaS3AccessKey       string
-	MediaS3SecretKey       string
-	MediaS3Bucket          string
-	MediaS3Region          string
-	MediaPublicBaseURL     string
-	MailDeliveryEnabled    bool
-	mailDeliveryEnabledRaw string
-	ResendAPIKey           string
-	ResendWebhookSecret    string
-	MailFrom               string
-	MailReplyTo            string
+	AppEnv                        string
+	DatabaseURL                   string
+	SessionSecret                 string
+	IdentityProtectionKey         string
+	IdentityProtectionKeyPrevious string
+	PublicWebURL                  string
+	ATProtoOAuthEnabled           bool
+	ATProtoOAuthClientID          string
+	ATProtoOAuthCallback          string
+	ATProtoOAuthJWKSURL           string
+	ATProtoOAuthKey               string
+	ATProtoOAuthKeyID             string
+	ATProtoOAuthKeyPrevious       string
+	ATProtoOAuthKeyIDPrevious     string
+	atProtoOAuthEnabledRaw        string
+	Addr                          string
+	StripeSecretKey               string
+	StripeWebhookSecret           string
+	MediaS3Endpoint               string
+	MediaS3AccessKey              string
+	MediaS3SecretKey              string
+	MediaS3Bucket                 string
+	MediaS3Region                 string
+	MediaPublicBaseURL            string
+	MailDeliveryEnabled           bool
+	mailDeliveryEnabledRaw        string
+	ResendAPIKey                  string
+	ResendWebhookSecret           string
+	MailFrom                      string
+	MailReplyTo                   string
 }
 
 func LoadConfig() Config {
 	atProtoOAuthEnabledRaw := env("ATPROTO_OAUTH_ENABLED", "false")
 	mailDeliveryEnabledRaw := env("MAIL_DELIVERY_ENABLED", "false")
 	return Config{
-		MailDeliveryEnabled:    parseEnvBool(mailDeliveryEnabledRaw),
-		mailDeliveryEnabledRaw: mailDeliveryEnabledRaw,
-		ResendAPIKey:           env("RESEND_API_KEY", ""),
-		ResendWebhookSecret:    env("RESEND_WEBHOOK_SECRET", ""),
-		MailFrom:               env("MAIL_FROM", ""),
-		MailReplyTo:            env("MAIL_REPLY_TO", ""),
-		AppEnv:                 env("APP_ENV", "development"),
-		DatabaseURL:            env("DATABASE_URL", ""),
-		SessionSecret:          env("SESSION_SECRET", "dev-session-secret-change-me"),
-		IdentityProtectionKey:  env("IDENTITY_PROTECTION_KEY", ""),
-		PublicWebURL:           env("PUBLIC_WEB_URL", "http://localhost:5173"),
-		ATProtoOAuthEnabled:    parseEnvBool(atProtoOAuthEnabledRaw),
-		ATProtoOAuthClientID:   env("ATPROTO_OAUTH_CLIENT_ID", ""),
-		ATProtoOAuthCallback:   env("ATPROTO_OAUTH_CALLBACK_URL", ""),
-		ATProtoOAuthJWKSURL:    env("ATPROTO_OAUTH_JWKS_URL", ""),
-		ATProtoOAuthKey:        env("ATPROTO_OAUTH_CLIENT_PRIVATE_KEY", ""),
-		ATProtoOAuthKeyID:      env("ATPROTO_OAUTH_CLIENT_KEY_ID", "subcults-1"),
-		atProtoOAuthEnabledRaw: atProtoOAuthEnabledRaw,
-		Addr:                   env("API_ADDR", ":8080"),
-		StripeSecretKey:        env("STRIPE_SECRET_KEY", ""),
-		StripeWebhookSecret:    env("STRIPE_WEBHOOK_SECRET", ""),
-		MediaS3Endpoint:        env("MEDIA_S3_ENDPOINT", ""),
-		MediaS3AccessKey:       env("MEDIA_S3_ACCESS_KEY", ""),
-		MediaS3SecretKey:       env("MEDIA_S3_SECRET_KEY", ""),
-		MediaS3Bucket:          env("MEDIA_S3_BUCKET", ""),
-		MediaS3Region:          env("MEDIA_S3_REGION", "us-east-1"),
-		MediaPublicBaseURL:     env("MEDIA_PUBLIC_BASE_URL", ""),
+		MailDeliveryEnabled:           parseEnvBool(mailDeliveryEnabledRaw),
+		mailDeliveryEnabledRaw:        mailDeliveryEnabledRaw,
+		ResendAPIKey:                  env("RESEND_API_KEY", ""),
+		ResendWebhookSecret:           env("RESEND_WEBHOOK_SECRET", ""),
+		MailFrom:                      env("MAIL_FROM", ""),
+		MailReplyTo:                   env("MAIL_REPLY_TO", ""),
+		AppEnv:                        env("APP_ENV", "development"),
+		DatabaseURL:                   env("DATABASE_URL", ""),
+		SessionSecret:                 env("SESSION_SECRET", "dev-session-secret-change-me"),
+		IdentityProtectionKey:         env("IDENTITY_PROTECTION_KEY", ""),
+		IdentityProtectionKeyPrevious: env("IDENTITY_PROTECTION_KEY_PREVIOUS", ""),
+		PublicWebURL:                  env("PUBLIC_WEB_URL", "http://localhost:5173"),
+		ATProtoOAuthEnabled:           parseEnvBool(atProtoOAuthEnabledRaw),
+		ATProtoOAuthClientID:          env("ATPROTO_OAUTH_CLIENT_ID", ""),
+		ATProtoOAuthCallback:          env("ATPROTO_OAUTH_CALLBACK_URL", ""),
+		ATProtoOAuthJWKSURL:           env("ATPROTO_OAUTH_JWKS_URL", ""),
+		ATProtoOAuthKey:               env("ATPROTO_OAUTH_CLIENT_PRIVATE_KEY", ""),
+		ATProtoOAuthKeyID:             env("ATPROTO_OAUTH_CLIENT_KEY_ID", "subcults-1"),
+		ATProtoOAuthKeyPrevious:       env("ATPROTO_OAUTH_CLIENT_PRIVATE_KEY_PREVIOUS", ""),
+		ATProtoOAuthKeyIDPrevious:     env("ATPROTO_OAUTH_CLIENT_KEY_ID_PREVIOUS", ""),
+		atProtoOAuthEnabledRaw:        atProtoOAuthEnabledRaw,
+		Addr:                          env("API_ADDR", ":8080"),
+		StripeSecretKey:               env("STRIPE_SECRET_KEY", ""),
+		StripeWebhookSecret:           env("STRIPE_WEBHOOK_SECRET", ""),
+		MediaS3Endpoint:               env("MEDIA_S3_ENDPOINT", ""),
+		MediaS3AccessKey:              env("MEDIA_S3_ACCESS_KEY", ""),
+		MediaS3SecretKey:              env("MEDIA_S3_SECRET_KEY", ""),
+		MediaS3Bucket:                 env("MEDIA_S3_BUCKET", ""),
+		MediaS3Region:                 env("MEDIA_S3_REGION", "us-east-1"),
+		MediaPublicBaseURL:            env("MEDIA_PUBLIC_BASE_URL", ""),
 	}
 }
 
@@ -121,6 +127,11 @@ func (c Config) Validate() error {
 		if _, err := decodeIdentityProtectionKey(c.IdentityProtectionKey); err != nil {
 			problems = append(problems, "IDENTITY_PROTECTION_KEY must be base64 for exactly 32 bytes in production")
 		}
+		if previous := strings.TrimSpace(c.IdentityProtectionKeyPrevious); previous != "" {
+			if _, err := decodeIdentityProtectionKey(previous); err != nil {
+				problems = append(problems, "IDENTITY_PROTECTION_KEY_PREVIOUS must be base64 for exactly 32 bytes when set")
+			}
+		}
 		stripeSecretKey := strings.TrimSpace(c.StripeSecretKey)
 		stripeWebhookSecret := strings.TrimSpace(c.StripeWebhookSecret)
 		if stripeSecretKey == "" && stripeWebhookSecret != "" {
@@ -151,6 +162,7 @@ func (c Config) atprotoOAuthSettings() atprotocol.OAuthClientSettings {
 	return atprotocol.OAuthClientSettings{
 		ClientID: c.ATProtoOAuthClientID, CallbackURL: c.ATProtoOAuthCallback,
 		JWKSURL: c.ATProtoOAuthJWKSURL, PrivateKey: c.ATProtoOAuthKey, KeyID: c.ATProtoOAuthKeyID,
+		PreviousPrivateKey: c.ATProtoOAuthKeyPrevious, PreviousKeyID: c.ATProtoOAuthKeyIDPrevious,
 		UserAgent: "subcult-os/0.1", ClientName: "Subcult OS", ClientHomepageURL: c.PublicWebURL,
 		PolicyURL: strings.TrimRight(c.PublicWebURL, "/") + "/privacy",
 	}
