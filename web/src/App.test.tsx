@@ -2552,16 +2552,42 @@ describe('App routes', () => {
       'Finish checkout to activate this ticket',
     ],
   ])('renders the ticket payment %s banner', (_label, ticket, banner, summary) => {
-    const rendered = renderWithState('/tickets/ticket-123', <TicketView code="ticket-123" />, [ticket, false, null]);
+    const rendered = renderWithState('/tickets/ticket-123', <TicketView code="ticket-123" />, [ticket, null, false, null]);
 
     expect(rendered).toContain(banner);
     expect(rendered).toContain(summary);
     expect(rendered).toContain('Ticket QR code');
     expect(rendered).toContain('Preparing QR');
     expect(rendered).toContain(ticket.code);
+    expect(rendered).toContain('Refresh ticket status');
     expect(rendered).toContain(`href="/door/${ticket.eventId}"`);
     expect(rendered).not.toContain('Private note:');
     expect(rendered).not.toContain('Keep private');
+  });
+});
+
+describe('ticket recovery states', () => {
+  const ticket = { id: 'ticket-1', eventId: 'event-1', code: 'ABCD1234', email: 'synthetic@example.test', displayName: 'Guest', status: 'reserved', paymentStatus: 'free', amountCents: 0, currency: 'usd', checkedInAt: null };
+
+  it('shows manual fallback rather than indefinite QR preparation', () => {
+    const rendered = renderWithState('/tickets/ABCD1234', <TicketView code="ABCD1234" />, [ticket, null, false, null, 0, ticket.code]);
+    expect(rendered).toContain('QR unavailable. Show the ticket code below for manual entry.');
+    expect(rendered).not.toContain('Preparing QR');
+    expect(rendered).toContain(ticket.code);
+  });
+
+  it('does not use another ticket QR or failure state', () => {
+    const rendered = renderWithState('/tickets/ABCD1234', <TicketView code="ABCD1234" />, [ticket, { code: 'OLD', dataUrl: 'stale-qr' }, false, null, 0, 'OLD']);
+    expect(rendered).toContain('Preparing QR');
+    expect(rendered).not.toContain('stale-qr');
+    expect(rendered).not.toContain('QR unavailable');
+  });
+
+  it.each([null, ticket])('offers read retry and labels retained data after an outage', (loaded) => {
+    const rendered = renderWithState('/tickets/ABCD1234', <TicketView code="ABCD1234" />, [loaded, null, false, 'Synthetic outage']);
+    expect(rendered).toContain('role="alert"');
+    expect(rendered).toContain('Retry ticket');
+    expect(rendered.includes('Showing the last loaded ticket')).toBe(loaded !== null);
   });
 });
 

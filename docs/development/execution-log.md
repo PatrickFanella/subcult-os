@@ -1,5 +1,11 @@
 # Development execution log
 
+## 2026-09-22 — #117 ticket recovery
+
+Ticket pages now provide an in-page read retry/refresh. A failed refresh retains the last loaded pass and explicitly warns that payment/check-in status may have changed. Changing ticket codes clears the prior ticket and QR; cancelled asynchronous loads cannot replace the new result. QR generation failure shows manual-code instructions instead of an indefinite preparation message.
+
+Full local `make verify`, render regressions for QR association/failure and initial/refresh errors, docs validation and diff checks passed. A real browser with a synthetic API confirmed initial outage recovery, pending-ticket/QR rendering and retained pass plus warning after a failed refresh. QR failure rendering is unit-tested, not a browser-induced canvas failure. No reservation, payment, check-in or live email was issued; hosted CI and actual backend qualification remain separate.
+
 ## 2026-09-22 — #115 saved-state lifecycle transitions
 
 Publish and end-of-night now require a clean, saved event form and explain why the action is disabled when edits remain. Save and lifecycle handlers reject overlapping actions, and event detail inputs are locked during their requests so a response cannot replace edits made in flight. No unsaved content is automatically published.

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { api } from '../api';
 import type { TicketDTO } from '../domain';
@@ -66,6 +66,9 @@ export function TicketView({ code }: { code: string }) {
 	const [qr, setQr] = useState<{ code: string; dataUrl: string } | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const [refreshTick, setRefreshTick] = useState(0);
+	const [qrFailedCode, setQrFailedCode] = useState<string | null>(null);
+	const loadedCode = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,12 +76,16 @@ export function TicketView({ code }: { code: string }) {
 	async function load() {
 		setLoading(true);
 		setError(null);
-		setTicket(null);
-		setQr(null);
+		if (loadedCode.current !== code) {
+			setTicket(null);
+			setQr(null);
+			setQrFailedCode(null);
+		}
 
       try {
-        const loaded = await api<TicketDTO>(`/api/tickets/${code}`);
+        const loaded = await api<TicketDTO>(`/api/tickets/${encodeURIComponent(code)}`);
         if (!cancelled) {
+          loadedCode.current = code;
           setTicket(loaded);
         }
       } catch (caught) {
@@ -97,12 +104,13 @@ export function TicketView({ code }: { code: string }) {
     return () => {
       cancelled = true;
     };
-  }, [code]);
+  }, [code, refreshTick]);
 
   useEffect(() => {
     let cancelled = false;
 
 	async function buildQr() {
+		setQrFailedCode(null);
 		if (!ticket?.code) {
 			setQr(null);
 			return;
@@ -125,6 +133,7 @@ export function TicketView({ code }: { code: string }) {
 	} catch {
 		if (!cancelled) {
 			setQr(null);
+			setQrFailedCode(qrCode);
 		}
 	}
     }
@@ -153,7 +162,13 @@ export function TicketView({ code }: { code: string }) {
           <p className={`${publicMutedTextClass} leading-6`}>Your reservation lives here. Keep this page open or save the code for arrival.</p>
 
           {loading ? <div className={`${publicCardClass} ${publicMutedTextClass}`}>Loading ticket…</div> : null}
-          {error ? <p className="rounded-[22px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">{error}</p> : null}
+          {error ? <div role="alert" className="rounded-[22px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
+            <p>{error}</p>
+            {ticket ? <p className="mt-2">Showing the last loaded ticket. Its payment and check-in status may have changed.</p> : null}
+          </div> : null}
+          <button className={publicSecondaryButtonClass} type="button" disabled={loading} onClick={() => setRefreshTick((value) => value + 1)}>
+            {loading ? 'Refreshing ticket…' : error ? 'Retry ticket' : 'Refresh ticket status'}
+          </button>
 
           {ticket ? (
             <>
@@ -181,7 +196,9 @@ export function TicketView({ code }: { code: string }) {
 				<div className="flex h-56 w-56 items-center justify-center rounded-[24px] border border-neutral-200 bg-white p-4" aria-label="Ticket QR code">
 					{qr?.code === ticket.code ? (
 						<img className="h-full w-full" src={qr.dataUrl} alt={`QR code for ticket ${ticket.code}`} />
-					) : (
+					) : qrFailedCode === ticket.code ? (
+                      <span role="status" className="text-sm font-bold text-neutral-700">QR unavailable. Show the ticket code below for manual entry.</span>
+                    ) : (
                       <span className="text-xs font-black uppercase tracking-[0.28em] text-neutral-500">Preparing QR</span>
                     )}
                   </div>
