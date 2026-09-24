@@ -285,7 +285,8 @@ func (a *App) handleListPublicDiscoveryOccurrences(w http.ResponseWriter, r *htt
 		      select 1 from at_projection_records p
 		      where p.collection = $3
 		        and p.status = 'active'
-		        and p.uri = (o.record ->> 'place')
+		        and p.uri = (o.record -> 'place' ->> 'uri')
+		        and lower(coalesce(p.record ->> 'locality', '')) = lower($2)
 		    )
 		    or lower(coalesce(o.record ->> 'name', '')) like '%' || lower($2) || '%'
 		  )

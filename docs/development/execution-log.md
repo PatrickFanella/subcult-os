@@ -60,6 +60,24 @@ absent (the projection schema has no handle column); no native mobile UI
 ships, only the matching contract. See
 [`discovery-ux.md`](discovery-ux.md) for full detail.
 
+### Fix — 2026-09-24: `locality` filter was dead SQL
+
+The list route's `locality` clause compared `o.record ->> 'place'` (which
+returns the `{"cid":...,"uri":...}` strong-ref JSON as text, never a bare
+URI) against `p.uri`, so the exists-subquery could never match, and it never
+compared `p.record ->> 'locality'` at all — `locality=Chicago` silently
+degraded to the plain name-substring fallback. Fixed the join to
+`o.record -> 'place' ->> 'uri'` and added the missing
+`lower(p.record ->> 'locality') = lower($2)` comparison in
+`public_discovery_occurrences.go`. Added
+`TestDiscoveryListFiltersByPlaceLocalityNotOccurrenceName`, which plants an
+occurrence named "Signal Night" at a Chicago place and one named "Denver
+Night" at a Denver place, and asserts `?locality=Chicago` includes the
+former (whose name never mentions Chicago) and excludes the latter. Updated
+`discovery-ux.md`'s two locality-filtering descriptions to match the actual
+place-locality join instead of the previously-documented (and unimplemented)
+substring-only behavior.
+
 ## 2026-09-24 — #16 allowlisted, restart-safe AT record projection (DISC-01)
 
 Added migration `backend/internal/app/migrations/000011_at_projection.sql`

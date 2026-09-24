@@ -139,6 +139,77 @@ func TestDiscoveryDetailIncludesSafePublicLocation(t *testing.T) {
 	}
 }
 
+// TestDiscoveryListFiltersByPlaceLocalityNotOccurrenceName proves the
+// ?locality= filter matches on the occurrence's *place* locality, not just
+// a substring of the occurrence's own display name: an occurrence whose
+// name does not mention the locality at all must still be included when its
+// place is actually there, and an occurrence whose place is in a different
+// locality must be excluded even though it lives in the same collection.
+func TestDiscoveryListFiltersByPlaceLocalityNotOccurrenceName(t *testing.T) {
+	fx, _ := newPublicLinkFixture(t)
+	p := newDiscoveryProjectionProcessor(t, fx)
+	ctx := t.Context()
+
+	did := "did:plc:discoverylocalityfilter01"
+	chicagoPlaceURI := "at://" + did + "/tv.subcult.place/place0002"
+	denverPlaceURI := "at://" + did + "/tv.subcult.place/place0003"
+	// Deliberately named so the name substring match would NOT match
+	// "Chicago", proving the place-locality join is what admits it.
+	chicagoOccURI := "at://" + did + "/tv.subcult.event.occurrence/occ0004"
+	denverOccURI := "at://" + did + "/tv.subcult.event.occurrence/occ0005"
+
+	if _, err := p.ProcessEvent(ctx, StreamEvent{
+		Cursor: "1", Kind: "commit", Operation: "create", DID: did,
+		Collection: "tv.subcult.place", RKey: "place0002", CID: "bafyplace2", Rev: "3l1",
+		Record: discoveryTestPlaceRecord("Signal Night Venue", "Chicago", "IL", "US"),
+	}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.ProcessEvent(ctx, StreamEvent{
+		Cursor: "2", Kind: "commit", Operation: "create", DID: did,
+		Collection: "tv.subcult.place", RKey: "place0003", CID: "bafyplace3", Rev: "3l1",
+		Record: discoveryTestPlaceRecord("Denver Hall", "Denver", "CO", "US"),
+	}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.ProcessEvent(ctx, StreamEvent{
+		Cursor: "3", Kind: "commit", Operation: "create", DID: did,
+		Collection: "tv.subcult.event.occurrence", RKey: "occ0004", CID: "bafyocc4", Rev: "3l1",
+		Record: discoveryTestOccurrenceRecord("Signal Night", "2026-10-03T20:00:00Z", chicagoPlaceURI),
+	}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.ProcessEvent(ctx, StreamEvent{
+		Cursor: "4", Kind: "commit", Operation: "create", DID: did,
+		Collection: "tv.subcult.event.occurrence", RKey: "occ0005", CID: "bafyocc5", Rev: "3l1",
+		Record: discoveryTestOccurrenceRecord("Denver Night", "2026-10-04T20:00:00Z", denverPlaceURI),
+	}, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	resp := getJSON(t, fx.app, nil, "/api/public/discovery/occurrences?locality=Chicago", http.StatusOK)
+	items, ok := resp.JSON.([]any)
+	if !ok {
+		t.Fatalf("expected array response, got %T", resp.JSON)
+	}
+	foundChicago, foundDenver := false, false
+	for _, item := range items {
+		obj := mustObject(t, item)
+		if obj["uri"] == chicagoOccURI {
+			foundChicago = true
+		}
+		if obj["uri"] == denverOccURI {
+			foundDenver = true
+		}
+	}
+	if !foundChicago {
+		t.Fatalf("expected occurrence at a Chicago place to be included even though its name doesn't mention Chicago, body=%s", resp.Body)
+	}
+	if foundDenver {
+		t.Fatalf("occurrence at a Denver place must not match locality=Chicago, body=%s", resp.Body)
+	}
+}
+
 func TestDiscoveryHandoffMissingMappingReturnsNone(t *testing.T) {
 	fx, _ := newPublicLinkFixture(t)
 	p := newDiscoveryProjectionProcessor(t, fx)

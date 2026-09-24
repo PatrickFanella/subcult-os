@@ -22,10 +22,11 @@ own private write path from MODEL-01) and never reads any private table
 - `GET /api/public/discovery/occurrences` — lists projected
   `tv.subcult.event.occurrence` records whose projection status is `active`
   (`deleted`/`unavailable` records are excluded), newest-updated first.
-  Optional `locality` query parameter does a simple case-insensitive
-  substring filter over the record's own `name` and any place named exactly
-  by the occurrence's `place` strong reference; optional `limit`
-  (default 20, max 100) and `offset` for pagination.
+  Optional `locality` query parameter matches an occurrence whose `place`
+  strong reference resolves to a projected place record whose own
+  `locality` field equals the parameter (case-insensitive, exact match), or
+  whose own `name` contains the parameter as a substring (case-insensitive);
+  optional `limit` (default 20, max 100) and `offset` for pagination.
 - `GET /api/public/discovery/occurrences/{uri...}` — one occurrence by its
   `at://` URI. The route captures everything after the `occurrences/`
   segment as a wildcard tail (`net/http`'s `{name...}` pattern keeps
@@ -181,9 +182,10 @@ though only the web client renders it in this slice.
 - List/detail location resolution does one extra query per occurrence to
   load its referenced place record (no batched join); acceptable at this
   slice's scale, a known limit for a larger catalog.
-- `locality` filtering on the list route is a simple case-insensitive
-  substring match on the record's own name plus an existence check against
-  a place with that exact `at://` reference; it is not a geocoded or
+- `locality` filtering on the list route joins the occurrence's `place`
+  strong reference to its projected place record and compares that place's
+  own `locality` field (case-insensitive, exact match), with a fallback
+  substring match on the occurrence's own `name`; it is not a geocoded or
   bounding-box query. No bounding-box parameter is implemented in this
   slice — the acceptance criterion's "optional bounding box or locality
   filter" is satisfied via locality only, and pagination is offset/limit.
