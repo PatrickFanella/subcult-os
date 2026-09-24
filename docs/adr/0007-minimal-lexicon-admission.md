@@ -2,12 +2,12 @@
 
 ## Status
 
-Proposed. This ADR does not accept D5. D5 (Lexicon admission) remains an open
-decision belonging to the repository owner. Merging this document records the
-proposal and its validators; it is not acceptance. The owner accepts D5 by
-changing this status to Accepted and moving D5 to the Accepted table in
-`docs/development/decisions.md`. Until then, `tv.subcult.*` records described
-here are not published.
+Accepted on 2026-09-23 by the repository owner (Patrick Fanella), following
+the recommendation below. D5 (Lexicon admission) moved from the Open table to
+the Accepted table in `docs/development/decisions.md` as A10. Acceptance
+admits the schema contract and its validators; it does not by itself publish
+any `tv.subcult.*` record. Publication authority, projection and
+reconciliation remain separate open decisions (D7 through D10).
 
 ## Context
 
@@ -125,9 +125,8 @@ official `@atproto/lexicon` TypeScript package (`web/src`), each additionally
 enforcing the field-allowlist and explicit-datetime-offset boundary that the
 official validators leave open by protocol design.
 
-This ADR proposes admission; it does not itself flip D5 to Accepted. The
-repository owner accepts D5 by editing this status to Accepted and updating
-`decisions.md`, per the framing in issue #11.
+The owner accepted this admission on 2026-09-23 (issue #11). Changes to the
+admitted chain follow the version evolution rule in the contract document.
 
 ## Consequences
 

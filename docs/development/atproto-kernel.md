@@ -72,14 +72,16 @@ Migration 5 provides two-minute leases, fencing tokens, exponential one-minute-t
 ## Lexicon boundary
 
 A minimal `tv.subcult.*` chain (`tv.subcult.profile`, `tv.subcult.place`,
-`tv.subcult.event.occurrence`) has been independently authored and proposed
-for admission in [ADR 0007](../adr/0007-minimal-lexicon-admission.md); it is
-**not yet accepted**. D5 in [`decisions.md`](decisions.md) remains open until
-the repository owner flips that ADR to Accepted. No `tv.subcult.*` record is published.
-The old Subcults schemas remain blocked by the rights/license gate and were
-not consulted; the proposed chain instead reviews the MIT-licensed
+`tv.subcult.event.occurrence`) was independently authored and admitted on
+2026-09-23 by [ADR 0007](../adr/0007-minimal-lexicon-admission.md)
+(decision A10 in [`decisions.md`](decisions.md)). Admission covers the schema
+contract and validators only; no `tv.subcult.*` record is published until the
+publication decisions D7 through D10 are accepted and implemented. The old
+Subcults schemas remain blocked by the rights/license gate and were not
+consulted; the admitted chain reviewed the MIT-licensed
 `community.lexicon.calendar.*`/`community.lexicon.location.*` schemas as
-prior art. `T-SYNTAX` is implemented; `T-LEX` is proposed, not implemented.
+prior art. `T-SYNTAX` is implemented; `T-LEX` is admitted as a contract, with
+no runtime consumer yet.
 
 Field allowlists, bounds, and public time/location semantics are specified in
 [`lexicon-contract.md`](lexicon-contract.md). The same JSON corpus
@@ -105,4 +107,4 @@ cd backend && go test ./internal/atproto -run TestSharedLexiconConformanceFixtur
 cd web && pnpm run test -- atprotoLexiconConformance
 ```
 
-These checks prove local cross-language syntax agreement, authenticated person binding, hardened redirect policy, local unlink behavior and, with PostgreSQL configured, the encrypted store's expiry, replay, scope, rotation, audit and non-merging invariants. The Lexicon fixture checks additionally prove that the proposed `tv.subcult.*` chain's field allowlist, bounds and public-time strictness agree between the pinned Indigo validator and the official TypeScript validator. They do not prove live handle/DID resolution, OAuth interoperability, provider token revocation, a PDS write, or publication authority, and they do not by themselves make D5 accepted.
+These checks prove local cross-language syntax agreement, authenticated person binding, hardened redirect policy, local unlink behavior and, with PostgreSQL configured, the encrypted store's expiry, replay, scope, rotation, audit and non-merging invariants. The Lexicon fixture checks additionally prove that the admitted `tv.subcult.*` chain's field allowlist, bounds and public-time strictness agree between the pinned Indigo validator and the official TypeScript validator. They do not prove live handle/DID resolution, OAuth interoperability, provider token revocation, a PDS write, or publication authority, and they do not prove publication authority.
