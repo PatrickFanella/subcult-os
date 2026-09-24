@@ -77,8 +77,10 @@ func TestCulturalModelFreshMigrationCreatesTables(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if version != 9 {
-		t.Fatalf("schema version = %d, want 9", version)
+	// Every slice that adds a migration bumps minimumSchemaVersion, so a
+	// fresh migration run must land exactly there.
+	if version != minimumSchemaVersion {
+		t.Fatalf("schema version = %d, want %d", version, minimumSchemaVersion)
 	}
 }
 
