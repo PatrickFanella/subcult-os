@@ -1,5 +1,65 @@
 # Development execution log
 
+## 2026-09-23 — #13 private event-to-public-occurrence links (LINK-01)
+
+Added migration `backend/internal/app/migrations/000009_event_public_links.sql`
+(schema version 8 → 9): `event_public_links`, one row per private operator
+`events` row linked to a public `tv.subcult.event.occurrence` AT record,
+carrying `public_uri`, `observed_cid`, the resolved authority DID and
+freshness fields (`status` in `fresh`/`changed`/`unavailable`/`deleted`,
+`observed_at`, `last_checked_at`, `last_error`). Composite
+`(event_id, workspace_id)` foreign key back to `events (id, workspace_id)`,
+matching migration 000008's pattern; `unique (event_id, public_uri)` makes
+repeated attach idempotent at the database level. `minimumSchemaVersion`
+moved to 9.
+
+Added `backend/internal/atproto/record_fetch.go`: a `RecordFetcher`
+interface plus `IdentityRecordFetcher`, the production implementation,
+which resolves a record's authority through the existing hardened
+`identity.Directory` and fetches it through `com.atproto.repo.getRecord`
+using the same public-only outbound HTTP client and identity hardening AT
+OAuth already uses (`hardenIdentityDirectory`/`publicOnlyHTTPClient`).
+Tests supply a fixture `RecordFetcher`; nothing in this repository's test
+suite makes a live network call for this feature.
+
+Added `backend/internal/app/event_public_links.go`: workspace-scoped
+`POST .../preview` (resolves, Lexicon-validates and returns source
+identity/CID/event fields without persisting anything), `POST
+.../public-links` (attach, idempotent via `on conflict do update` no-op),
+`GET .../public-links` (list), `DELETE .../public-links/{linkID}`
+(detach), and `POST .../public-links/{linkID}/refresh` (re-fetches and
+updates only this row's status/freshness columns: same CID → `fresh`,
+different CID → `changed`, `RecordNotFoundError` → `deleted`, any other
+fetch failure → `unavailable` with `last_error` recorded). All five routes
+reuse the existing `requireWorkspaceRole(..., "owner", "member")` gate, so a
+person outside the event's workspace gets `403`, matching the MODEL-01
+cultural routes. Full route/table detail, the fetcher boundary and known
+limits are in [`public-links.md`](public-links.md).
+
+### Verification actually run
+
+- Go 1.26.6 `go build ./...` and `go vet ./...` (backend).
+- Disposable PostgreSQL (`docker compose -p subcult-wf-13`, port 47013):
+  `go test ./internal/app ./internal/atproto -count=1 -v`, including the
+  new `backend/internal/app/event_public_links_integration_test.go`
+  (preview does not persist; preview rejects a record missing required
+  Lexicon fields; attach is idempotent across two identical requests;
+  cross-workspace access to preview/list/attach/refresh/detach all return
+  `403`; list/detach; refresh detects a changed CID, an unavailable
+  fetcher error, and a deleted (`RecordNotFoundError`) record, and confirms
+  event editing stays usable after a link is marked `deleted`; preview
+  rejects a handle-authority URI). All passed; container removed after the
+  run (`docker compose -p subcult-wf-13 down -v`).
+- Full `make verify`; see below.
+
+### Remaining limits
+
+- API-only; no web/mobile UI.
+- Refresh is manual (`POST .../refresh`); no background scheduler
+  re-checks links automatically.
+- `authority_did` reflects the identity resolved at attach/refresh time; it
+  is not re-verified against identity rotation except on the next refresh.
+
 ## 2026-09-23 — #12 minimal cultural record model (MODEL-01)
 
 Added migration `backend/internal/app/migrations/000008_cultural_model.sql`
