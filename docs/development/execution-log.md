@@ -1,5 +1,65 @@
 # Development execution log
 
+## 2026-09-24 — #18 anonymous cultural discovery and reservation handoff (UX-01)
+
+No migration; `minimumSchemaVersion` stays 11. Added
+`backend/internal/app/public_discovery_occurrences.go`: anonymous
+`GET /api/public/discovery/occurrences` (list, excludes projection status
+`deleted`/`unavailable`, optional `locality`/`limit`/`offset`) and
+`GET /api/public/discovery/occurrences/{uri...}` (detail, still returns a
+deleted/unavailable record with that status flagged) over the existing
+DISC-01 `at_projection_records` mirror. Each item carries source (authority
+DID + `at://` URI; no handle — the projection schema stores none), the
+record's own status plus the projection status, start/end with timezone,
+and a safe public location built only from the projected `tv.subcult.place`
+record's own JSON (name/locality/region/country/coarse coordinates — the
+Lexicon has no street-address field to leak).
+
+Reservation handoff resolves through `event_public_links`: `fresh`/`changed`
+mappings to a published local event return `{"kind": "local", "eventSlug",
+"reservationPath"}` (the existing `tickets.go` reservation route); a
+missing, stale (`invalid`/`unavailable`/`deleted`), or unresolvable mapping
+always returns `{"kind": "none", "reason"}` and never falls back to a
+different event —
+`TestDiscoveryHandoffResolvesLocalReservationAndNeverCrossesEvents` plants
+two occurrences sharing a display title, each correctly mapped to a
+different local event, and asserts neither resolves to the other's slug.
+External ticket handoff (`TICKET_HANDOFF_ALLOWED_HOSTS`) is not implemented:
+the admitted `tv.subcult.event.occurrence` Lexicon has no ticket-URL field,
+so there is nothing for a host allowlist to gate in this slice.
+
+Added `contracts/api.schema.json`'s `PublicDiscoveryOccurrenceDTO` (required
+fields plus a `forbidden` list covering ticket/contact email, street
+address, access notes, staffing, settlement, invitation/OAuth tokens and
+member role) and matching TypeScript interfaces in `web/src/domain.ts` and
+`mobile/src/api/types.ts`; `scripts/check-contracts.mjs` passes.
+
+Web: `web/src/views/DiscoverView.tsx` gained a `DiscoveryOccurrencesSection`
+(list, a dependency-free inline-SVG coordinate plot, and a keyboard-operable
+detail view with Escape/backdrop/button close and an explicit
+reserve-or-unavailable handoff button), backed by pure helpers in
+`web/src/modules/discovery/discoveryOccurrenceModel.ts`.
+
+Verification actually run: `go build`/`go vet` clean;
+`TEST_DATABASE_URL= go test ./...` and, against a disposable
+`docker compose -p subcult-wf-18` PostgreSQL 17,
+`go test ./internal/app ./internal/atproto -count=1` (all pass, 116.8s/6.6s);
+`node scripts/check-contracts.mjs`; `pnpm --dir web run format`, `run lint`,
+`run test` (221 tests, including the new discovery model and component
+tests); `pnpm --dir mobile run lint`, `run test` (27 tests, unaffected). Full
+`make verify` run recorded separately below by exit code.
+
+Known limits: the `document`-level Escape-to-close listener and real
+360px-viewport CSS behavior are not exercised by the vitest component tests
+(this repository's existing component-test convention has no
+jsdom/testing-library, so these need a real-browser check, not claimed
+here); location/handoff resolution does one extra query per occurrence
+(no batched join, acceptable at this slice's scale); `locality` filtering is
+a substring match, not geocoded or bounding-box; `source.handle` is always
+absent (the projection schema has no handle column); no native mobile UI
+ships, only the matching contract. See
+[`discovery-ux.md`](discovery-ux.md) for full detail.
+
 ## 2026-09-24 — #16 allowlisted, restart-safe AT record projection (DISC-01)
 
 Added migration `backend/internal/app/migrations/000011_at_projection.sql`
