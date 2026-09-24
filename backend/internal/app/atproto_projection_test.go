@@ -129,3 +129,51 @@ func TestProjectionRunRecoversFromTransientErrors(t *testing.T) {
 		t.Fatalf("Run() stats = %+v, want zero value (no commit events)", stats)
 	}
 }
+
+// TestProjectionRunWithConnectorRedialsAtCommittedCursor proves the
+// production loop re-dials after a transient failure and passes the last
+// committed cursor to the new connection instead of reusing the dead one.
+func TestProjectionRunWithConnectorRedialsAtCommittedCursor(t *testing.T) {
+	processor := &ProjectionProcessor{}
+	var dialedAt []string
+	connect := func(ctx context.Context, cursor string) (StreamSource, error) {
+		dialedAt = append(dialedAt, cursor)
+		switch len(dialedAt) {
+		case 1:
+			return nil, errors.New("dial refused")
+		case 2:
+			return &transientThenEndSource{failuresLeft: 1, failWith: errors.New("connection reset")}, nil
+		default:
+			return NewMemoryStreamSource(nil), nil
+		}
+	}
+	_, err := processor.RunWithConnector(t.Context(), connect, "1700000000000000", ProjectionRunOptions{
+		MaxReconnectDelay: time.Millisecond,
+		MaxAttempts:       5,
+	})
+	if err != nil {
+		t.Fatalf("RunWithConnector() error = %v", err)
+	}
+	if len(dialedAt) != 3 {
+		t.Fatalf("connector called %d times, want 3: %v", len(dialedAt), dialedAt)
+	}
+	for _, cursor := range dialedAt {
+		if cursor != "1700000000000000" {
+			t.Fatalf("connector dialed at %q, want the starting cursor", cursor)
+		}
+	}
+}
+
+func TestProjectionRunWithConnectorGivesUpAfterMaxAttempts(t *testing.T) {
+	processor := &ProjectionProcessor{}
+	connect := func(ctx context.Context, cursor string) (StreamSource, error) {
+		return nil, errors.New("dial refused")
+	}
+	_, err := processor.RunWithConnector(t.Context(), connect, "", ProjectionRunOptions{
+		MaxReconnectDelay: time.Millisecond,
+		MaxAttempts:       2,
+	})
+	if err == nil {
+		t.Fatal("RunWithConnector() error = nil, want reconnect-exhausted error")
+	}
+}

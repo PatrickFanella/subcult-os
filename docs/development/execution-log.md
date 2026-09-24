@@ -2,7 +2,7 @@
 
 ## 2026-09-24 — #16 allowlisted, restart-safe AT record projection (DISC-01)
 
-Added migration `backend/internal/app/migrations/000012_at_projection.sql`
+Added migration `backend/internal/app/migrations/000011_at_projection.sql`
 (`minimumSchemaVersion` moved to 12): `at_projection_records` (`uri` primary
 key, `did`, `collection`, `rkey`, `cid`, `rev`, `record jsonb`, `size_bytes`,
 `status` active/deleted/unavailable, `first_seen_at`, `updated_at`,

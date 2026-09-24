@@ -17,10 +17,11 @@ import (
 // that only needs three collections.
 //
 // This adapter is deliberately minimal: it does not implement ping/pong
-// keepalive, batching, or reconnect itself (ProjectionProcessor.Run owns
-// reconnect/backoff by constructing a fresh JetstreamSource at the stored
-// cursor). It is exercised by build-only tests; ProcessEvent/Run's own
-// tests use MemoryStreamSource so no test opens a real network connection.
+// keepalive, batching, or reconnect itself. RunWithConnector owns
+// reconnect/backoff by dialing a fresh JetstreamSource at the last
+// committed cursor after any failure. It is exercised by build-only tests;
+// ProcessEvent/Run tests use MemoryStreamSource so no test opens a real
+// network connection.
 type JetstreamSource struct {
 	conn *websocket.Conn
 }

@@ -1,7 +1,7 @@
 # AT record projection (DISC-01)
 
 Status: allowlisted, restart-safe projection implemented 2026-09-23
-(migration 000012). This implements the recommended starting point for D10
+(migration 000011). This implements the recommended starting point for D10
 (projection ingestion) in [`decisions.md`](decisions.md); it does not itself
 accept the decision. Publication (writing to a PDS, PUB-01) and any
 web/mobile discovery UI (UX-01) remain open.
@@ -81,7 +81,7 @@ Jetstream endpoint.
 
 ## Persistence
 
-Migration `000012_at_projection.sql` adds three tables, none referenced by
+Migration `000011_at_projection.sql` adds three tables, none referenced by
 any existing code path:
 
 - **`at_projection_records`** — `uri` primary key (`at://did/collection/rkey`),

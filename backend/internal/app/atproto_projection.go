@@ -326,13 +326,11 @@ func projectionBackoffDelay(attempt int, max time.Duration) time.Duration {
 	return delay
 }
 
-// Run consumes source until ctx is done, an unrecoverable error occurs, or
-// (in bounded-attempt mode) MaxAttempts consecutive transient errors are
-// exceeded. A source.Next error other than ErrProjectionStreamEnded is
-// treated as transient and retried with bounded exponential backoff,
-// resuming from the last durably committed cursor (the caller is expected
-// to reconnect the source at the stored cursor on retry; MemoryStreamSource
-// has no such concept and simply keeps returning the same error).
+// Run consumes a single, already-open source until ctx is done, an
+// unrecoverable error occurs, or (in bounded-attempt mode) MaxAttempts
+// consecutive transient errors are exceeded. It retries Next on the same
+// source, which suits in-memory and test sources; the production loop is
+// RunWithConnector, which re-dials at the committed cursor instead.
 func (p *ProjectionProcessor) Run(ctx context.Context, source StreamSource, opts ProjectionRunOptions) (ProjectionStats, error) {
 	stats := ProjectionStats{}
 	maxDelay := opts.MaxReconnectDelay
@@ -372,6 +370,86 @@ func (p *ProjectionProcessor) Run(ctx context.Context, source StreamSource, opts
 			return stats, err
 		}
 		stats.Record(outcome)
+	}
+}
+
+// StreamConnector opens a StreamSource positioned at cursor ("" means the
+// live tail). RunWithConnector calls it once at start and again after every
+// transient failure, so a dropped connection is re-dialed at the last
+// durably committed cursor instead of being retried on a dead socket.
+type StreamConnector func(ctx context.Context, cursor string) (StreamSource, error)
+
+// RunWithConnector is the production loop: it dials through connect at the
+// starting cursor, consumes events until the source fails, closes the
+// failed source, waits with bounded exponential backoff, and re-dials at
+// the last cursor that ProcessEvent committed. It returns when ctx ends,
+// when the source reports ErrProjectionStreamEnded, when ProcessEvent
+// fails (a database error is not transient), or when MaxAttempts
+// consecutive connection failures are exceeded.
+func (p *ProjectionProcessor) RunWithConnector(ctx context.Context, connect StreamConnector, startCursor string, opts ProjectionRunOptions) (ProjectionStats, error) {
+	stats := ProjectionStats{}
+	maxDelay := opts.MaxReconnectDelay
+	if maxDelay <= 0 {
+		maxDelay = 30 * time.Second
+	}
+	cursor := startCursor
+	attempt := 0
+	for {
+		if err := ctx.Err(); err != nil {
+			return stats, nil
+		}
+		source, err := connect(ctx, cursor)
+		if err == nil {
+			err = p.consume(ctx, source, &stats, &cursor)
+			if closer, ok := source.(io.Closer); ok {
+				_ = closer.Close()
+			}
+		}
+		if err == nil || errors.Is(err, ErrProjectionStreamEnded) {
+			return stats, nil
+		}
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return stats, nil
+		}
+		var permanent *projectionProcessError
+		if errors.As(err, &permanent) {
+			return stats, permanent.err
+		}
+		attempt++
+		if opts.MaxAttempts > 0 && attempt > opts.MaxAttempts {
+			return stats, fmt.Errorf("projection stream exhausted reconnect attempts: %w", err)
+		}
+		timer := time.NewTimer(projectionBackoffDelay(attempt-1, maxDelay))
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return stats, nil
+		case <-timer.C:
+		}
+	}
+}
+
+// projectionProcessError marks a ProcessEvent failure so RunWithConnector
+// stops instead of reconnecting: the stream is fine, the database is not.
+type projectionProcessError struct{ err error }
+
+func (e *projectionProcessError) Error() string { return e.err.Error() }
+func (e *projectionProcessError) Unwrap() error { return e.err }
+
+// consume drains source until it errors, recording outcomes into stats and
+// advancing cursor after every committed event.
+func (p *ProjectionProcessor) consume(ctx context.Context, source StreamSource, stats *ProjectionStats, cursor *string) error {
+	for {
+		event, err := source.Next(ctx)
+		if err != nil {
+			return err
+		}
+		outcome, err := p.ProcessEvent(ctx, event, nil)
+		if err != nil {
+			return &projectionProcessError{err: err}
+		}
+		stats.Record(outcome)
+		*cursor = event.Cursor
 	}
 }
 
@@ -453,12 +531,14 @@ func RunProjection(ctx context.Context, config Config, db *pgxpool.Pool) (Projec
 	if err != nil {
 		return ProjectionStats{}, err
 	}
-	source, err := NewJetstreamSource(config.ATProjectionSourceURL, cursor, admittedCollectionList())
-	if err != nil {
-		return ProjectionStats{}, fmt.Errorf("connect projection stream source: %w", err)
+	connect := func(ctx context.Context, cursor string) (StreamSource, error) {
+		source, err := NewJetstreamSource(config.ATProjectionSourceURL, cursor, admittedCollectionList())
+		if err != nil {
+			return nil, fmt.Errorf("connect projection stream source: %w", err)
+		}
+		return source, nil
 	}
-	defer source.Close()
-	return processor.Run(ctx, source, ProjectionRunOptions{})
+	return processor.RunWithConnector(ctx, connect, cursor, ProjectionRunOptions{})
 }
 
 func admittedCollectionList() []string {
