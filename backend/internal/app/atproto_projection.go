@@ -130,6 +130,14 @@ func NewProjectionProcessor(db *pgxpool.Pool, catalog *atprotocol.LexiconCatalog
 	return &ProjectionProcessor{db: db, catalog: catalog, source: ProjectionSourceName}
 }
 
+// NewProjectionProcessorWithSource builds a processor that commits its
+// cursor under source instead of ProjectionSourceName. The backfill and
+// reconcile paths use this so their own audit-cursor bookkeeping can never
+// overwrite the live jetstream resume cursor.
+func NewProjectionProcessorWithSource(db *pgxpool.Pool, catalog *atprotocol.LexiconCatalog, source string) *ProjectionProcessor {
+	return &ProjectionProcessor{db: db, catalog: catalog, source: source}
+}
+
 // LoadCursor returns the stored cursor for this processor's source, or ""
 // if none has been committed yet (fresh start).
 func (p *ProjectionProcessor) LoadCursor(ctx context.Context) (string, error) {
@@ -233,7 +241,14 @@ func (p *ProjectionProcessor) applyCommitEvent(ctx context.Context, tx pgx.Tx, e
 	if found && event.Operation != "delete" && event.Rev != "" && existingRev != "" && event.Rev < existingRev {
 		return ProjectionOutcomeOutOfOrder, nil
 	}
-	if found && event.Operation != "delete" && event.CID != "" && event.CID == existingCID {
+	// A same-CID create/update is only a true no-op duplicate when the
+	// stored row is already active. A row this processor (or a delete
+	// commit) previously marked deleted or unavailable keeps its cid
+	// unchanged, so short-circuiting on cid alone would leave a
+	// status-mismatched record stuck deleted forever — backfill and
+	// reconcile both rely on this same path to repair that case by
+	// replaying the authority's current record.
+	if found && event.Operation != "delete" && event.CID != "" && event.CID == existingCID && existingStatus == "active" {
 		return ProjectionOutcomeDuplicate, nil
 	}
 
@@ -269,7 +284,7 @@ func (p *ProjectionProcessor) applyCommitEvent(ctx context.Context, tx pgx.Tx, e
 			values ($1, $2, $3, $4, $5, $6, $7, $8, 'active', $9)
 			on conflict (uri) do update set
 				cid = excluded.cid,
-				rev = excluded.rev,
+				rev = case when excluded.rev = '' then at_projection_records.rev else excluded.rev end,
 				record = excluded.record,
 				size_bytes = excluded.size_bytes,
 				status = 'active',

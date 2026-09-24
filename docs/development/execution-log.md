@@ -1,5 +1,120 @@
 # Development execution log
 
+## 2026-09-24 — #17 review fixes: migration renumbering, bounded backfill/rebuild, status_mismatch repair
+
+Three review findings against the initial #17 slice, fixed on the same
+branch:
+
+1. **Migration renumbered `000013` → `000012`.** The initial slice assumed
+   an unmerged, parallel `000012` slice would land first and deliberately
+   left a gap; that slice never merged, so the gap-free migration loader
+   failed `make test-db` (`migration sequence: got version 13, want 12`).
+   Renumbered the file and `minimumSchemaVersion` (`db.go`) to `12` and
+   updated `migrations/README.md`, `projection.md` and `decisions.md`
+   accordingly, so this branch is self-consistent without depending on
+   unrelated, unmerged work.
+2. **Bounded backfill no longer runs its deletion sweep.** `backfillOnce`
+   could exit a collection's page loop via `backfillMaxRecordsPerAuthority`
+   or `backfillMaxPagesPerCollection` while the source still reported a
+   non-empty cursor, then unconditionally mark every unseen local record
+   `deleted` — silently dropping public rows from any authority with more
+   records than one bounded pass could reach, every time. `backfillOnce`
+   and `buildProjectionShadowState` now skip the deletion
+   sweep / `extra` classification for a collection or DID whose listing
+   exited with a non-empty cursor, and the run/diff is reported as a new
+   `bounded` outcome instead of `completed`
+   (`TestRunProjectionBackfillBoundedListingSkipsDeletionSweep`,
+   `TestRunProjectionRebuildBoundedListingDoesNotReportExtra`). Added the
+   `bounded` outcome to the `at_projection_runs` check constraint.
+3. **Reconcile now repairs a `status_mismatch` whose CID is unchanged.**
+   `applyCommitEvent`'s same-CID duplicate short-circuit fired regardless of
+   the stored row's status, so a record a delete commit had marked
+   `deleted` (CID untouched) stayed `deleted` forever even though the
+   authority still listed it active with the same CID — reconcile reported
+   `Duplicate`, not a write, and the run was still recorded `completed`.
+   The short-circuit now also requires the stored row to already be
+   `active`; replaying the authority's current record for a
+   `status_mismatch` case reactivates it as intended
+   (`TestRunProjectionReconcileRepairsStatusMismatchBackToActive`). Backfill
+   shares the same fix for a locally-deleted record the authority still
+   holds.
+
+Verification: `go vet ./...` and `go test ./internal/app/... ./internal/atproto/...`
+(disposable PostgreSQL via `TEST_DATABASE_URL`) both pass — 388 tests, 0
+failures — with the migration now numbered `000012` and no renumbering
+needed. Updated `projection.md` (backfill, rebuild/compare, reconcile,
+run-ledger sections) to describe the `bounded` outcome and the
+`status_mismatch` repair.
+
+## 2026-09-24 — #17 AT projection backfill, rebuild and reconciliation
+
+Added migration `backend/internal/app/migrations/000012_at_projection_recovery.sql`
+(`minimumSchemaVersion` moved to 12): `at_projection_authorities` (`did`
+primary key, `approved_by_person_id`, `approved_at`, `revoked_at`, `note`)
+and `at_projection_runs` (`kind` backfill/rebuild/reconcile, `authority`
+nullable, `started_at`, `finished_at`, `outcome`
+running/completed/failed/gap, `counts jsonb`, `error`). Both tables are
+additive and unreferenced by any prior code path. This slice was originally
+authored as `000013` on the assumption that a separate, parallel `000012`
+slice would land first; that slice was never merged, so review flagged the
+gap-free migration loader failure it caused. Renumbered to `000012` (with
+`minimumSchemaVersion` set to 12) so this branch is self-consistent and
+does not depend on unmerged, unrelated work landing first.
+
+Added `backend/internal/atproto/record_list.go`: `RecordLister` interface
+plus `IdentityRecordLister`, the production `com.atproto.repo.listRecords`
+client. Like the existing `IdentityRecordFetcher`, it resolves the
+authority through the hardened identity directory and issues requests
+through the shared public-only, no-proxy HTTP client
+(`ssrf.PublicOnlyTransport`), so a PDS endpoint that resolves to a private,
+loopback or link-local address is refused
+(`TestIdentityRecordListerRefusesPrivatePDSEndpoint`). Listing is
+cursor-paged with a bounded page size (100) and a bounded per-record size
+(64 KiB, `RecordListMaxRecordBytes`, matching the stream path's bound).
+
+Added `backend/internal/app/atproto_backfill.go`:
+`ApproveProjectionAuthority`/`RevokeProjectionAuthority`/
+`ListApprovedProjectionAuthorities` manage the allowlist.
+`RunProjectionBackfill` lists all three admitted collections from an
+approved authority's PDS and feeds every record through the existing
+`ProjectionProcessor.ProcessEvent`, so Lexicon validation, the collection
+allowlist, and quarantine are shared with the stream path; it writes its
+own audit cursor under a distinct `at_projection_cursor` source row
+(`"backfill"`) so it can never overwrite the live `"jetstream"` cursor, and
+marks any record the authority no longer lists as `deleted` while
+preserving provenance. `RunProjectionRebuild` builds an in-memory shadow
+state from every approved authority and reports a `ProjectionDiff`
+(`missing`/`extra`/`cid_mismatch`/`status_mismatch` URIs, never record
+bodies) against `at_projection_records` without writing.
+`RunProjectionReconcile` rebuilds the same shadow state and applies it,
+scoped to approved authorities only. `RunProjectionMetrics` reports stream
+lag (derived from the stored Jetstream `time_us` cursor), quarantine count,
+records by status, the last run per kind, and the approved-authority count.
+Every run is recorded as one `at_projection_runs` row.
+
+Updated `backend/cmd/atproto-project/main.go`: added `-backfill did`,
+`-rebuild`, `-reconcile`, `-approve-authority did -approved-by person-id
+[-note text]` and `-revoke-authority did`; the no-flag default now prints
+`RunProjectionMetrics` instead of the narrower prior status. `-run` is
+unchanged.
+
+Verification: `go build ./...`, `go vet ./...`, and
+`go test ./internal/atproto/... ./internal/app/...` (full package,
+disposable PostgreSQL via `TEST_DATABASE_URL`) all passed against the
+`000012`-numbered migration in this worktree. New tests:
+`record_list_test.go` (paging, oversize record, private-endpoint refusal,
+no-directory failure) and `atproto_backfill_integration_test.go` (authority
+approval gate, backfill storing/marking-deleted/account-migration/
+source-outage/cursor-gap, rebuild diff, reconcile applying the diff scoped
+to approved authorities, and a metrics-JSON no-private-data assertion).
+
+Known limits: backfill always performs a full listing per invocation (no
+persisted per-authority incremental resume cursor), so
+`ErrProjectionCursorGap` is exercised only by fixture tests; the bundled
+lister never returns it itself. `IdentityRecordLister` is exercised against
+`httptest` fixtures only, never a live PDS. Metrics are command-output
+only; no HTTP route exposes them in this change. Rebuild/reconcile hold the
+full shadow state for all approved authorities in memory per call.
 ## 2026-09-24 — #18 anonymous cultural discovery and reservation handoff (UX-01)
 
 No migration; `minimumSchemaVersion` stays 11. Added

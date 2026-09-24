@@ -1,10 +1,12 @@
 # AT record projection (DISC-01)
 
 Status: allowlisted, restart-safe projection implemented 2026-09-23
-(migration 000011). This implements the recommended starting point for D10
-(projection ingestion) in [`decisions.md`](decisions.md); it does not itself
-accept the decision. Publication (writing to a PDS, PUB-01) and any
-web/mobile discovery UI (UX-01) remain open.
+(migration 000011); backfill, rebuild, reconcile and metrics added
+2026-09-24 (migration 000012; see below). This implements the recommended
+starting point for D10 (projection ingestion) in
+[`decisions.md`](decisions.md); it does not itself accept the decision.
+Publication (writing to a PDS, PUB-01) and any web/mobile discovery UI
+(UX-01) remain open.
 
 ## What this is, and is not
 
@@ -170,6 +172,159 @@ existing `atproto-workers` profile:
 docker compose --profile atproto-projection up -d
 ```
 
+## Backfill, rebuild, reconcile (recovery)
+
+Status: added 2026-09-24 (migration `000012_at_projection_recovery.sql`).
+This addresses the stream-only limits noted below: the stream has no
+history/replay beyond its own retention, and this projector previously had
+no way to recover a missed window, verify itself against the authoritative
+source, or handle a PDS-side account migration or deletion.
+
+### Approved authorities
+
+`at_projection_authorities` (`did` primary key, `approved_by_person_id`,
+`approved_at`, `revoked_at`, `note`) is the allowlist gate for backfill: the
+otherwise-unbounded "fetch someone else's repo" capability only ever runs
+against a DID an operator has explicitly approved and not revoked.
+`ApproveProjectionAuthority`/`RevokeProjectionAuthority`/
+`ListApprovedProjectionAuthorities` (`atproto_backfill.go`) manage it; the
+`atproto-project -approve-authority did -approved-by person-id [-note text]`
+and `-revoke-authority did` command flags are the only operator surface (no
+new HTTP route; this mirrors how `-run` is already the only surface for the
+stream).
+
+### Backfill
+
+`RunProjectionBackfill(ctx, db, catalog, lister, did)` lists all three
+admitted collections from `did`'s PDS through `atproto.RecordLister`
+(`com.atproto.repo.listRecords`, cursor-paged, bounded page size of 100
+records, bounded to 5000 records per authority per invocation, and each
+listed record is bounded to the same 64 KiB `RecordListMaxRecordBytes` the
+stream path uses) and feeds every listed record through the same
+`ProjectionProcessor.ProcessEvent` path the stream uses, so Lexicon
+validation, the collection allowlist, and quarantine are shared rather than
+reimplemented. It writes its own audit cursor under a distinct
+`at_projection_cursor` source row (`"backfill"`, via
+`NewProjectionProcessorWithSource`) so it can never advance or overwrite the
+live `"jetstream"` resume cursor. After a full listing pass, any locally
+stored `active` record for that `(did, collection)` the authority no longer
+lists is marked `deleted`, preserving `did`/`collection`/`rkey` provenance
+(`TestRunProjectionBackfillMarksMissingRecordsDeletedPreservingProvenance`).
+`did` must be a currently-approved authority
+(`TestRunProjectionBackfillRejectsUnapprovedAuthority`); backfill never
+implicitly approves.
+
+The deletion sweep only runs for a `(did, collection)` pass that actually
+exhausted the source's cursor. If a collection's listing is cut off by
+`backfillMaxRecordsPerAuthority` or `backfillMaxPagesPerCollection` while
+the source still reports a non-empty cursor, the sweep is skipped for that
+collection — an unreached record is indistinguishable from a deleted one,
+and marking it deleted would silently drop a public row on every bounded
+pass over a large authority — and the run is recorded `bounded` instead of
+`completed`
+(`TestRunProjectionBackfillBoundedListingSkipsDeletionSweep`).
+`buildProjectionShadowState` (used by rebuild and reconcile, below) applies
+the same guard: an active record for a DID whose shadow listing was
+similarly cut off is never reported as `extra`
+(`TestRunProjectionRebuildBoundedListingDoesNotReportExtra`).
+
+The production `atproto.RecordLister` is `IdentityRecordLister`
+(`backend/internal/atproto/record_list.go`): like `IdentityRecordFetcher`,
+it resolves the authority's PDS endpoint through the hardened identity
+directory on every call, so an account migration to a new PDS host is
+transparent — the URI stays `at://did/collection/rkey`, host-independent,
+and provenance keeps the DID
+(`TestRunProjectionBackfillAccountMigrationKeepsProvenance`). The same
+public-only, no-proxy outbound transport (`ssrf.PublicOnlyTransport`) used
+elsewhere in this package refuses a PDS endpoint that resolves to a
+private, loopback, or link-local address, independent of what the identity
+directory itself returns
+(`TestIdentityRecordListerRefusesPrivatePDSEndpoint` in
+`record_list_test.go`).
+
+Every `listRecords` page is retried up to `backfillMaxListAttempts` (3)
+times before the run is recorded `failed`
+(`TestRunProjectionBackfillSourceOutageRecordsFailedRun`); each listed
+record is still applied through its own `ProcessEvent` transaction, so an
+outage partway through a collection never rolls back records already
+committed, and no partial per-authority cursor is advanced beyond what
+succeeded (there is no persisted inter-run resume point for backfill at
+all — every backfill invocation is a fresh full listing).
+
+A `RecordLister` may return `atproto.ErrProjectionCursorGap` for a resumed
+listing it cannot honor. `RunProjectionBackfill` records that attempt as a
+`gap` run and immediately retries once as a fresh listing, recording a
+second run for the actual result
+(`TestRunProjectionBackfillCursorGapTriggersFreshBackfill`). The bundled
+`IdentityRecordLister` never returns this error itself (a listing always
+restarts at `cursor=""` since backfill does not persist a per-authority
+resume cursor); it exists for a future incremental backfill mode and for
+fixture-driven tests today.
+
+### Rebuild and compare
+
+`RunProjectionRebuild(ctx, db, lister)` lists every three-collection record
+from every approved, non-revoked authority into an in-memory shadow map
+(never written to the database) and compares it against
+`at_projection_records`, reporting `ProjectionDiff`: `missing_uris` (the
+authority has it, the table does not), `extra_uris` (the table has an
+active row the authority no longer lists), `cid_mismatch_uris` (both have
+it, active, different CID) and `status_mismatch_uris` (the authority has it
+active, the table's row exists but is not active). The diff carries URIs
+only — URIs are public identifiers (`at://did/collection/rkey`); no record
+body ever appears in a diff, a run's `counts`, or command output
+(`TestRunProjectionRebuildReportsDiff`).
+
+### Reconcile
+
+`RunProjectionReconcile(ctx, db, catalog, lister)` rebuilds the same shadow
+state and then applies it: `missing`/`cid_mismatch`/`status_mismatch` URIs
+are written through `ProcessEvent` (so validation and the allowlist still
+apply) and `extra` URIs are marked `deleted`. It only ever touches records
+for currently-approved authorities, because the shadow state and the
+comparison set are both scoped to `ListApprovedProjectionAuthorities`
+(`TestRunProjectionReconcileAppliesDiffOnlyForApprovedAuthorities`).
+
+A `status_mismatch` record (the authority still lists it active with an
+unchanged CID; the local row was previously marked `deleted` or
+`unavailable`, for example by a stream delete commit) is genuinely repaired
+back to `active`: `ProcessEvent`'s same-CID duplicate short-circuit only
+fires when the stored row is already `active`, so replaying the authority's
+current record through `ProcessEvent` reactivates it instead of being
+silently treated as a no-op duplicate and left deleted
+(`TestRunProjectionReconcileRepairsStatusMismatchBackToActive`). Backfill
+shares this fix for the same case (a record deleted locally that the
+authority still holds).
+
+If the rebuilt shadow state was bounded for any authority (see Backfill,
+above), the run is recorded `bounded` rather than `completed`, since the
+diff's `extra_uris` — and therefore reconcile's deletions — deliberately
+excluded that authority's unreached records.
+
+### Run ledger
+
+Every backfill/rebuild/reconcile invocation writes one
+`at_projection_runs` row (`kind`, `authority` — null for a multi-authority
+rebuild/reconcile pass, `started_at`, `finished_at`, `outcome` —
+`running`/`completed`/`failed`/`gap`/`bounded`, `counts` — small integer
+aggregates only, `error`). `LastProjectionRuns` returns the most recent row
+per kind for status reporting.
+
+### Metrics
+
+`RunProjectionMetrics(ctx, db)` (surfaced as the default, no-flag
+`atproto-project` output) reports: the stored jetstream cursor and its
+derived `stream_lag_seconds` (now minus the cursor's `time_us` instant,
+`nil` if the cursor is empty or not a Jetstream-shaped numeric string),
+`record_count`, `quarantined_count`, `records_by_status` (grouped counts),
+`last_runs` (one summary per kind), and `approved_authority_count`. No
+record body, DID-scoped record content, or email address ever appears in
+this structure or its JSON encoding
+(`TestRunProjectionMetricsExcludesPrivateData`); this is not exposed as an
+HTTP route in this change, since the command's own JSON output already
+meets the "secret-free aggregate status" bar the rest of this worker's
+surface uses.
+
 ## Known limits
 
 - `JetstreamSource` does not implement ping/pong keepalive or batching.
@@ -178,9 +333,21 @@ docker compose --profile atproto-projection up -d
   fresh `JetstreamSource` at the last committed cursor
   (`TestProjectionRunWithConnectorRedialsAtCommittedCursor`). A database
   error stops the loop instead of reconnecting.
-- No backfill/replay-from-arbitrary-cursor tooling beyond resuming from the
-  single stored cursor; there is exactly one source row
-  (`ProjectionSourceName = "jetstream"`).
 - `JetstreamSource` is exercised by compile-time checks only (no test opens
   a real websocket); its correctness against a live Jetstream endpoint is
-  unverified.
+  unverified. The recovery tooling above does not change this; `IdentityRecordLister`
+  is exercised only against `httptest` fixtures, never a live PDS.
+- Backfill always performs a full (cursor-reset) listing per invocation;
+  there is no persisted per-authority incremental resume cursor, so
+  `ErrProjectionCursorGap` handling is exercised by fixture tests only —
+  the bundled `IdentityRecordLister` never has an occasion to return it.
+  Backfill is also not wired into stream-side gap detection: a stream
+  outage longer than Jetstream's own retention window is not automatically
+  detected or corrected by a backfill trigger; an operator must run
+  `-backfill`/`-reconcile` manually today.
+- `RunProjectionRebuild`/`RunProjectionReconcile` hold the entire shadow
+  state for every approved authority in memory for the duration of one
+  call; this is bounded per authority (`backfillMaxRecordsPerAuthority`,
+  5000) but not bounded in aggregate across many authorities.
+- Metrics are command-output only in this change; no session-gated
+  operator HTTP route exposes them yet.
