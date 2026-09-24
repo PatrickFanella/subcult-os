@@ -1,0 +1,60 @@
+# Privacy audit — 2026-09-23 (SEC-15 / Issue #15)
+
+Status: point-in-time audit of the routes, exports, logs and telemetry that exist in this repository on 2026-09-23. It is not a security review of infrastructure, third-party providers (Stripe, Resend) or the frontend clients. Re-audit when new anonymous routes, exports or log statements are added.
+
+## Method
+
+Every route registered in `backend/internal/app/app.go` was classified as anonymous (reachable without `operatorSession` authentication or an unguessable capability token) or operator-authenticated (requires a session and a `requireWorkspaceRole` check). For each anonymous route and for the request-logging middleware, the response/log body was traced back to the source columns it reads. `grep` for `sentinel`/`anonymous` in the existing test suite (`public_event_test.go`, `cultural_model_integration_test.go`) was the starting point; this audit extends that coverage rather than replacing it.
+
+## Anonymous / capability-token routes
+
+| Route | Handler | Fields returned | Private-field risk |
+|---|---|---|---|
+| `GET /api/public/events` | `handleListPublicEvents` (`public_discovery.go`) | id, title, startsAt, publicDescription, locationDisplay, imageUrl, workspaceName, pricingMode, ticketPriceCents/Currency, remainingTickets, isFull, applicationsOpen, status, publicSlug, publicUrl | None found. `workspaceName` is the organizer's chosen display name, not an operational identifier; no contact, staffing, attendance or finance column is read. |
+| `GET /api/public/events/{slug}` | `handlePublicEvent` → `publicEventDTOFromRow` (`tickets.go`) | Same allowlisted shape as above, built from a standalone `publicEventDTO` (added by API-01) | None found. `TestPublicEventDTOExcludesOperationalFields` already pins the exclusion of `workspaceId`, `ticketAllocation`, `reservedCount`, `checkedInCount`, `staffingOpenCount/AssignedCount/CompletedCount/CancelledCount`. |
+| `GET /api/public/events/{slug}/roles` | `handleListPublicEventRoles` (`event_roles.go`) | Only roles with `public = true and active = true`, serialized via `eventRoleDTOFromRow`: id, name, description, capacity, public, active, createdAt/updatedAt | None found. Does not read `event_role_applications` (applicant name/email/message), so no operational or personal data can leak here by construction. |
+| `POST /api/public/events/{slug}/role-applications` | `handleSubmitPublicRoleApplication` | Echoes the caller's own submitted application back (their own name/email/message/status) | Not a leak: a caller can only see the record they themselves just submitted, addressed to no one else. The audit-log entry for this action intentionally omits email (only `eventId`, `roleId`, `applicationId`). |
+| `POST /api/public/events/{slug}/reservations` | `handleReserveTicket` (`tickets.go`) | Echoes the caller's own new ticket (their own email/displayName/code) plus `ticketUrl` | Not a leak for the same reason: capability response to the actor who just supplied that email. The audit entry `ticket.reserved` does store the plaintext email and ticketUrl in `audit_entries.metadata` — see "At-rest email in audit/outbox tables" below. |
+| `POST /api/public/events/{slug}/paid-reservations` | `handleCreatePaidReservation` | Ticket id/code/url plus a Stripe checkout session id/url | Same as above; no other person's data is returned. `ticket.payment_started` audit metadata also stores plaintext email. |
+| `GET /api/tickets/{code}` | `handleGetTicket` | Full `ticketDTO`: id, eventId, **email**, displayName, code, ticketUrl, status, paymentStatus, amountCents, currency, checkedInAt | By design, not a leak of *another* person's data: `code` is a 24-byte random capability token delivered only to the ticket holder by email, functioning as a bearer credential for "my own ticket," matching the existing product contract (email confirmation pages must show the buyer their own email). It is not protected by workspace membership and was not changed here because doing so would break the existing ticket-confirmation flow; this audit documents it as an intentional capability-URL pattern, not an authorization gap, and it is now covered by a sentinel regression test that fails if an *unrelated* ticket's or any operational field leaks into this response. |
+| `POST /api/stripe/webhook` | `handleStripeWebhook` (payments) | No response body beyond status; verifies signature before writing anything | None found in source (not modified in this slice). |
+| `POST /api/resend/webhook` | `handleResendWebhook` (`email_feedback.go`) | `204 No Content`; only writes `email_provider_events(event_id, provider_message_id, event_type)`, never a recipient address | None found. Reconciliation (`reconcileEmailFeedback`) explicitly uses only the system's own stored recipient, "never an address from a webhook" (existing comment). |
+| `GET /api/health`, `GET /api/ready` | trivial handlers | status string only | None. |
+| `POST /api/auth/*`, `POST /api/mobile/auth/*` (signup, verify-email, request-verification, login, refresh, logout, logout-all, recovery request/complete) | `auth.go` | Session cookies/tokens and the caller's own account summary on success; generic error strings otherwise | None found. Responses describe only the authenticating caller. Verification and recovery tokens travel through the outbox, not the response. |
+| `POST /api/v1/auth/atproto/start`, `GET /api/v1/auth/atproto/callback`, `GET .../client-metadata`, `GET .../jwks` | AT OAuth handlers | OAuth redirect and authorization state, public client metadata and the public JWKS | None found. Metadata and JWKS are public by protocol design; the callback binds to the caller's own session. |
+| `GET /api/debug/mobile-auth` | `handleMobileAuthDebug` (`auth.go`) | `hasAccessToken`, `hasRefreshToken`, `recognized`, the caller's own `personId` | None found for other people's data; see "Remaining limits" for the missing environment gate. |
+
+Every remaining route is prefixed `/api/workspaces/`, `/api/events/`, `/api/me`, `/api/v1/auth/atproto/*`, `/api/auth/*`, `/api/mobile/*`, or `/api/debug/mobile-auth` / `/api/dev/email-outbox`, all of which pass through `operatorSession`, which returns `401` for `/api/workspaces*` and `/api/events/*` without a valid session, or require their own `requirePersonID`/`requireWorkspaceRole` check inside the handler (verified for `handleListContacts`, `handleGetReport`, `handleGetSettlement`, `handleGetArchive`, `handleListEventStaffing`, `handleListEventRoleApplications`, `handleListEventParticipants`, `handleDoorTicketSearch`, `handleDoorCheckIn`, `handleCreateTestTicket`, `handleListCulturalPlaces`, `handleCreateCulturalPlace`, `handleUpdateCulturalPlace`, `handleOccurrencePublicPreview`). `/api/debug/mobile-auth` and `/api/dev/email-outbox` are development-only diagnostic routes; they are not gated behind `AppEnv` in code today, which is out of scope for this slice but is flagged for a follow-up (see "Remaining limits" below).
+
+## MODEL-01 public preview (`cultural_public_projection.go`)
+
+`buildOccurrencePublicPreview` only ever reads `culturalPlaceRow`'s public columns (name/locality/region/country/public coordinates) and `culturalProfileRow`'s public columns into hand-built `publicPlaceRecord`/`publicProfileRecord`/`publicOccurrenceRecord` structs; `cultural_place_protected_details` (`street_address`, `access_notes`) is never queried by this path. This was already true before this slice; `TestOccurrencePublicPreviewNeverLeaksProtectedOrOperationalData` already covered street address, access notes, a staffing note and a ticket buyer email sentinel. This slice adds the reusable sentinel-fixture helper (`privacy_sentinel_test.go`) and extends it to also plant sentinels in `contacts`, `event_role_applications.applicant_email`, `tickets.email`/`display_name`, `event_staffing.notes`, and `cultural_place_protected_details`, then asserts none of them appear in the public preview, in `GET /api/public/events`, `GET /api/public/events/{slug}`, `GET /api/public/events/{slug}/roles`, or in captured request-log output for the same test run.
+
+## Request logging (`app.go`, `requestLogger`)
+
+`requestLogger` logs only `method=%s route=%q status=%d duration=%s`, where `route` is `r.Pattern` — the Go 1.22+ server-owned route template (e.g. `GET /api/tickets/{code}`), never the concrete path, query string or body. It cannot contain an email address, a ticket code or any other user-supplied value, because it never reads `r.URL.RawQuery`, `r.URL.Path`, or the body. `TestRequestLoggerNeverRecordsQueryOrBody` (new, in `privacy_sentinel_test.go`) exercises this middleware directly with a request whose query string and JSON body both contain a sentinel email address, captures `log` package output, and asserts the sentinel never appears in it.
+
+## Exports
+
+No CSV/JSON bulk-export endpoint exists in this codebase today (grep for `export` in `backend/internal/app` found none). `docs/development/data-lifecycle.md` (new) specifies the shape a future access-export must have; none is implemented in this slice.
+
+## Telemetry
+
+No metrics/tracing/analytics SDK is wired into `backend/internal/app` (no Prometheus, OpenTelemetry, or third-party analytics import). The only outbound signal beyond HTTP responses is the transactional email queue (`enqueueEmail`/`email_delivery.go`), which is not telemetry and is address-scoped to the actual recipient by design.
+
+## At-rest email in audit/outbox tables
+
+`audit_entries.metadata` stores plaintext email addresses for `ticket.reserved` and `ticket.payment_started` (both intentionally: the actor is the ticket holder, and `audit_entries` has no HTTP read path). `email_outbox` necessarily stores the plaintext recipient to deliver the message. `GET /api/dev/email-outbox` (`email_outbox.go`) returns 404 when `config.AppEnv == "production"` and otherwise requires a valid session (`requirePersonID`). Before this slice it listed the newest 25 rows for any signed-in person, which let one workspace read another workspace's plaintext invitation and ticket recipients in development and staging environments. It is now scoped to messages addressed to the caller's own account email, the caller's own identity challenges, and invitations or ticket confirmations that belong to a workspace the caller is currently a member of. `TestDevEmailOutboxScopedToCaller` pins this.
+
+## Fixes made in this slice
+
+0. Scoped `GET /api/dev/email-outbox` to the caller (see "At-rest email" above); this was the one confirmed leak.
+1. Added `privacy_sentinel_test.go` with a reusable `plantPrivacySentinels` fixture helper and `assertNoSentinelLeak` assertion helper (criterion b), covering contacts, staffing notes, role-application applicant email, ticket email/display name, and cultural-place protected details, run against every anonymous route and the public preview.
+2. Added `TestRequestLoggerNeverRecordsQueryOrBody`, pinning that the log middleware records only the route template.
+3. Added `TestCulturalPlaceProtectedDetailsRequireWorkspaceMembership`, confirming a person who is not a member of the owning workspace gets `403`/`404` (never the protected fields) from `POST/PATCH .../places`, and that an anonymous caller has no route that reaches `cultural_place_protected_details` at all (criterion c).
+
+## Remaining limits (not fixed in this slice)
+
+- `GET /api/debug/mobile-auth` has no environment gate. It returns only whether the caller presented tokens and the caller's own person id, so it exposes no other person's data; gating it on `AppEnv` is a separate hardening change and is not made here.
+- No consent table or endpoint exists yet (`CONSENT-01` in `docs/development/backlog.md` is still open); the sentinel helper therefore cannot plant a consent-record sentinel. `docs/development/data-lifecycle.md` states this explicitly rather than fabricating coverage for a table that does not exist.
+- `docs/development/data-lifecycle.md` specifies but does not implement account deletion, access export or correction; no schema migration was added because no test in this slice required one.

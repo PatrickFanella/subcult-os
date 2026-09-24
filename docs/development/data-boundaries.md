@@ -1,5 +1,5 @@
 # Data, identity and consent boundaries
-Status: acceptance requirements for new work; not a security audit of the full applications.
+Status: acceptance requirements for new work; not a security audit of the full applications. [`privacy-audit-2026-09-23.md`](privacy-audit-2026-09-23.md) is the dated route/export/log/telemetry audit against these rules; [`data-lifecycle.md`](data-lifecycle.md) specifies retention, access export, account deletion, correction and why authoritative deletion cannot erase downstream copies. Re-run the audit when a new anonymous route, export or log statement is added.
 
 ## Public payload rule
 Use allowlisted projection builders. Test both property names and sentinel values across nested structures. A public schema that accepts a field does not establish permission to publish the field.
