@@ -2,7 +2,7 @@
 
 ## 2026-09-24 — #23 verified channel consent and suppression semantics (CONSENT-01)
 
-Added migration `backend/internal/app/migrations/000012_consent_grants.sql`
+Added migration `backend/internal/app/migrations/000013_consent_grants.sql`
 (`minimumSchemaVersion` moved to 12): a new `consent_grants` table (sender
 `workspace_id`, `channel` currently constrained to `'email'`,
 `recipient_address` stored plaintext like other private recipient columns,

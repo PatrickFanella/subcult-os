@@ -2,7 +2,7 @@
 
 Status: consent grant schema, a central send-permission check and its
 send-time recheck, and operator/public consent-grant endpoints implemented
-2026-09-24 (migration 000012). This is the boundary task named in
+2026-09-24 (migration 000013). This is the boundary task named in
 [`data-boundaries.md`](data-boundaries.md)'s "Consent" section and
 [`data-lifecycle.md`](data-lifecycle.md)'s consent row; it defines
 permission semantics only. It does not itself send an announcement: no
@@ -52,7 +52,7 @@ holder, a contact and a workspace member that all share one address in one
 workspace and proves an announcement to that address is still denied
 without a real grant.
 
-## The `consent_grants` table (migration 000012)
+## The `consent_grants` table (migration 000013)
 
 | Column | Meaning |
 | --- | --- |
@@ -123,7 +123,7 @@ every other terminal status already does, and never calls the provider.
 retry/expiry logic (they are already terminal, exactly like `failed` and
 `quarantined`).
 
-`email_outbox` gained two columns to support this (migration 000012):
+`email_outbox` gained two columns to support this (migration 000013):
 
 - **`purpose`** — `'transactional'` by default, so every existing and
   legacy-binary row keeps its meaning and keeps sending unchanged.
