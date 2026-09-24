@@ -183,6 +183,13 @@ func TestPrivacySentinelsNeverLeakIntoAnonymousRoutes(t *testing.T) {
 	sentinels := plantPrivacySentinels(t, fx)
 	all := sentinels.sentinels()
 
+	// Capture the process log while the anonymous routes run so the request
+	// logger is proven not to record any sentinel alongside the responses.
+	var captured bytes.Buffer
+	previousOutput := log.Writer()
+	log.SetOutput(&captured)
+	defer log.SetOutput(previousOutput)
+
 	anonymous := map[string]testResponse{
 		"public discovery":      getJSON(t, fx.app, nil, "/api/public/events", http.StatusOK),
 		"public event detail":   getJSON(t, fx.app, nil, "/api/public/events/"+sentinels.slug, http.StatusOK),
@@ -208,6 +215,9 @@ func TestPrivacySentinelsNeverLeakIntoAnonymousRoutes(t *testing.T) {
 	// the protected place details (MODEL-01 / criterion c).
 	preview := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+sentinels.eventID+"/occurrences/"+sentinels.occurrenceID+"/public-preview", http.StatusOK)
 	assertNoSentinelLeak(t, "occurrence public preview", preview.Body, all)
+
+	log.SetOutput(previousOutput)
+	assertNoSentinelLeak(t, "captured request log", captured.String(), all)
 }
 
 // TestCulturalPlaceProtectedDetailsRequireWorkspaceMembership covers Issue
@@ -286,4 +296,28 @@ func TestRequestLoggerNeverRecordsQueryOrBody(t *testing.T) {
 	if !strings.Contains(logged, "route=") || !strings.Contains(logged, "status=200") {
 		t.Fatalf("request logger did not record the expected route/status fields: %s", logged)
 	}
+}
+
+// TestDevEmailOutboxScopedToCaller pins the fix for the cross-tenant finding
+// in docs/development/privacy-audit-2026-09-23.md: the non-production outbox
+// lists only messages addressed to the caller or belonging to a workspace
+// the caller is a member of, never another workspace's recipients.
+func TestDevEmailOutboxScopedToCaller(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	other := newLifecycleFixture(t, fx.app)
+
+	inviteEmail := fx.email("scoped-invitee")
+	postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/invitations", map[string]any{"email": inviteEmail}, http.StatusOK)
+
+	own := getJSON(t, fx.app, fx.ownerCookie, "/api/dev/email-outbox", http.StatusOK)
+	if !strings.Contains(own.Body, inviteEmail) {
+		t.Fatalf("expected the inviting workspace owner to see the invitation in the outbox: %s", own.Body)
+	}
+
+	foreign := getJSON(t, fx.app, other.ownerCookie, "/api/dev/email-outbox", http.StatusOK)
+	assertNoSentinelLeak(t, "foreign workspace outbox", foreign.Body, []string{inviteEmail})
+
+	// An anonymous caller still gets nothing at all.
+	unauth := getJSON(t, fx.app, nil, "/api/dev/email-outbox", http.StatusUnauthorized)
+	assertNoSentinelLeak(t, "anonymous outbox", unauth.Body, []string{inviteEmail})
 }

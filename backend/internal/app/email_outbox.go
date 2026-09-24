@@ -53,17 +53,39 @@ func (a *App) handleDevEmailOutbox(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not found")
 		return
 	}
-	if _, ok := a.requirePersonID(r); !ok {
+	personID, ok := a.requirePersonID(r)
+	if !ok {
 		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
+	// The development outbox is a debugging aid, not a mail admin view. A
+	// signed-in person may only see messages addressed to their own account
+	// email, their own identity challenges, or messages that belong to a
+	// workspace they are currently a member of (invitations and ticket
+	// confirmations for that workspace's events). Nothing else is listed,
+	// so one tenant cannot read another tenant's plaintext recipients.
 	rows, err := a.db.Query(r.Context(), `
-		select id, recipient_email, subject, body, related_type, related_id, created_at
-		from email_outbox
-		order by created_at desc
+		with caller as (
+			select lower(email) as email from people where id = $1
+		), memberships as (
+			select workspace_id from workspace_members
+			where person_id = $1 and removed_at is null
+		)
+		select o.id, o.recipient_email, o.subject, o.body, o.related_type, o.related_id, o.created_at
+		from email_outbox o
+		where lower(o.recipient_email) = (select email from caller)
+		   or (o.related_type in ('identity_verification', 'identity_recovery')
+		       and o.related_id in (select id from identity_challenges where person_id = $1))
+		   or (o.related_type = 'workspace_invitation'
+		       and o.related_id in (select id from workspace_invitations where workspace_id in (select workspace_id from memberships)))
+		   or (o.related_type = 'ticket'
+		       and o.related_id in (
+		         select t.id from tickets t join events e on e.id = t.event_id
+		         where e.workspace_id in (select workspace_id from memberships)))
+		order by o.created_at desc
 		limit 25
-	`)
+	`, personID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not load email outbox")
 		return
