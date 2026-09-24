@@ -9,6 +9,22 @@ Searched `bluesky-social/indigo` issues and PRs (open and closed) for `SaveAuthR
 The contribution package README now records this reproduction, the upstream search results with URLs, a submitter checklist (authorization to publish, account, DCO/CLA recheck, issue-first, re-reproduce against current `main`, no internal references), an AI-assistance disclosure statement, and a PR description draft. Nothing was filed, posted, or opened upstream. Subcult's local fail-closed capture wrapper in `backend/internal/atproto/oauth_flow.go` was confirmed unchanged and its regression test (`TestOAuthFlowSurfacesIgnoredUpstreamPersistenceError`) still passes; `docs/development/upstream.md` now states it stays until an upgraded, separately verified Indigo dependency is pinned.
 
 Remaining: all human-only submission steps in the package's checklist (authorization, GitHub account, DCO/CLA check, opening the issue first, final re-reproduction against then-current `main`). No upstream issue or PR was opened.
+||||||| parent of c37d4bc (feat(atproto): propose minimal tv.subcult.* Lexicon admission (#11))
+
+## 2026-09-23 — #11 minimal Lexicon admission proposal
+
+Reviewed `community.lexicon.calendar.event`/`.rsvp` and `community.lexicon.location.address`/`.geo` (Lexicon Community, MIT License) as prior art; the `events.smokesignal.*` source repository returned HTTP 404 when fetched directly, so only unverified indirect descriptions of it exist and none were relied on. Recommended, and drafted, a minimal independently authored `tv.subcult.*` chain (`tv.subcult.profile`, `tv.subcult.place`, `tv.subcult.event.occurrence`) rather than adopting `community.lexicon` as-is, because it has no profile record, no independently addressable place record, and no bounds or public/private field distinction. Full reasoning, license and evidence are in [ADR 0007](../adr/0007-minimal-lexicon-admission.md) (status Proposed); field allowlists, bounds, and public time/location semantics are in [`lexicon-contract.md`](lexicon-contract.md).
+
+Added `contracts/lexicons/*.json` (three record Lexicons) and `contracts/atproto-lexicon.fixtures.json` (`tv.subcult.profile`: 2 valid/8 invalid; `tv.subcult.place`: 2 valid/10 invalid; `tv.subcult.event.occurrence`: 3 valid/13 invalid; 38 cases total). Both `backend/internal/atproto/lexicon.go` (using the pinned Indigo `atproto/lexicon` package, confirmed present at the pinned commit) and `web/src/atprotoLexiconConformance.test.ts` (using `@atproto/lexicon@0.7.6`, added as a pinned `web/package.json` devDependency and installed into `web/pnpm-lock.yaml`) run the same corpus and agree on every case. Both validators additionally enforce a field allowlist derived from the Lexicon JSON's own `properties`, and an explicit-UTC-offset datetime check, because official Lexicon validation intentionally allows additive unknown fields and (in `@atproto/lexicon`'s case) a missing datetime offset; this discrepancy is recorded in ADR 0007 and `lexicon-contract.md` rather than papered over.
+
+Updated `atproto-kernel.md`'s Lexicon boundary section and `decisions.md`'s D5 row to point at the ADR and contract doc. D5 is **not** marked Accepted; this slice is a complete, reviewable proposal the repository owner accepts by merging ADR 0007. No database, migration or runtime handler changed.
+
+### Verification passed
+- `node scripts/check-contracts.mjs`
+- `go test ./internal/atproto -run TestSharedLexiconConformanceFixture -count=1` (42 cases)
+- `go test ./internal/atproto -count=1` and `go vet ./...`
+- `pnpm run test -- atprotoLexiconConformance` (40 cases; 200/200 across the whole web suite)
+- `make verify` (see PR/commit for the exact final tail)
 
 ## 2026-09-23 — #5 operations-panel API rehearsal
 

@@ -71,7 +71,27 @@ Migration 5 provides two-minute leases, fencing tokens, exponential one-minute-t
 
 ## Lexicon boundary
 
-No `tv.subcult.*` Lexicon has been admitted or published. The old schemas remain blocked by field review and the Subcults rights/license gate. `T-SYNTAX` is therefore implemented, while `T-LEX` remains open. When a minimal schema is independently authored and approved, validate the same JSON cases with Indigo's Lexicon package and the official TypeScript `@atproto/lex` package; reject unknown private-location and operational fields at the public projection boundary.
+A minimal `tv.subcult.*` chain (`tv.subcult.profile`, `tv.subcult.place`,
+`tv.subcult.event.occurrence`) has been independently authored and proposed
+for admission in [ADR 0007](../adr/0007-minimal-lexicon-admission.md); it is
+**not yet accepted**. D5 in [`decisions.md`](decisions.md) remains open until
+the repository owner merges that ADR. No `tv.subcult.*` record is published.
+The old Subcults schemas remain blocked by the rights/license gate and were
+not consulted; the proposed chain instead reviews the MIT-licensed
+`community.lexicon.calendar.*`/`community.lexicon.location.*` schemas as
+prior art. `T-SYNTAX` is implemented; `T-LEX` is proposed, not implemented.
+
+Field allowlists, bounds, and public time/location semantics are specified in
+[`lexicon-contract.md`](lexicon-contract.md). The same JSON corpus
+(`contracts/atproto-lexicon.fixtures.json`) is validated by the pinned
+Indigo `atproto/lexicon` package (`backend/internal/atproto/lexicon.go` and
+`lexicon_conformance_test.go`) and the official TypeScript `@atproto/lexicon`
+package (`web/src/atprotoLexiconConformance.test.ts`). Both validators
+additionally reject unknown private-location and operational fields at the
+public projection boundary, because official Lexicon validation intentionally
+allows additive unknown fields by protocol design and does not do this by
+itself; see `lexicon-contract.md` for why that check lives outside the wire
+schema.
 
 ## Verification
 
@@ -81,6 +101,8 @@ cd backend && TEST_DATABASE_URL=postgres://... go test ./internal/atproto -run T
 cd backend && TEST_DATABASE_URL=postgres://... go test ./internal/app -run TestIdentityATProtoStart -count=1
 cd backend && TEST_DATABASE_URL=postgres://... go test ./internal/app -run TestIdentityATProtoLinkListAndUnlink -count=1
 cd web && pnpm run test -- atprotoSyntaxConformance
+cd backend && go test ./internal/atproto -run TestSharedLexiconConformanceFixture -count=1
+cd web && pnpm run test -- atprotoLexiconConformance
 ```
 
-These checks prove local cross-language syntax agreement, authenticated person binding, hardened redirect policy, local unlink behavior and, with PostgreSQL configured, the encrypted store's expiry, replay, scope, rotation, audit and non-merging invariants. They do not prove live handle/DID resolution, OAuth interoperability, provider token revocation, a PDS write, Lexicon compatibility or publication authority.
+These checks prove local cross-language syntax agreement, authenticated person binding, hardened redirect policy, local unlink behavior and, with PostgreSQL configured, the encrypted store's expiry, replay, scope, rotation, audit and non-merging invariants. The Lexicon fixture checks additionally prove that the proposed `tv.subcult.*` chain's field allowlist, bounds and public-time strictness agree between the pinned Indigo validator and the official TypeScript validator. They do not prove live handle/DID resolution, OAuth interoperability, provider token revocation, a PDS write, or publication authority, and they do not by themselves make D5 accepted.
