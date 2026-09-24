@@ -1,5 +1,82 @@
 # Development execution log
 
+## 2026-09-24 — #17 AT projection backfill, rebuild and reconciliation
+
+Added migration `backend/internal/app/migrations/000013_at_projection_recovery.sql`
+(`minimumSchemaVersion` moved to 13): `at_projection_authorities` (`did`
+primary key, `approved_by_person_id`, `approved_at`, `revoked_at`, `note`)
+and `at_projection_runs` (`kind` backfill/rebuild/reconcile, `authority`
+nullable, `started_at`, `finished_at`, `outcome`
+running/completed/failed/gap, `counts jsonb`, `error`). Both tables are
+additive and unreferenced by any prior code path. Version 12 is reserved by
+a separate slice built in parallel in a different worktree and is not
+present in this branch's own history; `minimumSchemaVersion` and the
+migration filename intentionally skip it per the numbering assigned for
+this work.
+
+Added `backend/internal/atproto/record_list.go`: `RecordLister` interface
+plus `IdentityRecordLister`, the production `com.atproto.repo.listRecords`
+client. Like the existing `IdentityRecordFetcher`, it resolves the
+authority through the hardened identity directory and issues requests
+through the shared public-only, no-proxy HTTP client
+(`ssrf.PublicOnlyTransport`), so a PDS endpoint that resolves to a private,
+loopback or link-local address is refused
+(`TestIdentityRecordListerRefusesPrivatePDSEndpoint`). Listing is
+cursor-paged with a bounded page size (100) and a bounded per-record size
+(64 KiB, `RecordListMaxRecordBytes`, matching the stream path's bound).
+
+Added `backend/internal/app/atproto_backfill.go`:
+`ApproveProjectionAuthority`/`RevokeProjectionAuthority`/
+`ListApprovedProjectionAuthorities` manage the allowlist.
+`RunProjectionBackfill` lists all three admitted collections from an
+approved authority's PDS and feeds every record through the existing
+`ProjectionProcessor.ProcessEvent`, so Lexicon validation, the collection
+allowlist, and quarantine are shared with the stream path; it writes its
+own audit cursor under a distinct `at_projection_cursor` source row
+(`"backfill"`) so it can never overwrite the live `"jetstream"` cursor, and
+marks any record the authority no longer lists as `deleted` while
+preserving provenance. `RunProjectionRebuild` builds an in-memory shadow
+state from every approved authority and reports a `ProjectionDiff`
+(`missing`/`extra`/`cid_mismatch`/`status_mismatch` URIs, never record
+bodies) against `at_projection_records` without writing.
+`RunProjectionReconcile` rebuilds the same shadow state and applies it,
+scoped to approved authorities only. `RunProjectionMetrics` reports stream
+lag (derived from the stored Jetstream `time_us` cursor), quarantine count,
+records by status, the last run per kind, and the approved-authority count.
+Every run is recorded as one `at_projection_runs` row.
+
+Updated `backend/cmd/atproto-project/main.go`: added `-backfill did`,
+`-rebuild`, `-reconcile`, `-approve-authority did -approved-by person-id
+[-note text]` and `-revoke-authority did`; the no-flag default now prints
+`RunProjectionMetrics` instead of the narrower prior status. `-run` is
+unchanged.
+
+Verification: `go build ./...`, `go vet ./...`, and
+`go test ./internal/atproto/... ./internal/app/...` (full package,
+disposable PostgreSQL via `TEST_DATABASE_URL`) all passed against a
+temporarily renumbered local copy of the migration (000013 renamed to
+000012, `minimumSchemaVersion` set to 12) because this worktree does not
+contain the migration numbered 000012 that a parallel slice is adding; the
+embedded migration loader requires a gap-free sequence, so `go test
+./internal/app/...` fails in this worktree today with `migration sequence:
+got version 13, want 12` until that parallel slice's 000012 lands first.
+New tests: `record_list_test.go` (paging, oversize record, private-endpoint
+refusal, no-directory failure) and
+`atproto_backfill_integration_test.go` (authority approval gate, backfill
+storing/marking-deleted/account-migration/source-outage/cursor-gap,
+rebuild diff, reconcile applying the diff scoped to approved authorities,
+and a metrics-JSON no-private-data assertion). Full `make verify` was not
+run to a real green result for the same migration-sequence reason; running
+it against this branch alone reproduces the same failure once it reaches
+`test-db`.
+
+Known limits: backfill always performs a full listing per invocation (no
+persisted per-authority incremental resume cursor), so
+`ErrProjectionCursorGap` is exercised only by fixture tests; the bundled
+lister never returns it itself. `IdentityRecordLister` is exercised against
+`httptest` fixtures only, never a live PDS. Metrics are command-output
+only; no HTTP route exposes them in this change. Rebuild/reconcile hold the
+full shadow state for all approved authorities in memory per call.
 ## 2026-09-24 — #18 anonymous cultural discovery and reservation handoff (UX-01)
 
 No migration; `minimumSchemaVersion` stays 11. Added
