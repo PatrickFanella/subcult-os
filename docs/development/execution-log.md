@@ -1,5 +1,82 @@
 # Development execution log
 
+## 2026-09-24 — #16 allowlisted, restart-safe AT record projection (DISC-01)
+
+Added migration `backend/internal/app/migrations/000012_at_projection.sql`
+(`minimumSchemaVersion` moved to 12): `at_projection_records` (`uri` primary
+key, `did`, `collection`, `rkey`, `cid`, `rev`, `record jsonb`, `size_bytes`,
+`status` active/deleted/unavailable, `first_seen_at`, `updated_at`,
+`source_cursor`), `at_projection_cursor` (one row per source name), and
+`at_projection_quarantine` (bounded/truncated payload, reason, cursor). None
+of the three tables is referenced by any existing code path or written to by
+the CRUD/public-preview code from MODEL-01.
+
+Compared the raw firehose, Jetstream and Tap as the upstream stream adapter
+against the pinned Indigo commit (`v0.0.0-20260903211445-41278964ec8e`, no
+Tap client); chose a Jetstream-shaped JSON websocket consumer
+(`atproto_projection_jetstream.go`, using `golang.org/x/net/websocket`,
+already an indirect Indigo dependency and now promoted to direct — Indigo
+itself was not upgraded) because it lets the server filter to the three
+admitted collections and needs no Indigo surface. The stream client sits
+behind a `StreamSource` interface; all processor tests use an in-memory
+implementation, so no test opens a network connection. Full reasoning is in
+[`projection.md`](projection.md).
+
+`ProjectionProcessor.ProcessEvent` (`atproto_projection.go`) commits the
+record write and the cursor advance in one transaction. Implemented and
+tested: collection allowlisting (others advance the cursor without being
+stored), Lexicon validation via the existing `atproto.ValidateAdmittedRecord`
+(structural plus the public-field allowlist, catching a private-field leak
+the same way MODEL-01's public-preview path would), a 64 KiB per-record
+bound with a separately bounded quarantine payload, malformed-JSON
+quarantine, duplicate `(uri, cid)` replay as a no-op, out-of-order `rev`
+rejection, delete-marks-deleted-with-preserved-provenance (including a
+delete arriving before any create), account deactivated/takendown/suspended
+marking every record for that DID unavailable, terminal account deletion
+that survives a later reactivation event, and bounded exponential-backoff
+reconnect (`ProjectionProcessor.Run`). A dedicated crash/replay test injects
+a failure after the row write but before commit, then resumes a fresh
+processor from the stored cursor and proves no duplicate and no missing row.
+
+Added `backend/cmd/atproto-project` (default: secret-free JSON status
+mirroring `atproto-revoke`/`email-deliver`; `-run` consumes the stream,
+gated by `AT_PROJECTION_ENABLED`) and the opt-in `atproto-projection`
+Compose profile mirroring `atproto-workers`. `decisions.md`'s D10 row is now
+A11 (Accepted); publication/reconciliation (D8, D9) and discovery UI
+(UX-01) remain open.
+
+### Migration numbering conflict with parallel work
+
+This slice was assigned migration `000012` because versions 000009-000011
+are reserved for three other roadmap slices developed in parallel branches
+(`stack/32-public-links`, `stack/33-workspace-authority`,
+`stack/34-privacy-boundaries`) that had not added their migration files as
+of this work. The embedded migration loader (`db.go`) requires a strictly
+gap-free version sequence, so in this branch alone, every DB-backed test in
+`internal/app` and `internal/atproto` fails at `RunMigrations` with
+`migration sequence: got version 12, want 9` — including tests with no
+relationship to this feature. This reproduces in an isolated disposable
+PostgreSQL and is not caused by a bug in migration 000012 itself; it
+resolves once the three parallel branches' migrations are integrated ahead
+of this one so the sequence 1..12 is contiguous. Hosted CI runs the same
+`make test-db` gate and will show the same failure until integration.
+
+### Verification passed
+- `go build ./...`, `go vet ./...`, `gofmt -l .` (clean) from `backend/`
+- `TEST_DATABASE_URL=<disposable> make test-db` against the actual (gapped) sequence: 88 pass, 152 fail, every failure `migration sequence: got version 12, want 9` at `RunMigrations`, none a test-specific assertion failure
+- To isolate the projection logic itself from that numbering gap, temporarily renumbered the migration to `000009`/`minimumSchemaVersion = 9` (not committed) and reran `make test-db` against a fresh disposable database: all 17 projection tests pass (8 unit, 9 integration including the crash-mid-batch/replay-from-stored-cursor test), and every other test passes except one pre-existing MODEL-01 test (`TestCulturalModelFreshMigrationCreatesTables`) that hardcodes "current top version is 8" as its own assertion — expected, since this temporary renumbering made the top version 9; whichever slice becomes numerically last across the four parallel branches will need to update that hardcoded expectation to 12 regardless of numbering scheme. Reverted the file back to `000012`/`minimumSchemaVersion = 12` (confirmed byte-identical to the version reviewed) before committing
+- `make verify` (deps, fmt, lint, `check-contracts`, `test-backend`/`test-web`/`test-mobile`/`test-qa-scripts` — none of which use `TEST_DATABASE_URL` — `build`, `compose-config`, `open-pilot-check`): exit 0; web 200/200, mobile 27/27, `docker compose -p subcult-os config --quiet` validated the new `atproto-projection` profile
+- Disposable PostgreSQL used `COMPOSE_PROJECT_NAME=subcult-wf-16`/`POSTGRES_PORT=47016`, torn down with `docker compose -p subcult-wf-16 down -v` after each run
+
+### Remaining
+The migration-sequence gap above must resolve at integration before
+`make test-db`/hosted CI can pass with all four parallel slices merged.
+`JetstreamSource`'s reconnect retries `Next` on the same `websocket.Conn`
+rather than dialing a fresh connection at the stored cursor per attempt (see
+known limits in [`projection.md`](projection.md)); it is exercised by
+compile-time checks only, not against a live Jetstream endpoint. No
+backfill tooling, and no reconciliation between `at_projection_*` and
+`cultural_*` — that remains PUB-01/UX-01, per D8-D9.
 ## 2026-09-23 — #15 privacy boundary audit and lifecycle spec (SEC-15)
 
 Audited every anonymous/capability-token route in `backend/internal/app/app.go`, the MODEL-01 public preview, exports, request logging and telemetry against `docs/development/data-boundaries.md`; recorded the route-by-route trace in new [`privacy-audit-2026-09-23.md`](privacy-audit-2026-09-23.md). No export endpoint and no telemetry SDK exist in this codebase. Confirmed findings: `GET /api/dev/email-outbox` is not scoped to the caller's own workspace(s) in non-production environments (a cross-tenant plaintext-email leak in non-production environments, gated only by `AppEnv` and a session, not by workspace membership); fixed in this slice by scoping the query to the caller's own email, identity challenges and workspaces, pinned by `TestDevEmailOutboxScopedToCaller` because `email_outbox` has no `workspace_id` column to scope by without a migration, and the acceptance criteria called for an audit and fixes for leaks the criteria name, not a general route-hardening pass — recorded rather than silently dropped. No other anonymous route, the public preview, or request logging was found to leak a contact, staffing, attendance, consent, precise-location, incident-note, finance or plaintext-email field.

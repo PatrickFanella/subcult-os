@@ -147,6 +147,12 @@ Unlink immediately disables local access and queues encrypted credentials for re
 
 Use `docker compose exec api /app/atproto-revoke -status` for secret-free queue counts, or omit `-status` for one bounded batch. Completed credentials are erased; unsupported providers, invalid payloads, eight failed attempts or seven-day retention expiry produce a quarantined record with credentials removed. Quarantine does not prove provider revocation; investigate and revoke in the provider UI if necessary. See [the AT kernel](docs/development/atproto-kernel.md) for retries and recovery.
 
+## AT record projection worker
+
+An allowlisted, restart-safe mirror of the three admitted `tv.subcult.*` collections, read from an external Jetstream-shaped stream. After migrations are applied, opt into it with `docker compose --profile atproto-projection up -d atproto-projection`; it also requires `AT_PROJECTION_ENABLED=true` and `AT_PROJECTION_SOURCE_URL`. It never applies migrations and never writes into the `cultural_*` tables. This profile is off by default and is not live-qualified against a real Jetstream endpoint yet.
+
+Use `docker compose exec api /app/atproto-project` (no flags) for secret-free status (stored cursor, record count, quarantine count); pass `-run` to actually consume the stream. See [projection.md](docs/development/projection.md) for the adapter choice, processor semantics and known limits.
+
 ## Paid ticketing local setup
 
 For local paid-ticket testing, copy the optional Stripe env vars from `.env.example`, then run Stripe CLI webhook forwarding:
