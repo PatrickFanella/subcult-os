@@ -1,8 +1,8 @@
 # Admitted Lexicon contract
 
-Status: proposed by [ADR 0007](../adr/0007-minimal-lexicon-admission.md).
-D5 in [`decisions.md`](decisions.md) remains open until the repository owner
-accepts that ADR. This document describes the three record Lexicons under
+Status: admitted by [ADR 0007](../adr/0007-minimal-lexicon-admission.md),
+accepted 2026-09-23 (decision A10 in [`decisions.md`](decisions.md)).
+Publication remains gated by D7 through D10. This document describes the three record Lexicons under
 `contracts/lexicons/` and the corpus at `contracts/atproto-lexicon.fixtures.json`
 that both the Go and TypeScript validators run.
 
