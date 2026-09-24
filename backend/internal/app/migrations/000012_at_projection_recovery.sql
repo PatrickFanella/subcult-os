@@ -26,7 +26,7 @@ create table at_projection_runs (
   authority text,
   started_at timestamptz not null default now(),
   finished_at timestamptz,
-  outcome text not null default 'running' check (outcome in ('running', 'completed', 'failed', 'gap')),
+  outcome text not null default 'running' check (outcome in ('running', 'completed', 'failed', 'gap', 'bounded')),
   counts jsonb not null default '{}'::jsonb,
   error text not null default ''
 );

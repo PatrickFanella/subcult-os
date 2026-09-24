@@ -2,7 +2,7 @@
 
 Status: allowlisted, restart-safe projection implemented 2026-09-23
 (migration 000011); backfill, rebuild, reconcile and metrics added
-2026-09-24 (migration 000013; see below). This implements the recommended
+2026-09-24 (migration 000012; see below). This implements the recommended
 starting point for D10 (projection ingestion) in
 [`decisions.md`](decisions.md); it does not itself accept the decision.
 Publication (writing to a PDS, PUB-01) and any web/mobile discovery UI
@@ -174,7 +174,7 @@ docker compose --profile atproto-projection up -d
 
 ## Backfill, rebuild, reconcile (recovery)
 
-Status: added 2026-09-24 (migration `000013_at_projection_recovery.sql`).
+Status: added 2026-09-24 (migration `000012_at_projection_recovery.sql`).
 This addresses the stream-only limits noted below: the stream has no
 history/replay beyond its own retention, and this projector previously had
 no way to recover a missed window, verify itself against the authoritative
@@ -213,6 +213,20 @@ lists is marked `deleted`, preserving `did`/`collection`/`rkey` provenance
 `did` must be a currently-approved authority
 (`TestRunProjectionBackfillRejectsUnapprovedAuthority`); backfill never
 implicitly approves.
+
+The deletion sweep only runs for a `(did, collection)` pass that actually
+exhausted the source's cursor. If a collection's listing is cut off by
+`backfillMaxRecordsPerAuthority` or `backfillMaxPagesPerCollection` while
+the source still reports a non-empty cursor, the sweep is skipped for that
+collection — an unreached record is indistinguishable from a deleted one,
+and marking it deleted would silently drop a public row on every bounded
+pass over a large authority — and the run is recorded `bounded` instead of
+`completed`
+(`TestRunProjectionBackfillBoundedListingSkipsDeletionSweep`).
+`buildProjectionShadowState` (used by rebuild and reconcile, below) applies
+the same guard: an active record for a DID whose shadow listing was
+similarly cut off is never reported as `extra`
+(`TestRunProjectionRebuildBoundedListingDoesNotReportExtra`).
 
 The production `atproto.RecordLister` is `IdentityRecordLister`
 (`backend/internal/atproto/record_list.go`): like `IdentityRecordFetcher`,
@@ -271,14 +285,30 @@ for currently-approved authorities, because the shadow state and the
 comparison set are both scoped to `ListApprovedProjectionAuthorities`
 (`TestRunProjectionReconcileAppliesDiffOnlyForApprovedAuthorities`).
 
+A `status_mismatch` record (the authority still lists it active with an
+unchanged CID; the local row was previously marked `deleted` or
+`unavailable`, for example by a stream delete commit) is genuinely repaired
+back to `active`: `ProcessEvent`'s same-CID duplicate short-circuit only
+fires when the stored row is already `active`, so replaying the authority's
+current record through `ProcessEvent` reactivates it instead of being
+silently treated as a no-op duplicate and left deleted
+(`TestRunProjectionReconcileRepairsStatusMismatchBackToActive`). Backfill
+shares this fix for the same case (a record deleted locally that the
+authority still holds).
+
+If the rebuilt shadow state was bounded for any authority (see Backfill,
+above), the run is recorded `bounded` rather than `completed`, since the
+diff's `extra_uris` — and therefore reconcile's deletions — deliberately
+excluded that authority's unreached records.
+
 ### Run ledger
 
 Every backfill/rebuild/reconcile invocation writes one
 `at_projection_runs` row (`kind`, `authority` — null for a multi-authority
 rebuild/reconcile pass, `started_at`, `finished_at`, `outcome` —
-`running`/`completed`/`failed`/`gap`, `counts` — small integer aggregates
-only, `error`). `LastProjectionRuns` returns the most recent row per kind
-for status reporting.
+`running`/`completed`/`failed`/`gap`/`bounded`, `counts` — small integer
+aggregates only, `error`). `LastProjectionRuns` returns the most recent row
+per kind for status reporting.
 
 ### Metrics
 

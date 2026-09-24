@@ -116,6 +116,12 @@ const (
 	ProjectionRunCompleted ProjectionRunOutcome = "completed"
 	ProjectionRunFailed    ProjectionRunOutcome = "failed"
 	ProjectionRunGap       ProjectionRunOutcome = "gap"
+	// ProjectionRunBounded marks a run that finished without error but was
+	// cut off by a page/record bound before the source's listing was
+	// exhausted, so it must not be treated as an authoritative full pass:
+	// any deletion sweep or extra-record conclusion for the affected
+	// DID/collection was skipped rather than risking a false deletion.
+	ProjectionRunBounded ProjectionRunOutcome = "bounded"
 )
 
 // ProjectionRunSummary is the secret-free shape of one at_projection_runs
@@ -260,7 +266,7 @@ func RunProjectionBackfill(ctx context.Context, db *pgxpool.Pool, catalog *atpro
 		return BackfillResult{}, err
 	}
 
-	stats, deleted, gapErr, err := backfillOnce(ctx, db, catalog, lister, did)
+	stats, deleted, gapErr, bounded, err := backfillOnce(ctx, db, catalog, lister, did)
 	if gapErr {
 		counts := map[string]int{"stored": stats.Stored, "deleted": stats.Deleted, "updated": stats.Stored}
 		if fErr := finishProjectionRun(ctx, db, runID, ProjectionRunGap, counts, err); fErr != nil {
@@ -272,11 +278,8 @@ func RunProjectionBackfill(ctx context.Context, db *pgxpool.Pool, catalog *atpro
 		if rErr != nil {
 			return BackfillResult{}, rErr
 		}
-		stats, deleted, _, err = backfillOnce(ctx, db, catalog, lister, did)
-		outcome := ProjectionRunCompleted
-		if err != nil {
-			outcome = ProjectionRunFailed
-		}
+		stats, deleted, _, bounded, err = backfillOnce(ctx, db, catalog, lister, did)
+		outcome := backfillOutcome(bounded, err)
 		counts = map[string]int{"stored": stats.Stored, "deleted": deleted, "quarantined": stats.Quarantined}
 		if fErr := finishProjectionRun(ctx, db, retryRunID, outcome, counts, err); fErr != nil {
 			return BackfillResult{}, fErr
@@ -284,10 +287,7 @@ func RunProjectionBackfill(ctx context.Context, db *pgxpool.Pool, catalog *atpro
 		return BackfillResult{RunID: retryRunID, Outcome: outcome, Stats: stats, Deleted: deleted}, err
 	}
 
-	outcome := ProjectionRunCompleted
-	if err != nil {
-		outcome = ProjectionRunFailed
-	}
+	outcome := backfillOutcome(bounded, err)
 	counts := map[string]int{"stored": stats.Stored, "deleted": deleted, "quarantined": stats.Quarantined}
 	if fErr := finishProjectionRun(ctx, db, runID, outcome, counts, err); fErr != nil {
 		return BackfillResult{}, fErr
@@ -295,14 +295,36 @@ func RunProjectionBackfill(ctx context.Context, db *pgxpool.Pool, catalog *atpro
 	return BackfillResult{RunID: runID, Outcome: outcome, Stats: stats, Deleted: deleted}, err
 }
 
+// backfillOutcome classifies a completed backfillOnce call: a hard error
+// always wins, then a bounded (page/record-capped, listing not exhausted)
+// pass is reported as such rather than "completed" so an operator does not
+// mistake a partial pass — one whose deletion sweep was skipped — for an
+// authoritative full one.
+func backfillOutcome(bounded bool, err error) ProjectionRunOutcome {
+	if err != nil {
+		return ProjectionRunFailed
+	}
+	if bounded {
+		return ProjectionRunBounded
+	}
+	return ProjectionRunCompleted
+}
+
 // backfillOnce performs exactly one full (cursor-reset) listing pass across
 // the three admitted collections. The third return value reports whether
-// the listing failed because of a reported cursor gap.
-func backfillOnce(ctx context.Context, db *pgxpool.Pool, catalog *atprotocol.LexiconCatalog, lister atprotocol.RecordLister, did string) (ProjectionStats, int, bool, error) {
+// the listing failed because of a reported cursor gap. The fourth return
+// value reports whether any collection's listing was cut off by a bound
+// (backfillMaxRecordsPerAuthority or backfillMaxPagesPerCollection) while
+// the source still had more to list (a non-empty cursor remained); in that
+// case the deletion sweep for the affected collection is skipped, since an
+// incomplete listing cannot tell a genuinely deleted record apart from one
+// simply not reached yet.
+func backfillOnce(ctx context.Context, db *pgxpool.Pool, catalog *atprotocol.LexiconCatalog, lister atprotocol.RecordLister, did string) (ProjectionStats, int, bool, bool, error) {
 	processor := NewProjectionProcessorWithSource(db, catalog, backfillSourceName)
 	stats := ProjectionStats{}
 	deletedTotal := 0
 	sequence := 0
+	anyBounded := false
 
 	collections := admittedCollectionList()
 	sort.Strings(collections)
@@ -315,9 +337,9 @@ func backfillOnce(ctx context.Context, db *pgxpool.Pool, catalog *atprotocol.Lex
 			listed, err := listRecordsWithRetry(ctx, lister, did, collection, cursor, backfillMaxListAttempts)
 			if err != nil {
 				if errors.Is(err, atprotocol.ErrProjectionCursorGap) {
-					return stats, deletedTotal, true, err
+					return stats, deletedTotal, true, anyBounded, err
 				}
-				return stats, deletedTotal, false, err
+				return stats, deletedTotal, false, anyBounded, err
 			}
 			for _, record := range listed.Records {
 				ref, err := atprotocol.ParseRecordRef(record.URI)
@@ -338,7 +360,7 @@ func backfillOnce(ctx context.Context, db *pgxpool.Pool, catalog *atprotocol.Lex
 				}
 				outcome, err := processor.ProcessEvent(ctx, event, nil)
 				if err != nil {
-					return stats, deletedTotal, false, fmt.Errorf("apply backfilled record %s: %w", record.URI, err)
+					return stats, deletedTotal, false, anyBounded, fmt.Errorf("apply backfilled record %s: %w", record.URI, err)
 				}
 				stats.Record(outcome)
 				totalThisCollection++
@@ -352,20 +374,34 @@ func backfillOnce(ctx context.Context, db *pgxpool.Pool, catalog *atprotocol.Lex
 			}
 		}
 
+		// cursor is non-empty here only when the loop above exited because
+		// of a bound (record cap or page cap) while the source still had
+		// more to list, never on natural exhaustion (which always leaves
+		// cursor == ""). Skip the deletion sweep in that case: a record
+		// this pass never reached is indistinguishable from one genuinely
+		// deleted, and marking it deleted would silently drop a public row
+		// on every bounded backfill of a large authority.
+		if cursor != "" {
+			anyBounded = true
+			continue
+		}
+
 		deleted, err := markProjectionRecordsDeletedExcept(ctx, db, did, collection, seen)
 		if err != nil {
-			return stats, deletedTotal, false, err
+			return stats, deletedTotal, false, anyBounded, err
 		}
 		deletedTotal += deleted
 	}
-	return stats, deletedTotal, false, nil
+	return stats, deletedTotal, false, anyBounded, nil
 }
 
 // markProjectionRecordsDeletedExcept marks every currently-active projection
 // record for (did, collection) whose URI is not in seen as deleted,
-// preserving did/collection/rkey provenance. Called only after a full
-// (non-bounded, cursor-exhausted) listing pass, so absence from seen means
-// the authority's repo no longer has the record.
+// preserving did/collection/rkey provenance. Callers must only invoke this
+// after a full (non-bounded, cursor-exhausted) listing pass for that
+// collection — backfillOnce enforces this by skipping the call whenever its
+// loop exited with a non-empty cursor — so absence from seen means the
+// authority's repo no longer has the record.
 func markProjectionRecordsDeletedExcept(ctx context.Context, db *pgxpool.Pool, did, collection string, seen map[string]bool) (int, error) {
 	uris := make([]string, 0, len(seen))
 	for uri := range seen {
@@ -393,8 +429,16 @@ type shadowRecord struct {
 	Value      json.RawMessage
 }
 
-func buildProjectionShadowState(ctx context.Context, lister atprotocol.RecordLister, authorities []string) (map[string]shadowRecord, error) {
+// buildProjectionShadowState lists every admitted collection from every
+// given authority's PDS and returns the resulting shadow record set,
+// together with the set of DIDs whose listing was cut off by
+// backfillMaxPagesPerCollection before the source's cursor was exhausted.
+// A caller must not conclude that an active record for a bounded DID is
+// "extra" (absent from the authority) — the listing simply never reached
+// it — mirroring backfillOnce's own deletion-sweep guard.
+func buildProjectionShadowState(ctx context.Context, lister atprotocol.RecordLister, authorities []string) (map[string]shadowRecord, map[string]bool, error) {
 	shadow := make(map[string]shadowRecord)
+	bounded := make(map[string]bool)
 	collections := admittedCollectionList()
 	sort.Strings(collections)
 	for _, did := range authorities {
@@ -403,7 +447,7 @@ func buildProjectionShadowState(ctx context.Context, lister atprotocol.RecordLis
 			for page := 0; page < backfillMaxPagesPerCollection; page++ {
 				listed, err := listRecordsWithRetry(ctx, lister, did, collection, cursor, backfillMaxListAttempts)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
 				for _, record := range listed.Records {
 					ref, err := atprotocol.ParseRecordRef(record.URI)
@@ -417,9 +461,12 @@ func buildProjectionShadowState(ctx context.Context, lister atprotocol.RecordLis
 					break
 				}
 			}
+			if cursor != "" {
+				bounded[did] = true
+			}
 		}
 	}
-	return shadow, nil
+	return shadow, bounded, nil
 }
 
 // ProjectionDiff reports per-record differences between the rebuilt shadow
@@ -442,36 +489,37 @@ func (d ProjectionDiff) Counts() map[string]int {
 	}
 }
 
-func loadActiveProjectionState(ctx context.Context, db *pgxpool.Pool, authorities []string) (map[string]struct {
+type projectionActualRecord struct {
+	DID    string
 	CID    string
 	Status string
-}, error) {
-	rows, err := db.Query(ctx, `select uri, cid, status from at_projection_records where did = any($1)`, authorities)
+}
+
+func loadActiveProjectionState(ctx context.Context, db *pgxpool.Pool, authorities []string) (map[string]projectionActualRecord, error) {
+	rows, err := db.Query(ctx, `select uri, did, cid, status from at_projection_records where did = any($1)`, authorities)
 	if err != nil {
 		return nil, fmt.Errorf("load projection state for diff: %w", err)
 	}
 	defer rows.Close()
-	actual := make(map[string]struct {
-		CID    string
-		Status string
-	})
+	actual := make(map[string]projectionActualRecord)
 	for rows.Next() {
-		var uri, cid, status string
-		if err := rows.Scan(&uri, &cid, &status); err != nil {
+		var uri, did, cid, status string
+		if err := rows.Scan(&uri, &did, &cid, &status); err != nil {
 			return nil, err
 		}
-		actual[uri] = struct {
-			CID    string
-			Status string
-		}{CID: cid, Status: status}
+		actual[uri] = projectionActualRecord{DID: did, CID: cid, Status: status}
 	}
 	return actual, rows.Err()
 }
 
-func computeProjectionDiff(shadow map[string]shadowRecord, actual map[string]struct {
-	CID    string
-	Status string
-}) ProjectionDiff {
+// computeProjectionDiff compares a rebuilt shadow state against the actual
+// at_projection_records rows. bounded is the set of DIDs whose shadow
+// listing was cut off before exhaustion (see buildProjectionShadowState):
+// an active actual record for a bounded DID that is absent from shadow is
+// never reported as "extra", since the listing simply never reached it and
+// treating it as extra would let reconcile delete a record that is still
+// present at the authority.
+func computeProjectionDiff(shadow map[string]shadowRecord, actual map[string]projectionActualRecord, bounded map[string]bool) ProjectionDiff {
 	var diff ProjectionDiff
 	for uri, sr := range shadow {
 		a, ok := actual[uri]
@@ -492,6 +540,9 @@ func computeProjectionDiff(shadow map[string]shadowRecord, actual map[string]str
 			continue
 		}
 		if _, ok := shadow[uri]; !ok {
+			if bounded[a.DID] {
+				continue
+			}
 			diff.ExtraURIs = append(diff.ExtraURIs, uri)
 		}
 	}
@@ -516,7 +567,7 @@ func RunProjectionRebuild(ctx context.Context, db *pgxpool.Pool, lister atprotoc
 	if err != nil {
 		return ProjectionDiff{}, err
 	}
-	shadow, err := buildProjectionShadowState(ctx, lister, authorities)
+	shadow, bounded, err := buildProjectionShadowState(ctx, lister, authorities)
 	if err != nil {
 		_ = finishProjectionRun(ctx, db, runID, ProjectionRunFailed, nil, err)
 		return ProjectionDiff{}, err
@@ -526,8 +577,12 @@ func RunProjectionRebuild(ctx context.Context, db *pgxpool.Pool, lister atprotoc
 		_ = finishProjectionRun(ctx, db, runID, ProjectionRunFailed, nil, err)
 		return ProjectionDiff{}, err
 	}
-	diff := computeProjectionDiff(shadow, actual)
-	if err := finishProjectionRun(ctx, db, runID, ProjectionRunCompleted, diff.Counts(), nil); err != nil {
+	diff := computeProjectionDiff(shadow, actual, bounded)
+	outcome := ProjectionRunCompleted
+	if len(bounded) > 0 {
+		outcome = ProjectionRunBounded
+	}
+	if err := finishProjectionRun(ctx, db, runID, outcome, diff.Counts(), nil); err != nil {
 		return ProjectionDiff{}, err
 	}
 	return diff, nil
@@ -548,7 +603,7 @@ func RunProjectionReconcile(ctx context.Context, db *pgxpool.Pool, catalog *atpr
 	if err != nil {
 		return ProjectionStats{}, ProjectionDiff{}, err
 	}
-	shadow, err := buildProjectionShadowState(ctx, lister, authorities)
+	shadow, bounded, err := buildProjectionShadowState(ctx, lister, authorities)
 	if err != nil {
 		_ = finishProjectionRun(ctx, db, runID, ProjectionRunFailed, nil, err)
 		return ProjectionStats{}, ProjectionDiff{}, err
@@ -558,7 +613,7 @@ func RunProjectionReconcile(ctx context.Context, db *pgxpool.Pool, catalog *atpr
 		_ = finishProjectionRun(ctx, db, runID, ProjectionRunFailed, nil, err)
 		return ProjectionStats{}, ProjectionDiff{}, err
 	}
-	diff := computeProjectionDiff(shadow, actual)
+	diff := computeProjectionDiff(shadow, actual, bounded)
 
 	processor := NewProjectionProcessorWithSource(db, catalog, "reconcile")
 	stats := ProjectionStats{}
@@ -607,7 +662,11 @@ func RunProjectionReconcile(ctx context.Context, db *pgxpool.Pool, catalog *atpr
 		}
 	}
 
-	if err := finishProjectionRun(ctx, db, runID, ProjectionRunCompleted, diff.Counts(), nil); err != nil {
+	outcome := ProjectionRunCompleted
+	if len(bounded) > 0 {
+		outcome = ProjectionRunBounded
+	}
+	if err := finishProjectionRun(ctx, db, runID, outcome, diff.Counts(), nil); err != nil {
 		return stats, diff, err
 	}
 	return stats, diff, nil

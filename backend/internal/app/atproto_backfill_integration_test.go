@@ -466,6 +466,214 @@ func TestRunProjectionReconcileAppliesDiffOnlyForApprovedAuthorities(t *testing.
 	}
 }
 
+// pagedLister serves records for one collection across multiple pages of
+// pageSize each (empty page for every other collection), forever appending
+// a non-empty cursor: it never reports exhaustion, simulating an authority
+// with more records than any bound this package enforces.
+func pagedLister(did, collection string, pageSize int) fixtureListerFunc {
+	return func(ctx context.Context, gotDID, gotCollection, cursor string) (atprotocol.RecordListPage, error) {
+		if gotDID != did || gotCollection != collection {
+			return atprotocol.RecordListPage{}, nil
+		}
+		start := 0
+		if cursor != "" {
+			fmt.Sscanf(cursor, "%d", &start)
+		}
+		records := make([]atprotocol.ListedRecord, 0, pageSize)
+		for i := 0; i < pageSize; i++ {
+			n := start + i
+			uri := fmt.Sprintf("at://%s/%s/r%d", did, collection, n)
+			records = append(records, atprotocol.ListedRecord{URI: uri, CID: fmt.Sprintf("bafy%d", n), Value: profileRecordValue(fmt.Sprintf("Record %d", n))})
+		}
+		return atprotocol.RecordListPage{Records: records, Cursor: fmt.Sprintf("%d", start+pageSize)}, nil
+	}
+}
+
+// TestRunProjectionBackfillBoundedListingSkipsDeletionSweep proves that when
+// an authority's listing is cut off by backfillMaxPagesPerCollection while
+// the source still reports a non-empty cursor, backfill does not run its
+// deletion sweep (which would otherwise flip every not-yet-listed active
+// record to deleted) and instead records the run as bounded.
+func TestRunProjectionBackfillBoundedListingSkipsDeletionSweep(t *testing.T) {
+	db, catalog := newBackfillTestDB(t)
+	person := createTestPersonForBackfill(t, db)
+	did := "did:plc:bounded"
+	if err := ApproveProjectionAuthority(t.Context(), db, did, person, "test"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Pre-store an active record that the bounded lister below will never
+	// reach (it only ever serves freshly-numbered records, never this URI).
+	preexistingURI := "at://" + did + "/tv.subcult.profile/preexisting"
+	processor := NewProjectionProcessor(db, catalog)
+	ref, err := atprotocol.ParseRecordRef(preexistingURI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := processor.ProcessEvent(t.Context(), StreamEvent{
+		Cursor: "seed", DID: did, Kind: "commit", Operation: "create",
+		Collection: "tv.subcult.profile", RKey: ref.RecordKey, CID: "bafypre",
+		Record: profileRecordValue("Preexisting"),
+	}, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	// One record per page, forever: the loop always exits via the page
+	// bound with a non-empty cursor remaining, never via exhaustion.
+	lister := pagedLister(did, "tv.subcult.profile", 1)
+
+	result, err := RunProjectionBackfill(t.Context(), db, catalog, lister, did)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Outcome != ProjectionRunBounded {
+		t.Fatalf("outcome = %s, want bounded", result.Outcome)
+	}
+	if result.Deleted != 0 {
+		t.Fatalf("deleted = %d, want 0 (deletion sweep must be skipped for a bounded pass)", result.Deleted)
+	}
+
+	var status string
+	if err := db.QueryRow(t.Context(), `select status from at_projection_records where uri = $1`, preexistingURI).Scan(&status); err != nil {
+		t.Fatal(err)
+	}
+	if status != "active" {
+		t.Fatalf("preexisting record status = %s, want active (must survive a bounded backfill)", status)
+	}
+}
+
+// TestRunProjectionRebuildBoundedListingDoesNotReportExtra proves the same
+// truncation guard in buildProjectionShadowState: an active record for a
+// DID whose shadow listing was cut off by the page bound must not be
+// reported as "extra" (and therefore must not be deleted by reconcile).
+func TestRunProjectionRebuildBoundedListingDoesNotReportExtra(t *testing.T) {
+	db, catalog := newBackfillTestDB(t)
+	person := createTestPersonForBackfill(t, db)
+	did := "did:plc:reboundedrebuild"
+	if err := ApproveProjectionAuthority(t.Context(), db, did, person, "test"); err != nil {
+		t.Fatal(err)
+	}
+
+	preexistingURI := "at://" + did + "/tv.subcult.profile/preexisting"
+	processor := NewProjectionProcessor(db, catalog)
+	ref, err := atprotocol.ParseRecordRef(preexistingURI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := processor.ProcessEvent(t.Context(), StreamEvent{
+		Cursor: "seed", DID: did, Kind: "commit", Operation: "create",
+		Collection: "tv.subcult.profile", RKey: ref.RecordKey, CID: "bafypre",
+		Record: profileRecordValue("Preexisting"),
+	}, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	lister := pagedLister(did, "tv.subcult.profile", 1)
+
+	diff, err := RunProjectionRebuild(t.Context(), db, lister)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if containsString(diff.ExtraURIs, preexistingURI) {
+		t.Fatalf("extra = %v, must not include a record the bounded listing never reached", diff.ExtraURIs)
+	}
+
+	runs, err := allProjectionRunsForTest(t, db, "rebuild")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(runs) != 1 || runs[0].Outcome != ProjectionRunBounded {
+		t.Fatalf("rebuild runs = %+v, want a single bounded run", runs)
+	}
+
+	// Reconcile must not delete it either.
+	if _, _, err := RunProjectionReconcile(t.Context(), db, catalog, lister); err != nil {
+		t.Fatal(err)
+	}
+	var status string
+	if err := db.QueryRow(t.Context(), `select status from at_projection_records where uri = $1`, preexistingURI).Scan(&status); err != nil {
+		t.Fatal(err)
+	}
+	if status != "active" {
+		t.Fatalf("preexisting record status after reconcile = %s, want active", status)
+	}
+}
+
+// TestRunProjectionReconcileRepairsStatusMismatchBackToActive proves that a
+// record deleted locally (for example, by a stream delete commit) but still
+// listed with the same CID at the approved authority is repaired back to
+// active by reconcile, rather than being silently reported as a duplicate
+// and left deleted.
+func TestRunProjectionReconcileRepairsStatusMismatchBackToActive(t *testing.T) {
+	db, catalog := newBackfillTestDB(t)
+	person := createTestPersonForBackfill(t, db)
+	did := "did:plc:statusmismatch"
+	if err := ApproveProjectionAuthority(t.Context(), db, did, person, "test"); err != nil {
+		t.Fatal(err)
+	}
+
+	uri := "at://" + did + "/tv.subcult.profile/self"
+	ref, err := atprotocol.ParseRecordRef(uri)
+	if err != nil {
+		t.Fatal(err)
+	}
+	processor := NewProjectionProcessor(db, catalog)
+	if _, err := processor.ProcessEvent(t.Context(), StreamEvent{
+		Cursor: "1", DID: did, Kind: "commit", Operation: "create",
+		Collection: "tv.subcult.profile", RKey: ref.RecordKey, CID: "bafysame",
+		Record: profileRecordValue("Still Here"),
+	}, nil); err != nil {
+		t.Fatal(err)
+	}
+	// A stream delete commit marks the row deleted without changing its cid.
+	if _, err := processor.ProcessEvent(t.Context(), StreamEvent{
+		Cursor: "2", DID: did, Kind: "commit", Operation: "delete",
+		Collection: "tv.subcult.profile", RKey: ref.RecordKey, Rev: "2",
+	}, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	var preStatus string
+	if err := db.QueryRow(t.Context(), `select status from at_projection_records where uri = $1`, uri).Scan(&preStatus); err != nil {
+		t.Fatal(err)
+	}
+	if preStatus != "deleted" {
+		t.Fatalf("precondition: status = %s, want deleted", preStatus)
+	}
+
+	// The authority still lists the same record with the same CID.
+	lister := singlePageLister(did, "tv.subcult.profile", []atprotocol.ListedRecord{
+		{URI: uri, CID: "bafysame", Value: profileRecordValue("Still Here")},
+	})
+
+	stats, diff, err := RunProjectionReconcile(t.Context(), db, catalog, lister)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !containsString(diff.StatusMismatchURIs, uri) {
+		t.Fatalf("status mismatch = %v, want to contain %s", diff.StatusMismatchURIs, uri)
+	}
+	if stats.Duplicate != 0 {
+		t.Fatalf("duplicate = %d, want 0 (a status-mismatched record must be repaired, not short-circuited)", stats.Duplicate)
+	}
+
+	var postStatus string
+	if err := db.QueryRow(t.Context(), `select status from at_projection_records where uri = $1`, uri).Scan(&postStatus); err != nil {
+		t.Fatal(err)
+	}
+	if postStatus != "active" {
+		t.Fatalf("status after reconcile = %s, want active", postStatus)
+	}
+
+	runs, err := allProjectionRunsForTest(t, db, "reconcile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(runs) != 1 || runs[0].Outcome != ProjectionRunCompleted {
+		t.Fatalf("reconcile runs = %+v, want a single completed run", runs)
+	}
+}
+
 func TestRunProjectionMetricsExcludesPrivateData(t *testing.T) {
 	db, catalog := newBackfillTestDB(t)
 	person := createTestPersonForBackfill(t, db)

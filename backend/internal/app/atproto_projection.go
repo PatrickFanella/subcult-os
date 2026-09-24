@@ -241,7 +241,14 @@ func (p *ProjectionProcessor) applyCommitEvent(ctx context.Context, tx pgx.Tx, e
 	if found && event.Operation != "delete" && event.Rev != "" && existingRev != "" && event.Rev < existingRev {
 		return ProjectionOutcomeOutOfOrder, nil
 	}
-	if found && event.Operation != "delete" && event.CID != "" && event.CID == existingCID {
+	// A same-CID create/update is only a true no-op duplicate when the
+	// stored row is already active. A row this processor (or a delete
+	// commit) previously marked deleted or unavailable keeps its cid
+	// unchanged, so short-circuiting on cid alone would leave a
+	// status-mismatched record stuck deleted forever — backfill and
+	// reconcile both rely on this same path to repair that case by
+	// replaying the authority's current record.
+	if found && event.Operation != "delete" && event.CID != "" && event.CID == existingCID && existingStatus == "active" {
 		return ProjectionOutcomeDuplicate, nil
 	}
 
