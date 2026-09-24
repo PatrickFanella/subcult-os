@@ -214,6 +214,8 @@ func (a *App) routes() {
 	a.mux.HandleFunc("GET /api/events/{eventID}/settlement", a.handleGetSettlement)
 	a.mux.HandleFunc("POST /api/events/{eventID}/settlement/finalize", a.handleFinalizeSettlement)
 	a.mux.HandleFunc("POST /api/events/{eventID}/settlement/adjustments", a.handleCreateSettlementAdjustment)
+	a.mux.HandleFunc("GET /api/public/discovery/occurrences", a.handleListPublicDiscoveryOccurrences)
+	a.mux.HandleFunc("GET /api/public/discovery/occurrences/{uri...}", a.handleGetPublicDiscoveryOccurrence)
 	a.mux.HandleFunc("GET /api/public/events", a.handleListPublicEvents)
 	a.mux.HandleFunc("GET /api/public/events/{slug}", a.handlePublicEvent)
 	a.mux.HandleFunc("GET /api/public/events/{slug}/roles", a.handleListPublicEventRoles)
