@@ -13,7 +13,7 @@ Private observability should use opaque request/intent identifiers; avoid bodies
 Keep transactional notices distinct from marketing. Reservation, purchase, scene membership, push permission and public follow are not interchangeable.
 For any future audience delivery, specify sender, channel, purpose, scope, verification and suppression authority. Recheck suppression immediately before sending. If consent status cannot be established, do not send.
 The first consolidation slices transfer no contacts and perform no audience import/export. Consent portability remains separate research, not a shortcut around either legacy ledger.
-[`consent.md`](consent.md) (CONSENT-01, migration 000012) implements this section's requirements: the `consent_grants` schema, `checkSendPermission` (which never derives permission from tickets, contacts, role applications, atproto identity links or workspace membership) and its send-time recheck in `processEmailDeliveries`. It defines permission semantics only; no announcement send path exists yet.
+[`consent.md`](consent.md) (CONSENT-01, migration 000013) implements this section's requirements: the `consent_grants` schema, `checkSendPermission` (which never derives permission from tickets, contacts, role applications, atproto identity links or workspace membership) and its send-time recheck in `processEmailDeliveries`. [`announcements.md`](announcements.md) (SIGNAL-01, migration 000014) is the one implemented announcement send path, built on top of that boundary.
 
 ## Authorization checks
 Enforce workspace membership and role at each OS boundary. Enforce current creator/PDS authorization at publication. Require both for operator-to-public mutations.

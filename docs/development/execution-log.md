@@ -1,5 +1,91 @@
 # Development execution log
 
+## 2026-09-24 — #24 one scoped announcement channel and delivery worker (SIGNAL-01)
+
+Chose verified email through the existing Resend outbox as the one
+announcement channel (`docs/development/announcements.md`): it is the
+only channel with a qualified consent grant type, delivery ledger,
+suppression and provider adapter already in place; SMS is explicitly not
+added. The cost basis is configuration, `ANNOUNCEMENT_UNIT_COST_CENTS`
+(default `0`, meaning unknown), not an invented number.
+
+Added migration `backend/internal/app/migrations/000014_announcements.sql`
+(`minimumSchemaVersion` moved to 14): `announcements` (workspace-scoped
+draft/scheduled/cancelled/dispatching/dispatched state machine, scheduling
+and cancellation audit columns, `recipient_count`/`withheld_count`/
+`estimated_cost_cents` populated only at dispatch); `announcement_deliveries`
+(links an announcement to each `email_outbox` row it produced, one row per
+outbox row, no duplicated delivery/retry/suppression state); and a
+nullable `consent_grants.withdraw_token_hash` with a partial unique index.
+
+Implemented the withdraw-link design in `backend/internal/app/consent.go`:
+`deriveWithdrawToken` computes a deterministic, per-grant public withdraw
+token (HMAC-SHA256 keyed on the session secret, over the grant id) rather
+than a randomly drawn one-time value, because `verification_token_hash`'s
+raw token is never retained after the original confirm/unsubscribe email
+and so cannot be reconstructed for a later announcement.
+`mintWithdrawToken` derives it and returns its hash for storage;
+`handleConfirmConsentGrant` mints and stores it at verification time, and
+`handleWithdrawConsentGrant` now matches either `verification_token_hash`
+or `withdraw_token_hash`, so both link generations resolve to the same
+public withdraw route.
+
+Added `manage_announcements` (owner and organizer, matching
+`manage_consent`/`manage_delegations`) and, behind it,
+`POST`/`GET /api/workspaces/{workspaceID}/announcements` (draft, list),
+`GET .../announcements/{id}` (get, with delivery outcome counts joined
+from `email_outbox.delivery_status` via `announcement_deliveries`),
+`GET .../announcements/{id}/preview` (subject, body, current eligible
+recipient count, estimated cost — never an address),
+`POST .../announcements/{id}/schedule` (requires a future
+`scheduledFor`), and `POST .../announcements/{id}/cancel` (allowed only
+while draft or scheduled). `backend/internal/app/announcements.go`.
+
+Implemented dispatch in `backend/internal/app/announcement_dispatch.go`
+(`RunAnnouncementDispatch`, wired to a new `-announce` mode on
+`backend/cmd/email-deliver`): claims due scheduled announcements with
+`for update skip locked`, one per transaction; re-derives the raw
+candidate audience fresh from every verified `announcement`-purpose grant
+for the workspace (regardless of current withdrawn/suppressed state);
+calls `checkSendPermission` per recipient as the actual final consent
+gate (a grant withdrawn, or an address suppressed, since scheduling is
+counted as withheld here, not silently dropped); enqueues one
+`email_outbox` row per allowed recipient with `purpose = 'announcement'`
+and `workspace_id` set, with the recipient's withdraw link appended to
+the body; records `announcement_deliveries`; and sets
+`recipient_count`/`withheld_count`/`estimated_cost_cents`/
+`status = dispatched`, all before committing. It never contacts the mail
+provider; actual sending, its bounded retries, suppression and feedback
+stay entirely with the existing `processEmailDeliveries` worker, whose
+existing send-time `checkSendPermission` recheck still applies.
+
+Added the optional `announcement-workers` Compose profile
+(`email-deliver -announce -watch`), documented in `AGENTS.md` and
+`README.md` alongside the existing `mail-workers` profile, which is
+otherwise unchanged.
+
+**Verification actually run:** `go build ./...`, `go vet ./...`,
+`gofmt -l .` (clean), and the full `internal/app` package test suite
+against disposable PostgreSQL (`make test-db` equivalent via
+`go test ./internal/app/...`), including
+`TestAnnouncementSyntheticJourney` (grant two recipients, confirm both,
+schedule into the past-due window, preview shows 2, withdraw one
+recipient's grant, dispatch produces exactly one `email_outbox` row with
+`withheld_count = 1`, then `processEmailDeliveries` with a fake sender
+accepts the one allowed row and never sends to the withdrawn address),
+`TestAnnouncementCancelBeforeDispatchProducesNoRows`,
+`TestAnnouncementRequiresManageAnnouncementsPermission` (403 for a
+member without `manage_announcements`), `TestAnnouncementScheduleRejectsPastAndPresent`,
+and `TestAnnouncementWithdrawLinkTokenWorksThroughPublicRoute`. `make
+verify` was also run; see its own note below for the actual result.
+
+**Remaining limits:** no SMS/second channel; `ANNOUNCEMENT_UNIT_COST_CENTS`
+defaults to `0` (unknown, not free); no UI; no re-send, schedule-time
+editing or per-recipient personalization beyond the withdraw link; no
+throttling beyond the existing delivery worker's batch/lease behavior; no
+live deliverability test or permissioned pilot has been run (blocked on
+issue #7). See `docs/development/announcements.md` for the full list.
+
 ## 2026-09-24 — #23 verified channel consent and suppression semantics (CONSENT-01)
 
 Added migration `backend/internal/app/migrations/000013_consent_grants.sql`

@@ -2,6 +2,8 @@
 
 Transactional email uses an opt-in Resend worker while Proton remains the inbox. See [the email runbook](docs/runbooks/transactional-email.md) for setup and qualification gates. Normal startup does not send mail; existing outbox rows remain held. The `mail-workers` Compose profile and `MAIL_DELIVERY_ENABLED=true` must both be deliberately configured for continuous delivery.
 
+The one implemented announcement channel (verified email; see [`docs/development/announcements.md`](docs/development/announcements.md)) uses a separate `announcement-workers` Compose profile, running `email-deliver -announce -watch`. It only claims due scheduled announcements and enqueues their recipient `email_outbox` rows; it never contacts the mail provider itself, so it does not require `MAIL_DELIVERY_ENABLED=true` and can run independently of `mail-workers`. Actual sending of an announcement's enqueued rows still goes through `mail-workers`/`-send`, and is still subject to `MAIL_DELIVERY_ENABLED`.
+
 Gitea verification installs Node 24, pnpm 10.33.0 and Go 1.26.6 inside each job.
 The shared runner must provide Docker Compose for configuration validation. CI
 starts a job-scoped PostgreSQL 17 service with disposable credentials and no host
