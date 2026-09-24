@@ -201,22 +201,19 @@ PostgreSQL:
 
 ## Known limits
 
-- **Legacy endpoints only recognize `owner`/`member`, not the new roles.**
-  Every pre-AUTH-01 handler (events, contacts, tickets, staffing, cultural
-  CRUD, etc.) calls `requireWorkspaceRole(r, workspaceID, "owner", "member")`
-  with those literal strings, unchanged by this slice on purpose (see
-  "The central permission function" above). A member promoted to
-  `organizer`, `finance`, or `door` via the new role-change endpoint gains
-  the capabilities in the matrix (checkable via `authorize`/
-  `requirePermission`) but is **not** `"owner"` or `"member"`, so every
-  legacy handler's literal role match denies them `403` — they lose access
-  to day-to-day workspace operations they previously had as a `member`.
-  Only `owner`, `crew`, and the `member` alias currently retain full
-  baseline access to the pre-existing surface. Migrating each legacy call
-  site from a literal role list to `requirePermission(r, workspaceID,
-  permOperate)` (or the finer-grained permission each handler actually
-  needs) is required before `organizer`/`finance`/`door` are usable roles
-  in practice, and is explicitly out of scope for this slice.
+- **Legacy endpoints are role-name checks, not permission checks.** Every
+  pre-AUTH-01 handler calls `requireWorkspaceRole(r, workspaceID, "owner",
+  "member")` or `requireWorkspaceRole(r, workspaceID, "owner")`.
+  `requireWorkspaceRole` treats the literal `"member"` as "any active role
+  that carries `operate`", so a member promoted to `organizer`, `finance`,
+  `door` or `crew` keeps baseline access to the existing surface
+  (`TestPromotedRolesKeepBaselineAccessOnLegacyRoutes`), and owner-only
+  handlers keep denying every non-owner role. What the new roles do **not**
+  yet get is finer-grained enforcement on that surface: a `door` member can
+  still reach settlement routes that only check for "any member", because
+  those handlers have not been migrated to `requirePermission(r,
+  workspaceID, permFinance)` and similar. That per-handler migration is out
+  of scope for this slice.
 - No account-recovery flow beyond the ownership-transfer-by-promotion
   pattern; see "Recovery" above.
 - No API surface yet lists members' delegation-adjacent history beyond the

@@ -170,6 +170,14 @@ func (a *App) requireWorkspaceRole(r *http.Request, workspaceID string, allowed 
 		if membershipRole == want {
 			return personID, membershipRole, true
 		}
+		// Legacy call sites spell "any workspace member" as the literal
+		// "member" role. Every role in the matrix carries permOperate, so
+		// an organizer, finance, door or crew member satisfies that
+		// baseline check exactly as a legacy member does. Owner-only call
+		// sites are unaffected because they never list "member".
+		if want == roleMember && roleHasPermission(membershipRole, permOperate) {
+			return personID, membershipRole, true
+		}
 	}
 	return "", "", false
 }

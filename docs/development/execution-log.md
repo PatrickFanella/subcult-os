@@ -37,10 +37,11 @@ cultural profile from another workspace).
 organization claim), the permission matrix, expiry/revocation/owner-
 departure/recovery rules, and known limits — most importantly that
 pre-AUTH-01 endpoints still gate on literal `"owner"`/`"member"` role
-strings by design, so a member promoted to `organizer`/`finance`/`door`
-gains the new matrix's capabilities but loses `403`-free access to every
-legacy endpoint until each call site is migrated to permission-based checks
-in a follow-on slice. `decisions.md`'s D8 row now points to this doc as
+strings. `requireWorkspaceRole` treats the literal `"member"` as any active
+role carrying `operate`, so a member promoted to `organizer`/`finance`/`door`
+keeps baseline access to the existing surface, but finer-grained enforcement
+on that surface (for example keeping `door` out of settlement routes) waits
+for each call site to move to permission-based checks in a follow-on slice. `decisions.md`'s D8 row now points to this doc as
 partial evidence toward its recommended starting point (workspace
 permission and creator delegation); D8 remains Open, and current scoped
 OAuth (the third element of D8) is not implemented here.
