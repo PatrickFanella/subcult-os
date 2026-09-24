@@ -17,7 +17,7 @@ Reviewed `community.lexicon.calendar.event`/`.rsvp` and `community.lexicon.locat
 
 Added `contracts/lexicons/*.json` (three record Lexicons) and `contracts/atproto-lexicon.fixtures.json` (`tv.subcult.profile`: 2 valid/8 invalid; `tv.subcult.place`: 2 valid/10 invalid; `tv.subcult.event.occurrence`: 3 valid/13 invalid; 38 cases total). Both `backend/internal/atproto/lexicon.go` (using the pinned Indigo `atproto/lexicon` package, confirmed present at the pinned commit) and `web/src/atprotoLexiconConformance.test.ts` (using `@atproto/lexicon@0.7.6`, added as a pinned `web/package.json` devDependency and installed into `web/pnpm-lock.yaml`) run the same corpus and agree on every case. Both validators additionally enforce a field allowlist derived from the Lexicon JSON's own `properties`, and an explicit-UTC-offset datetime check, because official Lexicon validation intentionally allows additive unknown fields and (in `@atproto/lexicon`'s case) a missing datetime offset; this discrepancy is recorded in ADR 0007 and `lexicon-contract.md` rather than papered over.
 
-Updated `atproto-kernel.md`'s Lexicon boundary section and `decisions.md`'s D5 row to point at the ADR and contract doc. D5 is **not** marked Accepted; this slice is a complete, reviewable proposal the repository owner accepts by merging ADR 0007. No database, migration or runtime handler changed.
+Updated `atproto-kernel.md`'s Lexicon boundary section and `decisions.md`'s D5 row to point at the ADR and contract doc. D5 is **not** marked Accepted; this slice is a complete, reviewable proposal; the repository owner accepts it by flipping ADR 0007 to Accepted. No database, migration or runtime handler changed.
 
 ### Verification passed
 - `node scripts/check-contracts.mjs`

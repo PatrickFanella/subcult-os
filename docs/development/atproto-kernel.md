@@ -75,7 +75,7 @@ A minimal `tv.subcult.*` chain (`tv.subcult.profile`, `tv.subcult.place`,
 `tv.subcult.event.occurrence`) has been independently authored and proposed
 for admission in [ADR 0007](../adr/0007-minimal-lexicon-admission.md); it is
 **not yet accepted**. D5 in [`decisions.md`](decisions.md) remains open until
-the repository owner merges that ADR. No `tv.subcult.*` record is published.
+the repository owner flips that ADR to Accepted. No `tv.subcult.*` record is published.
 The old Subcults schemas remain blocked by the rights/license gate and were
 not consulted; the proposed chain instead reviews the MIT-licensed
 `community.lexicon.calendar.*`/`community.lexicon.location.*` schemas as

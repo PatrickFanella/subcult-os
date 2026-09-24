@@ -3,9 +3,11 @@
 ## Status
 
 Proposed. This ADR does not accept D5. D5 (Lexicon admission) remains an open
-decision belonging to the repository owner; merging this ADR (and the
-accompanying contract and validators) is how the owner accepts it. Until then,
-`tv.subcult.*` records described here are not published.
+decision belonging to the repository owner. Merging this document records the
+proposal and its validators; it is not acceptance. The owner accepts D5 by
+changing this status to Accepted and moving D5 to the Accepted table in
+`docs/development/decisions.md`. Until then, `tv.subcult.*` records described
+here are not published.
 
 ## Context
 
@@ -124,8 +126,8 @@ enforcing the field-allowlist and explicit-datetime-offset boundary that the
 official validators leave open by protocol design.
 
 This ADR proposes admission; it does not itself flip D5 to Accepted. The
-repository owner accepts D5 by merging this ADR (and the contract/validators
-it describes), per the framing in issue #11.
+repository owner accepts D5 by editing this status to Accepted and updating
+`decisions.md`, per the framing in issue #11.
 
 ## Consequences
 

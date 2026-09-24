@@ -12,15 +12,19 @@ import (
 // package's directory at test/run time.
 const LexiconContractDir = "../../../contracts/lexicons"
 
-// LoadLexiconCatalog reads every admitted Lexicon JSON document from dirPath
-// into an Indigo BaseCatalog. It does not accept Indigo types across this
-// package's boundary; callers only ever see plain NSIDs, maps and errors.
-func LoadLexiconCatalog(dirPath string) (*indigolexicon.BaseCatalog, error) {
+// LexiconCatalog wraps the pinned Indigo catalog so no Indigo type crosses
+// this package's boundary; callers only ever see plain NSIDs, bytes and errors.
+type LexiconCatalog struct {
+	catalog *indigolexicon.BaseCatalog
+}
+
+// LoadLexiconCatalog reads every admitted Lexicon JSON document from dirPath.
+func LoadLexiconCatalog(dirPath string) (*LexiconCatalog, error) {
 	catalog := indigolexicon.NewBaseCatalog()
 	if err := catalog.LoadDirectory(dirPath); err != nil {
 		return nil, fmt.Errorf("load lexicon contracts: %w", err)
 	}
-	return catalog, nil
+	return &LexiconCatalog{catalog: catalog}, nil
 }
 
 // ValidateAdmittedRecord checks recordJSON against the admitted Lexicon
@@ -34,7 +38,11 @@ func LoadLexiconCatalog(dirPath string) (*indigolexicon.BaseCatalog, error) {
 //     docs/development/atproto-kernel.md must instead reject any field the
 //     admitted schema did not declare, so private or operational data can
 //     never ride along inside an otherwise-valid record.
-func ValidateAdmittedRecord(catalog *indigolexicon.BaseCatalog, nsid string, recordJSON []byte) error {
+func ValidateAdmittedRecord(admitted *LexiconCatalog, nsid string, recordJSON []byte) error {
+	if admitted == nil || admitted.catalog == nil {
+		return fmt.Errorf("lexicon catalog is required")
+	}
+	catalog := admitted.catalog
 	var record map[string]any
 	if err := json.Unmarshal(recordJSON, &record); err != nil {
 		return fmt.Errorf("record is not a JSON object: %w", err)
