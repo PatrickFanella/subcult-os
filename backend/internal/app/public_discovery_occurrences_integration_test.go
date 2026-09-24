@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -364,4 +365,47 @@ func TestDiscoveryRoutesNeverLeakPrivacySentinels(t *testing.T) {
 
 	assertNoSentinelLeak(t, "discovery list", list.Body, sentinels.sentinels())
 	assertNoSentinelLeak(t, "discovery detail", detail.Body, sentinels.sentinels())
+}
+
+// TestDiscoveryDetailOmitsLocationFromDeletedPlace proves a venue record the
+// authority deleted is no longer rendered even though the projection keeps
+// its body for provenance.
+func TestDiscoveryDetailOmitsLocationFromDeletedPlace(t *testing.T) {
+	fx, _ := newPublicLinkFixture(t)
+	p := newDiscoveryProjectionProcessor(t, fx)
+	ctx := t.Context()
+
+	did := "did:plc:discoverydeletedplace01"
+	placeURI := "at://" + did + "/tv.subcult.place/place0002"
+	occURI := "at://" + did + "/tv.subcult.event.occurrence/occ0002"
+
+	if _, err := p.ProcessEvent(ctx, StreamEvent{
+		Cursor: "1", Kind: "commit", Operation: "create", DID: did,
+		Collection: "tv.subcult.place", RKey: "place0002", CID: "bafyplace2", Rev: "3l1",
+		Record: discoveryTestPlaceRecord("Gone Venue", "Chicago", "IL", "US"),
+	}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.ProcessEvent(ctx, StreamEvent{
+		Cursor: "2", Kind: "commit", Operation: "create", DID: did,
+		Collection: "tv.subcult.event.occurrence", RKey: "occ0002", CID: "bafyocc2", Rev: "3l1",
+		Record: discoveryTestOccurrenceRecord("Orphaned Night", "2026-10-02T20:00:00Z", placeURI),
+	}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.ProcessEvent(ctx, StreamEvent{
+		Cursor: "3", Kind: "commit", Operation: "delete", DID: did,
+		Collection: "tv.subcult.place", RKey: "place0002", Rev: "3l2",
+	}, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	detail := getJSON(t, fx.app, nil, "/api/public/discovery/occurrences/"+occURI[len("at://"):], http.StatusOK)
+	if strings.Contains(detail.Body, "Gone Venue") {
+		t.Fatalf("deleted place must not be rendered: %s", detail.Body)
+	}
+	list := getJSON(t, fx.app, nil, "/api/public/discovery/occurrences", http.StatusOK)
+	if strings.Contains(list.Body, "Gone Venue") {
+		t.Fatalf("deleted place must not be rendered in the list: %s", list.Body)
+	}
 }

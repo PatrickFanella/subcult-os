@@ -40,6 +40,7 @@ vi.mock('react', async () => {
 		...actual,
 		useState: (initial: unknown) => currentUseState(initial),
 		useEffect: () => undefined,
+		useRef: (initial: unknown) => ({ current: initial }),
 	};
 });
 

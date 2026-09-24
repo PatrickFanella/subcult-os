@@ -78,6 +78,9 @@ export function DiscoveryOccurrencesSection() {
 		};
 	}, []);
 
+	const dialogRef = useRef<HTMLDivElement | null>(null);
+	const openerRef = useRef<HTMLElement | null>(null);
+
 	useEffect(() => {
 		if (!selectedURI) return;
 		function onKeyDown(event: KeyboardEvent) {
@@ -86,10 +89,20 @@ export function DiscoveryOccurrencesSection() {
 			}
 		}
 		document.addEventListener('keydown', onKeyDown);
-		return () => document.removeEventListener('keydown', onKeyDown);
+		// Move focus into the dialog on open and give it back to the card
+		// that opened it on close, so keyboard users are not left behind
+		// the overlay.
+		dialogRef.current?.focus();
+		return () => {
+			document.removeEventListener('keydown', onKeyDown);
+			openerRef.current?.focus();
+		};
 	}, [selectedURI]);
 
 	function openDetail(uri: string) {
+		if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+			openerRef.current = document.activeElement;
+		}
 		setSelectedURI(uri);
 	}
 
@@ -183,7 +196,12 @@ export function DiscoveryOccurrencesSection() {
 					className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
 					onClick={() => setSelectedURI(null)}
 				>
-					<div className={`${publicCardClass} w-full max-w-lg`} onClick={(event) => event.stopPropagation()}>
+					<div
+						ref={dialogRef}
+						tabIndex={-1}
+						className={`${publicCardClass} w-full max-w-lg outline-none`}
+						onClick={(event) => event.stopPropagation()}
+					>
 						<div className="flex items-start justify-between gap-3">
 							<h2 className="text-2xl font-black text-[#171717]">{selected.name}</h2>
 							<button type="button" className={publicSecondaryButtonClass} onClick={() => setSelectedURI(null)}>

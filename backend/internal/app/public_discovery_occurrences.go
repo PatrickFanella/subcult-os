@@ -183,7 +183,7 @@ func (a *App) buildDiscoveryOccurrenceDTO(ctx context.Context, row projectionRec
 	}
 
 	if record.Place != nil && record.Place.URI != "" {
-		if placeRow, err := a.loadProjectionRecord(ctx, record.Place.URI); err == nil && len(placeRow.Record) > 0 {
+		if placeRow, err := a.loadProjectionRecord(ctx, record.Place.URI); err == nil && placeRow.Status == "active" && len(placeRow.Record) > 0 {
 			var place projectionPlaceRecord
 			if err := json.Unmarshal(placeRow.Record, &place); err == nil {
 				location := &discoveryLocationDTO{
