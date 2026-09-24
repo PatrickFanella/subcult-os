@@ -1,5 +1,83 @@
 # Development execution log
 
+## 2026-09-23 — #14 creator delegation and granular workspace authority (AUTH-01)
+
+Added migration `backend/internal/app/migrations/000010_workspace_authority.sql`
+(schema version 8 → 10; version 9 is reserved for a parallel slice not
+present in this branch): widens `workspace_members.role` from
+`('owner', 'member')` to `('owner', 'organizer', 'finance', 'door', 'crew',
+'member')`, keeping `'member'` as a permanent legacy alias for `'crew'` so
+every existing row and every existing literal `"owner"`/`"member"` call site
+keeps working unmodified; adds `expires_at`, `revoked_at` and
+`revoked_by_person_id` to `workspace_members`; and adds `creator_delegations`
+(a cultural profile's scoped, time-boxed grant of the right to act for it to
+a workspace), carrying the same composite `(id, workspace_id)` foreign key
+pattern as migration 000008 so a delegation can never reference a cultural
+profile from a different workspace. `minimumSchemaVersion` moved to 10.
+
+Added `authority.go`: a least-privilege permission matrix
+(`rolePermissions`) over five roles plus the legacy alias; the central
+`authorize(ctx, personID, workspaceID, permission)` function and its
+`activeMembership` helper, which treat a removed, revoked, or expired
+membership identically as absent; `requireWorkspaceRole` rewritten on top of
+`activeMembership` so every pre-existing call site's literal role strings
+keep working while gaining expiry/revocation enforcement; and
+`authorizePublicWrite(ctx, actorPersonID, workspaceID, profileID)`, the hook
+the future PUB-AUTH (#19) publication outbox will call, denying on revoked/
+expired membership, missing `publish` permission, or a missing/expired/
+revoked creator delegation. Added `authority_handlers.go`: member role/
+expiry change and revocation endpoints (owner-only, with a transaction-locked
+last-owner guard blocking demotion, revocation, or removal of the sole
+active owner), and creator delegation list/create/revoke endpoints
+(owner/organizer via `manage_delegations`, delegation creation rejects a
+cultural profile from another workspace).
+
+`docs/development/authority-model.md` records the four separated concepts
+(account control, workspace permission, creator delegation, real-world
+organization claim), the permission matrix, expiry/revocation/owner-
+departure/recovery rules, and known limits — most importantly that
+pre-AUTH-01 endpoints still gate on literal `"owner"`/`"member"` role
+strings by design, so a member promoted to `organizer`/`finance`/`door`
+gains the new matrix's capabilities but loses `403`-free access to every
+legacy endpoint until each call site is migrated to permission-based checks
+in a follow-on slice. `decisions.md`'s D8 row now points to this doc as
+partial evidence toward its recommended starting point (workspace
+permission and creator delegation); D8 remains Open, and current scoped
+OAuth (the third element of D8) is not implemented here.
+
+`backend/internal/app/cultural_model_integration_test.go`'s
+`TestCulturalModelFreshMigrationCreatesTables` asserted schema version `== 8`
+after a fresh migration; changed to `>= 8` since later slices (including
+this one) legitimately advance the version further.
+
+### Verification passed
+- `go build ./...`, `go vet ./...` from `backend/`
+- `TEST_DATABASE_URL=<disposable> make test-db`: 213 tests, 0 failures,
+  both `internal/app` and `internal/atproto` `ok`, including 7 new tests
+  (fresh-migration role/column check, revoked-member-denied-everywhere,
+  expired-membership-denied-everywhere, last-owner-cannot-be-removed-
+  demoted-or-revoked, authorizePublicWrite-denies-each-reason, role-change-
+  restricted-to-owner, delegation-endpoints-restricted-and-scoped)
+- `make verify`: deps, fmt, lint, `check-contracts`, `test`
+  (backend/web/mobile/qa-scripts), `build`, `compose-config`,
+  `open-pilot-check` all passed; web 200/200, mobile 27/27; exit 0
+- Disposable PostgreSQL used `COMPOSE_PROJECT_NAME=subcult-wf-14`/
+  `POSTGRES_PORT=47014`, torn down with `docker compose -p subcult-wf-14
+  down -v` after the run. A local-only placeholder
+  `000009_placeholder_local_test_only.sql` (a no-op `select 1;`) was used
+  transiently to satisfy the gap-free migration sequence check while this
+  worktree lacks the parallel slice that actually owns version 9; it was
+  deleted before committing and is not part of any commit.
+
+### Remaining
+Every pre-AUTH-01 endpoint (events, contacts, tickets, staffing, cultural
+CRUD, etc.) still checks literal `"owner"`/`"member"` role strings rather
+than routing through `authorize`/`requirePermission`; `organizer`, `finance`,
+and `door` are only meaningfully usable through the new endpoints and direct
+`authorize` calls until that migration happens. There is no account-recovery
+flow beyond promoting a second owner before the original steps down. No
+publication outbox exists yet for `authorizePublicWrite` to be wired into
+(PUB-AUTH, #19). No web/mobile UI was added for any of this.
 ## 2026-09-23 — #13 private event-to-public-occurrence links (LINK-01)
 
 Added migration `backend/internal/app/migrations/000009_event_public_links.sql`
