@@ -1,0 +1,27 @@
+diff --git a/util/ssrf/ssrf.go b/util/ssrf/ssrf.go
+--- a/util/ssrf/ssrf.go
++++ b/util/ssrf/ssrf.go
+@@ -143,3 +143,23 @@ func PublicOnlyTransport() *http.Transport {
+ 		ExpectContinueTimeout: 1 * time.Second,
+ 	}
+ }
++
++// StrictPublicOnlyTransport is [PublicOnlyTransport] with environment
++// variable HTTP_PROXY/HTTPS_PROXY support disabled (Proxy is nil instead of
++// http.ProxyFromEnvironment). All other fields, including the public-IP
++// dial control, are unchanged.
++//
++// PublicOnlyTransport intentionally honors ambient proxy environment
++// variables (see identity.DefaultDirectory's doc comment: "If an HTTP proxy
++// is configured ... SSRF protections will not apply to external requests").
++// Callers that cannot accept that tradeoff for a given outbound path (for
++// example, OAuth metadata/token requests or identity resolution in a
++// deployment whose egress proxy is not trusted to re-apply SSRF checks) can
++// use this transport instead. Combine it with an http.Client.CheckRedirect
++// func that returns http.ErrUseLastResponse to also stop following
++// redirects; this transport has no redirect concept of its own.
++func StrictPublicOnlyTransport() *http.Transport {
++	t := PublicOnlyTransport()
++	t.Proxy = nil
++	return t
++}
