@@ -2,6 +2,12 @@
 
 Status: approved cutover target; not approved to execute until all pre-cutover gates pass.
 
+The [2026-09-24 legacy restore rehearsal](../qa/legacy-backup-restore-2026-09-24.md)
+reconfirmed the recorded topology and image identities, then restored a fresh
+protected database dump into an isolated instance. Migration 46, the public-table
+count and six domain-table counts matched. Candidate database/key recovery,
+role/ACL recovery and the complete configuration rollback receipt remain open.
+
 The product owner authorized Subcult OS to replace the existing legacy Subcults application at `https://subcults.subcult.tv`. That authority permits an eventual controlled cutover, not premature downtime, data destruction, secret extraction, or an unqualified in-place upgrade.
 
 ## Known public state
@@ -64,6 +70,13 @@ Before any production mutation:
 6. record the current public-key fingerprints and decide whether the existing confidential-client key can be securely reused or whether cutover intentionally rotates it.
 
 A backup without a successful isolated restore is not a qualified rollback artifact.
+
+For the legacy PostGIS image, wait for a successful SQL query through its final
+listener, not just `pg_isready`: the temporary initialization server may accept
+connections before the target database exists. Restore into a separate database
+created with `createdb -T template0`; the image's initialized default database
+already contains PostGIS schemas that can conflict with the dump. Keep
+`pg_restore --exit-on-error` enabled and retain failed-attempt logs.
 
 ## Phase 3: stage Subcult OS independently
 
