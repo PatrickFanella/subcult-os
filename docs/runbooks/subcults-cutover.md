@@ -78,6 +78,16 @@ created with `createdb -T template0`; the image's initialized default database
 already contains PostGIS schemas that can conflict with the dump. Keep
 `pg_restore --exit-on-error` enabled and retain failed-attempt logs.
 
+For repeatable candidate-code checks, run `python3 scripts/qa-backup-recovery.py`
+from the checkout on a host with the installed T3 development environment.
+It creates two disposable PostgreSQL services, seeds synthetic encrypted data,
+dumps the source, removes that source and restores into the second service.
+Matching identity and signing keys must recover the fixture; wrong keys must
+fail. The keys are generated for that process and are not saved with the dump.
+See the [synthetic recovery procedure](../qa/synthetic-backup-recovery.md) for
+receipt locations and limits. This does not replace recovery from the deployed
+candidate's database and secret store.
+
 ## Phase 3: stage Subcult OS independently
 
 Deploy the candidate under distinct service names, ports, database name/volume and an internal or access-controlled hostname. Do not share the legacy database or writable storage.

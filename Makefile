@@ -37,8 +37,10 @@ lint-mobile: ## Type-check the Expo mobile app
 test: test-backend test-web test-mobile test-qa-scripts ## Run backend, frontend, mobile and rehearsal helper tests
 
 .PHONY: test-qa-scripts
-test-qa-scripts: ## Check rehearsal safety guards without a database or network
+test-qa-scripts: ## Check rehearsal helpers without a database or network
 	bash scripts/qa-identity.test.sh
+	python3 -c 'import ast; from pathlib import Path; ast.parse(Path("scripts/qa-backup-recovery.py").read_text())'
+	cd backend && go test -tags recovery_rehearsal ./internal/app -run '^$$'
 
 test-backend: ## Run non-DB Go tests
 	cd backend && TEST_DATABASE_URL= go test ./...
