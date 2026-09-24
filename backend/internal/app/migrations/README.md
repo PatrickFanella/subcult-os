@@ -1,6 +1,8 @@
 # Database migrations
 
-`schema.sql` is the clean version-1 schema. The current binary requires version 7: version 2 adds canonical identities and rotating session families, version 3 removes the empty prototype session table, version 4 adds encrypted AT OAuth request/session persistence, version 5 adds durable revocation, version 6 adds opt-in transactional email delivery, and version 7 adds signed feedback receipts and suppression. Add later changes here as gap-free `NNNNNN_name.sql` files.
+`schema.sql` is the clean version-1 schema. The current binary requires version 8: version 2 adds canonical identities and rotating session families, version 3 removes the empty prototype session table, version 4 adds encrypted AT OAuth request/session persistence, version 5 adds durable revocation, version 6 adds opt-in transactional email delivery, version 7 adds signed feedback receipts and suppression, and version 8 adds the minimal cultural model (profiles, places, protected place detail, event occurrences and multi-host occurrence credits; see `docs/development/cultural-model.md`). Add later changes here as gap-free `NNNNNN_name.sql` files.
+
+Version 8 is additive: new tables only, plus one `unique (id, workspace_id)` constraint added to the existing `events` table so occurrence rows can carry a composite foreign key that rejects a cross-workspace reference at the database level. No existing column, row or ticket/staffing/settlement behavior changes. Roll back by rolling back the application only; the new tables stay empty and unreferenced by any older code path.
 
 Version 7 is additive. Disable sending before an application rollback; older workers do not enforce the new suppression ledger. Retain feedback and suppression records. Do not downgrade the database or enable an old worker against it.
 
