@@ -27,7 +27,7 @@ create table event_public_links (
   public_uri text not null check (length(public_uri) between 1 and 2000),
   observed_cid text not null check (length(observed_cid) between 1 and 256),
   authority_did text not null check (length(authority_did) between 1 and 2000),
-  status text not null default 'fresh' check (status in ('fresh', 'changed', 'unavailable', 'deleted')),
+  status text not null default 'fresh' check (status in ('fresh', 'changed', 'invalid', 'unavailable', 'deleted')),
   last_error text,
   observed_at timestamptz not null default now(),
   last_checked_at timestamptz not null default now(),

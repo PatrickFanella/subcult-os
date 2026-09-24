@@ -11,6 +11,7 @@ import (
 
 	atprotocol "git.subcult.tv/PatrickFanella/subcult-os/internal/atproto"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // LINK-01: a private, operator-side relationship between a local `events`
@@ -27,6 +28,7 @@ const (
 	publicLinkStatusChanged     = "changed"
 	publicLinkStatusUnavailable = "unavailable"
 	publicLinkStatusDeleted     = "deleted"
+	publicLinkStatusInvalid     = "invalid"
 )
 
 type eventPublicLinkDTO struct {
@@ -95,8 +97,15 @@ func publicLinkDTOFromRow(row eventPublicLinkRow) eventPublicLinkDTO {
 	}
 }
 
+// validLinkID reports whether a path value can be a link id at all, so a
+// malformed value is answered with 404 instead of a database error.
+func validLinkID(linkID string) bool {
+	var id pgtype.UUID
+	return linkID != "" && id.Scan(linkID) == nil
+}
+
 func (a *App) loadEventPublicLink(ctx context.Context, eventID, linkID string) (eventPublicLinkRow, error) {
-	if linkID == "" {
+	if !validLinkID(linkID) {
 		return eventPublicLinkRow{}, pgx.ErrNoRows
 	}
 	row := a.db.QueryRow(ctx, `select `+publicLinkSelectColumns+` from event_public_links where id = $1 and event_id = $2`, linkID, eventID)
@@ -386,6 +395,10 @@ func (a *App) handleDetachEventPublicLink(w http.ResponseWriter, r *http.Request
 	}
 
 	linkID := r.PathValue("linkID")
+	if !validLinkID(linkID) {
+		writeError(w, http.StatusNotFound, "public link not found")
+		return
+	}
 	tag, err := a.db.Exec(r.Context(), `delete from event_public_links where id = $1 and event_id = $2`, linkID, event.ID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not detach public link")
@@ -454,7 +467,17 @@ func (a *App) handleRefreshEventPublicLink(w http.ResponseWriter, r *http.Reques
 	var lastError sql.NullString
 	record, fetchErr := a.recordFetcher.FetchRecord(r.Context(), ref)
 	var notFound *atprotocol.RecordNotFoundError
+	var validationErr error
+	if fetchErr == nil {
+		validationErr = validatePublicRecord(a.lexiconCatalog, publicLinkOccurrenceCollection, record.Value)
+	}
 	switch {
+	case fetchErr == nil && validationErr != nil:
+		// The record still exists but no longer matches the admitted
+		// Lexicon; record what was observed and flag it for review.
+		newStatus = publicLinkStatusInvalid
+		newObservedCID = sql.NullString{String: record.CID, Valid: true}
+		lastError = sql.NullString{String: validationErr.Error(), Valid: true}
 	case fetchErr == nil && record.CID == link.ObservedCID:
 		newStatus = publicLinkStatusFresh
 	case fetchErr == nil:

@@ -30,7 +30,7 @@ split this follows.
 - `authority_did` — the repo DID of the identity that authored the public
   record, resolved and verified through `backend/internal/atproto` at
   attach/refresh time (not merely parsed out of the URI).
-- `status` — one of `fresh`, `changed`, `unavailable`, `deleted`. Set by the
+- `status` — one of `fresh`, `changed`, `invalid`, `unavailable`, `deleted`. Set by the
   refresh operation; a freshly attached link starts `fresh`.
 - `last_error`, `observed_at`, `last_checked_at` — freshness bookkeeping
   updated only by refresh.
@@ -81,6 +81,9 @@ resolved workspace, not by returning a workspace-conditioned 404).
   - fetch succeeds with the same CID → `fresh`;
   - fetch succeeds with a different CID → `changed`, `observed_cid` and
     `observed_at` move to the new value;
+  - fetch succeeds but the record no longer validates against the admitted
+    `tv.subcult.event.occurrence` Lexicon → `invalid`, with the observed CID
+    recorded and `last_error` set to the validation failure;
   - fetch fails with `atprotocol.RecordNotFoundError` → `deleted`;
   - fetch fails any other way (identity resolution failure, network
     failure, non-200 upstream) → `unavailable`, with `last_error` set to

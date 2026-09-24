@@ -266,3 +266,31 @@ func TestEventPublicLinkPreviewRequiresDIDAuthority(t *testing.T) {
 	handleURI := fmt.Sprintf("at://creator.example.test/tv.subcult.event.occurrence/3l7aaaaaaaaaa")
 	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/public-links/preview", map[string]any{"publicUri": handleURI}, http.StatusBadRequest)
 }
+
+func TestEventPublicLinkRefreshFlagsInvalidRecord(t *testing.T) {
+	fx, fetcher := newPublicLinkFixture(t)
+	event := createEvent(t, fx, "Signal Night", 100)
+	eventID := mustString(t, event, "id")
+	fetcher.setRecord(testPublicLinkURI, testPublicLinkDID, "creator.example.test", "bafyreicidone")
+	attach := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/public-links", map[string]any{"publicUri": testPublicLinkURI}, http.StatusOK)
+	linkID := mustString(t, attach.JSON, "id")
+
+	fetcher.setInvalidRecord(testPublicLinkURI, testPublicLinkDID, "bafyreiinvalid")
+	refreshed := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/public-links/"+linkID+"/refresh", map[string]any{}, http.StatusOK)
+	body := mustObject(t, refreshed.JSON)
+	if body["status"] != "invalid" {
+		t.Fatalf("status = %v, want invalid", body["status"])
+	}
+	if body["lastError"] == nil {
+		t.Fatal("expected lastError to describe the validation failure")
+	}
+}
+
+func TestEventPublicLinkMalformedIDIsNotFound(t *testing.T) {
+	fx, _ := newPublicLinkFixture(t)
+	event := createEvent(t, fx, "Signal Night", 100)
+	eventID := mustString(t, event, "id")
+
+	doJSON(t, http.MethodDelete, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/public-links/not-a-uuid", nil, http.StatusNotFound)
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/public-links/not-a-uuid/refresh", map[string]any{}, http.StatusNotFound)
+}

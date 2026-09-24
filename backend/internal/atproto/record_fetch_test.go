@@ -45,16 +45,24 @@ func mustRecordRef(t *testing.T, uri string) RecordRef {
 func TestIdentityRecordFetcherFetchesRecord(t *testing.T) {
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/xrpc/com.atproto.repo.getRecord" {
-			t.Fatalf("unexpected path %q", r.URL.Path)
+			t.Errorf("unexpected path %q", r.URL.Path)
+			http.Error(w, "unexpected path", http.StatusNotFound)
+			return
 		}
 		if got := r.URL.Query().Get("repo"); got != testFetchDID {
-			t.Fatalf("repo query = %q, want %q", got, testFetchDID)
+			t.Errorf("repo query = %q, want %q", got, testFetchDID)
+			http.Error(w, "unexpected repo", http.StatusBadRequest)
+			return
 		}
 		if got := r.URL.Query().Get("collection"); got != "tv.subcult.event.occurrence" {
-			t.Fatalf("collection query = %q", got)
+			t.Errorf("collection query = %q", got)
+			http.Error(w, "unexpected collection", http.StatusBadRequest)
+			return
 		}
 		if got := r.URL.Query().Get("rkey"); got != "3l6z6b6b6b6b6b" {
-			t.Fatalf("rkey query = %q", got)
+			t.Errorf("rkey query = %q", got)
+			http.Error(w, "unexpected rkey", http.StatusBadRequest)
+			return
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"uri": "at://" + testFetchDID + "/tv.subcult.event.occurrence/3l6z6b6b6b6b6b",
