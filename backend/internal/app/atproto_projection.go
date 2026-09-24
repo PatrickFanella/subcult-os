@@ -130,6 +130,14 @@ func NewProjectionProcessor(db *pgxpool.Pool, catalog *atprotocol.LexiconCatalog
 	return &ProjectionProcessor{db: db, catalog: catalog, source: ProjectionSourceName}
 }
 
+// NewProjectionProcessorWithSource builds a processor that commits its
+// cursor under source instead of ProjectionSourceName. The backfill and
+// reconcile paths use this so their own audit-cursor bookkeeping can never
+// overwrite the live jetstream resume cursor.
+func NewProjectionProcessorWithSource(db *pgxpool.Pool, catalog *atprotocol.LexiconCatalog, source string) *ProjectionProcessor {
+	return &ProjectionProcessor{db: db, catalog: catalog, source: source}
+}
+
 // LoadCursor returns the stored cursor for this processor's source, or ""
 // if none has been committed yet (fresh start).
 func (p *ProjectionProcessor) LoadCursor(ctx context.Context) (string, error) {
