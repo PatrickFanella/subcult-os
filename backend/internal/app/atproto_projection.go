@@ -284,7 +284,7 @@ func (p *ProjectionProcessor) applyCommitEvent(ctx context.Context, tx pgx.Tx, e
 			values ($1, $2, $3, $4, $5, $6, $7, $8, 'active', $9)
 			on conflict (uri) do update set
 				cid = excluded.cid,
-				rev = excluded.rev,
+				rev = case when excluded.rev = '' then at_projection_records.rev else excluded.rev end,
 				record = excluded.record,
 				size_bytes = excluded.size_bytes,
 				status = 'active',

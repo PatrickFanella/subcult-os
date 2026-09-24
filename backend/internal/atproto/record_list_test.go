@@ -107,13 +107,21 @@ func TestIdentityRecordListerRejectsOversizeRecord(t *testing.T) {
 // transport (ssrf.PublicOnlyTransport, wired in by publicOnlyHTTPClient)
 // rejects the connection at dial time, independent of URL parsing.
 func TestIdentityRecordListerRefusesPrivatePDSEndpoint(t *testing.T) {
+	// A live loopback server proves the refusal comes from the public-only
+	// transport, not from a closed port.
+	served := false
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		served = true
+		_, _ = w.Write([]byte(`{"records":[]}`))
+	}))
+	defer server.Close()
 	dir := identity.NewMockDirectory()
 	did := indigosyntax.DID(testListDID)
 	dir.Insert(identity.Identity{
 		DID:    did,
 		Handle: indigosyntax.Handle("creator.example.test"),
 		Services: map[string]identity.ServiceEndpoint{
-			"atproto_pds": {Type: "AtprotoPersonalDataServer", URL: "https://127.0.0.1:65535"},
+			"atproto_pds": {Type: "AtprotoPersonalDataServer", URL: server.URL},
 		},
 	})
 	lister := &IdentityRecordLister{directory: dir, client: publicOnlyHTTPClient(2 * time.Second)}
@@ -121,6 +129,12 @@ func TestIdentityRecordListerRefusesPrivatePDSEndpoint(t *testing.T) {
 	_, err := lister.ListRecords(t.Context(), testListDID, "tv.subcult.profile", "")
 	if err == nil {
 		t.Fatal("expected private PDS endpoint to be refused")
+	}
+	if !strings.Contains(err.Error(), "not a public IP address") {
+		t.Fatalf("expected the public-only transport to refuse the address, got: %v", err)
+	}
+	if served {
+		t.Fatal("request must never reach a private address")
 	}
 }
 
