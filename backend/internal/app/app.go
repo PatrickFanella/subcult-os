@@ -40,9 +40,14 @@ type App struct {
 	lexiconCatalog *atprotocol.LexiconCatalog
 	lexiconErr     error
 	recordFetcher  atprotocol.RecordFetcher
-	mux            *http.ServeMux
-	loginMu        sync.Mutex
-	loginAttempts  map[string]loginAttempt
+	// consentCheckOverride lets tests substitute checkSendPermission with a
+	// fake that returns an arbitrary (including non-sentinel, infra-shaped)
+	// error, without touching the database. Left nil in production, where
+	// processEmailDeliveries always calls the real checkSendPermission.
+	consentCheckOverride func(ctx context.Context, workspaceID, channel, recipient, purpose string) error
+	mux                  *http.ServeMux
+	loginMu              sync.Mutex
+	loginAttempts        map[string]loginAttempt
 }
 
 func New(config Config, db *pgxpool.Pool) *App {

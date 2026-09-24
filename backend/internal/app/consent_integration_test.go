@@ -339,3 +339,59 @@ func TestProcessEmailDeliveriesUnaffectedForTransactionalRows(t *testing.T) {
 		t.Fatalf("expected the transactional row to send unchanged, got sent=%v report=%+v", sent, report)
 	}
 }
+
+// TestProcessEmailDeliveriesInfraErrorDoesNotWithholdConsent guards against
+// treating a non-consent error from checkSendPermission (a transient
+// database failure, a cancelled context, or any other driver-level fault)
+// as a permanent consent denial. Only the two typed sentinels
+// (ErrConsentGrantRequired, ErrConsentSuppressed) may move a row to
+// withheld_consent; anything else must leave the row leased for retry, the
+// same way a claim-query failure does, so an existing transactional message
+// (identity verification/recovery, ticket confirmations, invitations)
+// cannot be silently discarded and mislabeled by an unrelated infra blip.
+func TestProcessEmailDeliveriesInfraErrorDoesNotWithholdConsent(t *testing.T) {
+	fx := consentDeliveryFixture(t)
+	id := queueTestEmail(t, fx.app)
+
+	infraErr := errors.New("simulated connection reset")
+	fx.app.consentCheckOverride = func(context.Context, string, string, string, string) error {
+		return infraErr
+	}
+
+	report, err := fx.app.processEmailDeliveries(t.Context(), func(context.Context, mailprovider.Message) (string, error) {
+		t.Fatal("message must not reach the provider when the consent check fails with an infra error")
+		return "", nil
+	}, 1)
+	if err == nil {
+		t.Fatal("expected processEmailDeliveries to report the infra error rather than swallow it")
+	}
+	if report.Withheld != 0 {
+		t.Fatalf("infra error must never be recorded as withheld_consent, got report=%+v", report)
+	}
+
+	var status, body string
+	if err := fx.app.db.QueryRow(t.Context(), `select delivery_status, body from email_outbox where id = $1`, id).Scan(&status, &body); err != nil {
+		t.Fatal(err)
+	}
+	if status == "withheld_consent" {
+		t.Fatalf("transactional row was withheld on an infra error: status=%q", status)
+	}
+	if status != "leased" {
+		t.Fatalf("expected the row to remain leased for retry after an infra error, got status=%q", status)
+	}
+	if body == "" {
+		t.Fatal("infra error must not erase the message body")
+	}
+}
+
+// TestCheckSendPermissionRejectsAnnouncementWithoutWorkspace proves the
+// missing-workspace case is a typed denial, not a driver-level encode
+// error: an announcement can never be authorized without a workspace to
+// scope the grant to.
+func TestCheckSendPermissionRejectsAnnouncementWithoutWorkspace(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	err := fx.app.checkSendPermission(t.Context(), "", "email", "no-workspace@example.test", consentPurposeAnnouncement)
+	if !errors.Is(err, ErrConsentGrantRequired) {
+		t.Fatalf("expected ErrConsentGrantRequired for an empty workspace, got %v", err)
+	}
+}

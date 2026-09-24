@@ -68,6 +68,14 @@ func (a *App) checkSendPermission(ctx context.Context, workspaceID, channel, rec
 		return nil
 	}
 
+	// An announcement can never be authorized without a workspace to scope
+	// the grant to. Return the typed denial explicitly rather than letting
+	// the query below fail on an empty workspaceID (which pgx would report
+	// as a raw driver/encode error indistinguishable from an infra fault).
+	if workspaceID == "" {
+		return ErrConsentGrantRequired
+	}
+
 	var granted bool
 	if err := a.db.QueryRow(ctx, `
 		select exists(

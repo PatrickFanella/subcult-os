@@ -122,7 +122,21 @@ func (a *App) processEmailDeliveries(ctx context.Context, send func(context.Cont
 		// message actually leaves the system: a grant may have been
 		// withdrawn, or the address suppressed, since it was enqueued.
 		// See docs/development/consent.md and checkSendPermission.
-		if permErr := a.checkSendPermission(ctx, workspaceID.String, "email", message.To, purpose); permErr != nil {
+		checkPermission := a.checkSendPermission
+		if a.consentCheckOverride != nil {
+			checkPermission = a.consentCheckOverride
+		}
+		if permErr := checkPermission(ctx, workspaceID.String, "email", message.To, purpose); permErr != nil {
+			// Only a genuine consent decision (a typed denial) may move this
+			// row to the terminal withheld_consent status. Any other error
+			// (a transient database failure, a cancelled context, or a
+			// driver-level fault) must not be recorded as a permanent
+			// consent withholding, and must not erase the row's body: leave
+			// the lease to expire so the row is retried, exactly like the
+			// claim-failure path above.
+			if !errors.Is(permErr, ErrConsentGrantRequired) && !errors.Is(permErr, ErrConsentSuppressed) {
+				return report, errors.New("email consent check failed")
+			}
 			code := "consent_required"
 			if errors.Is(permErr, ErrConsentSuppressed) {
 				code = "recipient_suppressed"

@@ -260,6 +260,24 @@ former (whose name never mentions Chicago) and excludes the latter. Updated
 place-locality join instead of the previously-documented (and unimplemented)
 substring-only behavior.
 
+Review follow-up: the initial send-time recheck in `processEmailDeliveries`
+treated any non-nil `checkSendPermission` error as a consent denial, so a
+transient database failure, a cancelled context, or (for an
+`announcement` row with a null `workspace_id`) the resulting driver encode
+error was recorded as a permanent `withheld_consent` row with its body
+erased — a regression against existing transactional messages (identity
+verification/recovery, ticket confirmations, invitations) staying
+unchanged. Fixed by making `checkSendPermission` return
+`ErrConsentGrantRequired` explicitly when `purpose` is `announcement` and
+`workspaceID` is empty, and by having `processEmailDeliveries` withhold
+only on `errors.Is(permErr, ErrConsentGrantRequired) ||
+errors.Is(permErr, ErrConsentSuppressed)`; any other error is returned
+to the caller and the row's lease is left to expire for retry, matching
+the existing claim-failure path. Added
+`TestProcessEmailDeliveriesInfraErrorDoesNotWithholdConsent` (a
+test-only `App.consentCheckOverride` seam simulates the infra failure)
+and `TestCheckSendPermissionRejectsAnnouncementWithoutWorkspace`.
+
 ## 2026-09-24 — #16 allowlisted, restart-safe AT record projection (DISC-01)
 
 Added migration `backend/internal/app/migrations/000011_at_projection.sql`
