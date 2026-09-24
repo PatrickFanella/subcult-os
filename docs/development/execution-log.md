@@ -45,36 +45,24 @@ Compose profile mirroring `atproto-workers`. `decisions.md`'s D10 row is now
 A11 (Accepted); publication/reconciliation (D8, D9) and discovery UI
 (UX-01) remain open.
 
-### Migration numbering conflict with parallel work
+### Migration numbering
 
-This slice was assigned migration `000012` because versions 000009-000011
-are reserved for three other roadmap slices developed in parallel branches
-(`stack/32-public-links`, `stack/33-workspace-authority`,
-`stack/34-privacy-boundaries`) that had not added their migration files as
-of this work. The embedded migration loader (`db.go`) requires a strictly
-gap-free version sequence, so in this branch alone, every DB-backed test in
-`internal/app` and `internal/atproto` fails at `RunMigrations` with
-`migration sequence: got version 12, want 9` — including tests with no
-relationship to this feature. This reproduces in an isolated disposable
-PostgreSQL and is not caused by a bug in migration 000012 itself; it
-resolves once the three parallel branches' migrations are integrated ahead
-of this one so the sequence 1..12 is contiguous. Hosted CI runs the same
-`make test-db` gate and will show the same failure until integration.
+This slice was built in parallel with #13, #14 and #15 and originally carried
+migration `000012`. At integration it was rebased onto the merged #13 and #14
+branches and renumbered to `000011`, because the privacy slice (#15) added
+no schema change. `minimumSchemaVersion` is 11.
 
 ### Verification passed
 - `go build ./...`, `go vet ./...`, `gofmt -l .` (clean) from `backend/`
-- `TEST_DATABASE_URL=<disposable> make test-db` against the actual (gapped) sequence: 88 pass, 152 fail, every failure `migration sequence: got version 12, want 9` at `RunMigrations`, none a test-specific assertion failure
-- To isolate the projection logic itself from that numbering gap, temporarily renumbered the migration to `000009`/`minimumSchemaVersion = 9` (not committed) and reran `make test-db` against a fresh disposable database: all 17 projection tests pass (8 unit, 9 integration including the crash-mid-batch/replay-from-stored-cursor test), and every other test passes except one pre-existing MODEL-01 test (`TestCulturalModelFreshMigrationCreatesTables`) that hardcodes "current top version is 8" as its own assertion — expected, since this temporary renumbering made the top version 9; whichever slice becomes numerically last across the four parallel branches will need to update that hardcoded expectation to 12 regardless of numbering scheme. Reverted the file back to `000012`/`minimumSchemaVersion = 12` (confirmed byte-identical to the version reviewed) before committing
-- `make verify` (deps, fmt, lint, `check-contracts`, `test-backend`/`test-web`/`test-mobile`/`test-qa-scripts` — none of which use `TEST_DATABASE_URL` — `build`, `compose-config`, `open-pilot-check`): exit 0; web 200/200, mobile 27/27, `docker compose -p subcult-os config --quiet` validated the new `atproto-projection` profile
-- Disposable PostgreSQL used `COMPOSE_PROJECT_NAME=subcult-wf-16`/`POSTGRES_PORT=47016`, torn down with `docker compose -p subcult-wf-16 down -v` after each run
+- After the rebase and renumbering, `TEST_DATABASE_URL=<disposable> make test-db` on a disposable PostgreSQL: `internal/atproto` ok; `internal/app` 248 passed with one failure, `TestAuthorityMigrationWidensRoleAndAddsColumns`, which hardcoded schema version 10; it now asserts `minimumSchemaVersion`. The 17 projection tests (8 unit, 9 integration including the crash-mid-batch/replay-from-stored-cursor test) pass. The orchestrator's final counts are recorded on the pull request.
+- `make verify` (deps, fmt, lint, `check-contracts`, backend/web/mobile/QA-script tests, `build`, `compose-config`, `open-pilot-check`): exit 0 on the pre-rebase branch; rerun after the rebase, result on the pull request.
 
 ### Remaining
-The migration-sequence gap above must resolve at integration before
-`make test-db`/hosted CI can pass with all four parallel slices merged.
-`JetstreamSource`'s reconnect retries `Next` on the same `websocket.Conn`
-rather than dialing a fresh connection at the stored cursor per attempt (see
-known limits in [`projection.md`](projection.md)); it is exercised by
-compile-time checks only, not against a live Jetstream endpoint. No
+`RunWithConnector` re-dials a fresh `JetstreamSource` at the last committed
+cursor after a transient failure with bounded backoff; the adapter itself is
+exercised by compile-time and in-memory tests only, not against a live
+Jetstream endpoint, so its wire handling is unverified until a source is
+qualified. No
 backfill tooling, and no reconciliation between `at_projection_*` and
 `cultural_*` — that remains PUB-01/UX-01, per D8-D9.
 ## 2026-09-23 — #15 privacy boundary audit and lifecycle spec (SEC-15)

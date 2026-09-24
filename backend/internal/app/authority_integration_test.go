@@ -20,8 +20,8 @@ func TestAuthorityMigrationWidensRoleAndAddsColumns(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if version != 10 {
-		t.Fatalf("schema version = %d, want 10", version)
+	if version != minimumSchemaVersion {
+		t.Fatalf("schema version = %d, want %d", version, minimumSchemaVersion)
 	}
 
 	for _, table := range []string{"creator_delegations"} {

@@ -172,17 +172,12 @@ docker compose --profile atproto-projection up -d
 
 ## Known limits
 
-- `JetstreamSource` does not implement ping/pong keepalive or batching; it
-  relies on `Run`'s outer reconnect/backoff loop to recover from a dropped
-  connection, but that loop retries `Next` on the *same* `websocket.Conn`
-  rather than dialing a fresh one at the stored cursor. In production this
-  means a connection drop is detected (every `Next` call after the drop
-  errors) and backed off correctly, but recovery requires the process
-  supervisor to restart the command rather than reconnecting in-process.
-  Building a full in-process reconnect (fresh `JetstreamSource` per retry)
-  is a reasonable follow-up; it is not required by the acceptance criteria
-  above, which are about bounded backoff and no cursor loss, both of which
-  hold today.
+- `JetstreamSource` does not implement ping/pong keepalive or batching.
+  `RunWithConnector` detects a dropped connection when `Next` errors, closes
+  the failed source, waits with bounded exponential backoff and dials a
+  fresh `JetstreamSource` at the last committed cursor
+  (`TestProjectionRunWithConnectorRedialsAtCommittedCursor`). A database
+  error stops the loop instead of reconnecting.
 - No backfill/replay-from-arbitrary-cursor tooling beyond resuming from the
   single stored cursor; there is exactly one source row
   (`ProjectionSourceName = "jetstream"`).
