@@ -39,6 +39,7 @@ type App struct {
 	atprotoFlowErr error
 	lexiconCatalog *atprotocol.LexiconCatalog
 	lexiconErr     error
+	recordFetcher  atprotocol.RecordFetcher
 	mux            *http.ServeMux
 	loginMu        sync.Mutex
 	loginAttempts  map[string]loginAttempt
@@ -81,7 +82,7 @@ func New(config Config, db *pgxpool.Pool) *App {
 	} else {
 		lexiconCatalog, lexiconErr = atprotocol.LoadEmbeddedLexiconCatalog()
 	}
-	a := &App{config: config, db: db, payments: newStripePaymentProvider(config.StripeSecretKey), media: media, mediaErr: mediaErr, discovery: newDiscoveryPolicy(), identity: identity, identityErr: identityErr, atprotoOAuth: atprotoOAuth, atprotoErr: atprotoErr, atprotoStore: atprotoStore, atprotoFlow: atprotoFlow, atprotoFlowErr: atprotoFlowErr, lexiconCatalog: lexiconCatalog, lexiconErr: lexiconErr, mux: http.NewServeMux(), loginAttempts: map[string]loginAttempt{}}
+	a := &App{config: config, db: db, payments: newStripePaymentProvider(config.StripeSecretKey), media: media, mediaErr: mediaErr, discovery: newDiscoveryPolicy(), identity: identity, identityErr: identityErr, atprotoOAuth: atprotoOAuth, atprotoErr: atprotoErr, atprotoStore: atprotoStore, atprotoFlow: atprotoFlow, atprotoFlowErr: atprotoFlowErr, lexiconCatalog: lexiconCatalog, lexiconErr: lexiconErr, recordFetcher: atprotocol.NewIdentityRecordFetcher(), mux: http.NewServeMux(), loginAttempts: map[string]loginAttempt{}}
 	a.routes()
 	return a
 }
@@ -183,6 +184,11 @@ func (a *App) routes() {
 	a.mux.HandleFunc("POST /api/events/{eventID}/occurrences/{occurrenceID}/credits", a.handleAttachOccurrenceCredit)
 	a.mux.HandleFunc("DELETE /api/events/{eventID}/occurrences/{occurrenceID}/credits/{profileID}", a.handleDetachOccurrenceCredit)
 	a.mux.HandleFunc("GET /api/events/{eventID}/occurrences/{occurrenceID}/public-preview", a.handleOccurrencePublicPreview)
+	a.mux.HandleFunc("POST /api/events/{eventID}/public-links/preview", a.handlePreviewEventPublicLink)
+	a.mux.HandleFunc("GET /api/events/{eventID}/public-links", a.handleListEventPublicLinks)
+	a.mux.HandleFunc("POST /api/events/{eventID}/public-links", a.handleAttachEventPublicLink)
+	a.mux.HandleFunc("DELETE /api/events/{eventID}/public-links/{linkID}", a.handleDetachEventPublicLink)
+	a.mux.HandleFunc("POST /api/events/{eventID}/public-links/{linkID}/refresh", a.handleRefreshEventPublicLink)
 	a.mux.HandleFunc("GET /api/events/{eventID}/commitments", a.handleListEventCommitments)
 	a.mux.HandleFunc("GET /api/events/{eventID}/reminders", a.handleListEventReminders)
 	a.mux.HandleFunc("GET /api/events/{eventID}/notifications", a.handleListEventNotifications)

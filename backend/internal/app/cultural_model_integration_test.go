@@ -77,8 +77,8 @@ func TestCulturalModelFreshMigrationCreatesTables(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if version != 8 {
-		t.Fatalf("schema version = %d, want 8", version)
+	if version != 9 {
+		t.Fatalf("schema version = %d, want 9", version)
 	}
 }
 
