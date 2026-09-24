@@ -1,0 +1,497 @@
+{
+  "source": "Independent cases authored for the admitted tv.subcult.* chain proposed in docs/adr/0007-minimal-lexicon-admission.md on 2026-09-23; no Subcults source or fixtures copied.",
+  "records": [
+    {
+      "nsid": "tv.subcult.profile",
+      "cases": [
+        {
+          "name": "valid minimal profile",
+          "valid": true,
+          "record": {
+            "$type": "tv.subcult.profile",
+            "displayName": "Night Signal Collective",
+            "createdAt": "2026-09-01T12:00:00Z"
+          }
+        },
+        {
+          "name": "valid profile with description",
+          "valid": true,
+          "record": {
+            "$type": "tv.subcult.profile",
+            "displayName": "Night Signal Collective",
+            "description": "A touring collective for experimental live sets.",
+            "createdAt": "2026-09-01T12:00:00Z"
+          }
+        },
+        {
+          "name": "missing required displayName",
+          "valid": false,
+          "reason": "missing required",
+          "record": {
+            "$type": "tv.subcult.profile",
+            "createdAt": "2026-09-01T12:00:00Z"
+          }
+        },
+        {
+          "name": "missing required createdAt",
+          "valid": false,
+          "reason": "missing required",
+          "record": {
+            "$type": "tv.subcult.profile",
+            "displayName": "Night Signal Collective"
+          }
+        },
+        {
+          "name": "displayName over grapheme bound",
+          "valid": false,
+          "reason": "over-bound string",
+          "record": {
+            "$type": "tv.subcult.profile",
+            "displayName": "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+            "createdAt": "2026-09-01T12:00:00Z"
+          }
+        },
+        {
+          "name": "description over grapheme bound",
+          "valid": false,
+          "reason": "over-bound string",
+          "record": {
+            "$type": "tv.subcult.profile",
+            "displayName": "Night Signal Collective",
+            "description": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "createdAt": "2026-09-01T12:00:00Z"
+          }
+        },
+        {
+          "name": "bad datetime missing offset",
+          "valid": false,
+          "reason": "bad datetime",
+          "record": {
+            "$type": "tv.subcult.profile",
+            "displayName": "Night Signal Collective",
+            "createdAt": "2026-09-01T12:00:00"
+          }
+        },
+        {
+          "name": "unknown field rejected",
+          "valid": false,
+          "reason": "unknown field",
+          "record": {
+            "$type": "tv.subcult.profile",
+            "displayName": "Night Signal Collective",
+            "createdAt": "2026-09-01T12:00:00Z",
+            "favoriteColor": "violet"
+          }
+        },
+        {
+          "name": "private contact field leak",
+          "valid": false,
+          "reason": "private field leak",
+          "record": {
+            "$type": "tv.subcult.profile",
+            "displayName": "Night Signal Collective",
+            "createdAt": "2026-09-01T12:00:00Z",
+            "contactEmail": "ops@example.com"
+          }
+        },
+        {
+          "name": "wrong $type",
+          "valid": false,
+          "reason": "wrong $type",
+          "record": {
+            "$type": "tv.subcult.place",
+            "displayName": "Night Signal Collective",
+            "createdAt": "2026-09-01T12:00:00Z"
+          }
+        }
+      ]
+    },
+    {
+      "nsid": "tv.subcult.place",
+      "cases": [
+        {
+          "name": "valid minimal place",
+          "valid": true,
+          "record": {
+            "$type": "tv.subcult.place",
+            "name": "The Underpass",
+            "createdAt": "2026-09-01T12:00:00Z"
+          }
+        },
+        {
+          "name": "valid place with public locality and coordinates",
+          "valid": true,
+          "record": {
+            "$type": "tv.subcult.place",
+            "name": "The Underpass",
+            "locality": "Austin",
+            "region": "Texas",
+            "country": "US",
+            "coordinates": {
+              "latitude": "30.2672",
+              "longitude": "-97.7431"
+            },
+            "createdAt": "2026-09-01T12:00:00Z"
+          }
+        },
+        {
+          "name": "missing required name",
+          "valid": false,
+          "reason": "missing required",
+          "record": {
+            "$type": "tv.subcult.place",
+            "createdAt": "2026-09-01T12:00:00Z"
+          }
+        },
+        {
+          "name": "missing required createdAt",
+          "valid": false,
+          "reason": "missing required",
+          "record": {
+            "$type": "tv.subcult.place",
+            "name": "The Underpass"
+          }
+        },
+        {
+          "name": "name over grapheme bound",
+          "valid": false,
+          "reason": "over-bound string",
+          "record": {
+            "$type": "tv.subcult.place",
+            "name": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "createdAt": "2026-09-01T12:00:00Z"
+          }
+        },
+        {
+          "name": "country code not two letters",
+          "valid": false,
+          "reason": "over-bound string",
+          "record": {
+            "$type": "tv.subcult.place",
+            "name": "The Underpass",
+            "country": "USA",
+            "createdAt": "2026-09-01T12:00:00Z"
+          }
+        },
+        {
+          "name": "coordinates missing longitude",
+          "valid": false,
+          "reason": "missing required",
+          "record": {
+            "$type": "tv.subcult.place",
+            "name": "The Underpass",
+            "coordinates": {
+              "latitude": "30.2672"
+            },
+            "createdAt": "2026-09-01T12:00:00Z"
+          }
+        },
+        {
+          "name": "bad datetime",
+          "valid": false,
+          "reason": "bad datetime",
+          "record": {
+            "$type": "tv.subcult.place",
+            "name": "The Underpass",
+            "createdAt": "not-a-date"
+          }
+        },
+        {
+          "name": "unknown field rejected",
+          "valid": false,
+          "reason": "unknown field",
+          "record": {
+            "$type": "tv.subcult.place",
+            "name": "The Underpass",
+            "createdAt": "2026-09-01T12:00:00Z",
+            "capacity": 250
+          }
+        },
+        {
+          "name": "private street address leak",
+          "valid": false,
+          "reason": "private field leak",
+          "record": {
+            "$type": "tv.subcult.place",
+            "name": "The Underpass",
+            "createdAt": "2026-09-01T12:00:00Z",
+            "streetAddress": "1200 Congress Ave"
+          }
+        },
+        {
+          "name": "private door code leak",
+          "valid": false,
+          "reason": "private field leak",
+          "record": {
+            "$type": "tv.subcult.place",
+            "name": "The Underpass",
+            "createdAt": "2026-09-01T12:00:00Z",
+            "doorCode": "4471"
+          }
+        },
+        {
+          "name": "wrong $type",
+          "valid": false,
+          "reason": "wrong $type",
+          "record": {
+            "$type": "tv.subcult.profile",
+            "name": "The Underpass",
+            "createdAt": "2026-09-01T12:00:00Z"
+          }
+        }
+      ]
+    },
+    {
+      "nsid": "tv.subcult.event.occurrence",
+      "cases": [
+        {
+          "name": "valid minimal occurrence",
+          "valid": true,
+          "record": {
+            "$type": "tv.subcult.event.occurrence",
+            "name": "Late Signal",
+            "profile": {
+              "uri": "at://did:plc:vwzwgnygau7ed7b7wt5ux7y2/tv.subcult.profile/self",
+              "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+            },
+            "startsAt": "2026-10-02T02:00:00Z",
+            "createdAt": "2026-09-01T12:00:00Z"
+          }
+        },
+        {
+          "name": "valid occurrence with place, timezone, allDay and status",
+          "valid": true,
+          "record": {
+            "$type": "tv.subcult.event.occurrence",
+            "name": "Late Signal",
+            "description": "A late-night set with a rotating lineup.",
+            "profile": {
+              "uri": "at://did:plc:vwzwgnygau7ed7b7wt5ux7y2/tv.subcult.profile/self",
+              "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+            },
+            "place": {
+              "uri": "at://did:plc:vwzwgnygau7ed7b7wt5ux7y2/tv.subcult.place/3k5nobkf2w72g",
+              "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+            },
+            "startsAt": "2026-10-02T00:00:00Z",
+            "endsAt": "2026-10-03T00:00:00Z",
+            "allDay": true,
+            "timezone": "America/Chicago",
+            "status": "scheduled",
+            "createdAt": "2026-09-01T12:00:00Z"
+          }
+        },
+        {
+          "name": "valid rescheduled occurrence",
+          "valid": true,
+          "record": {
+            "$type": "tv.subcult.event.occurrence",
+            "name": "Late Signal",
+            "profile": {
+              "uri": "at://did:plc:vwzwgnygau7ed7b7wt5ux7y2/tv.subcult.profile/self",
+              "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+            },
+            "startsAt": "2026-10-09T02:00:00Z",
+            "status": "rescheduled",
+            "createdAt": "2026-09-01T12:00:00Z"
+          }
+        },
+        {
+          "name": "missing required name",
+          "valid": false,
+          "reason": "missing required",
+          "record": {
+            "$type": "tv.subcult.event.occurrence",
+            "profile": {
+              "uri": "at://did:plc:vwzwgnygau7ed7b7wt5ux7y2/tv.subcult.profile/self",
+              "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+            },
+            "startsAt": "2026-10-02T02:00:00Z",
+            "createdAt": "2026-09-01T12:00:00Z"
+          }
+        },
+        {
+          "name": "missing required profile",
+          "valid": false,
+          "reason": "missing required",
+          "record": {
+            "$type": "tv.subcult.event.occurrence",
+            "name": "Late Signal",
+            "startsAt": "2026-10-02T02:00:00Z",
+            "createdAt": "2026-09-01T12:00:00Z"
+          }
+        },
+        {
+          "name": "missing required startsAt",
+          "valid": false,
+          "reason": "missing required",
+          "record": {
+            "$type": "tv.subcult.event.occurrence",
+            "name": "Late Signal",
+            "profile": {
+              "uri": "at://did:plc:vwzwgnygau7ed7b7wt5ux7y2/tv.subcult.profile/self",
+              "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+            },
+            "createdAt": "2026-09-01T12:00:00Z"
+          }
+        },
+        {
+          "name": "missing required createdAt",
+          "valid": false,
+          "reason": "missing required",
+          "record": {
+            "$type": "tv.subcult.event.occurrence",
+            "name": "Late Signal",
+            "profile": {
+              "uri": "at://did:plc:vwzwgnygau7ed7b7wt5ux7y2/tv.subcult.profile/self",
+              "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+            },
+            "startsAt": "2026-10-02T02:00:00Z"
+          }
+        },
+        {
+          "name": "name over grapheme bound",
+          "valid": false,
+          "reason": "over-bound string",
+          "record": {
+            "$type": "tv.subcult.event.occurrence",
+            "name": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "profile": {
+              "uri": "at://did:plc:vwzwgnygau7ed7b7wt5ux7y2/tv.subcult.profile/self",
+              "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+            },
+            "startsAt": "2026-10-02T02:00:00Z",
+            "createdAt": "2026-09-01T12:00:00Z"
+          }
+        },
+        {
+          "name": "timezone over length bound",
+          "valid": false,
+          "reason": "over-bound string",
+          "record": {
+            "$type": "tv.subcult.event.occurrence",
+            "name": "Late Signal",
+            "profile": {
+              "uri": "at://did:plc:vwzwgnygau7ed7b7wt5ux7y2/tv.subcult.profile/self",
+              "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+            },
+            "startsAt": "2026-10-02T02:00:00Z",
+            "createdAt": "2026-09-01T12:00:00Z",
+            "timezone": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+          }
+        },
+        {
+          "name": "bad datetime for startsAt",
+          "valid": false,
+          "reason": "bad datetime",
+          "record": {
+            "$type": "tv.subcult.event.occurrence",
+            "name": "Late Signal",
+            "profile": {
+              "uri": "at://did:plc:vwzwgnygau7ed7b7wt5ux7y2/tv.subcult.profile/self",
+              "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+            },
+            "startsAt": "2026-10-02",
+            "createdAt": "2026-09-01T12:00:00Z"
+          }
+        },
+        {
+          "name": "profile ref missing cid",
+          "valid": false,
+          "reason": "missing required",
+          "record": {
+            "$type": "tv.subcult.event.occurrence",
+            "name": "Late Signal",
+            "profile": {
+              "uri": "at://did:plc:vwzwgnygau7ed7b7wt5ux7y2/tv.subcult.profile/self"
+            },
+            "startsAt": "2026-10-02T02:00:00Z",
+            "createdAt": "2026-09-01T12:00:00Z"
+          }
+        },
+        {
+          "name": "profile ref uses invalid at-uri",
+          "valid": false,
+          "reason": "bad at-uri syntax",
+          "record": {
+            "$type": "tv.subcult.event.occurrence",
+            "name": "Late Signal",
+            "profile": {
+              "uri": "https://example.com/not-an-at-uri",
+              "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+            },
+            "startsAt": "2026-10-02T02:00:00Z",
+            "createdAt": "2026-09-01T12:00:00Z"
+          }
+        },
+        {
+          "name": "unknown field rejected",
+          "valid": false,
+          "reason": "unknown field",
+          "record": {
+            "$type": "tv.subcult.event.occurrence",
+            "name": "Late Signal",
+            "profile": {
+              "uri": "at://did:plc:vwzwgnygau7ed7b7wt5ux7y2/tv.subcult.profile/self",
+              "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+            },
+            "startsAt": "2026-10-02T02:00:00Z",
+            "createdAt": "2026-09-01T12:00:00Z",
+            "featured": true
+          }
+        },
+        {
+          "name": "private ticket price leak",
+          "valid": false,
+          "reason": "private field leak",
+          "record": {
+            "$type": "tv.subcult.event.occurrence",
+            "name": "Late Signal",
+            "profile": {
+              "uri": "at://did:plc:vwzwgnygau7ed7b7wt5ux7y2/tv.subcult.profile/self",
+              "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+            },
+            "startsAt": "2026-10-02T02:00:00Z",
+            "createdAt": "2026-09-01T12:00:00Z",
+            "ticketPriceCents": 2500
+          }
+        },
+        {
+          "name": "private staffing contact leak on nested place ref",
+          "valid": false,
+          "reason": "unknown field",
+          "record": {
+            "$type": "tv.subcult.event.occurrence",
+            "name": "Late Signal",
+            "profile": {
+              "uri": "at://did:plc:vwzwgnygau7ed7b7wt5ux7y2/tv.subcult.profile/self",
+              "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+            },
+            "place": {
+              "uri": "at://did:plc:vwzwgnygau7ed7b7wt5ux7y2/tv.subcult.place/3k5nobkf2w72g",
+              "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+              "staffContact": "ops@example.com"
+            },
+            "startsAt": "2026-10-02T02:00:00Z",
+            "createdAt": "2026-09-01T12:00:00Z"
+          }
+        },
+        {
+          "name": "wrong $type",
+          "valid": false,
+          "reason": "wrong $type",
+          "record": {
+            "$type": "tv.subcult.place",
+            "name": "Late Signal",
+            "profile": {
+              "uri": "at://did:plc:vwzwgnygau7ed7b7wt5ux7y2/tv.subcult.profile/self",
+              "cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+            },
+            "startsAt": "2026-10-02T02:00:00Z",
+            "createdAt": "2026-09-01T12:00:00Z"
+          }
+        }
+      ]
+    }
+  ]
+}

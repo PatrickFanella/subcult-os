@@ -21,7 +21,7 @@ Accepted architecture is recorded in repository ADRs. Open entries below must no
 | ID | Decision | Recommended starting point | Blocks / evidence needed |
 | --- | --- | --- | --- |
 | D3 | Retained account migration | None unless a read-only inventory finds real accounts; then require fresh proof and never email equality alone | IDENT-01; data inventory, ambiguity and replay fixtures |
-| D5 | Lexicon admission | Review each `tv.subcult.*` schema against current product journeys; begin with the smallest event/profile dependency chain | AT-01; namespace ownership, field and compatibility review |
+| D5 | Lexicon admission | Review each `tv.subcult.*` schema against current product journeys; begin with the smallest event/profile dependency chain | AT-01; namespace ownership, field and compatibility review. A minimal event/profile/place chain and its contract/validators are proposed in [ADR 0007](../adr/0007-minimal-lexicon-admission.md) and [`lexicon-contract.md`](lexicon-contract.md); still Open pending owner acceptance of that ADR |
 | D6 | Public cultural model | Minimal Profile/Act, Place/Venue, Event occurrence and optional Tour/Appearance | MODEL-01; user journeys and existing OS event comparison |
 | D7 | Operator/public event relationship | Private operator event owns operations; creator PDS owns published occurrence; private URI/CID state relates them | MODEL-01; time, location, cancellation and duplication cases |
 | D8 | Publishing actor authority | Require workspace permission, creator/profile delegation and current scoped OAuth | PUB-01; revocation and cross-tenant negative fixtures |

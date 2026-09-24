@@ -1,0 +1,71 @@
+{
+  "lexicon": 1,
+  "id": "tv.subcult.place",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A minimal public place or venue record. Independently authored; not copied from any Subcults source. Never a private address, door code, staffing or money field.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["name", "createdAt"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Public venue or place name.",
+            "minGraphemes": 1,
+            "maxGraphemes": 140,
+            "maxLength": 600
+          },
+          "locality": {
+            "type": "string",
+            "description": "Public city or town, standing in for a full street address.",
+            "maxGraphemes": 100,
+            "maxLength": 400
+          },
+          "region": {
+            "type": "string",
+            "description": "Public administrative region, for example a state or province.",
+            "maxGraphemes": 100,
+            "maxLength": 400
+          },
+          "country": {
+            "type": "string",
+            "description": "ISO 3166-1 alpha-2 country code.",
+            "minLength": 2,
+            "maxLength": 2
+          },
+          "coordinates": {
+            "type": "ref",
+            "ref": "tv.subcult.place#geo",
+            "description": "Coarse public coordinates. Only present when the operator explicitly marked this place's coordinates public; a private-address grant never populates this field."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "RFC 3339 UTC instant when the place record was created."
+          }
+        }
+      }
+    },
+    "geo": {
+      "type": "object",
+      "description": "A WGS84 coordinate pair, bounded to prevent embedding excess precision or unrelated text.",
+      "required": ["latitude", "longitude"],
+      "properties": {
+        "latitude": {
+          "type": "string",
+          "description": "Latitude in decimal degrees.",
+          "minLength": 1,
+          "maxLength": 20
+        },
+        "longitude": {
+          "type": "string",
+          "description": "Longitude in decimal degrees.",
+          "minLength": 1,
+          "maxLength": 20
+        }
+      }
+    }
+  }
+}
