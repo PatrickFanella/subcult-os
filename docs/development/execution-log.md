@@ -3,8 +3,7 @@
 ## 2026-09-23 — #14 creator delegation and granular workspace authority (AUTH-01)
 
 Added migration `backend/internal/app/migrations/000010_workspace_authority.sql`
-(schema version 8 → 10; version 9 is reserved for a parallel slice not
-present in this branch): widens `workspace_members.role` from
+(schema version 9 → 10): widens `workspace_members.role` from
 `('owner', 'member')` to `('owner', 'organizer', 'finance', 'door', 'crew',
 'member')`, keeping `'member'` as a permanent legacy alias for `'crew'` so
 every existing row and every existing literal `"owner"`/`"member"` call site
