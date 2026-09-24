@@ -37,6 +37,8 @@ type App struct {
 	atprotoStore   *atprotocol.OAuthStore
 	atprotoFlow    atprotoLinkFlow
 	atprotoFlowErr error
+	lexiconCatalog *atprotocol.LexiconCatalog
+	lexiconErr     error
 	mux            *http.ServeMux
 	loginMu        sync.Mutex
 	loginAttempts  map[string]loginAttempt
@@ -66,7 +68,20 @@ func New(config Config, db *pgxpool.Pool) *App {
 			}
 		}
 	}
-	a := &App{config: config, db: db, payments: newStripePaymentProvider(config.StripeSecretKey), media: media, mediaErr: mediaErr, discovery: newDiscoveryPolicy(), identity: identity, identityErr: identityErr, atprotoOAuth: atprotoOAuth, atprotoErr: atprotoErr, atprotoStore: atprotoStore, atprotoFlow: atprotoFlow, atprotoFlowErr: atprotoFlowErr, mux: http.NewServeMux(), loginAttempts: map[string]loginAttempt{}}
+	// The admitted Lexicon catalog is loaded from disk on a best-effort
+	// basis. D5/ADR 0007 has not been accepted and no production deployment
+	// currently ships contracts/lexicons alongside the binary, so a missing
+	// directory is expected outside test/dev environments; only the
+	// public-preview endpoint (which validates against the catalog) fails
+	// when it is unavailable, not application startup.
+	var lexiconCatalog *atprotocol.LexiconCatalog
+	var lexiconErr error
+	if config.LexiconContractDir != "" {
+		lexiconCatalog, lexiconErr = atprotocol.LoadLexiconCatalog(config.LexiconContractDir)
+	} else {
+		lexiconCatalog, lexiconErr = atprotocol.LoadEmbeddedLexiconCatalog()
+	}
+	a := &App{config: config, db: db, payments: newStripePaymentProvider(config.StripeSecretKey), media: media, mediaErr: mediaErr, discovery: newDiscoveryPolicy(), identity: identity, identityErr: identityErr, atprotoOAuth: atprotoOAuth, atprotoErr: atprotoErr, atprotoStore: atprotoStore, atprotoFlow: atprotoFlow, atprotoFlowErr: atprotoFlowErr, lexiconCatalog: lexiconCatalog, lexiconErr: lexiconErr, mux: http.NewServeMux(), loginAttempts: map[string]loginAttempt{}}
 	a.routes()
 	return a
 }
@@ -156,6 +171,18 @@ func (a *App) routes() {
 	a.mux.HandleFunc("POST /api/events/{eventID}/image", a.handleUploadEventImage)
 	a.mux.HandleFunc("POST /api/events/{eventID}/publish", a.handlePublishEvent)
 	a.mux.HandleFunc("POST /api/events/{eventID}/test-ticket", a.handleCreateTestTicket)
+	a.mux.HandleFunc("GET /api/workspaces/{workspaceID}/profiles", a.handleListCulturalProfiles)
+	a.mux.HandleFunc("POST /api/workspaces/{workspaceID}/profiles", a.handleCreateCulturalProfile)
+	a.mux.HandleFunc("PATCH /api/workspaces/{workspaceID}/profiles/{profileID}", a.handleUpdateCulturalProfile)
+	a.mux.HandleFunc("GET /api/workspaces/{workspaceID}/places", a.handleListCulturalPlaces)
+	a.mux.HandleFunc("POST /api/workspaces/{workspaceID}/places", a.handleCreateCulturalPlace)
+	a.mux.HandleFunc("PATCH /api/workspaces/{workspaceID}/places/{placeID}", a.handleUpdateCulturalPlace)
+	a.mux.HandleFunc("GET /api/events/{eventID}/occurrences", a.handleListEventOccurrences)
+	a.mux.HandleFunc("POST /api/events/{eventID}/occurrences", a.handleCreateEventOccurrence)
+	a.mux.HandleFunc("PATCH /api/events/{eventID}/occurrences/{occurrenceID}", a.handleUpdateEventOccurrence)
+	a.mux.HandleFunc("POST /api/events/{eventID}/occurrences/{occurrenceID}/credits", a.handleAttachOccurrenceCredit)
+	a.mux.HandleFunc("DELETE /api/events/{eventID}/occurrences/{occurrenceID}/credits/{profileID}", a.handleDetachOccurrenceCredit)
+	a.mux.HandleFunc("GET /api/events/{eventID}/occurrences/{occurrenceID}/public-preview", a.handleOccurrencePublicPreview)
 	a.mux.HandleFunc("GET /api/events/{eventID}/commitments", a.handleListEventCommitments)
 	a.mux.HandleFunc("GET /api/events/{eventID}/reminders", a.handleListEventReminders)
 	a.mux.HandleFunc("GET /api/events/{eventID}/notifications", a.handleListEventNotifications)

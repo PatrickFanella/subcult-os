@@ -112,7 +112,7 @@ Review [decisions](decisions.md), [architecture](architecture.md), and the [extr
 - Repository: OS
 - Priority: P1
 - Depends on: IDENT-01, AT-01
-- Status: proposed
+- Status: data model, workspace-scoped CRUD API and public-preview projection implemented 2026-09-23; see [cultural-model.md](cultural-model.md) and execution-log.md. Publication (writing to a PDS), projection/discovery ingestion and UI remain open in DISC-01/PUB-01/UX-01.
 - Size: 5–8 engineering days
 
 **Acceptance:** Define only journey-required Profile/Act, Place/Venue, public Event occurrence and private operator-event relation; preserve public/private location and time semantics.
