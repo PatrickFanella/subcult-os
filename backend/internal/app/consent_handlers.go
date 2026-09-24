@@ -218,10 +218,11 @@ func (a *App) handleConfirmConsentGrant(w http.ResponseWriter, r *http.Request) 
 }
 
 // handleWithdrawConsentGrant is the public, tokenized unsubscribe route
-// (GET, for a plain email link, and POST). Like confirm, it accepts no
-// session and reveals nothing beyond a generic not-found; it is
-// idempotent, so clicking an already-used unsubscribe link twice still
-// succeeds rather than erroring.
+// (POST only, so link-prefetching mail scanners cannot withdraw on the
+// recipient's behalf; the emailed link opens the web page that posts).
+// Like confirm, it accepts no session and reveals nothing beyond a generic
+// not-found; it is idempotent, so submitting an already-used unsubscribe
+// twice still succeeds rather than erroring.
 func (a *App) handleWithdrawConsentGrant(w http.ResponseWriter, r *http.Request) {
 	if a.db == nil {
 		writeError(w, http.StatusInternalServerError, "database unavailable")
@@ -244,6 +245,49 @@ func (a *App) handleWithdrawConsentGrant(w http.ResponseWriter, r *http.Request)
 	}
 	if result.RowsAffected() == 0 {
 		writeError(w, http.StatusNotFound, "not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "withdrawn"})
+}
+
+// handleOperatorWithdrawConsentGrant records a withdrawal the workspace
+// received out of band (reply email, phone, in person). It needs
+// permManageConsent and is scoped to the workspace in the path, so an
+// operator can never withdraw another workspace's grant by id.
+func (a *App) handleOperatorWithdrawConsentGrant(w http.ResponseWriter, r *http.Request) {
+	if a.db == nil {
+		writeError(w, http.StatusInternalServerError, "database unavailable")
+		return
+	}
+	workspaceID := r.PathValue("workspaceID")
+	actorID, ok := a.requirePermission(r, workspaceID, permManageConsent)
+	if !ok {
+		writeError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+	grantID := r.PathValue("grantID")
+	if !validLinkID(grantID) {
+		writeError(w, http.StatusNotFound, "consent grant not found")
+		return
+	}
+	result, err := a.db.Exec(r.Context(), `
+		update consent_grants
+		set withdrawn_at = coalesce(withdrawn_at, now()),
+		    withdrawal_reason = coalesce(withdrawal_reason, 'operator_recorded')
+		where id = $1 and workspace_id = $2
+	`, grantID, workspaceID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not withdraw consent grant")
+		return
+	}
+	if result.RowsAffected() == 0 {
+		writeError(w, http.StatusNotFound, "consent grant not found")
+		return
+	}
+	if err := a.audit(r.Context(), actorID, "consent_grant.withdrawn", "consent_grant", grantID, map[string]any{
+		"workspaceId": workspaceID,
+	}); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not record audit")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "withdrawn"})

@@ -166,14 +166,22 @@ All four are new in this slice; nothing else changes route behavior.
   succeeds without changing anything). An unrecognized or already-withdrawn
   token returns a generic `404`; the response never reveals the recipient
   address, workspace or any other grant field.
-- **`GET|POST /api/public/consent/{token}/withdraw`** — the unsubscribe
-  route: a public, tokenized link (`GET`, so a plain email hyperlink can
-  withdraw directly) or `POST`, no session either way. Sets `withdrawn_at`
-  and `withdrawal_reason = "recipient_requested"` (idempotent, and never
-  overwrites an existing withdrawal reason). The token identifies the
-  grant; the same token serves both confirm and withdraw, since both are
-  private, per-grant secrets equally sensitive to leak. Like confirm, an
-  unrecognized token returns a generic `404` and reveals nothing else.
+- **`POST /api/public/consent/{token}/withdraw`** — the unsubscribe
+  route, public and tokenized, no session. It is `POST` only: the emailed
+  link opens the web page `/consent/withdraw?token=…`, which posts on the
+  recipient's click, so a link-prefetching mail scanner cannot withdraw on
+  their behalf. Sets `withdrawn_at` and `withdrawal_reason =
+  "recipient_requested"` (idempotent, never overwrites an existing
+  reason). The same token serves confirm and withdraw, since both are
+  private, per-grant secrets equally sensitive to leak. An unrecognized
+  token returns a generic `404` and reveals nothing else. The confirm link
+  likewise opens `/consent/confirm?token=…`, which posts to the confirm
+  route.
+- **`POST /api/workspaces/{workspaceID}/consent-grants/{grantID}/withdraw`**
+  — operator-only (`permManageConsent`), for withdrawals received out of
+  band (reply email, phone, in person). Scoped to the workspace in the
+  path; a grant id from another workspace is a `404`. Records
+  `withdrawal_reason = "operator_recorded"` and an audit entry.
 
 `manage_consent` is a new permission, granted to `owner` and `organizer`
 (the same set as `manage_delegations`), not `manage_members`: recording or

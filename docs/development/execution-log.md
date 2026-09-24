@@ -40,7 +40,7 @@ body, and never calls the provider or retries. Added operator endpoints
 `manage_consent` permission, granted to owner and organizer like
 `manage_delegations`) and public tokenized
 `POST /api/public/consent/{token}/confirm` and
-`GET|POST /api/public/consent/{token}/withdraw` (no session, generic 404
+`POST /api/public/consent/{token}/withdraw` (no session, generic 404
 for an unknown or withdrawn token, no other grant field ever revealed).
 Creating a grant enqueues a `transactional` verification email (reusing
 `enqueueEmail`), so establishing a grant never itself requires one.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -393,5 +394,45 @@ func TestCheckSendPermissionRejectsAnnouncementWithoutWorkspace(t *testing.T) {
 	err := fx.app.checkSendPermission(t.Context(), "", "email", "no-workspace@example.test", consentPurposeAnnouncement)
 	if !errors.Is(err, ErrConsentGrantRequired) {
 		t.Fatalf("expected ErrConsentGrantRequired for an empty workspace, got %v", err)
+	}
+}
+
+// TestOperatorWithdrawConsentGrantIsScopedAndPermissioned covers the
+// out-of-band withdrawal route: crew cannot use it, another workspace's
+// owner gets 404 for a foreign grant id, and the owning workspace's owner
+// withdraws it, after which announcement permission is denied.
+func TestOperatorWithdrawConsentGrantIsScopedAndPermissioned(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	other := newLifecycleFixture(t, fx.app)
+	recipient := "operator-withdraw+" + fx.suffix + "@example.test"
+
+	created := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/consent-grants", map[string]any{
+		"channel": "email", "recipientAddress": recipient, "purpose": "announcement",
+		"disclosureVersion": "v1", "source": "operator_recorded",
+	}, http.StatusOK)
+	grantID := mustString(t, created.JSON, "id")
+	if _, err := fx.app.db.Exec(t.Context(), `update consent_grants set verified_at = now() where id = $1`, grantID); err != nil {
+		t.Fatal(err)
+	}
+	if err := fx.app.checkSendPermission(t.Context(), fx.workspaceID, "email", recipient, "announcement"); err != nil {
+		t.Fatalf("verified grant should authorize announcement before withdrawal: %v", err)
+	}
+
+	postJSON(t, fx.app, fx.memberCookie, "/api/workspaces/"+fx.workspaceID+"/consent-grants/"+grantID+"/withdraw", map[string]any{}, http.StatusForbidden)
+	postJSON(t, fx.app, other.ownerCookie, "/api/workspaces/"+other.workspaceID+"/consent-grants/"+grantID+"/withdraw", map[string]any{}, http.StatusNotFound)
+	postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/consent-grants/not-a-uuid/withdraw", map[string]any{}, http.StatusNotFound)
+
+	withdrawn := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/consent-grants/"+grantID+"/withdraw", map[string]any{}, http.StatusOK)
+	if mustString(t, withdrawn.JSON, "status") != "withdrawn" {
+		t.Fatalf("expected withdrawn status: %+v", withdrawn.JSON)
+	}
+	if err := fx.app.checkSendPermission(t.Context(), fx.workspaceID, "email", recipient, "announcement"); err == nil {
+		t.Fatal("withdrawn grant must not authorize announcement")
+	}
+	// A plain GET on the public unsubscribe link must not withdraw anything.
+	rec := httptest.NewRecorder()
+	fx.app.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/public/consent/anything/withdraw", nil))
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("GET withdraw status = %d, want %d", rec.Code, http.StatusMethodNotAllowed)
 	}
 }
