@@ -64,38 +64,6 @@ type createInvitationRequest struct {
 	Email string `json:"email"`
 }
 
-func (a *App) requireWorkspaceRole(r *http.Request, workspaceID string, allowed ...string) (personID string, role string, ok bool) {
-	personID, ok = a.requirePersonID(r)
-	if !ok || a.db == nil {
-		return "", "", false
-	}
-	if workspaceID == "" {
-		return "", "", false
-	}
-
-	var membershipRole string
-	err := a.db.QueryRow(r.Context(), `
-		select role
-		from workspace_members
-		where workspace_id = $1
-		  and person_id = $2
-		  and removed_at is null
-	`, workspaceID, personID).Scan(&membershipRole)
-	if err != nil {
-		return "", "", false
-	}
-
-	if len(allowed) == 0 {
-		return personID, membershipRole, true
-	}
-	for _, want := range allowed {
-		if membershipRole == want {
-			return personID, membershipRole, true
-		}
-	}
-	return "", "", false
-}
-
 func (a *App) handleCreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	if a.db == nil {
 		writeError(w, http.StatusInternalServerError, "database unavailable")
@@ -238,6 +206,8 @@ func (a *App) loadCurrentWorkspace(ctx context.Context, personID string) (curren
 		join workspaces w on w.id = wm.workspace_id
 		where wm.person_id = $1
 		  and wm.removed_at is null
+		  and wm.revoked_at is null
+		  and (wm.expires_at is null or wm.expires_at > now())
 		order by w.created_at desc, w.name
 		limit 1
 	`, personID).Scan(&workspace.ID, &workspace.Name, &workspace.Role)
@@ -256,6 +226,8 @@ func (a *App) loadWorkspace(ctx context.Context, personID string, workspaceID st
 		where wm.person_id = $1
 		  and wm.workspace_id = $2
 		  and wm.removed_at is null
+		  and wm.revoked_at is null
+		  and (wm.expires_at is null or wm.expires_at > now())
 	`, personID, workspaceID).Scan(&workspace.ID, &workspace.Name, &workspace.Role)
 	if err != nil {
 		return currentWorkspaceDTO{}, err
@@ -614,15 +586,9 @@ func (a *App) handleRemoveMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if targetRole == "owner" {
-		var owners int
-		if err := tx.QueryRow(r.Context(), `
-			select count(*)
-			from workspace_members
-			where workspace_id = $1
-			  and role = 'owner'
-			  and removed_at is null
-		`, workspaceID).Scan(&owners); err != nil {
+	if targetRole == roleOwner {
+		owners, err := activeOwnerCountTx(r.Context(), tx, workspaceID)
+		if err != nil {
 			writeError(w, http.StatusInternalServerError, "could not count owners")
 			return
 		}
