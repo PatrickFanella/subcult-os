@@ -41,13 +41,14 @@ func isAssignableRole(role string) bool {
 // capability, a role is a named bundle of capabilities. See
 // docs/development/authority-model.md for the full matrix and rationale.
 const (
-	permOperate           = "operate"            // baseline day-to-day workspace access
-	permManageMembers     = "manage_members"     // change a member's role/expiry, revoke membership
-	permManageDelegations = "manage_delegations" // create/revoke creator delegations
-	permPublish           = "publish"            // authorize a public write on behalf of a profile
-	permFinance           = "finance"            // settlement and financial operations
-	permDoor              = "door"               // door check-in operations
-	permManageConsent     = "manage_consent"     // create/list/withdraw channel consent grants (CONSENT-01)
+	permOperate             = "operate"              // baseline day-to-day workspace access
+	permManageMembers       = "manage_members"       // change a member's role/expiry, revoke membership
+	permManageDelegations   = "manage_delegations"   // create/revoke creator delegations
+	permPublish             = "publish"              // authorize a public write on behalf of a profile
+	permFinance             = "finance"              // settlement and financial operations
+	permDoor                = "door"                 // door check-in operations
+	permManageConsent       = "manage_consent"       // create/list/withdraw channel consent grants (CONSENT-01)
+	permManageAnnouncements = "manage_announcements" // create/schedule/cancel/list announcements (SIGNAL-01)
 )
 
 // rolePermissions is the least-privilege permission matrix. Every role
@@ -55,19 +56,21 @@ const (
 // role a workspace member at all. Everything else is additive per role.
 var rolePermissions = map[string]map[string]bool{
 	roleOwner: {
-		permOperate:           true,
-		permManageMembers:     true,
-		permManageDelegations: true,
-		permPublish:           true,
-		permFinance:           true,
-		permDoor:              true,
-		permManageConsent:     true,
+		permOperate:             true,
+		permManageMembers:       true,
+		permManageDelegations:   true,
+		permPublish:             true,
+		permFinance:             true,
+		permDoor:                true,
+		permManageConsent:       true,
+		permManageAnnouncements: true,
 	},
 	roleOrganizer: {
-		permOperate:           true,
-		permManageDelegations: true,
-		permPublish:           true,
-		permManageConsent:     true,
+		permOperate:             true,
+		permManageDelegations:   true,
+		permPublish:             true,
+		permManageConsent:       true,
+		permManageAnnouncements: true,
 	},
 	roleFinance: {
 		permOperate: true,
