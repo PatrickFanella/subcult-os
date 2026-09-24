@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { FormEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { api } from '../api';
-import type { PublicEventSummaryDTO } from '../domain';
+import type { PublicDiscoveryOccurrenceDTO, PublicEventSummaryDTO } from '../domain';
 import {
 	discoveryBadgeLabel,
 	discoveryBrowseLabel,
@@ -21,6 +21,23 @@ import {
 	getRequestedDiscoveryQuery,
 } from '../modules/discovery/discoveryModel';
 import {
+	discoveryOccurrenceDetailCloseLabel,
+	discoveryOccurrencesDescription,
+	discoveryOccurrencesEmptyBody,
+	discoveryOccurrencesEmptyTitle,
+	discoveryOccurrencesErrorCopy,
+	discoveryOccurrencesLoadingCopy,
+	discoveryOccurrencesTitle,
+	formatOccurrenceDateTime,
+	handoffButtonLabel,
+	handoffLocalPath,
+	handoffUnavailableReasonCopy,
+	isOccurrenceUnavailable,
+	occurrenceLocationSummary,
+	occurrenceStatusLabel,
+	projectOccurrencesToPlot,
+} from '../modules/discovery/discoveryOccurrenceModel';
+import {
 	publicCardClass,
 	publicEyebrowClass,
 	publicMutedTextClass,
@@ -30,6 +47,202 @@ import {
 	publicSecondaryButtonClass,
 	publicStatusPillClass,
 } from '../modules/publicUi/publicUi';
+
+const DISCOVERY_MAP_WIDTH = 320;
+const DISCOVERY_MAP_HEIGHT = 160;
+
+export function DiscoveryOccurrencesSection() {
+	const [occurrences, setOccurrences] = useState<PublicDiscoveryOccurrenceDTO[] | null>(null);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+	const [selectedURI, setSelectedURI] = useState<string | null>(null);
+
+	useEffect(() => {
+		let cancelled = false;
+		setLoading(true);
+		setError(null);
+		api<PublicDiscoveryOccurrenceDTO[]>('/api/public/discovery/occurrences')
+			.then((loaded) => {
+				if (!cancelled) setOccurrences(loaded ?? []);
+			})
+			.catch((caught: unknown) => {
+				if (cancelled) return;
+				setError(caught instanceof Error ? caught.message : 'Unable to load discovery occurrences');
+				setOccurrences([]);
+			})
+			.finally(() => {
+				if (!cancelled) setLoading(false);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, []);
+
+	const dialogRef = useRef<HTMLDivElement | null>(null);
+	const openerRef = useRef<HTMLElement | null>(null);
+
+	useEffect(() => {
+		if (!selectedURI) return;
+		function onKeyDown(event: KeyboardEvent) {
+			if (event.key === 'Escape') {
+				setSelectedURI(null);
+			}
+		}
+		document.addEventListener('keydown', onKeyDown);
+		// Move focus into the dialog on open and give it back to the card
+		// that opened it on close, so keyboard users are not left behind
+		// the overlay.
+		dialogRef.current?.focus();
+		return () => {
+			document.removeEventListener('keydown', onKeyDown);
+			openerRef.current?.focus();
+		};
+	}, [selectedURI]);
+
+	function openDetail(uri: string) {
+		if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+			openerRef.current = document.activeElement;
+		}
+		setSelectedURI(uri);
+	}
+
+	function handleCardKeyDown(event: ReactKeyboardEvent<Element>, uri: string) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			openDetail(uri);
+		}
+	}
+
+	const selected = occurrences?.find((item) => item.uri === selectedURI) ?? null;
+	const plotPoints = occurrences ? projectOccurrencesToPlot(occurrences, DISCOVERY_MAP_WIDTH, DISCOVERY_MAP_HEIGHT) : [];
+
+	return (
+		<section aria-label={discoveryOccurrencesTitle} className="flex flex-col gap-4">
+			<header className="rounded-[32px] border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
+				<p className={publicEyebrowClass}>{discoveryOccurrencesTitle}</p>
+				<p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">{discoveryOccurrencesDescription}</p>
+			</header>
+
+			{loading ? <div className={`${publicCardClass} ${publicMutedTextClass}`}>{discoveryOccurrencesLoadingCopy}</div> : null}
+
+			{error ? (
+				<p aria-live="polite" className="rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+					{discoveryOccurrencesErrorCopy(error)}
+				</p>
+			) : null}
+
+			{!loading && !error && occurrences?.length === 0 ? (
+				<div className={publicCardClass}>
+					<h2 className="text-xl font-black text-[#171717]">{discoveryOccurrencesEmptyTitle}</h2>
+					<p className={`mt-2 ${publicMutedTextClass}`}>{discoveryOccurrencesEmptyBody}</p>
+				</div>
+			) : null}
+
+			{!loading && !error && plotPoints.length > 0 ? (
+				<div className={publicCardClass}>
+					<p className={publicEyebrowClass}>Map</p>
+					<svg
+						role="img"
+						aria-label="Coordinate plot of discovery occurrences with public locations"
+						className="mt-3 w-full rounded-[20px] bg-neutral-50"
+						viewBox={`0 0 ${DISCOVERY_MAP_WIDTH} ${DISCOVERY_MAP_HEIGHT}`}
+					>
+						{plotPoints.map((point) => (
+							<circle
+								key={point.uri}
+								data-testid={`discovery-map-point-${point.uri}`}
+								cx={point.x}
+								cy={point.y}
+								r={4}
+								className="cursor-pointer fill-[#171717]"
+								role="button"
+								tabIndex={0}
+								aria-label="View occurrence"
+								onClick={() => openDetail(point.uri)}
+								onKeyDown={(event) => handleCardKeyDown(event, point.uri)}
+							/>
+						))}
+					</svg>
+				</div>
+			) : null}
+
+			{!loading && !error && occurrences && occurrences.length > 0 ? (
+				<ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+					{occurrences.map((occurrence) => (
+						<li key={occurrence.uri}>
+							<article
+								role="button"
+								tabIndex={0}
+								aria-label={occurrence.name}
+								className="flex h-full cursor-pointer flex-col gap-3 rounded-[24px] border border-neutral-200 bg-white p-5 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-[#171717]"
+								onClick={() => openDetail(occurrence.uri)}
+								onKeyDown={(event) => handleCardKeyDown(event, occurrence.uri)}
+							>
+								<p className={publicEyebrowClass}>{formatOccurrenceDateTime(occurrence.startsAt, occurrence.timezone)}</p>
+								<h3 className="text-xl font-black leading-tight text-[#171717]">{occurrence.name}</h3>
+								<span className={publicStatusPillClass(isOccurrenceUnavailable(occurrence) ? 'danger' : 'neutral')}>{occurrenceStatusLabel(occurrence)}</span>
+								<p className={publicMutedTextClass}>{occurrenceLocationSummary(occurrence.location)}</p>
+							</article>
+						</li>
+					))}
+				</ul>
+			) : null}
+
+			{selected ? (
+				<div
+					role="dialog"
+					aria-modal="true"
+					aria-label={selected.name}
+					className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
+					onClick={() => setSelectedURI(null)}
+				>
+					<div
+						ref={dialogRef}
+						tabIndex={-1}
+						className={`${publicCardClass} w-full max-w-lg outline-none`}
+						onClick={(event) => event.stopPropagation()}
+					>
+						<div className="flex items-start justify-between gap-3">
+							<h2 className="text-2xl font-black text-[#171717]">{selected.name}</h2>
+							<button type="button" className={publicSecondaryButtonClass} onClick={() => setSelectedURI(null)}>
+								{discoveryOccurrenceDetailCloseLabel}
+							</button>
+						</div>
+
+						<dl className="mt-4 grid gap-3 text-sm text-neutral-700">
+							<div className="rounded-[20px] bg-neutral-50 p-4">
+								<dt className={publicEyebrowClass}>Source</dt>
+								<dd className="mt-2 break-all font-mono text-xs text-neutral-600">{selected.source.uri}</dd>
+							</div>
+							<div className="rounded-[20px] bg-neutral-50 p-4">
+								<dt className={publicEyebrowClass}>Status</dt>
+								<dd className="mt-2 font-bold text-[#171717]">{occurrenceStatusLabel(selected)}</dd>
+							</div>
+							<div className="rounded-[20px] bg-neutral-50 p-4">
+								<dt className={publicEyebrowClass}>When</dt>
+								<dd className="mt-2 font-bold text-[#171717]">{formatOccurrenceDateTime(selected.startsAt, selected.timezone)}</dd>
+							</div>
+							<div className="rounded-[20px] bg-neutral-50 p-4">
+								<dt className={publicEyebrowClass}>Location</dt>
+								<dd className="mt-2 font-bold text-[#171717]">{occurrenceLocationSummary(selected.location)}</dd>
+							</div>
+						</dl>
+
+						{isOccurrenceUnavailable(selected) ? (
+							<p className="mt-4 rounded-[20px] border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800">This occurrence is no longer available from its source.</p>
+						) : selected.handoff.kind === 'local' ? (
+							<a className={`${publicPrimaryButtonClass} mt-4 w-full`} href={handoffLocalPath(selected.handoff) ?? '#'}>
+								{handoffButtonLabel(selected.handoff)}
+							</a>
+						) : (
+							<p className="mt-4 rounded-[20px] border border-neutral-200 bg-neutral-50 p-4 text-sm font-medium text-neutral-700">{handoffUnavailableReasonCopy(selected.handoff)}</p>
+						)}
+					</div>
+				</div>
+			) : null}
+		</section>
+	);
+}
 
 export function DiscoverView() {
 	const [events, setEvents] = useState<PublicEventSummaryDTO[] | null>(null);
@@ -190,6 +403,8 @@ export function DiscoverView() {
 						))}
 					</div>
 				) : null}
+
+				<DiscoveryOccurrencesSection />
 			</section>
 		</main>
 	);

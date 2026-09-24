@@ -38,6 +38,42 @@ export interface PublicEventDTO {
   isFull: boolean;
 }
 
+export interface PublicDiscoverySourceDTO {
+  did: string;
+  uri: string;
+  handle?: string;
+}
+
+export interface PublicDiscoveryLocationDTO {
+  name: string;
+  locality?: string;
+  region?: string;
+  country?: string;
+  latitude?: string;
+  longitude?: string;
+}
+
+export interface PublicDiscoveryHandoffDTO {
+  kind: 'local' | 'none';
+  reason?: string;
+  eventSlug?: string;
+  reservationPath?: string;
+}
+
+export interface PublicDiscoveryOccurrenceDTO {
+  uri: string;
+  source: PublicDiscoverySourceDTO;
+  name: string;
+  description?: string;
+  startsAt: string;
+  endsAt?: string;
+  timezone?: string;
+  status: string;
+  projectionStatus: 'active' | 'deleted' | 'unavailable';
+  location?: PublicDiscoveryLocationDTO;
+  handoff: PublicDiscoveryHandoffDTO;
+}
+
 export interface TicketDTO {
   id: string;
   eventId: string;

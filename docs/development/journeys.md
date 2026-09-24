@@ -21,6 +21,13 @@ Negative: revoked creator authority blocks execution, including queued work.
 Anonymous participant discovers the validated occurrence through Subcult.tv and follows its approved reservation destination.
 Pass: correct operator event, safe link handling, existing free reservation and ticket access; no private staffing, contact or financial data in the public payload.
 Negative: missing, stale or invalid mapping does not route to another event silently.
+Implemented 2026-09-24 over the DISC-01 projection: `GET /api/public/discovery/occurrences`
+and `.../occurrences/{uri...}` (anonymous, no session) list/detail the
+projected occurrence, resolve reservation handoff through `event_public_links`
+(local reservation only in this slice — the admitted Lexicon has no ticket-URL
+field yet, so external handoff is not reachable), and never fall back to a
+different event on a missing/stale mapping. See
+[`discovery-ux.md`](discovery-ux.md) for the API, web UI and test evidence.
 
 ## J5 — External edit conflict
 Another authorized AT client changes the public occurrence before the OS editor submits.
