@@ -1,0 +1,87 @@
+{
+  "lexicon": 1,
+  "id": "tv.subcult.event.occurrence",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A minimal public event occurrence: name, time and an optional venue reference. Independently authored; not copied from any Subcults source. Never tickets, contacts, staffing, settlement or private location detail.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["name", "profile", "startsAt", "createdAt"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Public event name.",
+            "minGraphemes": 1,
+            "maxGraphemes": 200,
+            "maxLength": 1000
+          },
+          "description": {
+            "type": "string",
+            "description": "Public event description.",
+            "maxGraphemes": 3000,
+            "maxLength": 12000
+          },
+          "profile": {
+            "type": "ref",
+            "ref": "tv.subcult.event.occurrence#strongRef",
+            "description": "Strong reference to the tv.subcult.profile record of the creator or collective who authored this occurrence."
+          },
+          "place": {
+            "type": "ref",
+            "ref": "tv.subcult.event.occurrence#strongRef",
+            "description": "Strong reference to the tv.subcult.place record for this occurrence's venue. Absent when the occurrence has no public venue."
+          },
+          "startsAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "RFC 3339 instant when the occurrence starts, with an explicit UTC offset. A public occurrence always has a known, public start time; an occurrence whose time is still to-be-announced is kept as a private draft and is not represented by this record."
+          },
+          "endsAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "RFC 3339 instant when the occurrence ends, with an explicit UTC offset."
+          },
+          "allDay": {
+            "type": "boolean",
+            "description": "True when the occurrence spans whole local calendar day(s) rather than a specific clock time. When true, startsAt/endsAt carry the UTC instants of local-midnight day boundaries and timezone identifies the local calendar."
+          },
+          "timezone": {
+            "type": "string",
+            "description": "IANA time zone database identifier (for example 'America/Chicago') giving the local wall-clock zone for startsAt/endsAt. Present whenever a local wall time, rather than only the UTC instant, matters to attendees.",
+            "maxLength": 64
+          },
+          "status": {
+            "type": "string",
+            "description": "Lifecycle status of the occurrence.",
+            "default": "scheduled",
+            "knownValues": ["scheduled", "rescheduled", "postponed", "cancelled"]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "RFC 3339 UTC instant when the occurrence record was created."
+          }
+        }
+      }
+    },
+    "strongRef": {
+      "type": "object",
+      "description": "A self-contained strong reference to another admitted public record: an AT-URI and the CID observed at reference time. Kept local to this Lexicon so the admitted chain does not depend on unbundled base schemas.",
+      "required": ["uri", "cid"],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "format": "at-uri",
+          "description": "AT-URI of the referenced record."
+        },
+        "cid": {
+          "type": "string",
+          "format": "cid",
+          "description": "CID of the referenced record at reference time."
+        }
+      }
+    }
+  }
+}

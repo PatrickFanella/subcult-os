@@ -1,6 +1,7 @@
 package atproto
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
 
@@ -11,6 +12,13 @@ import (
 // documents, resolved the same way the syntax fixtures are: relative to this
 // package's directory at test/run time.
 const LexiconContractDir = "../../../contracts/lexicons"
+
+// embeddedLexicons is the build-time copy of contracts/lexicons so the
+// production binary validates public records without a contracts directory
+// on disk. A conformance test fails if the two copies drift.
+//
+//go:embed lexicons/*.json
+var embeddedLexicons embed.FS
 
 // LexiconCatalog wraps the pinned Indigo catalog so no Indigo type crosses
 // this package's boundary; callers only ever see plain NSIDs, bytes and errors.
@@ -23,6 +31,16 @@ func LoadLexiconCatalog(dirPath string) (*LexiconCatalog, error) {
 	catalog := indigolexicon.NewBaseCatalog()
 	if err := catalog.LoadDirectory(dirPath); err != nil {
 		return nil, fmt.Errorf("load lexicon contracts: %w", err)
+	}
+	return &LexiconCatalog{catalog: catalog}, nil
+}
+
+// LoadEmbeddedLexiconCatalog builds the catalog from the documents compiled
+// into the binary. This is the production default.
+func LoadEmbeddedLexiconCatalog() (*LexiconCatalog, error) {
+	catalog := indigolexicon.NewBaseCatalog()
+	if err := catalog.LoadEmbedFS(embeddedLexicons); err != nil {
+		return nil, fmt.Errorf("load embedded lexicon contracts: %w", err)
 	}
 	return &LexiconCatalog{catalog: catalog}, nil
 }

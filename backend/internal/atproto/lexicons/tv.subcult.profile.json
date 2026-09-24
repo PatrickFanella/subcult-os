@@ -1,0 +1,35 @@
+{
+  "lexicon": 1,
+  "id": "tv.subcult.profile",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A minimal public creator or collective profile administered by Subcult OS. Independently authored; not copied from any Subcults source.",
+      "key": "literal:self",
+      "record": {
+        "type": "object",
+        "required": ["displayName", "createdAt"],
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "description": "Public display name of the creator or collective.",
+            "minGraphemes": 1,
+            "maxGraphemes": 100,
+            "maxLength": 500
+          },
+          "description": {
+            "type": "string",
+            "description": "Public biography or description text. Never contact details, staffing or private operational content.",
+            "maxGraphemes": 500,
+            "maxLength": 3000
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "RFC 3339 UTC instant when the profile record was created."
+          }
+        }
+      }
+    }
+  }
+}

@@ -79,7 +79,7 @@ func LoadConfig() Config {
 		MediaS3Bucket:                 env("MEDIA_S3_BUCKET", ""),
 		MediaS3Region:                 env("MEDIA_S3_REGION", "us-east-1"),
 		MediaPublicBaseURL:            env("MEDIA_PUBLIC_BASE_URL", ""),
-		LexiconContractDir:            env("LEXICON_CONTRACT_DIR", "contracts/lexicons"),
+		LexiconContractDir:            env("LEXICON_CONTRACT_DIR", ""),
 	}
 }
 

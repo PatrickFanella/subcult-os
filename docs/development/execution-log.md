@@ -39,12 +39,11 @@ day as A10. No web/mobile UI and no contract-schema DTO were added.
 ### Remaining
 Publication (writing any record to a PDS), projection/discovery ingestion,
 reconciliation, and any web/mobile UI for profiles/places/occurrences are
-still open (DISC-01/PUB-01/UX-01). The admitted-Lexicon catalog used by
-`/public-preview` is loaded from a configurable disk path
-(`LEXICON_CONTRACT_DIR`) that the production `backend/Dockerfile` does not
-currently populate, so that endpoint is dev/test-exercised only, pending
-the PUB-01 deployment work that would need to ship `contracts/lexicons`
-alongside the binary anyway.
+still open (DISC-01/PUB-01/UX-01). Review embedded the admitted Lexicon
+documents into the binary (`backend/internal/atproto/lexicons/`, kept
+byte-identical to `contracts/lexicons/` by a test) so `/public-preview`
+works in the production image without a contracts directory on disk;
+`LEXICON_CONTRACT_DIR` remains an optional development override.
 
 ## 2026-09-23 — #11 Lexicon admission accepted (D5 → A10)
 

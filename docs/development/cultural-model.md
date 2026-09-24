@@ -146,14 +146,11 @@ was added to the shared contract schema.
 
 ## Known limits
 
-- The admitted Lexicon catalog (`contracts/lexicons/`) is loaded from disk
-  at a configurable path (`LEXICON_CONTRACT_DIR`, default
-  `contracts/lexicons`) purely on a best-effort basis; the production
-  `backend/Dockerfile` build context is `./backend` and does not currently
-  copy `contracts/` into the image, so `/public-preview` is exercised in
-  tests and local dev but is not yet runnable against a deployed production
-  binary. Wiring that up belongs with D5/ADR 0007 acceptance and PUB-01, not
-  this slice.
+- The admitted Lexicon catalog is compiled into the binary from
+  `backend/internal/atproto/lexicons/`, a copy of `contracts/lexicons/`
+  that `TestEmbeddedLexiconsMatchContracts` keeps byte-identical. Set
+  `LEXICON_CONTRACT_DIR` only to validate against a different directory
+  during development; production needs no contracts directory on disk.
 - Publication itself (writing any record to a PDS), projection/ingestion
   into a discovery index, reconciliation, and any web/mobile UI for
   profiles/places/occurrences are all still open (DISC-01/PUB-01/UX-01).

@@ -79,7 +79,7 @@ func New(config Config, db *pgxpool.Pool) *App {
 	if config.LexiconContractDir != "" {
 		lexiconCatalog, lexiconErr = atprotocol.LoadLexiconCatalog(config.LexiconContractDir)
 	} else {
-		lexiconErr = errors.New("lexicon contract directory not configured")
+		lexiconCatalog, lexiconErr = atprotocol.LoadEmbeddedLexiconCatalog()
 	}
 	a := &App{config: config, db: db, payments: newStripePaymentProvider(config.StripeSecretKey), media: media, mediaErr: mediaErr, discovery: newDiscoveryPolicy(), identity: identity, identityErr: identityErr, atprotoOAuth: atprotoOAuth, atprotoErr: atprotoErr, atprotoStore: atprotoStore, atprotoFlow: atprotoFlow, atprotoFlowErr: atprotoFlowErr, lexiconCatalog: lexiconCatalog, lexiconErr: lexiconErr, mux: http.NewServeMux(), loginAttempts: map[string]loginAttempt{}}
 	a.routes()
