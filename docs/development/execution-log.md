@@ -1,5 +1,51 @@
 # Development execution log
 
+## 2026-09-23 — #12 minimal cultural record model (MODEL-01)
+
+Added migration `backend/internal/app/migrations/000008_cultural_model.sql`
+(schema version 7 → 8): `cultural_profiles` (a `kind` column of
+`creator`/`collective`/`act` stands in for a separate Act table, per D6's
+recommended starting point), `cultural_places` (public fields only) plus
+`cultural_place_protected_details` (street address/access notes in a
+separate table the public serializer never joins), `event_occurrences`
+(relates to an existing private `events` row; one event may have more than
+one occurrence; nullable `public_uri`/`public_cid` left unset), and
+`event_occurrence_profiles` (multi-host attribution with role and sort
+order). Every new table carries a composite `(id, workspace_id)` foreign key
+back to its parent so a cross-workspace reference is rejected by PostgreSQL
+itself. `events` gained `unique (id, workspace_id)` to support this.
+`minimumSchemaVersion` moved to 8.
+
+Added workspace/event-scoped CRUD handlers
+(`cultural_profiles.go`, `cultural_places.go`, `cultural_occurrences.go`)
+reusing the existing `requireWorkspaceRole` ownership gate, and a public
+projection (`cultural_public_projection.go`) that builds the exact
+`tv.subcult.profile`/`.place`/`event.occurrence` record shapes from
+public-only columns and validates them with the existing
+`atproto.ValidateAdmittedRecord`, exposed read-only at
+`GET .../occurrences/{id}/public-preview`. Full table/route inventory,
+the DST/reschedule/sentinel reasoning and known limits are in
+[`cultural-model.md`](cultural-model.md). `decisions.md`'s D6/D7 rows now
+note that this slice implements their recommended starting points; D6/D7
+remain Open. D5/ADR 0007 (Lexicon admission itself) was accepted the same
+day as A10. No web/mobile UI and no contract-schema DTO were added.
+
+### Verification passed
+- `go build ./...`, `go vet ./...`, `gofmt -l .` (clean) from `backend/`
+- `TEST_DATABASE_URL=<disposable> go test ./internal/app ./internal/atproto -count=1 -v`: 205 tests, 0 failures, both packages `ok`, including the 11 new tests (fresh migration, upgrade path preserving a pre-existing event, profile/place CRUD, duplicate occurrences + multi-host credit attach/detach, reschedule-does-not-touch-tickets, cross-workspace rejection, DST round-trip, public-preview sentinel leak check, public-preview-requires-a-credited-profile)
+- `make verify`: deps, fmt, lint, `check-contracts`, `test` (backend/web/mobile/qa-scripts), `build`, `compose-config`, `open-pilot-check` all passed; web 200/200, mobile 27/27
+- Disposable PostgreSQL used `COMPOSE_PROJECT_NAME=subcult-os-model`/`POSTGRES_PORT=47432`, torn down with `docker compose -p subcult-os-model down -v` after the run
+
+### Remaining
+Publication (writing any record to a PDS), projection/discovery ingestion,
+reconciliation, and any web/mobile UI for profiles/places/occurrences are
+still open (DISC-01/PUB-01/UX-01). The admitted-Lexicon catalog used by
+`/public-preview` is loaded from a configurable disk path
+(`LEXICON_CONTRACT_DIR`) that the production `backend/Dockerfile` does not
+currently populate, so that endpoint is dev/test-exercised only, pending
+the PUB-01 deployment work that would need to ship `contracts/lexicons`
+alongside the binary anyway.
+
 ## 2026-09-23 — #11 Lexicon admission accepted (D5 → A10)
 
 The repository owner accepted ADR 0007 on 2026-09-23, following its recommendation to admit the independently authored minimal `tv.subcult.*` chain (profile, place, event occurrence) rather than adopt the community calendar schemas wholesale. D5 moved from the Open table to the Accepted table as A10 in `decisions.md`; the ADR status, `atproto-kernel.md`, `lexicon-contract.md` and the architecture contract table were updated to say admitted instead of proposed. No schema, corpus, validator or runtime code changed in this step. Publication of any `tv.subcult.*` record still depends on D7 through D10 and on the MODEL-01, DISC-01 and PUB-AUTH slices.
