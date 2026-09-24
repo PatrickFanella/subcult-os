@@ -179,7 +179,7 @@ Review [decisions](decisions.md), [architecture](architecture.md), and the [extr
 - Repository: OS
 - Priority: P2
 - Depends on: IDENT-01
-- Status: proposed
+- Status: grant schema, `checkSendPermission` and send-time recheck implemented 2026-09-24 (migration 000012, issue #23); see execution-log.md and docs/development/consent.md. No audit-redaction fixture and no announcement send path exist yet (SIGNAL-01, issue #24, is the future feature that sends).
 - Size: 2–4 engineering days
 
 **Acceptance:** Separate transactional notices from marketing; define sender/channel/purpose/scope/verification/suppression; no ticket/contact import grants consent.

@@ -65,10 +65,18 @@ all); everything else is additive per role, not subtractive from `owner`:
 | `publish` (authorize a public write) | yes | yes | no | no | no |
 | `finance` (settlement operations) | yes | no | yes | no | no |
 | `door` (check-in operations) | yes | no | no | yes | no |
+| `manage_consent` (create/list/withdraw channel consent grants) | yes | yes | no | no | no |
 
 `manage_members` is owner-only rather than owner-and-organizer: an organizer
 who could grant themselves or an ally the owner role, or revoke the owner,
 would defeat the least-privilege boundary this table exists to draw.
+
+`manage_consent` is owner-and-organizer, matching `manage_delegations`
+rather than `manage_members`: recording or withdrawing a channel consent
+grant does not change anyone's workspace authority, so it carries the same
+scope as the other day-to-day operator capability, not the membership
+control that is deliberately owner-only. See
+[`consent.md`](consent.md).
 
 ## Expiry, revocation, owner departure and recovery
 
