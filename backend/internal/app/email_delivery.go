@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
 
@@ -18,6 +19,7 @@ type EmailDeliveryReport struct {
 	Quarantined int `json:"quarantined"`
 	Superseded  int `json:"superseded"`
 	Suppressed  int `json:"suppressed"`
+	Withheld    int `json:"withheld"`
 }
 
 func RunEmailDeliveries(ctx context.Context, config Config, db *pgxpool.Pool, limit int, statusOnly bool) (any, error) {
@@ -91,8 +93,9 @@ func (a *App) processEmailDeliveries(ctx context.Context, send func(context.Cont
 	report.Quarantined = int(expired.RowsAffected())
 	for range limit {
 		var message mailprovider.Message
-		var lease string
+		var lease, purpose string
 		var attempts int
+		var workspaceID sql.NullString
 		err := a.db.QueryRow(ctx, `with candidate as (
 		 select id from email_outbox where expires_at>now() and attempts<8 and
 		 not exists(select 1 from email_suppressions s where s.recipient_email=lower(trim(email_outbox.recipient_email))) and
@@ -106,8 +109,8 @@ func (a *App) processEmailDeliveries(ctx context.Context, send func(context.Cont
 		 update email_outbox e set delivery_status='leased',attempts=e.attempts+1,
 		 first_attempt_at=coalesce(e.first_attempt_at,now()),lease_token=gen_random_uuid(),lease_until=now()+interval '2 minutes'
 		 from candidate where e.id=candidate.id
-		 returning e.id::text,e.sender_address,e.reply_to_address,e.recipient_email,e.subject,e.body,e.lease_token::text,e.attempts`).Scan(
-			&message.ID, &message.From, &message.ReplyTo, &message.To, &message.Subject, &message.Text, &lease, &attempts)
+		 returning e.id::text,e.sender_address,e.reply_to_address,e.recipient_email,e.subject,e.body,e.lease_token::text,e.attempts,e.purpose,e.workspace_id::text`).Scan(
+			&message.ID, &message.From, &message.ReplyTo, &message.To, &message.Subject, &message.Text, &lease, &attempts, &purpose, &workspaceID)
 		if errors.Is(err, pgx.ErrNoRows) {
 			break
 		}
@@ -115,6 +118,28 @@ func (a *App) processEmailDeliveries(ctx context.Context, send func(context.Cont
 			return report, errors.New("email claim failed")
 		}
 		report.Attempted++
+		// Recheck consent/suppression immediately before this queued
+		// message actually leaves the system: a grant may have been
+		// withdrawn, or the address suppressed, since it was enqueued.
+		// See docs/development/consent.md and checkSendPermission.
+		if permErr := a.checkSendPermission(ctx, workspaceID.String, "email", message.To, purpose); permErr != nil {
+			code := "consent_required"
+			if errors.Is(permErr, ErrConsentSuppressed) {
+				code = "recipient_suppressed"
+			}
+			ack, ackErr := a.db.Exec(ctx, `update email_outbox set delivery_status='withheld_consent',last_error_code=$3,
+			 lease_token=null,lease_until=null,body=''
+			 where id=$1 and lease_token=$2 and delivery_status='leased'`, message.ID, lease, code)
+			if ackErr != nil {
+				return report, errors.New("email consent withholding failed")
+			}
+			if ack.RowsAffected() == 0 {
+				report.Superseded++
+				continue
+			}
+			report.Withheld++
+			continue
+		}
 		callCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 		providerID, callErr := send(callCtx, message)
 		cancel()
