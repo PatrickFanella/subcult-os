@@ -1,6 +1,34 @@
 # Development execution log
 
-## 2026-09-24 — #24 one scoped announcement channel and delivery worker (SIGNAL-01)
+## 2026-09-24 — SIGNAL-01 workflow recovery and review
+
+Recovered Claude workflow `wf_72566bfc-c74`, task `w9uanh8za`, from the
+"Merge Apps via Roadmap" thread. Implementation was committed at `0fa2efa`;
+the review agent failed before reviewing because usage credits were exhausted.
+The implementation commits were fast-forwarded into the existing
+`t3code/email-announcement-scheduling` branch without moving worktrees.
+
+Three disposable PostgreSQL regression tests reproduced duplicate delivery after
+re-consent, invalid withdrawal links after session-secret rotation, and a
+single-connection dispatch timeout. Dispatch now selects one grant per address,
+prefers an active grant, reuses its transaction for consent queries, and issues
+random per-message withdrawal tokens whose hashes remain valid independently of
+session secrets. Migration 14 adds the token table and an announcement/address
+unique constraint. The synthetic journey now uses the HTTP consent handlers.
+
+The revised implementation passed focused consent/announcement/delivery tests
+and `make verify && make test-db` on Kvant through the installed T3 environment.
+For this run only, the test recipe declared its disposable PostgreSQL service
+and `TEST_DATABASE_URL`; the installed profile files were unchanged. The full
+database gate passed 302 top-level tests (426 including subtests), with zero
+failures or skips. `make verify` passed 221 web and 27 mobile tests, non-DB Go
+tests, lint, contracts, builds and Compose validation. The tested snapshot
+matched all 21 changed source files. Test containers were removed afterward.
+
+No browser preview, hosted CI, live mail delivery or pilot result is claimed by
+these local checks. The original workflow's claims below are historical.
+
+## 2026-09-24 — #24 original workflow implementation (superseded by review above)
 
 Chose verified email through the existing Resend outbox as the one
 announcement channel (`docs/development/announcements.md`): it is the
@@ -66,8 +94,8 @@ otherwise unchanged.
 
 **Verification actually run:** `go build ./...`, `go vet ./...`,
 `gofmt -l .` (clean), and the full `internal/app` package test suite
-against disposable PostgreSQL (`make test-db` equivalent via
-`go test ./internal/app/...`), including
+against disposable PostgreSQL (`go test ./internal/app/...`; this did not
+run the complete `make test-db` target), including
 `TestAnnouncementSyntheticJourney` (grant two recipients, confirm both,
 schedule into the past-due window, preview shows 2, withdraw one
 recipient's grant, dispatch produces exactly one `email_outbox` row with

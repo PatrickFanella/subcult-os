@@ -14,7 +14,7 @@ this slice implements.** No SMS provider, push channel or social DM
 automation is added.
 
 Rationale: email is the only channel in this codebase that already has,
-qualified and tested, every piece an announcement send needs — a consent
+implemented and covered by local tests, each component an announcement send needs — a consent
 grant type (`consent_grants`, CONSENT-01), a delivery ledger with bounded
 retries and terminal states (`email_outbox`, transactional-email.md),
 suppression (`email_suppressions`), and a provider adapter
@@ -53,36 +53,23 @@ dispatches, and it is never sent to the provider.
   provider truth is never duplicated. A unique index on `outbox_id`
   reflects that dispatch enqueues exactly one outbox row per allowed
   recipient.
-- **`consent_grants.withdraw_token_hash`** (nullable) — see "Withdraw
-  link" below.
+- **`consent_withdraw_tokens`** — one random token hash per dispatched
+  message, linked to its consent grant. No raw token is stored here.
 
 ## Withdraw link
 
-Every announcement email must carry the recipient's withdraw link — the
-same tokenized `/consent/withdraw` page CONSENT-01 added. The problem:
-`verification_token_hash`'s raw token is a one-time secret, sent once in
-the confirm/unsubscribe email and never retained, so it cannot be looked
-up or reconstructed later to embed in a future announcement.
+Dispatch generates a fresh random token with the existing `newToken`
+helper, stores its hash in `consent_withdraw_tokens`, and appends the
+recipient's `/consent/withdraw?token=...` link to the message. The token
+hash and outbox row commit in the same transaction. The public withdrawal
+endpoint accepts either the original verification token or a message token.
+It withdraws only the grant that issued that token.
 
-The solution implemented here: a second, independent per-grant credential
-that the application can *recompute* rather than store. `deriveWithdrawToken`
-(`backend/internal/app/consent.go`) is HMAC-SHA256 keyed on the server's
-session secret, over the grant id — deterministic, not a random draw.
-`mintWithdrawToken` derives it and returns both the raw token and its
-SHA-256 hash; only the hash is ever persisted, in the new
-`consent_grants.withdraw_token_hash` column, using the same
-hash-and-look-up pattern `verification_token_hash` already uses.
-`handleConfirmConsentGrant` mints and stores this hash at verification
-time. Dispatch (see below) recomputes the same raw token on demand to
-build the link, and also mints the hash on the fly as a backstop for any
-verified grant that predates this column or otherwise lacks one. The
-public `POST /api/public/consent/{token}/withdraw` route now matches
-either `verification_token_hash` or `withdraw_token_hash`, so both the
-original one-time link (if the recipient kept it) and every announcement's
-withdraw link resolve to the same withdrawal.
-
-An attacker who reads the database still cannot derive a usable token:
-doing so requires the session secret, not just the grant id.
+Later dispatches retain earlier token hashes. Session-secret rotation
+therefore does not invalidate links in delivered or queued announcements.
+The raw token exists in the outbox body until the existing mail delivery
+retention rules clear that body. Token hashes remain until their grant is
+deleted; bounded token retention is a follow-up.
 
 ## API
 
@@ -125,15 +112,15 @@ inside its own transaction:
 1. Claim: `scheduled` rows with `scheduled_for <= now()`, oldest first;
    mark `status = dispatching`.
 2. Re-derive the raw candidate audience fresh, inside the same
-   transaction — every verified `announcement`-purpose grant for this
-   workspace, regardless of its current withdrawn or suppressed state.
+   transaction — one verified `announcement`-purpose grant per address,
+   preferring its active grant over historical withdrawals.
    This is deliberately not filtered to "currently eligible" in SQL: the
    next step is where withdrawal/suppression are actually decided, so
    that a grant withdrawn between scheduling and dispatch is counted as
    withheld rather than silently vanishing from every count.
 3. For each candidate recipient, call `checkSendPermission` (the same
-   function `consent.md` defines and `processEmailDeliveries` already
-   calls) as the final consent check. A denial (no verified/unwithdrawn
+   policy `consent.md` defines and `processEmailDeliveries` already
+   calls), using the dispatch transaction connection. A denial (no verified/unwithdrawn
    grant, or suppressed) counts toward `withheld_count` and enqueues
    nothing for that recipient.
 4. For each allowed recipient: build the withdraw link (see above),
@@ -192,7 +179,7 @@ disposable PostgreSQL:
 - `TestAnnouncementScheduleRejectsPastAndPresent` — a past `scheduledFor`
   is `400` from the endpoint itself.
 - `TestAnnouncementWithdrawLinkTokenWorksThroughPublicRoute` — the
-  deterministic withdraw token derived by `deriveWithdrawToken` resolves
+  random withdrawal token from a dispatched message resolves
   through the existing public withdraw route.
 
 ## Pilot gate

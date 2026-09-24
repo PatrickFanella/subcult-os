@@ -203,24 +203,10 @@ func (a *App) handleConfirmConsentGrant(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	var grantID string
-	if err := a.db.QueryRow(r.Context(), `
-		select id from consent_grants where verification_token_hash = $1 and withdrawn_at is null
-	`, tokenHash(token)).Scan(&grantID); err != nil {
-		writeError(w, http.StatusNotFound, "not found")
-		return
-	}
-
-	// Mint the deterministic per-grant withdraw token now, alongside
-	// verification, so an announcement dispatched later can build this
-	// grant's withdraw link (see docs/development/announcements.md and
-	// mintWithdrawToken in consent.go). Idempotent: confirming an
-	// already-verified grant recomputes the same value.
-	_, withdrawHash := a.mintWithdrawToken(grantID)
 	result, err := a.db.Exec(r.Context(), `
-		update consent_grants set verified_at = coalesce(verified_at, now()), withdraw_token_hash = $2
-		where id = $1 and withdrawn_at is null
-	`, grantID, withdrawHash)
+		update consent_grants set verified_at = coalesce(verified_at, now())
+		where verification_token_hash = $1 and withdrawn_at is null
+	`, tokenHash(token))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not confirm consent grant")
 		return
@@ -248,15 +234,13 @@ func (a *App) handleWithdrawConsentGrant(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusNotFound, "not found")
 		return
 	}
-	// The same raw token value can be either the original one-time
-	// verification/withdraw credential or the deterministic per-grant
-	// withdraw token minted at verification (see mintWithdrawToken); both
-	// are equally sensitive per-grant secrets, so either hash may match.
 	result, err := a.db.Exec(r.Context(), `
 		update consent_grants
 		set withdrawn_at = coalesce(withdrawn_at, now()),
 		    withdrawal_reason = coalesce(withdrawal_reason, 'recipient_requested')
-		where verification_token_hash = $1 or withdraw_token_hash = $1
+		where verification_token_hash = $1 or id in (
+			select grant_id from consent_withdraw_tokens where token_hash = $1
+		)
 	`, tokenHash(token))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not withdraw consent grant")

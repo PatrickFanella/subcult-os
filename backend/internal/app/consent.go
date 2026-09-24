@@ -2,10 +2,9 @@ package app
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/base64"
 	"errors"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // Sentinel errors returned by checkSendPermission. Callers that only need
@@ -55,10 +54,17 @@ var consentSources = map[string]bool{"explicit_form": true, "operator_recorded":
 // implies permission to send an announcement, no matter how well the
 // workspace otherwise knows the address. See docs/development/consent.md.
 func (a *App) checkSendPermission(ctx context.Context, workspaceID, channel, recipient, purpose string) error {
+	return checkSendPermission(ctx, a.db, workspaceID, channel, recipient, purpose)
+}
+
+// Reuse the caller's transaction connection during dispatch.
+func checkSendPermission(ctx context.Context, db interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}, workspaceID, channel, recipient, purpose string) error {
 	recipient = normalizeEmail(recipient)
 
 	var suppressed bool
-	if err := a.db.QueryRow(ctx, `
+	if err := db.QueryRow(ctx, `
 		select exists(select 1 from email_suppressions where recipient_email = $1)
 	`, recipient).Scan(&suppressed); err != nil {
 		return err
@@ -80,7 +86,7 @@ func (a *App) checkSendPermission(ctx context.Context, workspaceID, channel, rec
 	}
 
 	var granted bool
-	if err := a.db.QueryRow(ctx, `
+	if err := db.QueryRow(ctx, `
 		select exists(
 			select 1 from consent_grants
 			where workspace_id = $1
@@ -97,40 +103,4 @@ func (a *App) checkSendPermission(ctx context.Context, workspaceID, channel, rec
 		return ErrConsentGrantRequired
 	}
 	return nil
-}
-
-// withdrawTokenHMACInfo is a fixed domain-separation label, not a secret:
-// it only prevents this derivation from colliding with any other HMAC
-// keyed on the same session secret elsewhere in this codebase.
-const withdrawTokenHMACInfo = "consent-withdraw-token:v1:"
-
-// deriveWithdrawToken computes the raw, per-grant public withdraw token
-// used to build an announcement's withdraw link (see
-// docs/development/announcements.md, "Withdraw link"). It is deliberately
-// deterministic — HMAC-SHA256 keyed on the server's session secret, over
-// the grant id — rather than a randomly drawn value, because
-// verification_token_hash's raw token is a one-time secret that is never
-// retained after the confirm/unsubscribe email is sent, and so cannot be
-// reconstructed later to embed in a future announcement. A deterministic
-// derivation lets the application recompute the same raw token whenever
-// it needs one (at verification time, to mint withdraw_token_hash, and at
-// announcement dispatch/send time, to build the link) without ever
-// persisting the raw value itself. Only its SHA-256 hash
-// (consent_grants.withdraw_token_hash) is stored, using the same
-// hash-and-look-up pattern verification_token_hash already uses, so an
-// attacker who reads the database still cannot derive a usable token
-// without the session secret.
-func deriveWithdrawToken(sessionSecret, grantID string) string {
-	mac := hmac.New(sha256.New, []byte(sessionSecret))
-	mac.Write([]byte(withdrawTokenHMACInfo + grantID))
-	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
-}
-
-// mintWithdrawToken derives the deterministic withdraw token for grantID
-// and returns both the raw token (to build a link) and its hash (to
-// store in consent_grants.withdraw_token_hash for lookup by the public
-// withdraw route).
-func (a *App) mintWithdrawToken(grantID string) (raw, hashed string) {
-	raw = deriveWithdrawToken(a.config.SessionSecret, grantID)
-	return raw, tokenHash(raw)
 }

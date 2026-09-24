@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"strings"
 
@@ -57,9 +56,8 @@ func RunAnnouncementDispatch(ctx context.Context, config Config, db *pgxpool.Poo
 }
 
 type announcementRecipient struct {
-	grantID           string
-	recipientAddress  string
-	withdrawTokenHash sql.NullString
+	grantID          string
+	recipientAddress string
 }
 
 // dispatchOneAnnouncement claims at most one due announcement and fully
@@ -94,7 +92,8 @@ func (a *App) dispatchOneAnnouncement(ctx context.Context) (dispatched bool, enq
 
 	// Re-derive the raw candidate audience fresh, inside this transaction
 	// — never from any count computed at preview/schedule time — as
-	// every verified grant for this workspace/purpose, regardless of its
+	// one verified grant per address for this workspace/purpose, preferring
+	// the active grant over historical withdrawals, regardless of its
 	// current withdrawn/suppressed state. checkSendPermission below,
 	// called per recipient, is the actual final consent gate: it applies
 	// the exact same unwithdrawn-grant and not-suppressed requirements
@@ -102,13 +101,13 @@ func (a *App) dispatchOneAnnouncement(ctx context.Context) (dispatched bool, enq
 	// suppressed) since scheduling is counted as withheld here rather
 	// than silently vanishing from both counts.
 	rows, err := tx.Query(ctx, `
-		select g.id::text, g.recipient_address, g.withdraw_token_hash
+		select distinct on (g.recipient_address) g.id::text, g.recipient_address
 		from consent_grants g
 		where g.workspace_id = $1
 		  and g.channel = 'email'
 		  and g.purpose = $2
 		  and g.verified_at is not null
-		order by g.granted_at
+		order by g.recipient_address, (g.withdrawn_at is null) desc, g.granted_at desc, g.id
 	`, workspaceID, consentPurposeAnnouncement)
 	if err != nil {
 		return false, 0, 0, errors.New("announcement audience query failed")
@@ -116,7 +115,7 @@ func (a *App) dispatchOneAnnouncement(ctx context.Context) (dispatched bool, enq
 	var recipients []announcementRecipient
 	for rows.Next() {
 		var rec announcementRecipient
-		if err := rows.Scan(&rec.grantID, &rec.recipientAddress, &rec.withdrawTokenHash); err != nil {
+		if err := rows.Scan(&rec.grantID, &rec.recipientAddress); err != nil {
 			rows.Close()
 			return false, 0, 0, errors.New("announcement audience scan failed")
 		}
@@ -130,13 +129,24 @@ func (a *App) dispatchOneAnnouncement(ctx context.Context) (dispatched bool, enq
 
 	enqueued, withheld := 0, 0
 	for _, rec := range recipients {
+		// Keep the link bound to the same active grant that authorizes this
+		// enqueue. A concurrent withdrawal/regrant must not authorize a row
+		// whose link would only withdraw an older grant.
+		var active bool
+		if err := tx.QueryRow(ctx, `select withdrawn_at is null from consent_grants where id = $1 for share`, rec.grantID).Scan(&active); err != nil {
+			return false, 0, 0, errors.New("announcement grant check failed")
+		}
+		if !active {
+			withheld++
+			continue
+		}
 		// Final consent check, immediately before enqueueing: the same
 		// function processEmailDeliveries calls again at send time (see
 		// consent.md). A denial here (suppressed, or the grant no longer
 		// verified/unwithdrawn) withholds this recipient from dispatch
 		// entirely rather than enqueueing a row destined to be withheld
 		// later.
-		if permErr := a.checkSendPermission(ctx, workspaceID, "email", rec.recipientAddress, consentPurposeAnnouncement); permErr != nil {
+		if permErr := checkSendPermission(ctx, tx, workspaceID, "email", rec.recipientAddress, consentPurposeAnnouncement); permErr != nil {
 			if !errors.Is(permErr, ErrConsentGrantRequired) && !errors.Is(permErr, ErrConsentSuppressed) {
 				return false, 0, 0, errors.New("announcement dispatch consent check failed")
 			}
@@ -144,18 +154,16 @@ func (a *App) dispatchOneAnnouncement(ctx context.Context) (dispatched bool, enq
 			continue
 		}
 
-		withdrawTokenHash := rec.withdrawTokenHash.String
-		if !rec.withdrawTokenHash.Valid || withdrawTokenHash == "" {
-			// Backstop for a verified grant that predates or otherwise
-			// lacks a minted withdraw token (see mintWithdrawToken in
-			// consent.go): mint it now so the link below is guaranteed
-			// resolvable by the public withdraw route.
-			_, withdrawTokenHash = a.mintWithdrawToken(rec.grantID)
-			if _, err := tx.Exec(ctx, `update consent_grants set withdraw_token_hash = $2 where id = $1`, rec.grantID, withdrawTokenHash); err != nil {
-				return false, 0, 0, errors.New("announcement withdraw token mint failed")
-			}
+		// Store a fresh hash per message. Existing links remain usable after
+		// later dispatches and session-secret rotation.
+		withdrawToken, withdrawHash, err := newToken()
+		if err != nil {
+			return false, 0, 0, errors.New("announcement withdraw token mint failed")
 		}
-		withdrawToken := deriveWithdrawToken(a.config.SessionSecret, rec.grantID)
+		if _, err := tx.Exec(ctx, `insert into consent_withdraw_tokens(grant_id, token_hash) values ($1, $2)`, rec.grantID, withdrawHash); err != nil {
+			return false, 0, 0, errors.New("announcement withdraw token record failed")
+		}
+
 		withdrawLink := strings.TrimRight(a.config.PublicWebURL, "/") + "/consent/withdraw?token=" + withdrawToken
 		messageBody := body + "\n\nTo stop receiving these messages: " + withdrawLink
 

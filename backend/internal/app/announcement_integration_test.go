@@ -3,25 +3,153 @@ package app
 import (
 	"context"
 	"net/http"
+	"net/url"
+	"strings"
 	"testing"
 	"time"
 
 	mailprovider "git.subcult.tv/PatrickFanella/subcult-os/internal/mail"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// insertVerifiedAnnouncementGrant plants a verified, unwithdrawn
-// announcement grant with a minted withdraw token, matching what the
-// real create-grant/confirm HTTP flow produces (see
-// handleCreateConsentGrant/handleConfirmConsentGrant), so dispatch tests
-// exercise the same shape of row the API would leave behind.
+// insertVerifiedAnnouncementGrant creates synthetic consent for focused dispatch tests.
 func insertVerifiedAnnouncementGrant(t *testing.T, fx lifecycleFixture, recipient string) (grantID string) {
 	t.Helper()
 	grantID, _ = insertConsentGrant(t, fx, fx.workspaceID, recipient, consentPurposeAnnouncement, "explicit_form", true)
-	_, hashed := fx.app.mintWithdrawToken(grantID)
-	if _, err := fx.app.db.Exec(t.Context(), `update consent_grants set withdraw_token_hash = $2 where id = $1`, grantID, hashed); err != nil {
+
+	return grantID
+}
+
+func draftDueAnnouncement(t *testing.T, fx lifecycleFixture) string {
+	t.Helper()
+	created := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/announcements", map[string]any{"subject": "Update", "body": "Synthetic announcement"}, http.StatusOK)
+	id := mustString(t, created.JSON, "id")
+	makeAnnouncementDue(t, fx, id)
+	return id
+}
+
+func announcementWithdrawToken(t *testing.T, fx lifecycleFixture, id string) string {
+	t.Helper()
+	var body string
+	if err := fx.app.db.QueryRow(t.Context(), `select o.body from email_outbox o join announcement_deliveries d on d.outbox_id = o.id where d.announcement_id = $1`, id).Scan(&body); err != nil {
 		t.Fatal(err)
 	}
-	return grantID
+	_, link, ok := strings.Cut(body, "To stop receiving these messages: ")
+	if !ok {
+		t.Fatal("announcement has no withdrawal link")
+	}
+	u, err := url.Parse(strings.TrimSpace(link))
+	if err != nil || u.Query().Get("token") == "" {
+		t.Fatal("announcement has an invalid withdrawal link")
+	}
+	return u.Query().Get("token")
+}
+
+func TestAnnouncementRegrantSendsOnce(t *testing.T) {
+	fx := consentDeliveryFixture(t)
+	recipient := fx.email("regrant")
+	oldID := insertVerifiedAnnouncementGrant(t, fx, recipient)
+	if _, err := fx.app.db.Exec(t.Context(), `update consent_grants set withdrawn_at = now() where id = $1`, oldID); err != nil {
+		t.Fatal(err)
+	}
+	insertVerifiedAnnouncementGrant(t, fx, recipient)
+	id := draftDueAnnouncement(t, fx)
+	report, err := RunAnnouncementDispatch(t.Context(), fx.app.config, fx.app.db, 1)
+	if err != nil || report.RecipientsEnqueued != 1 || report.RecipientsWithheld != 0 {
+		t.Fatalf("regrant must produce one recipient: report=%+v err=%v", report, err)
+	}
+	token := announcementWithdrawToken(t, fx, id)
+	postJSON(t, fx.app, nil, "/api/public/consent/"+token+"/withdraw", map[string]any{}, http.StatusOK)
+	if err := fx.app.checkSendPermission(t.Context(), fx.workspaceID, "email", recipient, consentPurposeAnnouncement); err == nil {
+		t.Fatal("the message link did not withdraw the active grant")
+	}
+}
+
+func TestAnnouncementWithdrawLinksSurviveSecretRotation(t *testing.T) {
+	fx := consentDeliveryFixture(t)
+	insertVerifiedAnnouncementGrant(t, fx, fx.email("rotation"))
+	first := draftDueAnnouncement(t, fx)
+	if _, err := RunAnnouncementDispatch(t.Context(), fx.app.config, fx.app.db, 1); err != nil {
+		t.Fatal(err)
+	}
+	oldToken := announcementWithdrawToken(t, fx, first)
+	fx.app.config.SessionSecret = "rotated-test-session-secret"
+	// Use SQL for the second draft because session-secret rotation invalidates the owner cookie.
+	second := ""
+	var err error
+	err = fx.app.db.QueryRow(t.Context(), `insert into announcements(workspace_id, subject, body, status, scheduled_for) values ($1, 'Rotated', 'Synthetic', 'scheduled', now() - interval '1 minute') returning id::text`, fx.workspaceID).Scan(&second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := RunAnnouncementDispatch(t.Context(), fx.app.config, fx.app.db, 1); err != nil {
+		t.Fatal(err)
+	}
+	newToken := announcementWithdrawToken(t, fx, second)
+	postJSON(t, fx.app, nil, "/api/public/consent/"+newToken+"/withdraw", map[string]any{}, http.StatusOK)
+	postJSON(t, fx.app, nil, "/api/public/consent/"+oldToken+"/withdraw", map[string]any{}, http.StatusOK)
+}
+
+func TestAnnouncementDispatchWithSingleConnection(t *testing.T) {
+	fx := consentDeliveryFixture(t)
+	insertVerifiedAnnouncementGrant(t, fx, fx.email("single-connection"))
+	draftDueAnnouncement(t, fx)
+	config := fx.app.db.Config()
+	config.MaxConns = 1
+	config.MinConns = 0
+	pool, err := pgxpool.NewWithConfig(t.Context(), config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Close()
+	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
+	defer cancel()
+	report, err := RunAnnouncementDispatch(ctx, fx.app.config, pool, 1)
+	if err != nil || report.RecipientsEnqueued != 1 {
+		t.Fatalf("dispatch must reuse its transaction connection: report=%+v err=%v", report, err)
+	}
+}
+
+func TestAnnouncementRevokeAfterDispatchWithholdsSend(t *testing.T) {
+	fx := consentDeliveryFixture(t)
+	insertVerifiedAnnouncementGrant(t, fx, fx.email("queued-revoke"))
+	id := draftDueAnnouncement(t, fx)
+	if _, err := RunAnnouncementDispatch(t.Context(), fx.app.config, fx.app.db, 1); err != nil {
+		t.Fatal(err)
+	}
+	token := announcementWithdrawToken(t, fx, id)
+	postJSON(t, fx.app, nil, "/api/public/consent/"+token+"/withdraw", map[string]any{}, http.StatusOK)
+	report, err := fx.app.processEmailDeliveries(t.Context(), func(context.Context, mailprovider.Message) (string, error) {
+		t.Fatal("revoked announcement reached the provider")
+		return "", nil
+	}, 10)
+	if err != nil || report.Withheld != 1 || report.Accepted != 0 {
+		t.Fatalf("queued announcement must be withheld: report=%+v err=%v", report, err)
+	}
+}
+
+func TestAnnouncementConcurrentDispatchEnqueuesOnce(t *testing.T) {
+	fx := consentDeliveryFixture(t)
+	insertVerifiedAnnouncementGrant(t, fx, fx.email("concurrent"))
+	id := draftDueAnnouncement(t, fx)
+	results := make(chan error, 2)
+	for range 2 {
+		go func() {
+			_, err := RunAnnouncementDispatch(t.Context(), fx.app.config, fx.app.db, 1)
+			results <- err
+		}()
+	}
+	for range 2 {
+		if err := <-results; err != nil {
+			t.Fatal(err)
+		}
+	}
+	var count int
+	if err := fx.app.db.QueryRow(t.Context(), `select count(*) from announcement_deliveries where announcement_id = $1`, id).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("concurrent dispatch created %d deliveries, want 1", count)
+	}
 }
 
 // makeAnnouncementDue schedules announcementID via the real schedule
@@ -49,8 +177,19 @@ func TestAnnouncementSyntheticJourney(t *testing.T) {
 	fx := consentDeliveryFixture(t)
 	keep := fx.email("keep-recipient")
 	drop := fx.email("withdrawn-recipient")
-	insertVerifiedAnnouncementGrant(t, fx, keep)
-	dropGrantID := insertVerifiedAnnouncementGrant(t, fx, drop)
+	// Verification messages stay held; only announcement delivery uses a fake sender.
+	fx.app.config.MailDeliveryEnabled = false
+	tokens := map[string]string{}
+	for _, recipient := range []string{keep, drop} {
+		postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/consent-grants", map[string]any{
+			"channel": "email", "recipientAddress": recipient, "purpose": "announcement",
+			"disclosureVersion": "v1", "source": "explicit_form",
+		}, http.StatusOK)
+		token := latestIdentityToken(t, fx.app, "consent_verification")
+		postJSON(t, fx.app, nil, "/api/public/consent/"+token+"/confirm", map[string]any{}, http.StatusOK)
+		tokens[recipient] = token
+	}
+	fx.app.config.MailDeliveryEnabled = true
 
 	created := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/announcements", map[string]any{
 		"subject": "Synthetic lineup update",
@@ -67,9 +206,7 @@ func TestAnnouncementSyntheticJourney(t *testing.T) {
 	makeAnnouncementDue(t, fx, announcementID)
 
 	// Withdraw one recipient's grant after scheduling, before dispatch.
-	if _, err := fx.app.db.Exec(t.Context(), `update consent_grants set withdrawn_at = now(), withdrawal_reason = 'recipient_requested' where id = $1`, dropGrantID); err != nil {
-		t.Fatal(err)
-	}
+	postJSON(t, fx.app, nil, "/api/public/consent/"+tokens[drop]+"/withdraw", map[string]any{}, http.StatusOK)
 
 	report, err := RunAnnouncementDispatch(t.Context(), fx.app.config, fx.app.db, 10)
 	if err != nil {
@@ -222,13 +359,17 @@ func TestAnnouncementScheduleRejectsPastAndPresent(t *testing.T) {
 }
 
 // TestAnnouncementWithdrawLinkTokenWorksThroughPublicRoute proves the
-// deterministic withdraw token minted at verification resolves through
+// withdrawal token from an actual dispatched message resolves through
 // the existing public withdraw route.
 func TestAnnouncementWithdrawLinkTokenWorksThroughPublicRoute(t *testing.T) {
 	fx := newLifecycleFixture(t)
 	recipient := fx.email("withdraw-link")
 	grantID := insertVerifiedAnnouncementGrant(t, fx, recipient)
-	token := deriveWithdrawToken(fx.app.config.SessionSecret, grantID)
+	id := draftDueAnnouncement(t, fx)
+	if _, err := RunAnnouncementDispatch(t.Context(), fx.app.config, fx.app.db, 1); err != nil {
+		t.Fatal(err)
+	}
+	token := announcementWithdrawToken(t, fx, id)
 
 	postJSON(t, fx.app, nil, "/api/public/consent/"+token+"/withdraw", map[string]any{}, http.StatusOK)
 
@@ -237,6 +378,6 @@ func TestAnnouncementWithdrawLinkTokenWorksThroughPublicRoute(t *testing.T) {
 		t.Fatal(err)
 	}
 	if withdrawnAt == nil {
-		t.Fatal("expected the grant to be withdrawn via the deterministic withdraw token")
+		t.Fatal("expected the grant to be withdrawn via the message withdrawal token")
 	}
 }
