@@ -15,6 +15,8 @@ The optional `mail-workers` profile runs `email-deliver -send -watch`. Sending a
 
 Resend feedback requires `RESEND_WEBHOOK_SECRET`; enabled sending also requires this secret. Keep signature checks on raw bytes and recipient suppression independent of webhook-supplied addresses. Feedback may continue while sending is disabled. Never roll back to a worker without suppression enforcement while sending remains enabled.
 
+The optional `atproto-projection` profile runs `atproto-project -run`, an allowlisted, restart-safe mirror of the three admitted `tv.subcult.*` collections read from an external Jetstream-shaped stream (see `docs/development/projection.md`). Running it requires `AT_PROJECTION_ENABLED=true` and `AT_PROJECTION_SOURCE_URL`. It only ever writes to `at_projection_*` tables; never point it at the `cultural_*` tables or treat its output as authorized for publication.
+
 ## Verification
 
 Run:

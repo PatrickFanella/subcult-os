@@ -43,12 +43,19 @@ type Config struct {
 	MailFrom                      string
 	MailReplyTo                   string
 	LexiconContractDir            string
+	ATProjectionEnabled           bool
+	atProjectionEnabledRaw        string
+	ATProjectionSourceURL         string
 }
 
 func LoadConfig() Config {
 	atProtoOAuthEnabledRaw := env("ATPROTO_OAUTH_ENABLED", "false")
 	mailDeliveryEnabledRaw := env("MAIL_DELIVERY_ENABLED", "false")
+	atProjectionEnabledRaw := env("AT_PROJECTION_ENABLED", "false")
 	return Config{
+		ATProjectionEnabled:           parseEnvBool(atProjectionEnabledRaw),
+		atProjectionEnabledRaw:        atProjectionEnabledRaw,
+		ATProjectionSourceURL:         env("AT_PROJECTION_SOURCE_URL", ""),
 		MailDeliveryEnabled:           parseEnvBool(mailDeliveryEnabledRaw),
 		mailDeliveryEnabledRaw:        mailDeliveryEnabledRaw,
 		ResendAPIKey:                  env("RESEND_API_KEY", ""),
@@ -111,6 +118,14 @@ func (c Config) Validate() error {
 		if _, err := strconv.ParseBool(raw); err != nil {
 			problems = append(problems, "ATPROTO_OAUTH_ENABLED must be a boolean")
 		}
+	}
+	if raw := strings.TrimSpace(c.atProjectionEnabledRaw); raw != "" {
+		if _, err := strconv.ParseBool(raw); err != nil {
+			problems = append(problems, "AT_PROJECTION_ENABLED must be a boolean")
+		}
+	}
+	if c.ATProjectionEnabled && strings.TrimSpace(c.ATProjectionSourceURL) == "" {
+		problems = append(problems, "AT_PROJECTION_SOURCE_URL is required when AT_PROJECTION_ENABLED is true")
 	}
 	if strings.TrimSpace(c.Addr) == "" {
 		problems = append(problems, "API_ADDR is required")

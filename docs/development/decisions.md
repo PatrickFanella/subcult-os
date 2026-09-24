@@ -16,6 +16,7 @@ Accepted architecture is recorded in repository ADRs. Open entries below must no
 | A8 | OS ordered migrations (formerly D1) | Embedded ordered runner with immutable checksum ledger, transaction/advisory locking and startup compatibility gate | DB-01 and [execution log](execution-log.md) |
 | A9 | Canonical account shape (formerly D2) | Verified email identity and rotating session families; browser/native transports and recovery are implemented | IDENT-01 and [execution log](execution-log.md); device/provider qualification remains separate |
 | A10 | Lexicon admission (formerly D5) | Minimal independently authored `tv.subcult.*` chain: profile, place and event occurrence, with strict public allowlists and additive-only evolution; community calendar schemas reviewed as prior art, not adopted | [ADR 0007](../adr/0007-minimal-lexicon-admission.md), [lexicon contract](lexicon-contract.md); accepted 2026-09-23, publication still gated by D7 to D10 |
+| A11 | Projection ingestion (formerly D10) | Small restart-safe Jetstream-based worker admitting only the three accepted collections, with an atomically-committed cursor and bounded quarantine | DISC-01 and [projection.md](projection.md); implemented 2026-09-24. Publication/reconciliation (D8, D9) and discovery UI (UX-01) remain open; this worker does not itself read or write any `cultural_*` table |
 
 ## Open
 
@@ -26,7 +27,6 @@ Accepted architecture is recorded in repository ADRs. Open entries below must no
 | D7 | Operator/public event relationship | Private operator event owns operations; creator PDS owns published occurrence; private URI/CID state relates them | MODEL-01; time, location, cancellation and duplication cases. MODEL-01 implements this recommended starting point (`event_occurrences` rows relate to an existing `events` row via a workspace-checked foreign key and carry nullable `public_uri`/`public_cid` columns left unset until a later PUB-01 publish); the owner accepts D7 by ADR, not by this implementation alone |
 | D8 | Publishing actor authority | Require workspace permission, creator/profile delegation and current scoped OAuth | PUB-01; revocation and cross-tenant negative fixtures. AUTH-01 implements the workspace-permission and creator-delegation halves of this recommended starting point ([authority-model.md](authority-model.md)); current scoped OAuth is not yet checked, and the owner accepts D8 by ADR, not by this implementation alone |
 | D9 | Public editing conflict policy | CID preconditions plus explicit human conflict resolution | PUB-01; concurrent client and timeout-after-write fixtures |
-| D10 | Projection ingestion | Small restart-safe worker using accepted collections and quarantine | DISC-01; Tap/upstream evaluation and backfill fixture |
 | D11 | License and provenance | Record exact source revision/path and adapted/generated status for every extraction | INV-01 and each extraction; contributor/dependency audit |
 | D12 | Marketing integration | No attendance/contact inference or sending until purpose, verification and suppression contracts pass | CONSENT-01; no-consent/no-send and revocation cases |
 

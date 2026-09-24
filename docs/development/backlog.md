@@ -128,7 +128,10 @@ Review [decisions](decisions.md), [architecture](architecture.md), and the [extr
 - Repository: OS
 - Priority: P1
 - Depends on: MODEL-01
-- Status: proposed
+- Status: allowlisted, restart-safe Jetstream projection into `at_projection_*`
+  implemented 2026-09-24 (migration 000012); see [projection.md](projection.md)
+  and execution-log.md. Discovery UI, backfill tooling and reconciliation
+  with `cultural_*` remain open in PUB-01/UX-01.
 - Size: 4–7 engineering days
 
 **Acceptance:** Accepted collections only; restart-safe cursor; URI/CID provenance; idempotent projection; delete/unavailable state; bounded backfill and quarantine.
