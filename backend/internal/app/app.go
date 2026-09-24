@@ -40,9 +40,14 @@ type App struct {
 	lexiconCatalog *atprotocol.LexiconCatalog
 	lexiconErr     error
 	recordFetcher  atprotocol.RecordFetcher
-	mux            *http.ServeMux
-	loginMu        sync.Mutex
-	loginAttempts  map[string]loginAttempt
+	// consentCheckOverride lets tests substitute checkSendPermission with a
+	// fake that returns an arbitrary (including non-sentinel, infra-shaped)
+	// error, without touching the database. Left nil in production, where
+	// processEmailDeliveries always calls the real checkSendPermission.
+	consentCheckOverride func(ctx context.Context, workspaceID, channel, recipient, purpose string) error
+	mux                  *http.ServeMux
+	loginMu              sync.Mutex
+	loginAttempts        map[string]loginAttempt
 }
 
 func New(config Config, db *pgxpool.Pool) *App {
@@ -169,6 +174,9 @@ func (a *App) routes() {
 	a.mux.HandleFunc("GET /api/workspaces/{workspaceID}/delegations", a.handleListDelegations)
 	a.mux.HandleFunc("POST /api/workspaces/{workspaceID}/delegations", a.handleCreateDelegation)
 	a.mux.HandleFunc("POST /api/workspaces/{workspaceID}/delegations/{delegationID}/revoke", a.handleRevokeDelegation)
+	a.mux.HandleFunc("POST /api/workspaces/{workspaceID}/consent-grants", a.handleCreateConsentGrant)
+	a.mux.HandleFunc("GET /api/workspaces/{workspaceID}/consent-grants", a.handleListConsentGrants)
+	a.mux.HandleFunc("POST /api/workspaces/{workspaceID}/consent-grants/{grantID}/withdraw", a.handleOperatorWithdrawConsentGrant)
 	a.mux.HandleFunc("GET /api/workspaces/{workspaceID}/events", a.handleListEvents)
 	a.mux.HandleFunc("POST /api/workspaces/{workspaceID}/events", a.handleCreateEvent)
 	a.mux.HandleFunc("GET /api/events/{eventID}", a.handleGetEvent)
@@ -222,6 +230,8 @@ func (a *App) routes() {
 	a.mux.HandleFunc("POST /api/public/events/{slug}/role-applications", a.handleSubmitPublicRoleApplication)
 	a.mux.HandleFunc("POST /api/public/events/{slug}/reservations", a.handleReserveTicket)
 	a.mux.HandleFunc("POST /api/public/events/{slug}/paid-reservations", a.handleCreatePaidReservation)
+	a.mux.HandleFunc("POST /api/public/consent/{token}/confirm", a.handleConfirmConsentGrant)
+	a.mux.HandleFunc("POST /api/public/consent/{token}/withdraw", a.handleWithdrawConsentGrant)
 	a.mux.HandleFunc("POST /api/stripe/webhook", a.handleStripeWebhook)
 	a.mux.HandleFunc("POST /api/resend/webhook", a.handleResendWebhook)
 	a.mux.HandleFunc("GET /api/tickets/{code}", a.handleGetTicket)

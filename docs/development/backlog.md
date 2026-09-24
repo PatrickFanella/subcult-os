@@ -129,7 +129,7 @@ Review [decisions](decisions.md), [architecture](architecture.md), and the [extr
 - Priority: P1
 - Depends on: MODEL-01
 - Status: allowlisted, restart-safe Jetstream projection into `at_projection_*`
-  implemented 2026-09-24 (migration 000012); see [projection.md](projection.md)
+  implemented 2026-09-24 (migration 000011); see [projection.md](projection.md)
   and execution-log.md. Discovery UI, backfill tooling and reconciliation
   with `cultural_*` remain open in PUB-01/UX-01.
 - Size: 4–7 engineering days
@@ -179,7 +179,7 @@ Review [decisions](decisions.md), [architecture](architecture.md), and the [extr
 - Repository: OS
 - Priority: P2
 - Depends on: IDENT-01
-- Status: proposed
+- Status: grant schema, `checkSendPermission` and send-time recheck implemented 2026-09-24 (migration 000013, issue #23); see execution-log.md and docs/development/consent.md. No audit-redaction fixture and no announcement send path exist yet (SIGNAL-01, issue #24, is the future feature that sends).
 - Size: 2–4 engineering days
 
 **Acceptance:** Separate transactional notices from marketing; define sender/channel/purpose/scope/verification/suppression; no ticket/contact import grants consent.

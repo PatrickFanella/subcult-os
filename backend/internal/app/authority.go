@@ -47,6 +47,7 @@ const (
 	permPublish           = "publish"            // authorize a public write on behalf of a profile
 	permFinance           = "finance"            // settlement and financial operations
 	permDoor              = "door"               // door check-in operations
+	permManageConsent     = "manage_consent"     // create/list/withdraw channel consent grants (CONSENT-01)
 )
 
 // rolePermissions is the least-privilege permission matrix. Every role
@@ -60,11 +61,13 @@ var rolePermissions = map[string]map[string]bool{
 		permPublish:           true,
 		permFinance:           true,
 		permDoor:              true,
+		permManageConsent:     true,
 	},
 	roleOrganizer: {
 		permOperate:           true,
 		permManageDelegations: true,
 		permPublish:           true,
+		permManageConsent:     true,
 	},
 	roleFinance: {
 		permOperate: true,

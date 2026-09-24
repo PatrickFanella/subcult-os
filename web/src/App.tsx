@@ -4,6 +4,7 @@ import { DoorView } from './views/DoorView';
 import { EventEditorView } from './views/EventEditorView';
 import { InviteView } from './views/InviteView';
 import { IdentityActionView } from './views/IdentityActionView';
+import { ConsentActionView } from './views/ConsentActionView';
 import { PublicEventView } from './views/PublicEventView';
 import { TicketView } from './views/TicketView';
 import { WorkspaceView } from './views/WorkspaceView';
@@ -30,6 +31,8 @@ export default function App() {
   if (pathname === '/verify-email') return <IdentityActionView action="verify" />;
   if (pathname === '/recover') return <IdentityActionView action="request-recovery" />;
   if (pathname === '/recover-password') return <IdentityActionView action="complete-recovery" />;
+  if (pathname === '/consent/confirm') return <ConsentActionView action="confirm" />;
+  if (pathname === '/consent/withdraw') return <ConsentActionView action="withdraw" />;
 
   if (pathname === '/discover') {
     return <DiscoverView />;

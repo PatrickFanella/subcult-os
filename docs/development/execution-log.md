@@ -1,5 +1,72 @@
 # Development execution log
 
+## 2026-09-24 — #23 verified channel consent and suppression semantics (CONSENT-01)
+
+Added migration `backend/internal/app/migrations/000013_consent_grants.sql`
+(`minimumSchemaVersion` moved to 12): a new `consent_grants` table (sender
+`workspace_id`, `channel` currently constrained to `'email'`,
+`recipient_address` stored plaintext like other private recipient columns,
+`purpose` `announcement`/`transactional`, `scope`, verification token hash
+plus `verified_at`, `disclosure_version`, `granted_at`,
+`withdrawn_at`/`withdrawal_reason`, `source`, `created_by_person_id`, a
+partial unique index enforcing at most one active grant per
+`(workspace_id, channel, recipient_address, purpose)`); two additive
+columns on the existing `email_outbox` table (`purpose` defaulting every
+existing/legacy row to `'transactional'`, `workspace_id` nullable); and a
+widened `email_outbox.delivery_status` check constraint adding the new
+terminal `'withheld_consent'` status. No existing row's status, purpose or
+send behavior changes.
+
+Implemented the central `checkSendPermission(ctx, workspaceID, channel,
+recipient, purpose)` (`backend/internal/app/consent.go`): suppression in
+`email_suppressions` denies unconditionally regardless of purpose or
+grant; `transactional` always passes; `announcement` requires a verified,
+unwithdrawn `consent_grants` row matching workspace, channel, recipient
+and purpose exactly. The function's only two queries read
+`email_suppressions` and `consent_grants`; it never joins tickets,
+contacts, `event_role_applications`, atproto identity links or
+`workspace_members`.
+`TestCheckSendPermissionNeverConsultsUnrelatedTables` plants a ticket
+holder, a contact and a workspace member sharing one address and proves an
+announcement to that address is still denied without a real grant.
+
+Wired the same check into `processEmailDeliveries`
+(`backend/internal/app/email_delivery.go`) as a send-time recheck: every
+claimed row is rechecked immediately after leasing and before the
+provider is called; a denial marks the row `withheld_consent` with
+`last_error_code` `consent_required` or `recipient_suppressed`, clears its
+body, and never calls the provider or retries. Added operator endpoints
+`POST`/`GET /api/workspaces/{workspaceID}/consent-grants` (new
+`manage_consent` permission, granted to owner and organizer like
+`manage_delegations`) and public tokenized
+`POST /api/public/consent/{token}/confirm` and
+`POST /api/public/consent/{token}/withdraw` (no session, generic 404
+for an unknown or withdrawn token, no other grant field ever revealed).
+Creating a grant enqueues a `transactional` verification email (reusing
+`enqueueEmail`), so establishing a grant never itself requires one.
+
+Verification: `go build ./...`, `go vet ./...`, and the disposable-Postgres
+`make test-db` suite (Go 1.26.6, PATH override per AGENTS.md) — the full
+existing suite passes unchanged against the new migration, plus new tests
+in `backend/internal/app/consent_integration_test.go` covering unknown
+grant, wrong purpose, unverified grant, verified-grant success,
+withdrawn-grant denial, suppression overriding a valid grant, the
+unrelated-tables non-derivation proof above, the full operator/public
+HTTP lifecycle (create → 409 on duplicate → confirm → list → withdraw →
+idempotent re-withdraw → confirm-after-withdrawal fails closed), unknown
+public tokens revealing nothing, and the send-time recheck (accepts a
+verified grant, withholds on revoke-before-send, withholds on wrong
+purpose, withholds on unknown grant, and leaves transactional rows
+unaffected).
+
+Limits: no code path enqueues an `announcement`-purpose message in this
+slice — this is the permission boundary only, not a send feature
+(SIGNAL-01, issue #24, is the future work that sends). No audit-redaction
+fixture exists. `consent_grants` is not yet wired into the access-export
+or account-deletion behavior in `data-lifecycle.md`, because that pipeline
+itself is not implemented. `disclosure_version` is an opaque label with no
+disclosure-text storage or re-consent workflow. `sms` is named in the
+channel design but not implemented.
 ## 2026-09-24 — #17 review fixes: migration renumbering, bounded backfill/rebuild, status_mismatch repair
 
 Three review findings against the initial #17 slice, fixed on the same
@@ -192,6 +259,24 @@ former (whose name never mentions Chicago) and excludes the latter. Updated
 `discovery-ux.md`'s two locality-filtering descriptions to match the actual
 place-locality join instead of the previously-documented (and unimplemented)
 substring-only behavior.
+
+Review follow-up: the initial send-time recheck in `processEmailDeliveries`
+treated any non-nil `checkSendPermission` error as a consent denial, so a
+transient database failure, a cancelled context, or (for an
+`announcement` row with a null `workspace_id`) the resulting driver encode
+error was recorded as a permanent `withheld_consent` row with its body
+erased — a regression against existing transactional messages (identity
+verification/recovery, ticket confirmations, invitations) staying
+unchanged. Fixed by making `checkSendPermission` return
+`ErrConsentGrantRequired` explicitly when `purpose` is `announcement` and
+`workspaceID` is empty, and by having `processEmailDeliveries` withhold
+only on `errors.Is(permErr, ErrConsentGrantRequired) ||
+errors.Is(permErr, ErrConsentSuppressed)`; any other error is returned
+to the caller and the row's lease is left to expire for retry, matching
+the existing claim-failure path. Added
+`TestProcessEmailDeliveriesInfraErrorDoesNotWithholdConsent` (a
+test-only `App.consentCheckOverride` seam simulates the infra failure)
+and `TestCheckSendPermissionRejectsAnnouncementWithoutWorkspace`.
 
 ## 2026-09-24 — #16 allowlisted, restart-safe AT record projection (DISC-01)
 
