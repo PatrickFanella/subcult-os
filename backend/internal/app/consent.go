@@ -3,6 +3,8 @@ package app
 import (
 	"context"
 	"errors"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // Sentinel errors returned by checkSendPermission. Callers that only need
@@ -52,10 +54,17 @@ var consentSources = map[string]bool{"explicit_form": true, "operator_recorded":
 // implies permission to send an announcement, no matter how well the
 // workspace otherwise knows the address. See docs/development/consent.md.
 func (a *App) checkSendPermission(ctx context.Context, workspaceID, channel, recipient, purpose string) error {
+	return checkSendPermission(ctx, a.db, workspaceID, channel, recipient, purpose)
+}
+
+// Reuse the caller's transaction connection during dispatch.
+func checkSendPermission(ctx context.Context, db interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}, workspaceID, channel, recipient, purpose string) error {
 	recipient = normalizeEmail(recipient)
 
 	var suppressed bool
-	if err := a.db.QueryRow(ctx, `
+	if err := db.QueryRow(ctx, `
 		select exists(select 1 from email_suppressions where recipient_email = $1)
 	`, recipient).Scan(&suppressed); err != nil {
 		return err
@@ -77,7 +86,7 @@ func (a *App) checkSendPermission(ctx context.Context, workspaceID, channel, rec
 	}
 
 	var granted bool
-	if err := a.db.QueryRow(ctx, `
+	if err := db.QueryRow(ctx, `
 		select exists(
 			select 1 from consent_grants
 			where workspace_id = $1

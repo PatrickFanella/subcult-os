@@ -6,10 +6,10 @@ send-time recheck, and operator/public consent-grant endpoints implemented
 [`data-boundaries.md`](data-boundaries.md)'s "Consent" section and
 [`data-lifecycle.md`](data-lifecycle.md)'s consent row; it defines
 permission semantics only. It does not itself send an announcement: no
-code path in this slice enqueues an `announcement`-purpose message. That is
-future work (SIGNAL-01, issue #24), which must call `checkSendPermission`
-before enqueueing exactly as `processEmailDeliveries` calls it before
-sending.
+code path in this slice enqueues an `announcement`-purpose message.
+SIGNAL-01 (issue #24, [`announcements.md`](announcements.md)) is the
+feature that does, calling `checkSendPermission` before enqueueing exactly
+as `processEmailDeliveries` calls it before sending.
 
 ## What this is not
 
@@ -209,11 +209,10 @@ unwithdrawn announcement grant.
 
 ## Remaining limits
 
-- No code path enqueues an `announcement`-purpose message. This slice is
-  the permission boundary; SIGNAL-01 (issue #24) is the future feature that
-  will actually queue marketing sends, and it must call
-  `checkSendPermission` (or rely on the same `processEmailDeliveries`
-  recheck) before doing so.
+- This slice defines the permission boundary only; SIGNAL-01 (issue #24,
+  [`announcements.md`](announcements.md)) is the implemented feature that
+  queues announcement sends, calling `checkSendPermission` at dispatch and
+  relying on the same `processEmailDeliveries` recheck at send time.
 - `recipient_address` is plaintext, matching the existing convention for
   other private recipient columns in this codebase; it is not
   additionally encrypted at rest in this slice.

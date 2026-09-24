@@ -202,6 +202,7 @@ func (a *App) handleConfirmConsentGrant(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusNotFound, "not found")
 		return
 	}
+
 	result, err := a.db.Exec(r.Context(), `
 		update consent_grants set verified_at = coalesce(verified_at, now())
 		where verification_token_hash = $1 and withdrawn_at is null
@@ -237,7 +238,9 @@ func (a *App) handleWithdrawConsentGrant(w http.ResponseWriter, r *http.Request)
 		update consent_grants
 		set withdrawn_at = coalesce(withdrawn_at, now()),
 		    withdrawal_reason = coalesce(withdrawal_reason, 'recipient_requested')
-		where verification_token_hash = $1
+		where verification_token_hash = $1 or id in (
+			select grant_id from consent_withdraw_tokens where token_hash = $1
+		)
 	`, tokenHash(token))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not withdraw consent grant")

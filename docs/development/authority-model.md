@@ -66,6 +66,7 @@ all); everything else is additive per role, not subtractive from `owner`:
 | `finance` (settlement operations) | yes | no | yes | no | no |
 | `door` (check-in operations) | yes | no | no | yes | no |
 | `manage_consent` (create/list/withdraw channel consent grants) | yes | yes | no | no | no |
+| `manage_announcements` (create/schedule/cancel/list announcements) | yes | yes | no | no | no |
 
 `manage_members` is owner-only rather than owner-and-organizer: an organizer
 who could grant themselves or an ally the owner role, or revoke the owner,
@@ -77,6 +78,12 @@ grant does not change anyone's workspace authority, so it carries the same
 scope as the other day-to-day operator capability, not the membership
 control that is deliberately owner-only. See
 [`consent.md`](consent.md).
+
+`manage_announcements` is likewise owner-and-organizer: drafting,
+scheduling, cancelling or dispatching an announcement is a day-to-day
+operator capability over the workspace's own audience, not a change to
+anyone's workspace authority. See
+[`announcements.md`](announcements.md).
 
 ## Expiry, revocation, owner departure and recovery
 

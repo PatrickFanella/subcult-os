@@ -1,0 +1,82 @@
+-- SIGNAL-01: one scoped announcement channel and delivery worker, per
+-- docs/development/announcements.md.
+--
+-- This migration adds no provider: it schedules and dispatches an
+-- announcement into the existing email_outbox/consent_grants machinery
+-- (CONSENT-01, migration 000013). It never duplicates provider outcomes,
+-- retries or suppression state; those stay read from email_outbox and
+-- email_suppressions via a join, exactly as documented in
+-- announcements.md.
+
+-- announcements is the operator-facing record: one row per drafted,
+-- scheduled or dispatched announcement. status is a forward-only state
+-- machine (see announcements.md): draft -> scheduled -> dispatching ->
+-- dispatched, or draft/scheduled -> cancelled. There is no "sent" status
+-- here because per-recipient delivery outcome lives in email_outbox, not
+-- on this row; dispatched only means the audience was resolved and one
+-- email_outbox row was enqueued per allowed recipient.
+create table announcements (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references workspaces(id) on delete cascade,
+  subject text not null check (trim(subject) <> ''),
+  body text not null check (trim(body) <> ''),
+  status text not null default 'draft' check (status in ('draft', 'scheduled', 'cancelled', 'dispatching', 'dispatched')),
+  scheduled_for timestamptz,
+  created_by_person_id uuid references people(id),
+  cancelled_at timestamptz,
+  cancelled_by_person_id uuid references people(id),
+  dispatched_at timestamptz,
+  recipient_count integer not null default 0,
+  withheld_count integer not null default 0,
+  estimated_cost_cents integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index announcements_workspace_idx
+  on announcements (workspace_id, created_at desc);
+
+-- Dispatch claims due, scheduled announcements with "for update skip
+-- locked"; this partial index keeps that scan cheap regardless of table
+-- size, since draft/cancelled/dispatched rows are never candidates.
+create index announcements_due_idx
+  on announcements (scheduled_for)
+  where status = 'scheduled';
+
+-- announcement_deliveries links an announcement to each email_outbox row
+-- it produced. It carries no delivery outcome, retry count or suppression
+-- state of its own: those are read from email_outbox.delivery_status by
+-- joining through outbox_id, so provider truth is never duplicated.
+-- recipient_address is stored here (not just derivable from email_outbox)
+-- so an announcement's audience is inspectable even after email_outbox's
+-- own body/columns are cleared by a terminal delivery status.
+create table announcement_deliveries (
+  id uuid primary key default gen_random_uuid(),
+  announcement_id uuid not null references announcements(id) on delete cascade,
+  outbox_id uuid not null references email_outbox(id) on delete cascade,
+  recipient_address text not null check (trim(recipient_address) <> ''),
+  created_at timestamptz not null default now()
+);
+
+-- One announcement_deliveries row per outbox row: dispatch is expected to
+-- enqueue exactly one email_outbox row per allowed recipient, and this
+-- index also lets the join in the get/list handlers use an index rather
+-- than a sequential scan.
+create unique index announcement_deliveries_outbox_idx
+  on announcement_deliveries (outbox_id);
+
+create index announcement_deliveries_announcement_idx
+  on announcement_deliveries (announcement_id, created_at);
+
+-- One hash per announcement withdrawal link. Keep old hashes valid after
+-- subsequent dispatches and session-secret rotation. No raw token is stored.
+create table consent_withdraw_tokens (
+  token_hash text primary key,
+  grant_id uuid not null references consent_grants(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+create index consent_withdraw_tokens_grant_idx on consent_withdraw_tokens (grant_id);
+
+-- Grant history must never produce duplicate deliveries to an address.
+create unique index announcement_deliveries_recipient_idx
+  on announcement_deliveries (announcement_id, recipient_address);

@@ -46,13 +46,25 @@ type Config struct {
 	ATProjectionEnabled           bool
 	atProjectionEnabledRaw        string
 	ATProjectionSourceURL         string
+	// AnnouncementUnitCostCents is the observed per-recipient cost basis
+	// used only to compute an announcement's estimated_cost_cents
+	// (count * unit cost) for preview and reporting; it is never sent to
+	// the provider and never gates whether an announcement dispatches.
+	// Default 0 means "unknown cost", not "free": see
+	// docs/development/announcements.md.
+	AnnouncementUnitCostCents    int
+	announcementUnitCostCentsRaw string
 }
 
 func LoadConfig() Config {
 	atProtoOAuthEnabledRaw := env("ATPROTO_OAUTH_ENABLED", "false")
 	mailDeliveryEnabledRaw := env("MAIL_DELIVERY_ENABLED", "false")
 	atProjectionEnabledRaw := env("AT_PROJECTION_ENABLED", "false")
+	announcementUnitCostCentsRaw := env("ANNOUNCEMENT_UNIT_COST_CENTS", "0")
+	announcementUnitCostCents, _ := strconv.Atoi(announcementUnitCostCentsRaw)
 	return Config{
+		AnnouncementUnitCostCents:     announcementUnitCostCents,
+		announcementUnitCostCentsRaw:  announcementUnitCostCentsRaw,
 		ATProjectionEnabled:           parseEnvBool(atProjectionEnabledRaw),
 		atProjectionEnabledRaw:        atProjectionEnabledRaw,
 		ATProjectionSourceURL:         env("AT_PROJECTION_SOURCE_URL", ""),
@@ -126,6 +138,11 @@ func (c Config) Validate() error {
 	}
 	if c.ATProjectionEnabled && strings.TrimSpace(c.ATProjectionSourceURL) == "" {
 		problems = append(problems, "AT_PROJECTION_SOURCE_URL is required when AT_PROJECTION_ENABLED is true")
+	}
+	if raw := strings.TrimSpace(c.announcementUnitCostCentsRaw); raw != "" {
+		if value, err := strconv.Atoi(raw); err != nil || value < 0 {
+			problems = append(problems, "ANNOUNCEMENT_UNIT_COST_CENTS must be a non-negative integer")
+		}
 	}
 	if strings.TrimSpace(c.Addr) == "" {
 		problems = append(problems, "API_ADDR is required")

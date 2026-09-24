@@ -17,6 +17,8 @@ Resend feedback requires `RESEND_WEBHOOK_SECRET`; enabled sending also requires 
 
 The optional `atproto-projection` profile runs `atproto-project -run`, an allowlisted, restart-safe mirror of the three admitted `tv.subcult.*` collections read from an external Jetstream-shaped stream (see `docs/development/projection.md`). Running it requires `AT_PROJECTION_ENABLED=true` and `AT_PROJECTION_SOURCE_URL`. It only ever writes to `at_projection_*` tables; never point it at the `cultural_*` tables or treat its output as authorized for publication.
 
+The optional `announcement-workers` profile runs `email-deliver -announce -watch` (see `docs/development/announcements.md`, SIGNAL-01). It only claims due scheduled announcements and enqueues their recipient `email_outbox` rows from the existing `consent_grants` audience, minus suppression; it never contacts the mail provider and does not require `MAIL_DELIVERY_ENABLED`. Actual sending of the rows it enqueues still goes through the `mail-workers` profile and remains subject to `MAIL_DELIVERY_ENABLED`. Email remains the only implemented announcement channel; do not add an SMS or other provider without a documented pilot need and cost basis.
+
 ## Verification
 
 Run:

@@ -179,7 +179,7 @@ Review [decisions](decisions.md), [architecture](architecture.md), and the [extr
 - Repository: OS
 - Priority: P2
 - Depends on: IDENT-01
-- Status: grant schema, `checkSendPermission` and send-time recheck implemented 2026-09-24 (migration 000013, issue #23); see execution-log.md and docs/development/consent.md. No audit-redaction fixture and no announcement send path exist yet (SIGNAL-01, issue #24, is the future feature that sends).
+- Status: grant schema, `checkSendPermission` and send-time recheck implemented 2026-09-24 (migration 000013, issue #23); see execution-log.md and docs/development/consent.md. No audit-redaction fixture exists yet. SIGNAL-01 (issue #24, below) is the implemented announcement send path.
 - Size: 2–4 engineering days
 
 **Acceptance:** Separate transactional notices from marketing; define sender/channel/purpose/scope/verification/suppression; no ticket/contact import grants consent.
@@ -189,6 +189,22 @@ Review [decisions](decisions.md), [architecture](architecture.md), and the [extr
 **Out of scope:** No autonomous marketing, SMS/social DM automation or legacy audience import.
 
 **Rollback:** Delivery remains transactional-only and fail-closed until an accepted consent contract exists.
+
+## SIGNAL-01 — Implement one scoped announcement channel and delivery worker
+
+- Repository: OS
+- Priority: P2
+- Depends on: CONSENT-01
+- Status: verified email through the existing Resend outbox chosen as the one channel; migration 000014 (`announcements`, `announcement_deliveries`, `consent_grants.withdraw_token_hash`); draft/preview/schedule/cancel/list/get endpoints behind a new `manage_announcements` permission; `-announce` dispatch mode re-deriving the audience and enqueueing per-recipient `email_outbox` rows; synthetic grant/schedule/withdraw/dispatch/send journey implemented 2026-09-24 (issue #24); see execution-log.md and docs/development/announcements.md. No live deliverability test or permissioned pilot has been run (blocked on #7); no SMS or second channel.
+- Size: 3–5 engineering days
+
+**Acceptance:** Choose one verified channel using pilot need and observed cost; explicit scheduling with preview, cancellation and final consent checks; record provider delivery outcomes, bounded retries, cost and suppression; verify synthetic grant/schedule/revoke/send journey before a limited permissioned pilot.
+
+**Verification:** Synthetic PostgreSQL journey (grant, confirm, schedule, preview, withdraw, dispatch, send with a fake sender); permission-boundary and past-scheduling rejection fixtures.
+
+**Out of scope:** No SMS/social DM channel, no live send test, no UI, no re-send or per-recipient personalization beyond the withdraw link.
+
+**Rollback:** Stop invoking `-announce`; existing transactional sending and CONSENT-01's grant/withdraw endpoints are unaffected. Roll back the application only; do not drop the additive migration while any dispatched announcement's delivery ledger must be retained for audit.
 
 ## QUAL-01 — Qualify the consolidated protected pilot
 

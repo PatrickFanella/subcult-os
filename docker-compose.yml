@@ -49,6 +49,7 @@ services:
       MEDIA_PUBLIC_BASE_URL: ${MEDIA_PUBLIC_BASE_URL:-}
       AT_PROJECTION_ENABLED: ${AT_PROJECTION_ENABLED:-false}
       AT_PROJECTION_SOURCE_URL: ${AT_PROJECTION_SOURCE_URL:-}
+      ANNOUNCEMENT_UNIT_COST_CENTS: ${ANNOUNCEMENT_UNIT_COST_CENTS:-0}
     depends_on:
       postgres:
         condition: service_healthy
@@ -70,6 +71,16 @@ services:
     profiles: [mail-workers]
     build: ./backend
     command: ["/app/email-deliver", "-send", "-watch"]
+    environment: *api_environment
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_started
+
+  announcement-dispatch:
+    profiles: [announcement-workers]
+    build: ./backend
+    command: ["/app/email-deliver", "-announce", "-watch"]
     environment: *api_environment
     restart: unless-stopped
     depends_on:

@@ -14,12 +14,13 @@ import (
 )
 
 func main() {
-	send := flag.Bool("send", false, "explicitly send eligible transactional messages; default is aggregate status only")
-	watch := flag.Bool("watch", false, "repeat bounded batches every 30 seconds; requires -send")
-	limit := flag.Int("limit", 10, "maximum attempts per batch (1-100)")
+	send := flag.Bool("send", false, "explicitly send eligible transactional/announcement messages; default is aggregate status only")
+	announce := flag.Bool("announce", false, "claim due scheduled announcements and enqueue their recipient email_outbox rows; does not contact the mail provider")
+	watch := flag.Bool("watch", false, "repeat bounded batches every 30 seconds; requires -send or -announce")
+	limit := flag.Int("limit", 10, "maximum attempts (or, with -announce, announcements) per batch (1-100)")
 	flag.Parse()
-	if flag.NArg() != 0 || *limit < 1 || *limit > 100 || (*watch && !*send) {
-		fmt.Fprintln(os.Stderr, "usage: email-deliver [-send [-watch]] [-limit 1..100]")
+	if flag.NArg() != 0 || *limit < 1 || *limit > 100 || (*watch && !*send && !*announce) || (*send && *announce) {
+		fmt.Fprintln(os.Stderr, "usage: email-deliver [-send [-watch]] [-announce [-watch]] [-limit 1..100]")
 		os.Exit(2)
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -37,7 +38,13 @@ func main() {
 	defer db.Close()
 	for {
 		batchCtx, cancel := context.WithTimeout(ctx, time.Duration(*limit)*15*time.Second+30*time.Second)
-		result, err := app.RunEmailDeliveries(batchCtx, config, db, *limit, !*send)
+		var result any
+		var err error
+		if *announce {
+			result, err = app.RunAnnouncementDispatch(batchCtx, config, db, *limit)
+		} else {
+			result, err = app.RunEmailDeliveries(batchCtx, config, db, *limit, !*send)
+		}
 		cancel()
 		if ctx.Err() != nil {
 			return
