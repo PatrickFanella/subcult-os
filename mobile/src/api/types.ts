@@ -159,6 +159,7 @@ export interface EventStaffingItemDTO {
   title: string;
   kind: 'task' | 'shift';
   notes: string;
+  participantRequirements: string;
   startsAt: string | null;
   endsAt: string | null;
   assignedPersonId: string | null;

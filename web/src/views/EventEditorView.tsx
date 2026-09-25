@@ -1813,13 +1813,24 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                       </div>
 
                       <label className="block space-y-2 text-sm">
-                        <span className="text-zinc-300">Notes</span>
+                        <span className="text-zinc-300">Operator notes</span>
                         <textarea
                           className="min-h-28 w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-sky-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
                           value={staffingForm.notes}
                           onChange={(event) => setStaffingForm((current) => ({ ...current, notes: event.target.value }))}
                           disabled={staffingActioningId === 'new'}
                         />
+                      </label>
+
+                      <label className="block space-y-2 text-sm">
+                        <span className="text-zinc-300">Participant requirements</span>
+                        <textarea
+                          className="min-h-28 w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-sky-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                          value={staffingForm.participantRequirements}
+                          onChange={(event) => setStaffingForm((current) => ({ ...current, participantRequirements: event.target.value }))}
+                          disabled={staffingActioningId === 'new'}
+                        />
+                        <span className="block text-xs leading-5 text-zinc-500">Shared with the assigned person through their participant portal. Keep operator notes separate.</span>
                       </label>
 
                       <div className="grid gap-4 md:grid-cols-2">
@@ -1866,7 +1877,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                                   <div className="flex flex-wrap items-start justify-between gap-3">
                                     <div>
                                       <p className="text-sm font-semibold text-white">{item.title}</p>
-                                      <p className="mt-1 text-sm leading-6 text-zinc-400">{item.notes || 'No notes yet.'}</p>
+									  <p className="mt-1 text-sm leading-6 text-zinc-400">{item.notes || 'No operator notes yet.'}</p>
                                     </div>
                                     <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-zinc-200">
                                       {staffingStatusLabel(item.status)}
@@ -1881,6 +1892,22 @@ export function EventEditorView({ eventId }: { eventId: string }) {
 
                                   {canManageStaffing ? (
                                     <div className="mt-4 space-y-3">
+									  <form
+										key={`${item.id}:${item.updatedAt}`}
+										className="space-y-2"
+										onSubmit={(submitEvent) => {
+											submitEvent.preventDefault();
+											const form = new FormData(submitEvent.currentTarget);
+											void handleStaffingUpdate(item.id, { participantRequirements: String(form.get('participantRequirements') ?? '') });
+										}}
+									  >
+										<label className="block space-y-2 text-sm">
+										  <span className="text-zinc-300">Participant requirements</span>
+										  <textarea name="participantRequirements" defaultValue={item.participantRequirements} className="min-h-24 w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-sky-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60" disabled={staffingActioningId === item.id} />
+										</label>
+										<p className="text-xs leading-5 text-zinc-500">Shared with the assigned person through their participant portal. It is never copied from operator notes.</p>
+										<button className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-zinc-100 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:bg-white/5" type="submit" disabled={staffingActioningId === item.id}>Save participant requirements</button>
+									  </form>
                                       <form
                                         key={`${item.id}:${item.assignedPersonId ?? item.assignedApplicationId ?? 'none'}`}
                                         className="flex flex-wrap items-end gap-3"

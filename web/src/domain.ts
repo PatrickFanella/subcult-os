@@ -23,6 +23,7 @@ export interface ParticipantAssignmentDTO {
   startsAt?: string | null;
   endsAt?: string | null;
   status: 'open' | 'assigned' | 'completed';
+  participantRequirements: string;
 }
 
 export interface ParticipantCommitmentDTO {
@@ -367,6 +368,7 @@ export interface EventStaffingItemDTO {
   title: string;
   kind: 'task' | 'shift';
   notes: string;
+  participantRequirements: string;
   startsAt?: string | null;
   endsAt?: string | null;
   assignedPersonId?: string | null;
@@ -383,6 +385,7 @@ export interface CreateEventStaffingRequestDTO {
   title: string;
   kind: 'task' | 'shift';
   notes: string;
+  participantRequirements?: string;
   startsAt?: string | null;
   endsAt?: string | null;
 }
@@ -390,6 +393,7 @@ export interface CreateEventStaffingRequestDTO {
 export interface UpdateEventStaffingRequestDTO {
   title?: string | null;
   notes?: string | null;
+  participantRequirements?: string | null;
   startsAt?: string | null;
   clearStartsAt?: boolean;
   endsAt?: string | null;
