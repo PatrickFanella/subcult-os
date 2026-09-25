@@ -6,6 +6,7 @@ import (
 	"encoding/csv"
 	"errors"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 	"unicode"
@@ -30,9 +31,24 @@ type eventSettlementExportSnapshot struct {
 	ReservedCount         int
 	Status                string
 	GeneratedAt           time.Time
+	FinanceSnapshotAt     time.Time
 	FinalizedAt           sql.NullTime
 	FinalizedByPersonID   sql.NullString
 	Adjustments           []eventSettlementAdjustmentRow
+	FinanceLines          []eventFinanceExportRow
+}
+
+// eventFinanceExportRow retains immutable history. IsCurrent is computed from
+// successor rows in this snapshot only; a payment link remains a reference to
+// an obligation history, never evidence that a payment executed.
+type eventFinanceExportRow struct {
+	financeLineDTO
+	IsCurrent bool
+}
+
+type financeCurrentTotal struct {
+	EntryType, Direction, Currency string
+	AmountCents                    int64
 }
 
 // handleGetSettlementCSV exports the closed event's stored settlement and
@@ -127,7 +143,6 @@ func (a *App) loadEventSettlementExport(ctx context.Context, eventID string) (ev
 	if err != nil {
 		return eventSettlementExportSnapshot{}, err
 	}
-	defer rows.Close()
 	for rows.Next() {
 		var adjustment eventSettlementAdjustmentRow
 		if err := rows.Scan(&adjustment.ID, &adjustment.SettlementID, &adjustment.AmountCents,
@@ -137,6 +152,40 @@ func (a *App) loadEventSettlementExport(ctx context.Context, eventID string) (ev
 		snapshot.Adjustments = append(snapshot.Adjustments, adjustment)
 	}
 	if err := rows.Err(); err != nil {
+		return eventSettlementExportSnapshot{}, err
+	}
+	rows.Close()
+	financeRows, err := tx.Query(ctx, `
+		select `+financeLineColumns+`, not exists (
+			select 1 from event_finance_lines successor where successor.corrects_line_id = line.id
+		)
+		from event_finance_lines line
+		where line.event_id = $1
+		order by line.created_at asc, line.id asc
+	`, eventID)
+	if err != nil {
+		return eventSettlementExportSnapshot{}, err
+	}
+	for financeRows.Next() {
+		var line eventFinanceExportRow
+		var due, occurred *time.Time
+		var payable, corrects *string
+		var created time.Time
+		if err := financeRows.Scan(&line.ID, &line.EventID, &line.EntryType, &line.Direction, &line.AmountCents, &line.Currency, &line.Label, &line.Reason, &due, &occurred, &payable, &corrects, &line.CreatedByPersonID, &created, &line.IsCurrent); err != nil {
+			financeRows.Close()
+			return eventSettlementExportSnapshot{}, err
+		}
+		line.DueAt, line.OccurredAt = nullableTimePtr(due), nullableTimePtr(occurred)
+		line.PayableLineID, line.CorrectsLineID = payable, corrects
+		line.CreatedAt = created.UTC().Format(time.RFC3339Nano)
+		snapshot.FinanceLines = append(snapshot.FinanceLines, line)
+	}
+	if err := financeRows.Err(); err != nil {
+		financeRows.Close()
+		return eventSettlementExportSnapshot{}, err
+	}
+	financeRows.Close()
+	if err := tx.QueryRow(ctx, "select clock_timestamp()").Scan(&snapshot.FinanceSnapshotAt); err != nil {
 		return eventSettlementExportSnapshot{}, err
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -158,6 +207,7 @@ func writeSettlementCSV(writer *csv.Writer, snapshot eventSettlementExportSnapsh
 		"paid_ticket_count", "pending_ticket_count", "cancelled_ticket_count", "free_ticket_count", "reserved_count", "adjustment_id",
 		"adjustment_amount_cents", "adjustment_label", "adjustment_reason",
 		"adjustment_created_by_person_id", "adjustment_created_at",
+		"finance_line_id", "finance_entry_type", "finance_direction", "finance_amount_cents", "finance_currency", "finance_label", "finance_reason", "finance_due_at", "finance_occurred_at", "finance_payable_line_id", "finance_corrects_line_id", "finance_created_by_person_id", "finance_created_at", "finance_is_current", "finance_current_total_cents",
 	}); err != nil {
 		return err
 	}
@@ -184,6 +234,28 @@ func writeSettlementCSV(writer *csv.Writer, snapshot eventSettlementExportSnapsh
 			return err
 		}
 	}
+	for _, line := range snapshot.FinanceLines {
+		row := settlementCSVBaseRow(snapshot, adjustmentTotalCents, netTotalCents)
+		row[0] = "finance_line_history"
+		for column := 10; column <= 18; column++ {
+			row[column] = ""
+		}
+		writeFinanceCSVFields(row, line)
+		if err := writer.Write(row); err != nil {
+			return err
+		}
+	}
+	for _, total := range currentFinanceTotals(snapshot.FinanceLines) {
+		row := settlementCSVBaseRow(snapshot, adjustmentTotalCents, netTotalCents)
+		row[0] = "finance_current_total"
+		for column := 10; column <= 18; column++ {
+			row[column] = ""
+		}
+		row[26], row[27], row[29], row[39] = csvFormulaSafe(total.EntryType), csvFormulaSafe(total.Direction), csvFormulaSafe(total.Currency), strconv.FormatInt(total.AmountCents, 10)
+		if err := writer.Write(row); err != nil {
+			return err
+		}
+	}
 	return writer.Error()
 }
 
@@ -196,7 +268,7 @@ func settlementCSVBaseRow(snapshot eventSettlementExportSnapshot, adjustmentTota
 	if snapshot.FinalizedByPersonID.Valid {
 		finalizedBy = csvFormulaSafe(snapshot.FinalizedByPersonID.String)
 	}
-	return []string{
+	row := []string{
 		"", csvFormulaSafe(snapshot.EventID), csvFormulaSafe(snapshot.SettlementID), csvFormulaSafe(snapshot.ReportID),
 		csvFormulaSafe(snapshot.EventTitle), snapshot.StartsAt.UTC().Format(time.RFC3339Nano),
 		snapshot.GeneratedAt.UTC().Format(time.RFC3339Nano), csvFormulaSafe(snapshot.Status), finalizedAt, finalizedBy,
@@ -204,6 +276,52 @@ func settlementCSVBaseRow(snapshot eventSettlementExportSnapshot, adjustmentTota
 		strconv.Itoa(snapshot.PaidTicketCount), strconv.Itoa(snapshot.PendingTicketCount), strconv.Itoa(snapshot.CancelledTicketCount),
 		strconv.Itoa(snapshot.FreeTicketCount), strconv.Itoa(snapshot.ReservedCount), "", "", "", "", "", "",
 	}
+	return append(row, make([]string, 15)...)
+}
+
+func writeFinanceCSVFields(row []string, line eventFinanceExportRow) {
+	row[25], row[26], row[27], row[28], row[29] = csvFormulaSafe(line.ID), csvFormulaSafe(line.EntryType), csvFormulaSafe(line.Direction), strconv.FormatInt(line.AmountCents, 10), csvFormulaSafe(line.Currency)
+	row[30], row[31] = csvFormulaSafe(line.Label), csvFormulaSafe(line.Reason)
+	if line.DueAt != nil {
+		row[32] = *line.DueAt
+	}
+	if line.OccurredAt != nil {
+		row[33] = *line.OccurredAt
+	}
+	if line.PayableLineID != nil {
+		row[34] = csvFormulaSafe(*line.PayableLineID)
+	}
+	if line.CorrectsLineID != nil {
+		row[35] = csvFormulaSafe(*line.CorrectsLineID)
+	}
+	row[36], row[37] = csvFormulaSafe(line.CreatedByPersonID), line.CreatedAt
+	if line.IsCurrent {
+		row[38] = "true"
+	}
+}
+
+func currentFinanceTotals(lines []eventFinanceExportRow) []financeCurrentTotal {
+	totals := map[string]financeCurrentTotal{}
+	for _, line := range lines {
+		if !line.IsCurrent {
+			continue
+		}
+		key := line.EntryType + "\x00" + line.Direction + "\x00" + line.Currency
+		total := totals[key]
+		total.EntryType, total.Direction, total.Currency = line.EntryType, line.Direction, line.Currency
+		total.AmountCents += line.AmountCents
+		totals[key] = total
+	}
+	keys := make([]string, 0, len(totals))
+	for key := range totals {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	out := make([]financeCurrentTotal, 0, len(keys))
+	for _, key := range keys {
+		out = append(out, totals[key])
+	}
+	return out
 }
 
 // csvFormulaSafe prefixes a literal apostrophe when spreadsheet software may

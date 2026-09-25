@@ -1,10 +1,10 @@
 # Event settlement exports (EXPORT-01)
 
-Status: private finance export implemented as the first bounded EXPORT-01
-slice. It exports the existing closeout settlement and its append-only
-corrections. It does not implement a budget, accounts payable, an accounting
-provider adapter, a public export, server-generated PDF, or a general event-data
-export. Markdown and printable HTML render the same private settlement snapshot.
+Status: private finance export covers the closeout settlement, its append-only
+corrections, and the private event finance ledger. It does not implement an
+accounting-provider adapter, a public export, a server-generated PDF, or a
+general event-data export. Markdown and printable HTML render the same private
+snapshot.
 
 ## Route and access
 
@@ -29,22 +29,25 @@ not public and no public projection reads its data.
 ## Contents and consistency
 
 The export is generated in a read-only repeatable-read transaction. It reads
-one event report reference, its event settlement, and the settlement's
-append-only adjustment rows. Adjustment rows are ordered by creation time and
-identifier for deterministic output.
+one event report reference, its event settlement and append-only adjustment
+rows, plus finance-line history and current finance totals. Rows are ordered by
+creation time and identifier where applicable for deterministic output.
 
 The CSV uses a header row, one `settlement` row, then one `adjustment` row per
-correction. It includes the report, settlement and adjustment identifiers;
-UTC RFC3339 timestamps; currency; integer-cent totals and counts; settlement
-status/finalization provenance; and each adjustment's amount, label, reason,
-creator identifier and timestamp. Currency stays separate from integer cents,
-and the export includes gross, adjustment and net totals without rounding or
-formatting money through floating point.
+correction, one `finance_line_history` row per retained ledger entry, and one
+`finance_current_total` row per currency/type/direction group. It includes the
+report, settlement, adjustment and finance identifiers; UTC RFC3339 timestamps;
+currency; integer-cent totals and counts; settlement status/finalization
+provenance; and finance labels, reasons, actor identifiers and correction links.
+Currency stays separate from integer cents. Gross, adjustment, net and finance
+current totals are never converted or formatted through floating point.
 
 Gross, adjustment and net total columns are populated only on the single
 `settlement` row. They are blank on `adjustment` rows, where
-`adjustment_amount_cents` is the only row-level money amount. This prevents a
-spreadsheet column sum from counting a settlement total once per correction.
+`adjustment_amount_cents` is the only row-level money amount. Finance history
+uses `finance_amount_cents`; grouped current ledger rows use the separate
+`finance_current_total_cents` column. This prevents a spreadsheet column sum
+from repeating settlement or ledger totals on every history row.
 
 It does not include ticket buyer addresses or names, contacts, private notes,
 staffing, archive participants, payment-provider references, or message data.
@@ -58,10 +61,17 @@ This keeps spreadsheet software from evaluating a title, correction label or
 reason as a formula, including when the original text begins with whitespace
 or a control character.
 
+## Finance-line print boundary
+
+Finance lines remain private operator records. Download
+`settlement-print.html`, open the self-contained snapshot locally, then use the
+browser's Print / Save as PDF function when a PDF is needed. The snapshot
+contains retained manual-finance history and grouped current totals from the
+same repeatable-read export as the settlement. It does not create a server-side
+PDF or public artifact. Recorded obligations remain separate from ticket
+settlement net totals.
+
 ## Remaining EXPORT-01 work
 
-The current stored model contains actual paid-ticket settlement counts and
-corrections. It does not contain a budget or payable-obligation ledger, so the
-reports make no budget/payable claim. A selected accounting format, server PDF
-generation, any separate operational report scope, accounting-user validation
-and production qualification remain future work.
+A selected accounting format, accounting-user validation and production
+qualification remain future work.

@@ -257,6 +257,23 @@ export interface LifecycleIntentDTO {
   actions: LifecycleIntentActionDTO[];
 }
 
+export interface EventFinanceLineDTO {
+  id: string;
+  eventId: string;
+  entryType: 'budget' | 'payable' | 'actual_payment';
+  direction: 'income' | 'expense';
+  amountCents: number;
+  currency: string;
+  label: string;
+  reason: string;
+  dueAt?: string;
+  occurredAt?: string;
+  payableLineId?: string;
+  correctsLineId?: string;
+  createdByPersonId: string;
+  createdAt: string;
+}
+
 export interface CulturalImportMatchDTO {
   occurrenceId: string;
   eventId: string;

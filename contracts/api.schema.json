@@ -50,6 +50,10 @@
       "required": ["id", "workspaceId", "eventId", "occurrenceId", "kind", "reason", "targetRevision", "expectedPublicCid", "status", "approvedByPersonId", "createdAt", "actions"],
       "forbidden": ["decisionSnapshot", "requestKey", "providerCredentials", "recipient", "noticeContent", "refundAmount"]
     },
+    "EventFinanceLineDTO": {
+      "required": ["id", "eventId", "entryType", "direction", "amountCents", "currency", "label", "reason", "createdByPersonId", "createdAt"],
+      "forbidden": ["providerReference", "recipient", "contact", "person", "paymentCredentials"]
+    },
     "PublicEventDTO": {
       "forbidden": [
         "workspaceId",
