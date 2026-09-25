@@ -332,10 +332,7 @@ func (a *App) handleListLifecycleIntents(w http.ResponseWriter, r *http.Request)
 		writeError(w, 500, "could not load lifecycle intents")
 		return
 	}
-	if err := rows.Close(); err != nil {
-		writeError(w, 500, "could not load lifecycle intents")
-		return
-	}
+	rows.Close()
 	out := make([]lifecycleIntentDTO, 0, len(ids))
 	for _, id := range ids {
 		item, err := a.loadLifecycleIntent(r.Context(), event.WorkspaceID, id)
