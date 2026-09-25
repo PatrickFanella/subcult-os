@@ -34,7 +34,7 @@ export default function ScannerScreen() {
     try {
       const ticket = await checkInTicket(eventID, trimmed);
       setScanState('success');
-      setMessage(`${ticket.displayName ?? ticket.email} • ${ticket.code}`);
+      setMessage(`${ticket.displayName ?? 'Guest'} • ${ticket.code}`);
     } catch (caught) {
       setScanState('error');
       setMessage(caught instanceof Error ? caught.message : 'Unable to check in ticket');
