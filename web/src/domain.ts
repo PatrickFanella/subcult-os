@@ -1,4 +1,4 @@
-export type WorkspaceRole = 'owner' | 'member';
+export type WorkspaceRole = 'owner' | 'organizer' | 'finance' | 'door' | 'crew' | 'member';
 
 export type EventStatus = 'draft' | 'published' | 'end_of_night';
 
@@ -7,6 +7,31 @@ export interface CurrentUserDTO {
   email: string;
   displayName: string | null;
   workspaces: WorkspaceSummaryDTO[];
+}
+
+export interface ParticipantPortalDTO {
+  assignments: ParticipantAssignmentDTO[];
+  commitments: ParticipantCommitmentDTO[];
+}
+
+export interface ParticipantAssignmentDTO {
+  eventId: string;
+  eventTitle: string;
+  staffingItemId: string;
+  title: string;
+  kind: 'task' | 'shift';
+  startsAt?: string | null;
+  endsAt?: string | null;
+  status: 'open' | 'assigned' | 'completed';
+}
+
+export interface ParticipantCommitmentDTO {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  title: string;
+  dueAt?: string | null;
+  status: 'open' | 'done' | 'cancelled';
 }
 
 export interface SignupResultDTO {

@@ -6,6 +6,7 @@ import { InviteView } from './views/InviteView';
 import { IdentityActionView } from './views/IdentityActionView';
 import { ConsentActionView } from './views/ConsentActionView';
 import { PublicEventView } from './views/PublicEventView';
+import { ParticipantPortalView } from './views/ParticipantPortalView';
 import { TicketView } from './views/TicketView';
 import { WorkspaceView } from './views/WorkspaceView';
 
@@ -37,6 +38,8 @@ export default function App() {
   if (pathname === '/discover') {
     return <DiscoverView />;
   }
+
+  if (pathname === '/participant') return <ParticipantPortalView />;
 
   if (pathname.startsWith('/e/')) {
     return <PublicEventView slug={getSegment(pathname, 2)} />;
