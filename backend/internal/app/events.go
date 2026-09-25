@@ -392,6 +392,14 @@ func (a *App) handleCreateEvent(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	paidEvent := pricingMode != "free"
+	if paidEvent {
+		actorID, ok = a.requirePermission(r, workspaceID, permFinance)
+		if !ok {
+			writeError(w, http.StatusForbidden, "forbidden")
+			return
+		}
+	}
 
 	tx, err := a.db.Begin(r.Context())
 	if err != nil {
@@ -399,6 +407,12 @@ func (a *App) handleCreateEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer func() { _ = tx.Rollback(r.Context()) }()
+	if paidEvent {
+		if actorID, ok = a.requirePermission(r, workspaceID, permFinance); !ok {
+			writeError(w, http.StatusForbidden, "forbidden")
+			return
+		}
+	}
 
 	var eventID string
 	if err := tx.QueryRow(r.Context(), `
@@ -500,6 +514,7 @@ func (a *App) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 	newTicketPriceCents := event.TicketPriceCents
 	newTicketCurrency := event.TicketCurrency
 	changed := false
+	pricingChanged := false
 
 	if req.Title != nil {
 		title := strings.TrimSpace(*req.Title)
@@ -600,12 +615,19 @@ func (a *App) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 			newPricingMode = normalizedMode
 			newTicketPriceCents = normalizedPriceCents
 			newTicketCurrency = normalizedCurrency
+			pricingChanged = true
 			changed = true
 		}
 	}
 	if !changed {
 		writeError(w, http.StatusBadRequest, "no changes provided")
 		return
+	}
+	if pricingChanged {
+		if actorID, ok = a.requirePermission(r, event.WorkspaceID, permFinance); !ok {
+			writeError(w, http.StatusForbidden, "forbidden")
+			return
+		}
 	}
 
 	tx, err := a.db.Begin(r.Context())
@@ -614,7 +636,13 @@ func (a *App) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer func() { _ = tx.Rollback(r.Context()) }()
-	if _, err := tx.Exec(r.Context(), `
+	if pricingChanged {
+		if actorID, ok = a.requirePermission(r, event.WorkspaceID, permFinance); !ok {
+			writeError(w, http.StatusForbidden, "forbidden")
+			return
+		}
+	}
+	if err := tx.QueryRow(r.Context(), `
 		update events
 		set title = $2,
 		    starts_at = $3,
@@ -622,12 +650,13 @@ func (a *App) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 		    location_display = $5,
 		    image_url = $6,
 		    ticket_allocation = $7,
-		    pricing_mode = $8,
-		    ticket_price_cents = $9,
-		    ticket_currency = $10,
+		    pricing_mode = case when $11 then $8 else pricing_mode end,
+		    ticket_price_cents = case when $11 then $9 else ticket_price_cents end,
+		    ticket_currency = case when $11 then $10 else ticket_currency end,
 		    updated_at = now()
 		where id = $1
-	`, event.ID, newTitle, newStartsAt, newPublicDescription, newLocationDisplay, newImageURL, newTicketAllocation, newPricingMode, newTicketPriceCents, newTicketCurrency); err != nil {
+		returning pricing_mode, ticket_price_cents, ticket_currency
+	`, event.ID, newTitle, newStartsAt, newPublicDescription, newLocationDisplay, newImageURL, newTicketAllocation, newPricingMode, newTicketPriceCents, newTicketCurrency, pricingChanged).Scan(&newPricingMode, &newTicketPriceCents, &newTicketCurrency); err != nil {
 		writeError(w, http.StatusInternalServerError, "could not update event")
 		return
 	}
@@ -977,7 +1006,7 @@ func (a *App) handleGetReport(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not load event")
 		return
 	}
-	if _, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner", "member"); !ok {
+	if _, ok := a.requirePermission(r, event.WorkspaceID, permFinance); !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
@@ -1017,7 +1046,7 @@ func (a *App) handleGetSettlement(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not load event")
 		return
 	}
-	if _, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner", "member"); !ok {
+	if _, ok := a.requirePermission(r, event.WorkspaceID, permFinance); !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
@@ -1320,7 +1349,7 @@ func (a *App) handleCreateSettlementAdjustment(w http.ResponseWriter, r *http.Re
 		writeError(w, http.StatusInternalServerError, "could not load event")
 		return
 	}
-	actorID, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner")
+	actorID, ok := a.requirePermission(r, event.WorkspaceID, permFinance)
 	if !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
@@ -1363,6 +1392,10 @@ func (a *App) handleCreateSettlementAdjustment(w http.ResponseWriter, r *http.Re
 			return
 		}
 		writeError(w, http.StatusInternalServerError, "could not load settlement")
+		return
+	}
+	if actorID, ok = a.requirePermission(r, event.WorkspaceID, permFinance); !ok {
+		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
 	if settlementRow.Status != "open" {
@@ -1418,7 +1451,7 @@ func (a *App) handleFinalizeSettlement(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not load event")
 		return
 	}
-	actorID, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner")
+	actorID, ok := a.requirePermission(r, event.WorkspaceID, permFinance)
 	if !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
@@ -1445,6 +1478,10 @@ func (a *App) handleFinalizeSettlement(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeError(w, http.StatusInternalServerError, "could not load settlement")
+		return
+	}
+	if actorID, ok = a.requirePermission(r, event.WorkspaceID, permFinance); !ok {
+		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
 

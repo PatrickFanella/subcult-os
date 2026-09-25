@@ -71,10 +71,7 @@ func TestFirstEventLifecycleSettlementAPI(t *testing.T) {
 	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
 
 	ownerSettlement := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/settlement", http.StatusOK)
-	memberSettlement := getJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/settlement", http.StatusOK)
-	if !reflect.DeepEqual(ownerSettlement.JSON, memberSettlement.JSON) {
-		t.Fatalf("expected owner/member settlement responses to match: owner=%#v member=%#v", ownerSettlement.JSON, memberSettlement.JSON)
-	}
+	getJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/settlement", http.StatusForbidden)
 
 	settlement := mustObject(t, ownerSettlement.JSON)
 	if settlement["eventId"] != eventID || settlement["currency"] != "usd" || int(settlement["grossPaidRevenueCents"].(float64)) != 1500 || int(settlement["paidTicketCount"].(float64)) != 1 || int(settlement["pendingTicketCount"].(float64)) != 0 || int(settlement["cancelledTicketCount"].(float64)) != 1 || int(settlement["freeTicketCount"].(float64)) != 1 || int(settlement["reservedCount"].(float64)) != 2 || int(settlement["adjustmentTotalCents"].(float64)) != 0 || int(settlement["netTotalCents"].(float64)) != 1500 || settlement["status"] != "open" {
@@ -2919,10 +2916,7 @@ func TestFirstEventLifecycleSettlementAdjustments(t *testing.T) {
 		t.Fatalf("unexpected second adjustment row: %#v", secondAdjustments[1])
 	}
 
-	memberSettlement := getJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/settlement", http.StatusOK)
-	if !reflect.DeepEqual(second.JSON, memberSettlement.JSON) {
-		t.Fatalf("expected member GET to match owner settlement after adjustments")
-	}
+	getJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/settlement", http.StatusForbidden)
 }
 
 func TestFirstEventLifecycleSettlementAdjustmentValidation(t *testing.T) {

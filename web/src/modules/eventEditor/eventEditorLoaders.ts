@@ -24,15 +24,21 @@ export type EventEditorCommitmentsLoadResult = {
 	denied: boolean;
 };
 
+export type EventEditorFinancePanelLoadResult<T> = {
+	data: T | null;
+	denied: boolean;
+};
+
 export async function loadEventEditorEvent(apiClient: ApiClient, eventId: string) {
 	return apiClient<EventDTO>(`/api/events/${eventId}`);
 }
 
-export async function loadEventEditorReport(apiClient: ApiClient, eventId: string) {
+export async function loadEventEditorReport(apiClient: ApiClient, eventId: string): Promise<EventEditorFinancePanelLoadResult<EventReportDTO>> {
 	try {
-		return await apiClient<EventReportDTO>(`/api/events/${eventId}/report`);
+		return { data: await apiClient<EventReportDTO>(`/api/events/${eventId}/report`), denied: false };
 	} catch (caught) {
-		if (caught instanceof ApiError && caught.status === 404) return null;
+		if (caught instanceof ApiError && caught.status === 404) return { data: null, denied: false };
+		if (caught instanceof ApiError && caught.status === 403) return { data: null, denied: true };
 		throw caught;
 	}
 }
@@ -94,13 +100,12 @@ export async function loadEventEditorStaffing(apiClient: ApiClient, eventId: str
 	return sortRunOfShowItems(await apiClient<EventStaffingItemDTO[]>(`/api/events/${eventId}/staffing`));
 }
 
-export async function loadEventEditorSettlement(apiClient: ApiClient, eventId: string) {
+export async function loadEventEditorSettlement(apiClient: ApiClient, eventId: string): Promise<EventEditorFinancePanelLoadResult<EventSettlementDTO>> {
 	try {
-		return await apiClient<EventSettlementDTO>(`/api/events/${eventId}/settlement`);
+		return { data: await apiClient<EventSettlementDTO>(`/api/events/${eventId}/settlement`), denied: false };
 	} catch (caught) {
-		if (caught instanceof ApiError && caught.status === 404) {
-			return null;
-		}
+		if (caught instanceof ApiError && caught.status === 404) return { data: null, denied: false };
+		if (caught instanceof ApiError && caught.status === 403) return { data: null, denied: true };
 
 		throw caught;
 	}
