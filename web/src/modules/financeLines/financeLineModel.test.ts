@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  type FinanceLineLike,
   centsFromDecimal,
   currentFinanceLines,
   decimalFromCents,
@@ -27,8 +28,8 @@ describe('finance decimal cents', () => {
 });
 
 describe('finance current-line projection', () => {
-  const original = { id: 'payable-root', entryType: 'payable', direction: 'expense', currency: 'usd', amountCents: 100 };
-  const correction = { id: 'payable-current', correctsLineId: 'payable-root', entryType: 'payable', direction: 'expense', currency: 'usd', amountCents: 125 };
+  const original: FinanceLineLike = { id: 'payable-root', entryType: 'payable', direction: 'expense', currency: 'usd', amountCents: 100 };
+  const correction: FinanceLineLike = { id: 'payable-current', correctsLineId: 'payable-root', entryType: 'payable', direction: 'expense', currency: 'usd', amountCents: 125 };
 
   it('uses a correction in place of its historical line for totals', () => {
     expect(financeTotals([original, correction])).toEqual([{
@@ -50,6 +51,7 @@ describe('finance dates', () => {
   it('sends local form values as UTC and hydrates stored UTC timestamps for a local control', () => {
     const utc = toUTC('2026-11-01T01:30');
     expect(utc).toMatch(/Z$/);
+    if (typeof utc !== "string") throw new Error("Expected a valid UTC timestamp");
     expect(toLocalDateTime(utc)).toMatch(/^2026-11-01T\d{2}:\d{2}$/);
   });
 
