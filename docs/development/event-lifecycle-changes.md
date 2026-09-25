@@ -85,7 +85,7 @@ clearing an existing end also counts as a schedule change. Changing dates on a
 cancelled/postponed occurrence does not reactivate it. Explicit status changes
 remain available through the existing API.
 
-## Independent external actions (not implemented in this slice)
+## Ledgered external action intent (dispatch not implemented)
 
 Migration 000016 now provides the private decision and action ledger only. It
 can persist an approved cancellation/reschedule decision and an action intent,
@@ -146,7 +146,8 @@ or assume a timeout means failure.
 | Listing cancellation isolation | `TestOccurrenceLifecycleCancellationPreservesPrivateState` | Private event/ticket rows and email queue unchanged; date correction stays cancelled |
 | Listing reschedule isolation | `TestEventOccurrenceRescheduleDoesNotChangeTickets` | Existing ticket identity/admission state retained |
 | Actual remote stale CID | Future #19/#20 conditional-write test | Not implemented |
-| Notice failure/retry/supersession | Future coordinated-action integration tests | Not implemented; existing mail-worker tests do not prove this workflow |
+| Action-intent fencing, retry scheduling, lease expiry, supersession and upgrade | `TestLifecycleActionLedgerIsIdempotentFencedAndNeverBlindRetriesUnknownWork`; `TestLifecycleActionConcurrentClaimHasOneWinnerAndSupersedeStopsPending`; `TestLifecycleActionCreateThenSupersedeSerializesOnChange`; `TestLifecycleActionMigrationUpgradesVersionFifteen` | Source coverage added; the corrected upgrade fixture awaits the next combined disposable-database gate |
+| External notice failure/retry and reconciliation | Future coordinated-action dispatch tests | Not implemented; existing mail-worker tests do not prove this workflow |
 | Payment/refund ambiguity | Future #53 provider test-mode journey | Not qualified |
 
 Focused command, inside the installed disposable database test environment:
