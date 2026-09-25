@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"unicode"
 
 	atprotocol "git.subcult.tv/PatrickFanella/subcult-os/internal/atproto"
 	mailprovider "git.subcult.tv/PatrickFanella/subcult-os/internal/mail"
@@ -49,7 +50,8 @@ type Config struct {
 	// ExternalTicketAllowedHosts is an explicit hostname allowlist for the
 	// operator-configured external purchase-link handoff. An empty list denies
 	// every handoff; it never selects or contacts a ticket provider.
-	ExternalTicketAllowedHosts []string
+	ExternalTicketAllowedHosts    []string
+	externalTicketAllowedHostsRaw string
 	// AnnouncementUnitCostCents is the observed per-recipient cost basis
 	// used only to compute an announcement's estimated_cost_cents
 	// (count * unit cost) for preview and reporting; it is never sent to
@@ -65,6 +67,7 @@ func LoadConfig() Config {
 	mailDeliveryEnabledRaw := env("MAIL_DELIVERY_ENABLED", "false")
 	atProjectionEnabledRaw := env("AT_PROJECTION_ENABLED", "false")
 	announcementUnitCostCentsRaw := env("ANNOUNCEMENT_UNIT_COST_CENTS", "0")
+	externalTicketAllowedHostsRaw := env("EXTERNAL_TICKET_ALLOWED_HOSTS", "")
 	announcementUnitCostCents, _ := strconv.Atoi(announcementUnitCostCentsRaw)
 	return Config{
 		AnnouncementUnitCostCents:     announcementUnitCostCents,
@@ -72,7 +75,8 @@ func LoadConfig() Config {
 		ATProjectionEnabled:           parseEnvBool(atProjectionEnabledRaw),
 		atProjectionEnabledRaw:        atProjectionEnabledRaw,
 		ATProjectionSourceURL:         env("AT_PROJECTION_SOURCE_URL", ""),
-		ExternalTicketAllowedHosts:    parseExternalTicketAllowedHosts(env("EXTERNAL_TICKET_ALLOWED_HOSTS", "")),
+		ExternalTicketAllowedHosts:    parseExternalTicketAllowedHosts(externalTicketAllowedHostsRaw),
+		externalTicketAllowedHostsRaw: externalTicketAllowedHostsRaw,
 		MailDeliveryEnabled:           parseEnvBool(mailDeliveryEnabledRaw),
 		mailDeliveryEnabledRaw:        mailDeliveryEnabledRaw,
 		ResendAPIKey:                  env("RESEND_API_KEY", ""),
@@ -119,7 +123,14 @@ func parseExternalTicketAllowedHosts(raw string) []string {
 
 func (c Config) Validate() error {
 	var problems []string
+	if strings.IndexFunc(c.externalTicketAllowedHostsRaw, unicode.IsControl) >= 0 {
+		problems = append(problems, "EXTERNAL_TICKET_ALLOWED_HOSTS must not contain control characters")
+	}
 	for _, host := range c.ExternalTicketAllowedHosts {
+		if strings.IndexFunc(host, unicode.IsControl) >= 0 {
+			problems = append(problems, "EXTERNAL_TICKET_ALLOWED_HOSTS must not contain control characters")
+			break
+		}
 		parsed, err := url.Parse("https://" + strings.TrimSpace(host))
 		if err != nil || parsed.Hostname() == "" || parsed.Hostname() != strings.TrimSpace(host) || parsed.User != nil || parsed.Path != "" {
 			problems = append(problems, "EXTERNAL_TICKET_ALLOWED_HOSTS must contain hostnames only")

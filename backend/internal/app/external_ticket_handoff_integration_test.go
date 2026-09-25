@@ -216,11 +216,20 @@ func TestExternalTicketAllowedHostsConfigValidation(t *testing.T) {
 		t.Fatalf("parsed hosts = %#v", got)
 	}
 	for _, host := range []string{"tickets.example.test/path", "tickets.example.test:443", "user@tickets.example.test"} {
-		if err := (Config{ExternalTicketAllowedHosts: []string{host}}).Validate(); err == nil {
+		if err := (Config{Addr: ":8080", ExternalTicketAllowedHosts: []string{host}}).Validate(); err == nil {
 			t.Fatalf("invalid allowlist host accepted: %q", host)
 		}
 	}
-	if err := (Config{ExternalTicketAllowedHosts: []string{"tickets.example.test"}}).Validate(); err != nil {
+	if err := (Config{Addr: ":8080"}).Validate(); err != nil {
+		t.Fatalf("empty allowlist must be a valid deny-by-default configuration: %v", err)
+	}
+	if err := (Config{Addr: ":8080", ExternalTicketAllowedHosts: []string{"tickets.example.test"}}).Validate(); err != nil {
 		t.Fatal(err)
+	}
+	if err := (Config{Addr: ":8080", ExternalTicketAllowedHosts: []string{"tickets.example.test\n"}}).Validate(); err == nil {
+		t.Fatal("control-character allowlist entry accepted")
+	}
+	if err := (Config{Addr: ":8080", ExternalTicketAllowedHosts: []string{"tickets.example.test"}, externalTicketAllowedHostsRaw: "tickets.example.test\n"}).Validate(); err == nil {
+		t.Fatal("raw control-character allowlist configuration accepted")
 	}
 }
