@@ -199,3 +199,33 @@ export interface EventRoleApplicationDTO {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface PublicArchiveItemDTO {
+  id: string;
+  eventId: string;
+  replacesItemId?: string | null;
+  kind: 'credit' | 'link';
+  title: string;
+  attributionName: string;
+  attributionUrl?: string | null;
+  externalUrl?: string | null;
+  intendedUse: 'link_only' | 'display_credit';
+  rightsAssertion: 'owned' | 'licensed' | 'permission_asserted' | 'public_domain';
+  evidenceReference: string;
+  status: 'approved' | 'corrected' | 'unavailable';
+  unavailableReason: string;
+  approvedAt: string;
+  createdAt: string;
+}
+
+export interface ParticipantAssignmentDTO {
+  eventId: string;
+  eventTitle: string;
+  staffingItemId: string;
+  title: string;
+  kind: 'task' | 'shift';
+  startsAt?: string | null;
+  endsAt?: string | null;
+  status: 'open' | 'assigned' | 'completed';
+  participantRequirements: string;
+}
