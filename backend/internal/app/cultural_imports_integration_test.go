@@ -489,7 +489,7 @@ func TestCulturalImportCorrectionRejectsStaleCIDAndRollbackBlockers(t *testing.T
 	occurrenceID := mustString(t, occurrence.JSON, "id")
 	preview := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/cultural-imports/preview", map[string]any{"sourceId": "catalog", "sourceName": "Catalog", "sourceAssertion": "reviewed", "csv": culturalImportCSV("one,Changed,,2026-11-01T06:30:00Z,,UTC,cancelled,,,,US")}, http.StatusCreated)
 	candidate := mustObject(t, mustObject(t, preview.JSON)["candidates"].([]any)[0])
-	match := mustObject(t, candidate["matches"].([]any)[0])
+	match := mustObject(t, occurrence.JSON)
 	if _, err := fx.app.db.Exec(t.Context(), `update event_occurrences set public_cid='current' where id=$1`, occurrenceID); err != nil {
 		t.Fatal(err)
 	}
