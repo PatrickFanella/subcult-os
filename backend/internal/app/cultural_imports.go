@@ -147,7 +147,7 @@ func persistCulturalImportPreview(ctx context.Context, tx pgx.Tx, workspaceID, a
 	result := culturalImportPreviewDTO{
 		WorkspaceID: workspaceID,
 		Schema:      preview.Schema,
-		SourceName:  strings.TrimSpace(req.SourceName), SourceAssertion: strings.TrimSpace(req.SourceAssertion), SourceID: preview.SourceID,
+		SourceName:  assertion.SourceName, SourceAssertion: assertion.Assertion, SourceID: preview.SourceID,
 		ContentSHA256: preview.ContentSHA256,
 		Candidates:    []culturalImportCandidateDTO{},
 		Errors:        []culturalImportPreviewErrorDTO{},
