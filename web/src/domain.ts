@@ -216,6 +216,55 @@ export interface EventDTO {
   publicUrl: string | null;
 }
 
+export interface CulturalImportMatchDTO {
+  occurrenceId: string;
+  eventId: string;
+  name: string;
+  startsAt: string;
+  status: string;
+  updatedAt: string;
+}
+
+export interface CulturalImportCandidateDTO {
+  id: string;
+  row: number;
+  sourceRecordId: string;
+  title: string;
+  description?: string;
+  startsAt: string;
+  endsAt?: string;
+  timezone: string;
+  status: string;
+  matches: CulturalImportMatchDTO[];
+  ambiguous: boolean;
+  matchesTruncated: boolean;
+}
+
+export interface CulturalImportPreviewDTO {
+  sourceName: string;
+  sourceAssertion: string;
+  id: string;
+  workspaceId: string;
+  schema: string;
+  sourceId: string;
+  contentSha256: string;
+  createdAt: string;
+  candidates: CulturalImportCandidateDTO[];
+  errors: Array<{ row: number; field?: string; code: string }>;
+  actions: CulturalImportActionDTO[];
+}
+
+export interface CulturalImportActionDTO {
+  id: string;
+  candidateId: string;
+  mode: 'create' | 'correction';
+  eventId: string;
+  occurrenceId?: string;
+  createdOccurrenceId?: string;
+  appliedAt: string;
+  rolledBackAt?: string;
+}
+
 export interface PublicEventDTO {
   id: string;
   title: string;
