@@ -52,7 +52,7 @@ func TestSettlementReportExportsProvenanceAndUnavailableSettlement(t *testing.T)
 	}
 
 	markdown := getReportExport(t, fx.fixture.app, fx.fixture.ownerCookie, "/api/events/"+fx.eventID+"/exports/settlement.md", http.StatusOK)
-	for _, want := range []string{"Status: finalized", "Finalized at (UTC):", "Finalized by person ID:", "Correction ID: " + adjustmentID, "Created by person ID: " + actorID, "Created at (UTC):", "-USD 0.75"} {
+	for _, want := range []string{"Status: finalized", "Finalized at (UTC):", "Finalized by person ID:", "Correction ID: " + strings.ReplaceAll(adjustmentID, "-", "\\-"), "Created by person ID: " + strings.ReplaceAll(actorID, "-", "\\-"), "Created at (UTC):", "-USD 0.75"} {
 		if !strings.Contains(markdown.Body.String(), want) {
 			t.Fatalf("markdown report missing %q: %s", want, markdown.Body.String())
 		}

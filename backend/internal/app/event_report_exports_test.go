@@ -11,12 +11,12 @@ import (
 func TestSettlementReportEncodingAndTotals(t *testing.T) {
 	s := eventSettlementExportSnapshot{EventTitle: "<script>x</script>\n# title", EventID: "event", ReportID: "report", SettlementID: "settle", Currency: "usd", GrossPaidRevenueCents: 12345, StartsAt: time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC), GeneratedAt: time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC), Status: "finalized", FinalizedAt: sql.NullTime{Time: time.Date(2026, 1, 2, 4, 5, 6, 0, time.UTC), Valid: true}, FinalizedByPersonID: sql.NullString{String: "person-finalizer", Valid: true}, Adjustments: []eventSettlementAdjustmentRow{{ID: "correction-1", AmountCents: -45, Label: "[label]", Reason: "<img src=x>", CreatedByPersonID: "person-corrector", CreatedAt: time.Date(2026, 1, 2, 5, 6, 7, 0, time.UTC)}}}
 	got := reportText(s)
-	for _, bad := range []string{"<script>", "<img", "\n# title"} {
+	for _, bad := range []string{"<script>", "<img src=x>", "\n# title"} {
 		if strings.Contains(got, bad) {
 			t.Fatalf("unescaped %q in %q", bad, got)
 		}
 	}
-	for _, want := range []string{"USD 123.45", "-USD 0.45", "USD 123.00", "Budgets and payables are not tracked", "2026-01-02T03:04:05Z", "Status: finalized", "Finalized by person ID: person\\-finalizer", "Correction ID: correction\\-1", "Created by person ID: person\\-corrector", "Created at (UTC): 2026-01-02T05:06:07Z", "\\<script\\>", "  \n"} {
+	for _, want := range []string{"USD 123.45", "-USD 0.45", "USD 123.00", "Budgets and payables are not tracked", "2026-01-02T03:04:05Z", "Status: finalized", "Finalized by person ID: person\\-finalizer", "Correction ID: correction\\-1", "Created by person ID: person\\-corrector", "Created at (UTC): 2026-01-02T05:06:07Z", "\\<script\\>", "\\<img src\\=x\\>", "  \n"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("missing %q: %s", want, got)
 		}
