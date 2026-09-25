@@ -85,7 +85,24 @@ clearing an existing end also counts as a schedule change. Changing dates on a
 cancelled/postponed occurrence does not reactivate it. Explicit status changes
 remain available through the existing API.
 
-## Independent external actions (not implemented in this slice)
+## Ledgered external action intent (dispatch not implemented)
+
+Migration 000016 now provides the private decision and action ledger only. It
+can persist an approved cancellation/reschedule decision and an action intent,
+claim one due intent with a fenced lease, retain retry scheduling, and
+supersede unsent intents. It does not expose an HTTP cancellation route, change
+an event or occurrence, create recipients, send a notice, write a public
+record, call a provider, or issue a refund. An expired running lease becomes
+`unknown`, never a blind retry; a later orchestration slice must reconcile that
+destination before it can create another external action.
+
+The ledger verifies that a change's event and approving active owner belong to
+the recorded workspace. It stores a bounded object snapshot and bounded action
+payload, but it does not enforce snapshot immutability at the database layer.
+The future API and approval flow must append a new approved decision rather
+than alter a recorded decision or action identity. Failure categories are a
+small internal code set; provider error text and unbounded response bodies do
+not belong in this ledger.
 
 A coordinated change needs one private change record with actor, workspace,
 reason, scope, old/new values, revision and approval digest. Persist the local
@@ -129,7 +146,8 @@ or assume a timeout means failure.
 | Listing cancellation isolation | `TestOccurrenceLifecycleCancellationPreservesPrivateState` | Private event/ticket rows and email queue unchanged; date correction stays cancelled |
 | Listing reschedule isolation | `TestEventOccurrenceRescheduleDoesNotChangeTickets` | Existing ticket identity/admission state retained |
 | Actual remote stale CID | Future #19/#20 conditional-write test | Not implemented |
-| Notice failure/retry/supersession | Future coordinated-action integration tests | Not implemented; existing mail-worker tests do not prove this workflow |
+| Action-intent fencing, retry scheduling, lease expiry, supersession and upgrade | `TestLifecycleActionLedgerIsIdempotentFencedAndNeverBlindRetriesUnknownWork`; `TestLifecycleActionConcurrentClaimHasOneWinnerAndSupersedeStopsPending`; `TestLifecycleActionCreateThenSupersedeSerializesOnChange`; `TestLifecycleActionMigrationUpgradesVersionFifteen` | Source coverage added; the corrected upgrade fixture awaits the next combined disposable-database gate |
+| External notice failure/retry and reconciliation | Future coordinated-action dispatch tests | Not implemented; existing mail-worker tests do not prove this workflow |
 | Payment/refund ambiguity | Future #53 provider test-mode journey | Not qualified |
 
 Focused command, inside the installed disposable database test environment:
