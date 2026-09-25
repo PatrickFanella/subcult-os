@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	_ "time/tzdata" // Keep IANA validation available in the minimal runtime image.
 
 	"github.com/jackc/pgx/v5"
 )
@@ -162,17 +163,34 @@ type createOccurrenceRequest struct {
 }
 
 type updateOccurrenceRequest struct {
-	PlaceID       *string `json:"placeId"`
-	ClearPlace    bool    `json:"clearPlace"`
-	Name          *string `json:"name"`
-	Description   *string `json:"description"`
-	StartsAt      *string `json:"startsAt"`
-	EndsAt        *string `json:"endsAt"`
-	ClearEndsAt   bool    `json:"clearEndsAt"`
-	AllDay        *bool   `json:"allDay"`
-	Timezone      *string `json:"timezone"`
-	ClearTimezone bool    `json:"clearTimezone"`
-	Status        *string `json:"status"`
+	ExpectedUpdatedAt *string `json:"expectedUpdatedAt"`
+	ExpectedPublicCID *string `json:"expectedPublicCid"`
+	PlaceID           *string `json:"placeId"`
+	ClearPlace        bool    `json:"clearPlace"`
+	Name              *string `json:"name"`
+	Description       *string `json:"description"`
+	StartsAt          *string `json:"startsAt"`
+	EndsAt            *string `json:"endsAt"`
+	ClearEndsAt       bool    `json:"clearEndsAt"`
+	AllDay            *bool   `json:"allDay"`
+	Timezone          *string `json:"timezone"`
+	ClearTimezone     bool    `json:"clearTimezone"`
+	Status            *string `json:"status"`
+}
+
+func validateOccurrenceSchedule(startsAt time.Time, endsAt sql.NullTime, timezone sql.NullString) error {
+	if endsAt.Valid && !endsAt.Time.After(startsAt) {
+		return errors.New("endsAt must be after startsAt")
+	}
+	if timezone.Valid {
+		if timezone.String == "Local" || len(timezone.String) > 64 {
+			return errors.New("timezone must be a valid IANA timezone")
+		}
+		if _, err := time.LoadLocation(timezone.String); err != nil {
+			return errors.New("timezone must be a valid IANA timezone")
+		}
+	}
+	return nil
 }
 
 func (a *App) handleListEventOccurrences(w http.ResponseWriter, r *http.Request) {
@@ -282,6 +300,10 @@ func (a *App) handleCreateEventOccurrence(w http.ResponseWriter, r *http.Request
 			timezone = sql.NullString{String: trimmed, Valid: true}
 		}
 	}
+	if err := validateOccurrenceSchedule(startsAt, endsAt, timezone); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	status := occurrenceStatusScheduled
 	if req.Status != nil && strings.TrimSpace(*req.Status) != "" {
 		status = strings.TrimSpace(*req.Status)
@@ -366,6 +388,21 @@ func (a *App) handleUpdateEventOccurrence(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
+	if req.ExpectedUpdatedAt != nil {
+		expected, err := parseRFC3339Time(*req.ExpectedUpdatedAt)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid expectedUpdatedAt")
+			return
+		}
+		if !expected.Equal(occurrence.UpdatedAt) {
+			writeError(w, http.StatusConflict, "occurrence changed; reload before editing")
+			return
+		}
+	}
+	if req.ExpectedPublicCID != nil && *req.ExpectedPublicCID != occurrence.PublicCID.String {
+		writeError(w, http.StatusConflict, "public record changed; reload before editing")
+		return
+	}
 
 	name := occurrence.Name
 	if req.Name != nil {
@@ -398,6 +435,7 @@ func (a *App) handleUpdateEventOccurrence(w http.ResponseWriter, r *http.Request
 	}
 	endsAt := occurrence.EndsAt
 	if req.ClearEndsAt {
+		rescheduled = rescheduled || endsAt.Valid
 		endsAt = sql.NullTime{}
 	} else if req.EndsAt != nil {
 		parsed, err := parseRFC3339Time(*req.EndsAt)
@@ -424,6 +462,10 @@ func (a *App) handleUpdateEventOccurrence(w http.ResponseWriter, r *http.Request
 			return
 		}
 		timezone = sql.NullString{String: trimmed, Valid: trimmed != ""}
+	}
+	if err := validateOccurrenceSchedule(startsAt, endsAt, timezone); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 	status := occurrence.Status
 	if req.Status != nil {
@@ -460,9 +502,13 @@ func (a *App) handleUpdateEventOccurrence(w http.ResponseWriter, r *http.Request
 		update event_occurrences
 		set place_id = $2, name = $3, description = $4, starts_at = $5, ends_at = $6,
 		    all_day = $7, timezone = $8, status = $9, updated_at = now()
-		where id = $1
-		returning `+occurrenceSelectColumns, occurrence.ID, placeID, name, description, startsAt, endsAt, allDay, timezone, status)
+		where id = $1 and updated_at = $10 and public_cid is not distinct from $11
+		returning `+occurrenceSelectColumns, occurrence.ID, placeID, name, description, startsAt, endsAt, allDay, timezone, status, occurrence.UpdatedAt, occurrence.PublicCID)
 	updated, err := scanOccurrenceRow(row)
+	if errors.Is(err, pgx.ErrNoRows) {
+		writeError(w, http.StatusConflict, "occurrence changed; reload before editing")
+		return
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not update occurrence")
 		return
