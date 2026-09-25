@@ -75,7 +75,7 @@ describe('participant portal', () => {
   it('renders person-linked assignments and commitments without private operator fields', () => {
     const rendered = renderWithState('/participant', <ParticipantPortalView />, [{
       assignments: [{
-        eventId: 'event-1', eventTitle: 'Night Market', staffingItemId: 'staffing-1', title: 'Soundcheck', kind: 'shift', startsAt: '2026-07-01T18:00:00Z', endsAt: '2026-07-01T19:00:00Z', status: 'assigned',
+        eventId: 'event-1', eventTitle: 'Night Market', staffingItemId: 'staffing-1', title: 'Soundcheck', kind: 'shift', startsAt: '2026-07-01T18:00:00Z', endsAt: '2026-07-01T19:00:00Z', status: 'assigned', participantRequirements: 'Bring a DI and arrive early.',
       }],
       commitments: [{
         id: 'commitment-1', eventId: 'event-1', eventTitle: 'Night Market', title: 'Bring cables', dueAt: '2026-07-01T17:00:00Z', status: 'open',
@@ -84,6 +84,7 @@ describe('participant portal', () => {
 
     expect(rendered).toContain('Your event work');
     expect(rendered).toContain('Soundcheck');
+		expect(rendered).toContain('Bring a DI and arrive early.');
     expect(rendered).toContain('Bring cables');
     expect(rendered).not.toContain('operator-only staffing note');
     expect(rendered).not.toContain('application-private-message');
