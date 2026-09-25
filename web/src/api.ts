@@ -43,6 +43,22 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   return data as T;
 }
 
+// apiBlob keeps private downloads on the same credentialed, refreshable path
+// as the JSON client. Callers must consume the blob promptly and must not
+// retain an object URL after the user action finishes.
+export async function apiBlob(path: string, options: RequestInit = {}): Promise<Blob> {
+  let response = await request(path, options);
+  if (response.status === 401 && !path.startsWith('/api/auth/') && await refreshSession()) {
+    response = await request(path, options);
+  }
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new ApiError(response.status, typeof data.error === 'string' ? data.error : `Request failed: ${response.status}`, data);
+  }
+  return response.blob();
+}
+
 export function postJSON<T>(path: string, body: unknown): Promise<T> {
   return api<T>(path, { method: 'POST', body: JSON.stringify(body) });
 }

@@ -223,12 +223,11 @@ PostgreSQL:
   that carries `operate`", so a member promoted to `organizer`, `finance`,
   `door` or `crew` keeps baseline access to the existing surface
   (`TestPromotedRolesKeepBaselineAccessOnLegacyRoutes`), and owner-only
-  handlers keep denying every non-owner role. What the new roles do **not**
-  yet get is finer-grained enforcement on that surface: a `door` member can
-  still reach settlement routes that only check for "any member", because
-  those handlers have not been migrated to `requirePermission(r,
-  workspaceID, permFinance)` and similar. That per-handler migration is out
-  of scope for this slice.
+  handlers keep denying every non-owner role. Legacy access remains limited
+  to routes that only need day-to-day operational access.
+  Settlement reads, reports, settlement corrections/finalization, and paid
+  event pricing use the `finance` permission. Free-event creation and
+  nonpricing event edits remain operational work.
 - No account-recovery flow beyond the ownership-transfer-by-promotion
   pattern; see "Recovery" above.
 - No API surface yet lists members' delegation-adjacent history beyond the

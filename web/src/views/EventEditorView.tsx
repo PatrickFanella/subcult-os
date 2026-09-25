@@ -58,6 +58,7 @@ import {
 	loadEventEditorTemplates,
 	loadEventEditorWorkspace,
 } from '../modules/eventEditor/eventEditorLoaders';
+import { canDownloadSettlementExport, downloadSettlementExport } from '../modules/eventEditor/settlementExport';
 import type {
   CommitmentDTO,
   CurrentWorkspaceDTO,
@@ -143,6 +144,9 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   const [reportRefreshTick, setReportRefreshTick] = useState(0);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
   const [workspaceRefreshTick, setWorkspaceRefreshTick] = useState(0);
+  const [settlementExporting, setSettlementExporting] = useState(false);
+  const [reportAccessDenied, setReportAccessDenied] = useState(false);
+  const [settlementAccessDenied, setSettlementAccessDenied] = useState(false);
   const commitmentsRevisionRef = useRef(0);
 
   const hasWorkspace = workspaceId !== '';
@@ -150,6 +154,13 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   const pricingLocked = (event?.reservedCount ?? 0) > 0 || closed;
   const settlementFinalized = settlement?.status === 'finalized';
   const settlementOpen = settlement?.status === 'open';
+  const financeWorkspaceID = event?.workspaceId ?? (creating ? workspaceId : undefined);
+  const canManageFinance = canDownloadSettlementExport(currentWorkspace?.id, financeWorkspaceID, currentWorkspace?.role);
+  const canExportSettlement = Boolean(event) && canManageFinance;
+  const canManageSettlement = canExportSettlement;
+  const canEditPricing = canManageFinance;
+  const canSelectFreePricing = creating || canEditPricing;
+  const financeAccessDenied = reportAccessDenied || settlementAccessDenied;
   const canManageArchive = isClosedEvent(event?.status) && currentWorkspace?.role === 'owner' && currentWorkspace?.id === event?.workspaceId;
   const canReviewApplications = currentWorkspace?.role === 'owner' && currentWorkspace?.id === event?.workspaceId;
   const canViewNotificationActivity = currentWorkspace?.id === event?.workspaceId && (currentWorkspace?.role === 'owner' || currentWorkspace?.role === 'member');
@@ -229,12 +240,17 @@ export function EventEditorView({ eventId }: { eventId: string }) {
     setReportError(null);
     if (!event || !isClosedEvent(event.status)) {
       setReport(null);
+      setReportAccessDenied(false);
       return;
     }
     setReport((current) => current?.eventId === event.id ? current : null);
+    setReportAccessDenied(false);
 
     void loadEventEditorReport(api, event.id).then((loaded) => {
-      if (!cancelled) setReport(loaded);
+      if (!cancelled) {
+        setReport(loaded.data);
+        setReportAccessDenied(loaded.denied);
+      }
     }).catch((caught) => {
       if (!cancelled) setReportError(caught instanceof Error ? caught.message : 'Unable to load report');
     });
@@ -301,12 +317,13 @@ export function EventEditorView({ eventId }: { eventId: string }) {
     async function loadEventWorkspace() {
       setCurrentWorkspace(null);
       setWorkspaceError(null);
-      if (!event?.workspaceId) {
+      const requestedWorkspaceID = event?.workspaceId ?? (creating ? workspaceId : '');
+      if (!requestedWorkspaceID) {
         return;
       }
 
       try {
-        const loaded = await loadEventEditorWorkspace(api, event.workspaceId);
+        const loaded = await loadEventEditorWorkspace(api, requestedWorkspaceID);
         if (!cancelled) setCurrentWorkspace(loaded);
       } catch (caught) {
         if (!cancelled) setWorkspaceError(caught instanceof Error ? caught.message : 'Unable to load workspace authority');
@@ -318,7 +335,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [event?.workspaceId, workspaceRefreshTick]);
+  }, [creating, event?.workspaceId, workspaceId, workspaceRefreshTick]);
 
   useEffect(() => {
     let cancelled = false;
@@ -506,13 +523,16 @@ export function EventEditorView({ eventId }: { eventId: string }) {
     async function loadSettlement() {
       if (creating || !event || !isClosedEvent(event.status)) {
         setSettlement(null);
+        setSettlementAccessDenied(false);
         return;
       }
+      setSettlementAccessDenied(false);
 
       try {
         const loadedSettlement = await loadEventEditorSettlement(api, event.id);
         if (!cancelled) {
-          setSettlement(loadedSettlement);
+          setSettlement(loadedSettlement.data);
+          setSettlementAccessDenied(loadedSettlement.denied);
         }
       } catch (caught) {
         if (cancelled) return;
@@ -696,6 +716,10 @@ export function EventEditorView({ eventId }: { eventId: string }) {
 
   async function handleSettlementAdjustmentSubmit(formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault();
+    if (!canManageSettlement) {
+      setError('Finance access is required to change a settlement');
+      return;
+    }
     if (!event || !settlement || settlement.status !== 'open') {
       setError('Settlement is locked');
       return;
@@ -987,7 +1011,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   }
 
   async function handleFinalizeSettlement() {
-    if (!event || !settlement || settlement.status !== 'open') return;
+    if (!event || !settlement || settlement.status !== 'open' || !canManageSettlement) return;
 
     setSettlementFinalizing(true);
     setMessage(null);
@@ -1001,6 +1025,20 @@ export function EventEditorView({ eventId }: { eventId: string }) {
       setError(caught instanceof Error ? caught.message : 'Unable to finalize settlement');
     } finally {
       setSettlementFinalizing(false);
+    }
+  }
+
+  async function handleSettlementExport() {
+    if (!event || !settlement || !canExportSettlement) return;
+    setSettlementExporting(true);
+    setMessage(null);
+    setError(null);
+    try {
+      await downloadSettlementExport(event.id);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Unable to download settlement CSV');
+    } finally {
+      setSettlementExporting(false);
     }
   }
 
@@ -1092,6 +1130,9 @@ export function EventEditorView({ eventId }: { eventId: string }) {
           <p>Report could not be loaded: {reportError}</p>
           <button type="button" className="mt-3 rounded-full border border-white/20 px-4 py-2" onClick={() => setReportRefreshTick((value) => value + 1)}>Retry report</button>
         </div> : null}
+        {financeAccessDenied ? <div role="alert" className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+          Financial closeout details require an owner or finance workspace role.
+        </div> : null}
         {message ? <p className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">{message}</p> : null}
 
         {!loading ? (
@@ -1175,7 +1216,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                   />
                 </label>
 
-                <fieldset className={`rounded-[1.5rem] border p-4 ${pricingLocked ? 'border-white/10 bg-white/5 opacity-70' : 'border-white/10 bg-white/5'}`} disabled={pricingLocked}>
+                <fieldset className={`rounded-[1.5rem] border p-4 ${pricingLocked || (!creating && !canEditPricing) ? 'border-white/10 bg-white/5 opacity-70' : 'border-white/10 bg-white/5'}`} disabled={pricingLocked || (!creating && !canEditPricing)}>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="text-xs uppercase tracking-[0.3em] text-fuchsia-300">Pricing</p>
@@ -1195,7 +1236,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                         value="free"
                         checked={form.pricingMode === 'free'}
                         onChange={() => setForm((current) => ({ ...current, pricingMode: 'free', ticketPriceDollars: '0.00' }))}
-                        disabled={closed || pricingLocked}
+                        disabled={closed || pricingLocked || !canSelectFreePricing}
                       />
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -1214,7 +1255,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                         value="fixed"
                         checked={form.pricingMode === 'fixed'}
                         onChange={() => setForm((current) => ({ ...current, pricingMode: 'fixed' }))}
-                        disabled={closed || pricingLocked}
+                        disabled={closed || pricingLocked || !canEditPricing}
                       />
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -1238,7 +1279,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                         value={form.ticketPriceDollars}
                         onChange={(event) => setForm((current) => ({ ...current, ticketPriceDollars: event.target.value }))}
                         required
-                        disabled={closed || pricingLocked}
+                        disabled={closed || pricingLocked || !canEditPricing}
                       />
                       <p className="text-xs leading-5 text-zinc-500">Enter dollars; we convert to cents for checkout. Minimum recommended price is $0.50.</p>
                     </label>
@@ -1247,6 +1288,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                   )}
 
                   {pricingLocked ? <p className="mt-4 text-sm leading-6 text-zinc-400">Pricing is locked once tickets exist or after the event closes.</p> : null}
+                  {!canEditPricing ? <p className="mt-4 text-sm leading-6 text-zinc-400">Fixed paid pricing requires an owner or finance workspace role. Free events can still be created.</p> : null}
                 </fieldset>
 
                 {!closed ? (
@@ -1458,6 +1500,17 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                   <h2 className="mt-2 text-2xl font-semibold text-white">Review adjustments</h2>
                   <p className="mt-2 text-sm text-zinc-400">Status: {settlementStatusLabel(settlementFinalized ? 'finalized' : 'open')}</p>
 
+                  {canExportSettlement ? (
+                    <button
+                      className="mt-4 rounded-2xl border border-cyan-300/30 bg-cyan-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:bg-cyan-300/60"
+                      type="button"
+                      onClick={handleSettlementExport}
+                      disabled={settlementExporting}
+                    >
+                      {settlementExporting ? 'Preparing CSV…' : 'Download settlement CSV'}
+                    </button>
+                  ) : null}
+
                   {settlementFinalized ? (
                     <div className="mt-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm text-emerald-100">
                       <p className="font-medium">Settlement locked</p>
@@ -1502,7 +1555,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                   </div>
 
                   <div className="mt-4 flex flex-wrap gap-3 text-sm">
-                    {settlementOpen ? (
+                    {settlementOpen && canManageSettlement ? (
                       <button
                         className="rounded-2xl border border-emerald-400/20 bg-emerald-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:bg-emerald-300/60"
                         type="button"
@@ -1514,7 +1567,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                     ) : null}
                   </div>
 
-                  {settlementOpen ? (
+                  {settlementOpen && canManageSettlement ? (
                     <form className="mt-4 space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4" onSubmit={handleSettlementAdjustmentSubmit}>
                       <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Add adjustment</p>
                       <label className="block space-y-2 text-sm">
@@ -1555,9 +1608,9 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                         {settlementSubmitting ? 'Saving…' : 'Add adjustment'}
                       </button>
                     </form>
-                  ) : (
+                  ) : !settlementOpen ? (
                     <p className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-zinc-400">{settlementAdjustmentsLockedCopy()}</p>
-                  )}
+                  ) : null}
                 </section>
               ) : null}
 

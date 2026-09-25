@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { api } from './api';
+import { api, apiBlob } from './api';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -54,6 +54,29 @@ describe('api session refresh', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(api('/api/auth/login', { method: 'POST', body: '{}' })).rejects.toMatchObject({ status: 401 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('refreshes an expired private download before returning its blob', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }))
+      .mockResolvedValueOnce(new Response('csv,data\n', { status: 200, headers: { 'Content-Type': 'text/csv' } }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const blob = await apiBlob('/api/events/event-1/exports/settlement.csv', { headers: { Accept: 'text/csv' } });
+
+    await expect(blob.text()).resolves.toBe('csv,data\n');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ credentials: 'include' });
+    expect(fetchMock.mock.calls[2]?.[0]).toBe('/api/events/event-1/exports/settlement.csv');
+  });
+
+  it('returns a permission denial from a private download without retrying it', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(apiBlob('/api/events/event-1/exports/settlement.csv')).rejects.toMatchObject({ status: 403, message: 'forbidden' });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

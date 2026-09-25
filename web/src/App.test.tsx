@@ -346,6 +346,13 @@ describe('App routes', () => {
     expect(rendered).toContain('USD only');
   });
 
+  it('keeps paid pricing unavailable until create-workspace finance authority loads', () => {
+    const rendered = renderWithState('/events/new?workspaceId=workspace-1', <EventEditorView eventId="new" />);
+
+    expect(rendered).toContain('Fixed paid pricing requires an owner or finance workspace role. Free events can still be created.');
+    expect(rendered).toMatch(/<input[^>]*name="pricingMode"[^>]*value="fixed"[^>]*disabled=""/);
+  });
+
   it('renders the workspace archive section', () => {
     const event = {
       id: 'event-1',
@@ -2066,6 +2073,7 @@ describe('App routes', () => {
     expect(rendered).toContain('Reserved total');
     expect(rendered).toContain('24');
     expect(rendered).toContain('Settlement closeout');
+    expect(rendered).toContain('Download settlement CSV');
     expect(rendered).toContain('Gross revenue');
     expect(rendered).toContain('$30.00 USD');
     expect(rendered).toContain('Adjustment total');

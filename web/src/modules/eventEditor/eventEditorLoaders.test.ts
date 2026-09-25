@@ -9,6 +9,7 @@ import {
 	loadEventEditorNotifications,
 	loadEventEditorReport,
 	loadEventEditorReminders,
+	loadEventEditorSettlement,
 	loadEventEditorTemplates,
 	loadEventEditorWorkspace,
 	type ApiClient,
@@ -96,7 +97,7 @@ describe('event editor loaders', () => {
 			throw new Error(`unexpected request ${path}`);
 		}) as unknown as ApiClient;
 
-		await expect(loadEventEditorReport(closedApiClient, 'event-1')).resolves.toEqual({
+		await expect(loadEventEditorReport(closedApiClient, 'event-1')).resolves.toEqual({ data: {
 				id: 'report-1',
 				title: 'End of night',
 				eventId: 'event-1',
@@ -108,19 +109,27 @@ describe('event editor loaders', () => {
 				noShows: 0,
 				ticketAllocation: 100,
 				publicUrl: '/e/night-market',
-		});
+		}, denied: false });
 		expect((closedApiClient as unknown as { mock: { calls: unknown[][] } }).mock.calls.map(([path]) => path)).toEqual(['/api/events/event-1/report']);
 
 		await expect(loadEventEditorReport((async () => {
 			throw new ApiError(404, 'report not found', {});
-		}) as unknown as ApiClient, 'event-1')).resolves.toBeNull();
+		}) as unknown as ApiClient, 'event-1')).resolves.toEqual({ data: null, denied: false });
 	});
 
-	it.each([401, 403, 429, 500, 503])('preserves report and authority errors (%s)', async (status) => {
+	it.each([401, 429, 500, 503])('preserves report and authority errors (%s)', async (status) => {
 		const error = new ApiError(status, 'Unavailable', {});
 		const client = vi.fn().mockRejectedValue(error) as ApiClient;
 		await expect(loadEventEditorReport(client, 'event-1')).rejects.toBe(error);
 		await expect(loadEventEditorWorkspace(client, 'workspace-1')).rejects.toBe(error);
+	});
+
+	it('clears private finance panels when the server denies finance access', async () => {
+		const denied = new ApiError(403, 'forbidden', {});
+		const client = vi.fn().mockRejectedValue(denied) as ApiClient;
+
+		await expect(loadEventEditorReport(client, 'event-1')).resolves.toEqual({ data: null, denied: true });
+		await expect(loadEventEditorSettlement(client, 'event-1')).resolves.toEqual({ data: null, denied: true });
 	});
 
 	it('does not hide a missing workspace or a transport failure', async () => {
