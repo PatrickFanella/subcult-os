@@ -46,6 +46,10 @@ type Config struct {
 	ATProjectionEnabled           bool
 	atProjectionEnabledRaw        string
 	ATProjectionSourceURL         string
+	// ExternalTicketAllowedHosts is an explicit hostname allowlist for the
+	// operator-configured external purchase-link handoff. An empty list denies
+	// every handoff; it never selects or contacts a ticket provider.
+	ExternalTicketAllowedHosts []string
 	// AnnouncementUnitCostCents is the observed per-recipient cost basis
 	// used only to compute an announcement's estimated_cost_cents
 	// (count * unit cost) for preview and reporting; it is never sent to
@@ -68,6 +72,7 @@ func LoadConfig() Config {
 		ATProjectionEnabled:           parseEnvBool(atProjectionEnabledRaw),
 		atProjectionEnabledRaw:        atProjectionEnabledRaw,
 		ATProjectionSourceURL:         env("AT_PROJECTION_SOURCE_URL", ""),
+		ExternalTicketAllowedHosts:    parseExternalTicketAllowedHosts(env("EXTERNAL_TICKET_ALLOWED_HOSTS", "")),
 		MailDeliveryEnabled:           parseEnvBool(mailDeliveryEnabledRaw),
 		mailDeliveryEnabledRaw:        mailDeliveryEnabledRaw,
 		ResendAPIKey:                  env("RESEND_API_KEY", ""),
@@ -102,8 +107,25 @@ func LoadConfig() Config {
 	}
 }
 
+func parseExternalTicketAllowedHosts(raw string) []string {
+	var hosts []string
+	for _, value := range strings.Split(raw, ",") {
+		if host := strings.ToLower(strings.TrimSpace(value)); host != "" {
+			hosts = append(hosts, host)
+		}
+	}
+	return hosts
+}
+
 func (c Config) Validate() error {
 	var problems []string
+	for _, host := range c.ExternalTicketAllowedHosts {
+		parsed, err := url.Parse("https://" + strings.TrimSpace(host))
+		if err != nil || parsed.Hostname() == "" || parsed.Hostname() != strings.TrimSpace(host) || parsed.User != nil || parsed.Path != "" {
+			problems = append(problems, "EXTERNAL_TICKET_ALLOWED_HOSTS must contain hostnames only")
+			break
+		}
+	}
 	if c.ResendWebhookSecret != "" && !mailprovider.ValidWebhookSecret(c.ResendWebhookSecret) {
 		problems = append(problems, "RESEND_WEBHOOK_SECRET must be a valid signing secret")
 	}

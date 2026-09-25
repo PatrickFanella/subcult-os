@@ -208,6 +208,8 @@ func (a *App) routes() {
 	a.mux.HandleFunc("POST /api/events/{eventID}/occurrences/{occurrenceID}/credits", a.handleAttachOccurrenceCredit)
 	a.mux.HandleFunc("DELETE /api/events/{eventID}/occurrences/{occurrenceID}/credits/{profileID}", a.handleDetachOccurrenceCredit)
 	a.mux.HandleFunc("GET /api/events/{eventID}/occurrences/{occurrenceID}/public-preview", a.handleOccurrencePublicPreview)
+	a.mux.HandleFunc("GET /api/events/{eventID}/occurrences/{occurrenceID}/external-ticket-handoff", a.handleGetExternalTicketHandoff)
+	a.mux.HandleFunc("PUT /api/events/{eventID}/occurrences/{occurrenceID}/external-ticket-handoff", a.handlePutExternalTicketHandoff)
 	a.mux.HandleFunc("POST /api/events/{eventID}/public-links/preview", a.handlePreviewEventPublicLink)
 	a.mux.HandleFunc("GET /api/events/{eventID}/public-links", a.handleListEventPublicLinks)
 	a.mux.HandleFunc("POST /api/events/{eventID}/public-links", a.handleAttachEventPublicLink)
