@@ -291,33 +291,82 @@ func (a *App) handleCreatePaidReservation(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	// Commit the local authority to create a checkout before making an
+	// irreversible provider call.  This reservation is retained if the call or
+	// its follow-up persistence is ambiguous.
+	var attemptID, idempotencyKey string
+	if err := tx.QueryRow(r.Context(), `
+		insert into payment_checkout_attempts (ticket_id, provider, provider_idempotency_key)
+		values ($1, 'stripe', 'checkout-attempt-' || gen_random_uuid()::text)
+		returning id, provider_idempotency_key
+	`, ticket.ID).Scan(&attemptID, &idempotencyKey); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not create checkout attempt")
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not save ticket")
+		return
+	}
+
 	ticketURL := a.publicTicketURL(ticket.Code)
 	checkout, err := a.payments.CreateCheckoutSession(r.Context(), checkoutSessionRequest{
-		TicketID:    ticket.ID,
-		EventID:     event.ID,
-		EventTitle:  event.Title,
-		AmountCents: event.TicketPriceCents,
-		Currency:    event.TicketCurrency,
-		SuccessURL:  ticketURL + "?checkout=success",
-		CancelURL:   a.publicEventURL(a.publicSlugValue(event)) + "?checkout=cancelled",
+		TicketID:               ticket.ID,
+		EventID:                event.ID,
+		CheckoutAttemptID:      attemptID,
+		ProviderIdempotencyKey: idempotencyKey,
+		EventTitle:             event.Title,
+		AmountCents:            event.TicketPriceCents,
+		Currency:               event.TicketCurrency,
+		SuccessURL:             ticketURL + "?checkout=success",
+		CancelURL:              a.publicEventURL(a.publicSlugValue(event)) + "?checkout=cancelled",
 	})
+	if err != nil || strings.TrimSpace(checkout.ID) == "" || strings.TrimSpace(checkout.URL) == "" {
+		a.markCheckoutAttemptUnknown(r.Context(), attemptID, "provider_unknown")
+		writeError(w, http.StatusBadGateway, "could not create checkout session")
+		return
+	}
+
+	bindTx, err := a.db.Begin(r.Context())
 	if err != nil {
-		writeError(w, http.StatusBadGateway, "could not create checkout session")
-		return
-	}
-	if checkout.ID == "" || checkout.URL == "" {
-		writeError(w, http.StatusBadGateway, "could not create checkout session")
-		return
-	}
-	if _, err := tx.Exec(r.Context(), `
-		update tickets
-		set stripe_checkout_session_id = $2
-		where id = $1
-	`, ticket.ID, checkout.ID); err != nil {
+		a.markCheckoutAttemptUnknown(r.Context(), attemptID, "persistence_failed")
 		writeError(w, http.StatusInternalServerError, "could not save checkout session")
 		return
 	}
-	txCtx := context.WithValue(r.Context(), txContextKey{}, tx)
+	defer func() { _ = bindTx.Rollback(r.Context()) }()
+	var lockedTicketID string
+	if err := bindTx.QueryRow(r.Context(), `
+		select id from tickets
+		where id = $1 and payment_status = 'pending' and stripe_checkout_session_id is null
+		for update
+	`, ticket.ID).Scan(&lockedTicketID); err != nil {
+		_ = bindTx.Rollback(r.Context())
+		var alreadyPaid bool
+		if lookupErr := a.db.QueryRow(r.Context(), `select exists (select 1 from tickets where id = $1 and payment_status = 'paid' and stripe_checkout_session_id = $2)`, ticket.ID, checkout.ID).Scan(&alreadyPaid); lookupErr == nil && alreadyPaid {
+			writeJSON(w, http.StatusOK, paidReservationResponse{TicketID: ticket.ID, TicketCode: ticket.Code, TicketURL: ticketURL, CheckoutSessionID: checkout.ID, CheckoutURL: checkout.URL})
+			return
+		}
+		a.markCheckoutAttemptUnknown(r.Context(), attemptID, "persistence_failed")
+		writeError(w, http.StatusInternalServerError, "could not save checkout session")
+		return
+	}
+	var boundAttemptID string
+	err = bindTx.QueryRow(r.Context(), `
+		update payment_checkout_attempts a
+		set provider_session_id = $2, status = 'ready', ready_at = now(), updated_at = now(), last_error_code = null
+		where a.id = $1 and a.ticket_id = $3 and a.provider = 'stripe'
+		  and a.status in ('creating', 'unknown')
+		returning a.id
+	`, attemptID, checkout.ID, ticket.ID).Scan(&boundAttemptID)
+	if err == nil {
+		_, err = bindTx.Exec(r.Context(), `update tickets set stripe_checkout_session_id = $2 where id = $1 and stripe_checkout_session_id is null`, ticket.ID, checkout.ID)
+	}
+	if err != nil {
+		_ = bindTx.Rollback(r.Context())
+		a.markCheckoutAttemptUnknown(r.Context(), attemptID, "persistence_failed")
+		writeError(w, http.StatusInternalServerError, "could not save checkout session")
+		return
+	}
+	txCtx := context.WithValue(r.Context(), txContextKey{}, bindTx)
 	if err := a.audit(txCtx, "", "ticket.payment_started", "ticket", ticket.ID, map[string]any{
 		"eventId":               event.ID,
 		"email":                 email,
@@ -327,15 +376,31 @@ func (a *App) handleCreatePaidReservation(w http.ResponseWriter, r *http.Request
 		"paymentStatus":         "pending",
 		"stripeCheckoutSession": checkout.ID,
 	}); err != nil {
+		_ = bindTx.Rollback(r.Context())
+		a.markCheckoutAttemptUnknown(r.Context(), attemptID, "persistence_failed")
 		writeError(w, http.StatusInternalServerError, "could not record audit")
 		return
 	}
-	if err := tx.Commit(r.Context()); err != nil {
+	if err := bindTx.Commit(r.Context()); err != nil {
+		a.markCheckoutAttemptUnknown(r.Context(), attemptID, "persistence_failed")
 		writeError(w, http.StatusInternalServerError, "could not save ticket")
 		return
 	}
 
 	writeJSON(w, http.StatusOK, paidReservationResponse{TicketID: ticket.ID, TicketCode: ticket.Code, TicketURL: ticketURL, CheckoutSessionID: checkout.ID, CheckoutURL: checkout.URL})
+}
+
+func (a *App) markCheckoutAttemptUnknown(ctx context.Context, attemptID, errorCode string) {
+	if a.db == nil || strings.TrimSpace(attemptID) == "" {
+		return
+	}
+	reconcileCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	_, _ = a.db.Exec(reconcileCtx, `
+		update payment_checkout_attempts
+		set status = 'unknown', unknown_at = now(), updated_at = now(), last_error_code = $2
+		where id = $1 and status in ('creating', 'ready', 'unknown')
+	`, attemptID, errorCode)
 }
 
 func (a *App) handleGetTicket(w http.ResponseWriter, r *http.Request) {
