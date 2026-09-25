@@ -18,7 +18,12 @@ assert(fs.existsSync(path.resolve(root,target)),'Broken link '+n+': '+target);li
 }
 const backlog=fs.readFileSync(path.join(root,'backlog.md'),'utf8');
 const ids=[...backlog.matchAll(/^## ([A-Z]+-\d+) —/gm)].map(m=>m[1]);
-assert.equal(new Set(ids).size,15);
+const expectedBacklogIDs=[
+'BASE-01','API-01','DB-01','INV-01','IDENT-01','AT-01','MODEL-01','DISC-01',
+'PUB-01','UX-01','CONSENT-01','SIGNAL-01','QUAL-01','COMMONS-01','LIFE-01','OFFLINE-01',
+];
+assert.equal(new Set(ids).size,ids.length,'Duplicate backlog task ID');
+assert.deepEqual(ids,expectedBacklogIDs,'Unexpected backlog task IDs or order');
 for(const section of backlog.split(/^## /m).slice(1)){
 if(!/^[A-Z]+-\d+ —/.test(section))continue;
 assert(section.includes('**Acceptance:**') && section.includes('**Verification:**') && section.includes('**Rollback:**'),'Incomplete task');
