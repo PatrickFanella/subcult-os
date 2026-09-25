@@ -5,6 +5,7 @@ import App from './App';
 import { EventEditorView } from './views/EventEditorView';
 import { PublicEventView } from './views/PublicEventView';
 import { TicketView } from './views/TicketView';
+import { ParticipantPortalView } from './views/ParticipantPortalView';
 import { WorkspaceView } from './views/WorkspaceView';
 import { normalizeCurrentWorkspace } from './modules/workspace/workspaceModel';
 import { formFromEvent } from './modules/eventEditor/eventEditorModel';
@@ -68,6 +69,33 @@ function renderWithState(pathname: string, element: React.ReactElement, stateVal
 
   return renderToString(element);
 }
+
+describe('participant portal', () => {
+  it('renders person-linked assignments and commitments without private operator fields', () => {
+    const rendered = renderWithState('/participant', <ParticipantPortalView />, [{
+      assignments: [{
+        eventId: 'event-1', eventTitle: 'Night Market', staffingItemId: 'staffing-1', title: 'Soundcheck', kind: 'shift', startsAt: '2026-07-01T18:00:00Z', endsAt: '2026-07-01T19:00:00Z', status: 'assigned',
+      }],
+      commitments: [{
+        id: 'commitment-1', eventId: 'event-1', eventTitle: 'Night Market', title: 'Bring cables', dueAt: '2026-07-01T17:00:00Z', status: 'open',
+      }],
+    }, false, null, 0]);
+
+    expect(rendered).toContain('Your event work');
+    expect(rendered).toContain('Soundcheck');
+    expect(rendered).toContain('Bring cables');
+    expect(rendered).not.toContain('operator-only staffing note');
+    expect(rendered).not.toContain('application-private-message');
+  });
+
+  it('does not retain assignments after an authorization refresh failure', () => {
+    const rendered = renderWithState('/participant', <ParticipantPortalView />, [null, false, 'forbidden', 1]);
+
+    expect(rendered).toContain('forbidden');
+    expect(rendered).not.toContain('Soundcheck');
+    expect(rendered).not.toContain('Bring cables');
+  });
+});
 
 function workspaceShellState(overrides: {
   event?: Record<string, unknown>;
