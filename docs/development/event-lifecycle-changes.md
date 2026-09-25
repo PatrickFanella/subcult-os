@@ -62,6 +62,11 @@ before their request began. New preview/approval flows must provide both values
 and reload/re-preview after 409. Publication will additionally require the
 remote repository's conditional-write check under #19/#20.
 
+The update advances `updatedAt` by at least one microsecond, even if the database
+clock repeats or moves backward. It therefore serves as a monotonic edit cursor
+for this endpoint, not an exact wall-clock audit timestamp during clock skew.
+Audit records retain their separate timestamps.
+
 Creation and editing reject unknown timezones and the process-dependent `Local`
 zone. An omitted or cleared zone remains unknown; no venue zone is invented.
 Known zones use the Go IANA database, embedded for the minimal runtime image.
@@ -119,6 +124,7 @@ or assume a timeout means failure.
 | --- | --- | --- |
 | Stale local revision and recorded CID | `TestOccurrenceLifecycleRejectsStalePreview` | 409; prior accepted state survives |
 | Two edits approved against one revision | `TestOccurrenceLifecycleConcurrentPreviewHasOneWinner` | Exactly one success and one conflict |
+| Clock moves backward | `TestOccurrenceLifecycleRevisionAdvancesAfterClockRollback` | Edit cursor advances strictly; old preview rejected |
 | Invalid zone/interval and DST instants | `TestOccurrenceLifecycleValidatesSchedule`; `TestEventOccurrenceDSTChicagoRoundTrip` | Invalid inputs rejected; spring/fall instants preserved |
 | Listing cancellation isolation | `TestOccurrenceLifecycleCancellationPreservesPrivateState` | Private event/ticket rows and email queue unchanged; date correction stays cancelled |
 | Listing reschedule isolation | `TestEventOccurrenceRescheduleDoesNotChangeTickets` | Existing ticket identity/admission state retained |

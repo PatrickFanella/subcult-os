@@ -42,6 +42,33 @@ func TestOccurrenceLifecycleConcurrentPreviewHasOneWinner(t *testing.T) {
 	}
 }
 
+func TestOccurrenceLifecycleRevisionAdvancesAfterClockRollback(t *testing.T) {
+	fx := newCulturalFixture(t)
+	event := createEvent(t, fx, "Revision advancement", 10)
+	path := "/api/events/" + mustString(t, event, "id") + "/occurrences"
+	created := postJSON(t, fx.app, fx.ownerCookie, path, map[string]any{
+		"name": "Revision advancement", "startsAt": "2026-10-01T20:00:00Z",
+	}, http.StatusOK)
+	id := mustString(t, created.JSON, "id")
+	// Simulate a clock rollback by retaining a cursor ahead of the clock.
+	// The cursor must advance strictly rather than merely being different.
+	var prior time.Time
+	if err := fx.app.db.QueryRow(t.Context(), `update event_occurrences set updated_at=clock_timestamp()+interval '1 hour' where id=$1 returning updated_at`, id).Scan(&prior); err != nil {
+		t.Fatal(err)
+	}
+	path += "/" + id
+	updated := patchJSON(t, fx.app, fx.ownerCookie, path, map[string]any{
+		"name": "New revision", "expectedUpdatedAt": prior.UTC().Format(time.RFC3339Nano),
+	}, http.StatusOK)
+	next, err := time.Parse(time.RFC3339Nano, mustString(t, updated.JSON, "updatedAt"))
+	if err != nil || !next.After(prior) {
+		t.Fatalf("cursor did not advance: prior=%s next=%s err=%v", prior, next, err)
+	}
+	patchJSON(t, fx.app, fx.ownerCookie, path, map[string]any{
+		"status": "cancelled", "expectedUpdatedAt": prior.UTC().Format(time.RFC3339Nano),
+	}, http.StatusConflict)
+}
+
 func TestOccurrenceLifecycleCancellationPreservesPrivateState(t *testing.T) {
 	fx := newCulturalFixture(t)
 	event := createEvent(t, fx, "Cancellation boundary", 10)

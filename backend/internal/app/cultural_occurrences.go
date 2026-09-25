@@ -501,7 +501,8 @@ func (a *App) handleUpdateEventOccurrence(w http.ResponseWriter, r *http.Request
 	row := a.db.QueryRow(r.Context(), `
 		update event_occurrences
 		set place_id = $2, name = $3, description = $4, starts_at = $5, ends_at = $6,
-		    all_day = $7, timezone = $8, status = $9, updated_at = now()
+		    all_day = $7, timezone = $8, status = $9,
+		    updated_at = greatest(clock_timestamp(), updated_at + interval '1 microsecond')
 		where id = $1 and updated_at = $10 and public_cid is not distinct from $11
 		returning `+occurrenceSelectColumns, occurrence.ID, placeID, name, description, startsAt, endsAt, allDay, timezone, status, occurrence.UpdatedAt, occurrence.PublicCID)
 	updated, err := scanOccurrenceRow(row)
