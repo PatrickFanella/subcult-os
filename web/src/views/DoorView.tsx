@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { api, postJSON } from '../api';
-import type { TicketDTO } from '../domain';
+import type { DoorTicketDTO } from '../domain';
 import {
   publicCardClass,
   publicEyebrowClass,
@@ -14,7 +14,6 @@ import {
 } from '../modules/publicUi/publicUi';
 import {
   doorCheckInButtonLabel,
-  ticketJourneyDisplayName,
   ticketJourneyDoorStatusBadge,
   ticketJourneyDoorStatusCopy,
   ticketJourneyStatusLabel,
@@ -46,11 +45,11 @@ function noticeClassName(kind: 'neutral' | 'success' | 'error') {
   return 'border-neutral-200 bg-white text-neutral-600';
 }
 
-function doorStatusPillTone(status: TicketDTO['status']) {
+function doorStatusPillTone(status: DoorTicketDTO['status']) {
   return status === 'checked_in' ? 'success' : 'neutral';
 }
 
-function doorStatusCardClass(status: TicketDTO['status']) {
+function doorStatusCardClass(status: DoorTicketDTO['status']) {
   return status === 'checked_in'
     ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
     : 'border-neutral-200 bg-neutral-50 text-[#171717]';
@@ -58,7 +57,7 @@ function doorStatusCardClass(status: TicketDTO['status']) {
 
 export function DoorView({ eventId }: { eventId: string }) {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<TicketDTO[]>([]);
+  const [results, setResults] = useState<DoorTicketDTO[]>([]);
   const [loading, setLoading] = useState(false);
   const [checkingIn, setCheckingIn] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -96,17 +95,18 @@ export function DoorView({ eventId }: { eventId: string }) {
     setLoading(true);
 
     try {
-      const loaded = await api<TicketDTO[]>(`/api/events/${eventId}/door/tickets?query=${encodeURIComponent(trimmedQuery)}`);
+      const loaded = await api<DoorTicketDTO[]>(`/api/events/${eventId}/door/tickets?query=${encodeURIComponent(trimmedQuery)}`);
       setResults(loaded);
       setNotice(loaded.length === 0 ? { kind: 'neutral', text: `No matches for “${trimmedQuery}”.` } : { kind: 'success', text: `${loaded.length} ticket${loaded.length === 1 ? '' : 's'} ready.` });
     } catch (caught) {
+      setResults([]);
       setError(caught instanceof Error ? caught.message : 'Unable to search tickets');
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleCheckIn(ticket: TicketDTO) {
+  async function handleCheckIn(ticket: DoorTicketDTO) {
     if (!eventId) {
       setError('Missing event ID. Open Door from Staff mode.');
       return;
@@ -118,13 +118,15 @@ export function DoorView({ eventId }: { eventId: string }) {
     setNotice(null);
 
     try {
-      const updated = await postJSON<TicketDTO>(`/api/events/${eventId}/door/check-ins`, { code: ticket.code });
+      const updated = await postJSON<DoorTicketDTO>(`/api/events/${eventId}/door/check-ins`, { code: ticket.code });
       setResults((current) => {
         const next = current.map((currentTicket) => (currentTicket.code === updated.code ? updated : currentTicket));
         return next.some((currentTicket) => currentTicket.code === updated.code) ? next : [updated, ...next];
       });
-      setNotice({ kind: 'success', text: wasAlreadyCheckedIn ? `Already checked in — ${ticketJourneyDisplayName(updated)}` : `Checked in — ${ticketJourneyDisplayName(updated)}` });
+      const attendee = updated.displayName ?? 'Guest';
+      setNotice({ kind: 'success', text: wasAlreadyCheckedIn ? `Already checked in — ${attendee}` : `Checked in — ${attendee}` });
     } catch (caught) {
+      setResults([]);
       setError(caught instanceof Error ? caught.message : 'Unable to check in ticket');
     } finally {
       setCheckingIn(null);
@@ -201,8 +203,7 @@ export function DoorView({ eventId }: { eventId: string }) {
 
               <div className="mt-4 space-y-3">
                 <div>
-                  <p className="text-2xl font-black tracking-[-0.03em] text-[#171717]">{ticketJourneyDisplayName(ticket)}</p>
-                  <p className="mt-1 text-sm text-neutral-500">{ticket.email}</p>
+                  <p className="text-2xl font-black tracking-[-0.03em] text-[#171717]">{ticket.displayName ?? 'Guest'}</p>
                 </div>
 
                 <div className="rounded-2xl bg-neutral-100 px-4 py-4">
@@ -216,8 +217,8 @@ export function DoorView({ eventId }: { eventId: string }) {
                     <p className="mt-2 font-medium text-[#171717]">{formatHumanTime(ticket.checkedInAt)}</p>
                   </div>
                   <div className="rounded-2xl bg-neutral-100 px-4 py-3 text-sm text-neutral-600">
-                    <p className={publicEyebrowClass}>Payment</p>
-                    <p className="mt-2 font-medium text-[#171717]">{ticket.paymentStatus}</p>
+                    <p className={publicEyebrowClass}>Admission</p>
+                    <p className="mt-2 font-medium text-[#171717]">{ticket.admissionEligible ? 'Eligible' : 'Not eligible'}</p>
                   </div>
                 </div>
               </div>
@@ -226,7 +227,7 @@ export function DoorView({ eventId }: { eventId: string }) {
                 className={`door-action mt-4 w-full ${publicPrimaryButtonClass} min-h-14 rounded-[18px] text-base`}
                 type="button"
                 onClick={() => handleCheckIn(ticket)}
-                disabled={checkingIn === ticket.code || ticket.status === 'checked_in'}
+                disabled={checkingIn === ticket.code || ticket.status === 'checked_in' || !ticket.admissionEligible}
               >
                 {doorCheckInButtonLabel(checkingIn === ticket.code, ticket.status === 'checked_in')}
               </button>

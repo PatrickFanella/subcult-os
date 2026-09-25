@@ -3,6 +3,7 @@ import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import { EventEditorView } from './views/EventEditorView';
+import { DoorView } from './views/DoorView';
 import { PublicEventView } from './views/PublicEventView';
 import { TicketView } from './views/TicketView';
 import { ParticipantPortalView } from './views/ParticipantPortalView';
@@ -2499,6 +2500,18 @@ describe('App routes', () => {
 		expect(rendered).toContain('Door Mode');
 		expect(rendered).toContain('Exact code works');
 		expect(rendered).toContain('Reset');
+	});
+
+	it('renders the admission-only door ticket without contact or finance fields', () => {
+		const rendered = renderWithState('/door/event-1', <DoorView eventId="event-1" />, ['', [{
+			id: 'ticket-1', code: 'DOOR123', displayName: 'Door Guest', admissionEligible: true, status: 'reserved', checkedInAt: null,
+		}], false, null, null, null]);
+
+		expect(rendered).toContain('Door Guest');
+		expect(rendered).toContain('Eligible');
+		expect(rendered).not.toContain('door-private@example.test');
+		expect(rendered).not.toContain('1500');
+		expect(rendered).not.toContain('Payment');
 	});
 
 	it('renders the unscoped door route instead of the workspace', () => {

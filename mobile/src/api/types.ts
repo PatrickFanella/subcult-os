@@ -88,6 +88,15 @@ export interface TicketDTO {
   checkedInAt: string | null;
 }
 
+export interface DoorTicketDTO {
+  id: string;
+  code: string;
+  displayName: string | null;
+  admissionEligible: boolean;
+  status: 'reserved' | 'checked_in';
+  checkedInAt: string | null;
+}
+
 export interface TicketReservationDTO extends TicketDTO {
   ticketUrl: string;
 }

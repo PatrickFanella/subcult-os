@@ -96,6 +96,10 @@
         "checkedInAt"
       ]
     },
+    "DoorTicketDTO": {
+      "required": ["id", "code", "displayName", "admissionEligible", "status", "checkedInAt"],
+      "forbidden": ["email", "amountCents", "currency", "paymentStatus", "eventId", "ticketUrl"]
+    },
     "TicketReservationDTO": {
       "required": [
         "id",

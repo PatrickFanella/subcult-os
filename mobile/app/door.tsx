@@ -4,11 +4,10 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { checkInTicket, searchDoorTickets } from '@/api/door';
-import type { TicketDTO } from '@/api/types';
+import type { DoorTicketDTO } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { safeBack } from '@/navigation/safeBack';
 import {
-  ticketJourneyDisplayName,
   ticketJourneyDoorBadge,
   ticketJourneyDoorResultLabel,
   doorCheckInButtonLabel,
@@ -19,7 +18,7 @@ export default function DoorScreen() {
   const eventID = typeof params.eventId === 'string' ? params.eventId : '';
   const { user, loading: authLoading } = useAuth();
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<TicketDTO[]>([]);
+  const [results, setResults] = useState<DoorTicketDTO[]>([]);
   const [loading, setLoading] = useState(false);
   const [checkingIn, setCheckingIn] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -44,13 +43,14 @@ export default function DoorScreen() {
       setResults(loaded);
       setNotice(loaded.length === 0 ? `No matches for “${trimmed}”.` : `${loaded.length} ticket${loaded.length === 1 ? '' : 's'} ready.`);
     } catch (caught) {
+      setResults([]);
       setError(caught instanceof Error ? caught.message : 'Unable to search tickets');
     } finally {
       setLoading(false);
     }
   }
 
-  async function checkIn(ticket: TicketDTO) {
+  async function checkIn(ticket: DoorTicketDTO) {
     if (!eventID) return;
     setCheckingIn(ticket.code);
     setNotice(null);
@@ -58,8 +58,9 @@ export default function DoorScreen() {
     try {
       const updated = await checkInTicket(eventID, ticket.code);
       setResults((current) => current.map((item) => (item.code === updated.code ? updated : item)));
-      setNotice(`${ticketJourneyDoorResultLabel(updated.status)} — ${ticketJourneyDisplayName(updated)}`);
+      setNotice(`${ticketJourneyDoorResultLabel(updated.status)} — ${updated.displayName ?? 'Guest'}`);
     } catch (caught) {
+      setResults([]);
       setError(caught instanceof Error ? caught.message : 'Unable to check in ticket');
     } finally {
       setCheckingIn(null);
@@ -120,10 +121,10 @@ export default function DoorScreen() {
               <Text style={[styles.statusPill, ticket.status === 'checked_in' && styles.statusPillChecked]}>{ticketJourneyDoorBadge(ticket.status)}</Text>
               <Ticket size={20} color="#737373" />
             </View>
-            <Text style={styles.guestName}>{ticketJourneyDisplayName(ticket)}</Text>
-            <Text style={styles.guestMeta}>{ticket.code} · {ticket.paymentStatus}</Text>
+            <Text style={styles.guestName}>{ticket.displayName ?? 'Guest'}</Text>
+            <Text style={styles.guestMeta}>{ticket.code} · {ticket.admissionEligible ? 'Ready for entry' : 'Not eligible'}</Text>
             <View style={styles.divider} />
-            <Pressable disabled={checkingIn === ticket.code} onPress={() => void checkIn(ticket)} style={styles.primaryButton}>
+            <Pressable disabled={checkingIn === ticket.code || !ticket.admissionEligible} onPress={() => void checkIn(ticket)} style={styles.primaryButton}>
               <UserCheck size={20} color="#ffffff" />
               <Text style={styles.primaryButtonText}>{doorCheckInButtonLabel(checkingIn === ticket.code, ticket.status === 'checked_in')}</Text>
             </Pressable>
