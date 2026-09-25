@@ -1,5 +1,34 @@
 # Development execution log
 
+## 2026-09-24 — Expansion #50–71, first LIFE-01 slice
+
+The owner promoted #50–71 for development ahead of the original roadmap order.
+The work order is in `docs/superpowers/plans/2026-09-24-expansion-50-71.md`;
+source work begins with #50 while deployment/provider gates remain separate.
+
+Added the cancellation/reschedule state matrix in
+`docs/development/event-lifecycle-changes.md`, separating public listings from
+private event admission, provider tickets, money, notices and archive history.
+Occurrence edits now support optional preview revision/CID preconditions and
+an atomic update guard, reject invalid IANA zones and unordered intervals, and
+retain explicit-offset DST instants. Embedded zone data supports the minimal
+runtime image. No migration or coordinated cancellation worker was added.
+
+Before the fix, focused tests showed stale-preview fields rejected as unknown
+JSON (400 rather than a supported conflict check) and an invalid timezone
+accepted with 200. The final seven occurrence/lifecycle tests passed with
+`-race` in the installed T3 disposable PostgreSQL environment on Kvant, including
+one-winner concurrent edits and cancellation preserving private event/ticket
+rows and the email queue. `make verify && make test-db` passed: 306 top-level
+database tests, 430 including subtests, zero failures or skips; web 221 and
+mobile 27 passed. Documentation links and `git diff --check` passed. Test
+containers were removed; the current worktree and other environments stayed
+in place. These are local results, separate from hosted CI.
+
+The full operator cancellation/reschedule workflow, notice failure/retry
+recovery, remote repository CID enforcement and provider refund qualification
+remain open. No browser, live provider, refund or deployment result is claimed.
+
 ## 2026-09-24 — SIGNAL-01 workflow recovery and review
 
 Recovered Claude workflow `wf_72566bfc-c74`, task `w9uanh8za`, from the

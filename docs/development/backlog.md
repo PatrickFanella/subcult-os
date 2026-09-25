@@ -7,7 +7,7 @@ Status: original engineering slices for the Subcult OS platform core. The [Gitea
 BASE-01 → API-01 + DB-01 + INV-01.
 DB-01 + INV-01 → IDENT-01 + AT-01.
 IDENT-01 + AT-01 → MODEL-01 → DISC-01 → PUB-01 → UX-01 → QUAL-01.
-CONSENT-01 is a boundary task, not authorization to send. COMMONS-01 follows demonstrated conformance reuse. LIFE-01 and OFFLINE-01 remain later discovery.
+CONSENT-01 is a boundary task, not authorization to send. COMMONS-01 follows demonstrated conformance reuse. The owner promoted issues #50–71 for development on 2026-09-24; see the [expansion work order](../superpowers/plans/2026-09-24-expansion-50-71.md). Device, provider and production gates remain separate.
 
 Review [decisions](decisions.md), [architecture](architecture.md), and the [extraction inventory](extraction-inventory.md) before implementation.
 
@@ -241,10 +241,10 @@ Review [decisions](decisions.md), [architecture](architecture.md), and the [extr
 ## LIFE-01 — Specify cancellation and rescheduling before refunds
 
 - Repository: OS
-- Priority: Later
-- Depends on: QUAL-01
-- Status: proposed
-- Size: discovery required
+- Priority: active development by owner request, 2026-09-24
+- Depends on: QUAL-01 for rollout; independent source work promoted
+- Status: first slice — [state matrix and occurrence edit safeguards](event-lifecycle-changes.md); coordinated actions and notice-failure recovery remain open
+- Size: bounded multi-slice work
 
 **Acceptance:** State matrix covers public record, operator plan, tickets, notice, refund policy, projection and archive continuity.
 
