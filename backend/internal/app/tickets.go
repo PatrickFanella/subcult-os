@@ -163,6 +163,10 @@ func (a *App) handleReserveTicket(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not load event")
 		return
 	}
+	if event.ReservedCount, err = loadReservedTicketCount(r.Context(), tx, event.ID); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not load ticket capacity")
+		return
+	}
 	if ticketJourneyIsFull(event.TicketAllocation, event.ReservedCount) {
 		writeError(w, http.StatusConflict, "event is full")
 		return
@@ -257,6 +261,10 @@ func (a *App) handleCreatePaidReservation(w http.ResponseWriter, r *http.Request
 			return
 		}
 		writeError(w, http.StatusInternalServerError, "could not load event")
+		return
+	}
+	if event.ReservedCount, err = loadReservedTicketCount(r.Context(), tx, event.ID); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not load ticket capacity")
 		return
 	}
 	if !ticketJourneyCanCreatePaidReservation(event.PricingMode, event.TicketAllocation, event.ReservedCount) {
@@ -395,6 +403,10 @@ func (a *App) handleCreateTestTicket(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeError(w, http.StatusInternalServerError, "could not load event")
+		return
+	}
+	if event.ReservedCount, err = loadReservedTicketCount(r.Context(), tx, event.ID); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not load ticket capacity")
 		return
 	}
 	actorID, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner", "member")
@@ -637,6 +649,24 @@ func (a *App) loadTicketByCode(ctx context.Context, code string) (ticketRow, err
 		return ticketRow{}, err
 	}
 	return row, nil
+}
+
+// loadReservedTicketCount runs after the caller has locked the event row. It
+// must be a separate statement: a reservation statement that began before it
+// waited on that row lock can otherwise retain a snapshot that predates the
+// prior reservation's commit.
+func loadReservedTicketCount(ctx context.Context, tx pgx.Tx, eventID string) (int, error) {
+	var reserved int
+	err := tx.QueryRow(ctx, `
+		select count(*)
+		from tickets
+		where event_id = $1
+		  and payment_status <> 'cancelled'
+	`, eventID).Scan(&reserved)
+	if err != nil {
+		return 0, err
+	}
+	return reserved, nil
 }
 
 func (a *App) publicTicketURL(code string) string {
