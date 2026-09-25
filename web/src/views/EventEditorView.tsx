@@ -59,6 +59,7 @@ import {
 	loadEventEditorWorkspace,
 } from '../modules/eventEditor/eventEditorLoaders';
 import { canDownloadSettlementExport, downloadSettlementExport, downloadSettlementReport } from '../modules/eventEditor/settlementExport';
+import { EventFinanceLinesPanel } from '../components/EventFinanceLinesPanel';
 import type {
   CommitmentDTO,
   CurrentWorkspaceDTO,
@@ -1512,6 +1513,8 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                   </div>
                 </section>
               ) : null}
+
+              {effective ? <EventFinanceLinesPanel eventId={effective.id} allowed={canManageFinance} /> : null}
 
               {settlement ? (
                 <section className="rounded-[1.75rem] border border-cyan-400/20 bg-zinc-950/95 p-6 shadow-2xl shadow-black/30">

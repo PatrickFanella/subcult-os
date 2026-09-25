@@ -51,7 +51,7 @@ func TestEventSettlementCSVExportFinanceScopeAndContents(t *testing.T) {
 		t.Fatalf("rows=%d, want header, settlement, two adjustments: %#v", len(rows), rows)
 	}
 	header := rows[0]
-	if len(header) != 25 || header[0] != "record_type" || header[11] != "gross_paid_revenue_cents" || header[12] != "adjustment_total_cents" || header[13] != "net_total_cents" || header[21] != "adjustment_label" {
+	if len(header) != 40 || header[0] != "record_type" || header[11] != "gross_paid_revenue_cents" || header[12] != "adjustment_total_cents" || header[13] != "net_total_cents" || header[21] != "adjustment_label" || header[39] != "finance_current_total_cents" {
 		t.Fatalf("unexpected header: %#v", header)
 	}
 	settlement := rows[1]
@@ -110,6 +110,64 @@ func TestEventSettlementCSVExportFormulaSafety(t *testing.T) {
 				t.Fatalf("csvFormulaSafe(%q) = %q, want %q", testCase.input, got, testCase.want)
 			}
 		})
+	}
+}
+
+func TestSettlementCSVRetainsFinanceHistoryAndSeparatesCurrentTotals(t *testing.T) {
+	var body strings.Builder
+	writer := csv.NewWriter(&body)
+	payableID, correctedID := "payable-root", "payable-correction"
+	snapshot := eventSettlementExportSnapshot{
+		EventID: "event", SettlementID: "settlement", ReportID: "report", EventTitle: "Event", Currency: "usd",
+		StartsAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), GeneratedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		FinanceLines: []eventFinanceExportRow{
+			{financeLineDTO: financeLineDTO{ID: payableID, EntryType: "payable", Direction: "expense", AmountCents: 500, Currency: "usd", Label: "=original", Reason: "planned", CreatedByPersonID: "actor", CreatedAt: "2026-01-01T00:00:00Z"}},
+			{financeLineDTO: financeLineDTO{ID: correctedID, EntryType: "payable", Direction: "expense", AmountCents: 300, Currency: "usd", Label: "replacement", Reason: "corrected", CorrectsLineID: &payableID, CreatedByPersonID: "actor", CreatedAt: "2026-01-01T01:00:00Z"}, IsCurrent: true},
+			{financeLineDTO: financeLineDTO{ID: "payment", EntryType: "actual_payment", Direction: "expense", AmountCents: 300, Currency: "usd", Label: "cash", Reason: "recorded", PayableLineID: &payableID, CreatedByPersonID: "actor", CreatedAt: "2026-01-01T02:00:00Z"}, IsCurrent: true},
+		},
+	}
+	if err := writeSettlementCSV(writer, snapshot); err != nil {
+		t.Fatal(err)
+	}
+	writer.Flush()
+	rows, err := csv.NewReader(strings.NewReader(body.String())).ReadAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	column := map[string]int{}
+	for index, name := range rows[0] {
+		column[name] = index
+	}
+	for _, name := range []string{"finance_line_id", "finance_amount_cents", "finance_corrects_line_id", "finance_is_current", "finance_current_total_cents"} {
+		if _, ok := column[name]; !ok {
+			t.Fatalf("missing %s from %#v", name, rows[0])
+		}
+	}
+	var history, totals [][]string
+	for _, row := range rows[1:] {
+		switch row[column["record_type"]] {
+		case "finance_line_history":
+			history = append(history, row)
+		case "finance_current_total":
+			totals = append(totals, row)
+		}
+	}
+	if len(history) != 3 || len(totals) != 2 {
+		t.Fatalf("history=%d totals=%d rows=%#v", len(history), len(totals), rows)
+	}
+	if history[0][column["finance_amount_cents"]] != "500" || history[0][column["finance_is_current"]] != "" || history[0][column["finance_label"]] != "'=original" {
+		t.Fatalf("original provenance lost: %#v", history[0])
+	}
+	if history[1][column["finance_corrects_line_id"]] != payableID || history[1][column["finance_is_current"]] != "true" {
+		t.Fatalf("correction provenance lost: %#v", history[1])
+	}
+	if history[2][column["finance_payable_line_id"]] != payableID {
+		t.Fatalf("stable payable root link lost: %#v", history[2])
+	}
+	for _, total := range totals {
+		if total[column["finance_amount_cents"]] != "" || total[column["finance_current_total_cents"]] != "300" || total[column["finance_currency"]] != "usd" {
+			t.Fatalf("incorrect separately counted total: %#v", total)
+		}
 	}
 }
 

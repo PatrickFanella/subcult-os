@@ -16,7 +16,7 @@ func TestSettlementReportEncodingAndTotals(t *testing.T) {
 			t.Fatalf("unescaped %q in %q", bad, got)
 		}
 	}
-	for _, want := range []string{"USD 123.45", "-USD 0.45", "USD 123.00", "Budgets and payables are not tracked", "2026-01-02T03:04:05Z", "Status: finalized", "Finalized by person ID: person\\-finalizer", "Correction ID: correction\\-1", "Created by person ID: person\\-corrector", "Created at (UTC): 2026-01-02T05:06:07Z", "\\<script\\>", "\\<img src\\=x\\>", "  \n"} {
+	for _, want := range []string{"USD 123.45", "-USD 0.45", "USD 123.00", "not included in the stored settlement net total", "## Budgets", "## Recorded obligations", "## Manual recorded payments", "2026-01-02T03:04:05Z", "Status: finalized", "Finalized by person ID: person\\-finalizer", "Correction ID: correction\\-1", "Created by person ID: person\\-corrector", "Created at (UTC): 2026-01-02T05:06:07Z", "\\<script\\>", "\\<img src\\=x\\>", "  \n"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("missing %q: %s", want, got)
 		}
