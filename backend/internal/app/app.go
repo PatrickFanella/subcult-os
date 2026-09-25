@@ -222,6 +222,7 @@ func (a *App) routes() {
 	a.mux.HandleFunc("PATCH /api/events/{eventID}/role-applications/{applicationID}", a.handleReviewEventRoleApplication)
 	a.mux.HandleFunc("POST /api/events/{eventID}/end-of-night", a.handleEndOfNight)
 	a.mux.HandleFunc("GET /api/events/{eventID}/report", a.handleGetReport)
+	a.mux.HandleFunc("GET /api/events/{eventID}/exports/settlement.csv", a.handleGetSettlementCSV)
 	a.mux.HandleFunc("GET /api/events/{eventID}/archive", a.handleGetArchive)
 	a.mux.HandleFunc("POST /api/events/{eventID}/archive/notes", a.handleCreateArchiveNote)
 	a.mux.HandleFunc("POST /api/events/{eventID}/archive/seed-draft", a.handleSeedDraftFromArchive)
