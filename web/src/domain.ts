@@ -241,8 +241,6 @@ export interface CulturalImportCandidateDTO {
 }
 
 export interface CulturalImportPreviewDTO {
-  sourceName: string;
-  sourceAssertion: string;
   id: string;
   workspaceId: string;
   schema: string;
