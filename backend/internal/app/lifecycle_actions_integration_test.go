@@ -238,7 +238,30 @@ func TestLifecycleActionMigrationUpgradesVersionFifteen(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := runMigrations(ctx, pool, migrations[:15]); err != nil {
+	// Construct a genuine v15 database without asking the current binary to
+	// accept it as runnable. runMigrations correctly rejects a completed
+	// schema below minimumSchemaVersion, so an upgrade fixture records the
+	// historical migration ledger directly.
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock($1)`, migrationLockID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tx.Exec(ctx, `create table schema_migrations(version integer primary key,name text not null,checksum char(64) not null,applied_at timestamptz not null default now())`); err != nil {
+		t.Fatal(err)
+	}
+	for _, migration := range migrations[:15] {
+		if _, err := tx.Exec(ctx, migration.SQL); err != nil {
+			t.Fatalf("apply historical migration %d: %v", migration.Version, err)
+		}
+		if _, err := tx.Exec(ctx, `insert into schema_migrations(version,name,checksum) values($1,$2,$3)`, migration.Version, migration.Name, migration.Checksum); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
 		t.Fatal(err)
 	}
 	if version, err := CurrentSchemaVersion(ctx, pool); err != nil || version != 15 {
