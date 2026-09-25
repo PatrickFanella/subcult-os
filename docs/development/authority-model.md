@@ -67,6 +67,7 @@ all); everything else is additive per role, not subtractive from `owner`:
 | `door` (check-in operations) | yes | no | no | yes | no |
 | `manage_consent` (create/list/withdraw channel consent grants) | yes | yes | no | no | no |
 | `manage_announcements` (create/schedule/cancel/list announcements) | yes | yes | no | no | no |
+| `manage_imports` (create review-only cultural import previews) | yes | yes | no | no | no |
 
 `manage_members` is owner-only rather than owner-and-organizer: an organizer
 who could grant themselves or an ally the owner role, or revoke the owner,
@@ -84,6 +85,11 @@ scheduling, cancelling or dispatching an announcement is a day-to-day
 operator capability over the workspace's own audience, not a change to
 anyone's workspace authority. See
 [`announcements.md`](announcements.md).
+
+`manage_imports` is owner-and-organizer. It creates a private review artifact
+with a source assertion and normalized cultural fields; it grants neither a
+real-world organization claim nor a right to apply, publish, or overwrite a
+canonical record. See [`cultural-import.md`](cultural-import.md).
 
 ## Expiry, revocation, owner departure and recovery
 

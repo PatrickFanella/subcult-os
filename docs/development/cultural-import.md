@@ -1,15 +1,17 @@
 # Cultural import preview
 
-Status: partial IMPORT-01 implementation. The current parser validates one
-bounded CSV dialect in memory. It has no HTTP route, database table, migration,
-file storage, remote API fetch, canonical matching, apply action, rollback
-action, consent change, or public publication.
+Status: partial IMPORT-01 implementation. A workspace owner or organizer can
+persist a bounded, review-only preview through the private operator API. The
+preview records the source assertion, parser schema and digest, normalized
+allowlisted candidates, safe parser error codes and bounded canonical-match
+hints. It has no file storage, remote API fetch, apply action, correction,
+rollback action, consent change or public publication.
 
 The parser is `backend/internal/culturalimport`. It is intentionally separate
-from the application package so a preview cannot create an event, occurrence,
-place, profile, consent grant, outbox row, or audit entry. It does not contact
-the asserted source. A source assertion is input metadata, not proof of rights,
-ownership, or accuracy.
+from the application package. The API uses it before writing a staged preview;
+an invalid source assertion prevents every write. It does not contact the
+asserted source. A source assertion is input metadata, not proof of rights,
+ownership or accuracy.
 
 ## Preview contract
 
@@ -59,13 +61,42 @@ duplicate or ambiguous canonical event because it has no database access.
 Errors contain a row number, field name when applicable, and a stable code.
 They never echo CSV text, source assertions, or parse-library messages.
 
-## Remaining IMPORT-01 work
+## Persisted review previews
 
-A later staged-import slice must persist the source assertion, normalized rows,
-review decisions, and source provenance. It must define a workspace-scoped
-importer permission and prevent cross-workspace target references. It must
-show exact source-record duplicates and possible canonical matches for human
-review without automatic merging.
+`POST /api/workspaces/{workspaceID}/cultural-imports/preview` accepts the
+three source-assertion fields and a `csv` string. The JSON request is bounded
+at 2 MiB to accommodate JSON escaping of the parser's 256 KiB decoded CSV
+limit and its metadata.
+Only the `owner` and `organizer` roles have `manage_imports`; every other role,
+including `finance`, `door`, `crew` and legacy `member`, is denied. The handler
+sets `Cache-Control: private, no-store` and `X-Content-Type-Options: nosniff`.
+It checks authority again before returning a saved result.
+
+Migration 000017 persists the source ID, source name, source assertion,
+parser schema, content SHA-256, actor and timestamp. It persists only
+normalized allowlisted candidate fields and the parser's row/field/code errors;
+it never stores the raw CSV bytes. Error responses and persisted parser errors
+do not echo source assertions or cell text. Candidate descriptions are
+allowlisted untrusted text, not error messages or a rights claim.
+
+For every accepted candidate, the preview records same-workspace occurrences
+whose UTC start instant and case-folded trimmed title match exactly. This is a
+conservative review hint, not an identity decision: zero, one or several
+results never create a link or update. At most 20 matches are returned and
+stored. A candidate reports `ambiguous` for more than one possible match and
+`matchesTruncated` when more than 20 exist, so a bounded result is never shown
+as uniquely matched. Cross-workspace occurrences are excluded by the query and
+database foreign keys. If a canonical occurrence is later deleted, the live
+match reference becomes null without blocking that deletion; the bounded
+occurrence ID, event ID, title, start, status and revision-timestamp snapshot remains as preview
+provenance.
+
+The header, candidates, parser errors and match hints are written in one
+transaction. A preview with parser errors can be retained for review when its
+source assertion is valid. An invalid source assertion is rejected before a
+preview header or any child row is created.
+
+## Remaining IMPORT-01 work
 
 An apply slice must create or correct canonical records only after an operator
 chooses each candidate. It must not silently overwrite a canonical event. A
@@ -92,9 +123,10 @@ cd backend
 go test -race ./internal/culturalimport -count=1
 ```
 
-The tests cover normalized DST instants, source assertions, malformed and
+The parser tests cover normalized DST instants, source assertions, malformed and
 sensitive headers, invalid UTF-8, size and row limits, formula-like text,
 invalid time/status/zone values, duplicate source IDs, and errors that do not
-contain input text. These tests prove parser behavior only. They do not prove a
-staged import, apply, correction, rollback, browser journey, provider flow, or
-production qualification.
+contain input text. These tests prove parser behavior only. Separate PostgreSQL
+integration coverage proves only the private review ledger and match boundaries;
+it does not prove apply, correction or rollback behavior because those actions
+do not exist.

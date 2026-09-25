@@ -184,6 +184,7 @@ func (a *App) routes() {
 	a.mux.HandleFunc("GET /api/workspaces/{workspaceID}/announcements/{announcementID}/preview", a.handlePreviewAnnouncement)
 	a.mux.HandleFunc("POST /api/workspaces/{workspaceID}/announcements/{announcementID}/schedule", a.handleScheduleAnnouncement)
 	a.mux.HandleFunc("POST /api/workspaces/{workspaceID}/announcements/{announcementID}/cancel", a.handleCancelAnnouncement)
+	a.mux.HandleFunc("POST /api/workspaces/{workspaceID}/cultural-imports/preview", a.handleCreateCulturalImportPreview)
 	a.mux.HandleFunc("GET /api/workspaces/{workspaceID}/events", a.handleListEvents)
 	a.mux.HandleFunc("POST /api/workspaces/{workspaceID}/events", a.handleCreateEvent)
 	a.mux.HandleFunc("GET /api/events/{eventID}", a.handleGetEvent)

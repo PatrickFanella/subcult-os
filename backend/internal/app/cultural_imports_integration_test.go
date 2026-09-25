@@ -1,0 +1,300 @@
+package app
+
+import (
+	"net/http"
+	"strings"
+	"testing"
+	"time"
+)
+
+func TestCulturalImportPreviewPersistsReviewOnlyWorkspaceScopedHints(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	const startsAt = "2026-11-01T06:30:00Z"
+	event := createEvent(t, fx, "Private source event", 1)
+	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+mustString(t, event, "id")+"/occurrences", map[string]any{
+		"name": "Night Show", "startsAt": startsAt, "timezone": "America/Chicago", "status": "scheduled",
+	}, http.StatusOK)
+	other := newLifecycleFixture(t, fx.app)
+	otherEvent := createEvent(t, other, "Other workspace event", 1)
+	postJSON(t, fx.app, other.ownerCookie, "/api/events/"+mustString(t, otherEvent, "id")+"/occurrences", map[string]any{
+		"name": "Night Show", "startsAt": startsAt, "timezone": "America/Chicago", "status": "scheduled",
+	}, http.StatusOK)
+
+	input := culturalImportCSV("source-1,Night Show,Allowed description," + startsAt + ",,America/Chicago,scheduled,The Hall,Chicago,Illinois,US")
+	response := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/cultural-imports/preview", map[string]any{
+		"sourceId": "  catalog-2026  ", "sourceName": "  Community calendar  ", "sourceAssertion": "  Operator supplied this source for review  ", "csv": input,
+	}, http.StatusCreated)
+	if got := response.Header.Get("Cache-Control"); got != "private, no-store" {
+		t.Fatalf("Cache-Control = %q", got)
+	}
+	if got := response.Header.Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("X-Content-Type-Options = %q", got)
+	}
+	preview := mustObject(t, response.JSON)
+	if preview["sourceId"] != "catalog-2026" || preview["sourceName"] != nil || strings.Contains(response.Body, "Operator supplied") {
+		t.Fatalf("preview leaked source assertion or did not normalize source ID: %#v", preview)
+	}
+	candidates, ok := preview["candidates"].([]any)
+	if !ok || len(candidates) != 1 {
+		t.Fatalf("candidates = %#v", preview["candidates"])
+	}
+	candidate := mustObject(t, candidates[0])
+	matches, ok := candidate["matches"].([]any)
+	if !ok || len(matches) != 1 || candidate["ambiguous"] != false || candidate["matchesTruncated"] != false {
+		t.Fatalf("candidate matches = %#v", candidate)
+	}
+
+	var sourceID, sourceName, sourceAssertion string
+	var headers, candidateRows, matchRows int
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select source_id, source_name, source_assertion
+		from cultural_import_previews where id = $1
+	`, preview["id"]).Scan(&sourceID, &sourceName, &sourceAssertion); err != nil {
+		t.Fatal(err)
+	}
+	if sourceID != "catalog-2026" || sourceName != "Community calendar" || sourceAssertion != "Operator supplied this source for review" {
+		t.Fatalf("stored assertion = %q, %q, %q", sourceID, sourceName, sourceAssertion)
+	}
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select (select count(*) from cultural_import_previews),
+		       (select count(*) from cultural_import_candidates),
+		       (select count(*) from cultural_import_candidate_matches)
+	`).Scan(&headers, &candidateRows, &matchRows); err != nil {
+		t.Fatal(err)
+	}
+	if headers != 1 || candidateRows != 1 || matchRows != 1 {
+		t.Fatalf("stored preview rows = headers:%d candidates:%d matches:%d", headers, candidateRows, matchRows)
+	}
+	match := mustObject(t, matches[0])
+	if _, err := fx.app.db.Exec(t.Context(), `delete from event_occurrences where id = $1`, match["occurrenceId"]); err != nil {
+		t.Fatalf("preview hint blocked canonical occurrence deletion: %v", err)
+	}
+	var occurrenceCleared bool
+	var occurrenceSnapshot, nameSnapshot, statusSnapshot string
+	var updatedAtSnapshot time.Time
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select occurrence_id is null, occurrence_id_snapshot::text, name_snapshot, status_snapshot, updated_at_snapshot
+		from cultural_import_candidate_matches
+	`).Scan(&occurrenceCleared, &occurrenceSnapshot, &nameSnapshot, &statusSnapshot, &updatedAtSnapshot); err != nil {
+		t.Fatal(err)
+	}
+	if !occurrenceCleared || occurrenceSnapshot != match["occurrenceId"] || nameSnapshot != "Night Show" || statusSnapshot != "scheduled" || updatedAtSnapshot.IsZero() {
+		t.Fatalf("deleted match provenance = cleared:%v id:%q name:%q status:%q revision:%s", occurrenceCleared, occurrenceSnapshot, nameSnapshot, statusSnapshot, updatedAtSnapshot)
+	}
+	if strings.Contains(response.Body, input) {
+		t.Fatal("response contained raw CSV")
+	}
+}
+
+func TestCulturalImportPreviewRejectsInvalidAssertionsAndUnderprivilegedRoles(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	path := "/api/workspaces/" + fx.workspaceID + "/cultural-imports/preview"
+	payload := map[string]any{"sourceId": "catalog", "sourceName": "Catalog", "sourceAssertion": "reviewed", "csv": culturalImportCSV("source-1,Title,,2026-01-01T10:00:00Z,,UTC,scheduled,,,,US")}
+	postJSON(t, fx.app, fx.memberCookie, path, payload, http.StatusForbidden)
+
+	invalid := map[string]any{"sourceId": "", "sourceName": "Catalog", "sourceAssertion": "reviewed", "csv": payload["csv"]}
+	postJSON(t, fx.app, fx.ownerCookie, path, invalid, http.StatusBadRequest)
+	var count int
+	if err := fx.app.db.QueryRow(t.Context(), `select count(*) from cultural_import_previews`).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Fatalf("invalid assertion persisted %d previews", count)
+	}
+	postJSON(t, fx.app, fx.ownerCookie, path, map[string]any{
+		"sourceId": "", "sourceName": "Catalog", "sourceAssertion": "reviewed", "csv": strings.Repeat("x", 256*1024+1),
+	}, http.StatusBadRequest)
+	if err := fx.app.db.QueryRow(t.Context(), `select count(*) from cultural_import_previews`).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Fatalf("oversized invalid assertion persisted %d previews", count)
+	}
+	postJSON(t, fx.app, fx.ownerCookie, path, map[string]any{
+		"sourceId": "catalog", "sourceName": "Catalog", "sourceAssertion": "reviewed", "csv": strings.Repeat("x", 256*1024+1),
+	}, http.StatusBadRequest)
+	if err := fx.app.db.QueryRow(t.Context(), `select count(*) from cultural_import_previews`).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Fatalf("oversized valid assertion persisted %d previews", count)
+	}
+
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update workspace_members set role = 'organizer'
+		where workspace_id = $1 and person_id = (select id from people where email = $2)
+	`, fx.workspaceID, fx.email("member")); err != nil {
+		t.Fatal(err)
+	}
+	postJSON(t, fx.app, fx.memberCookie, path, payload, http.StatusCreated)
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update workspace_members set revoked_at = now()
+		where workspace_id = $1 and person_id = (select id from people where email = $2)
+	`, fx.workspaceID, fx.email("member")); err != nil {
+		t.Fatal(err)
+	}
+	postJSON(t, fx.app, fx.memberCookie, path, payload, http.StatusForbidden)
+}
+
+func TestCulturalImportPreviewPersistsSafeErrorsAndAcceptsEscapedBoundedInput(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	path := "/api/workspaces/" + fx.workspaceID + "/cultural-imports/preview"
+	secret := "do-not-echo-this-csv-cell"
+	invalidCSV := culturalImportCSV("source-1," + secret + ",,not-a-time,,UTC,scheduled,,,,US")
+	response := postJSON(t, fx.app, fx.ownerCookie, path, map[string]any{
+		"sourceId": "catalog", "sourceName": "Catalog", "sourceAssertion": "reviewed", "csv": invalidCSV,
+	}, http.StatusCreated)
+	if strings.Contains(response.Body, secret) || strings.Contains(response.Body, invalidCSV) {
+		t.Fatalf("safe error response echoed CSV: %s", response.Body)
+	}
+	preview := mustObject(t, response.JSON)
+	if candidates, ok := preview["candidates"].([]any); !ok || len(candidates) != 0 {
+		t.Fatalf("invalid candidate rows = %#v", preview["candidates"])
+	}
+	if errors, ok := preview["errors"].([]any); !ok || len(errors) == 0 {
+		t.Fatalf("safe errors = %#v", preview["errors"])
+	}
+
+	// This decoded CSV is below the parser's 256 KiB cap, but escaping every
+	// quote makes its JSON request larger than the former 300 KiB outer cap.
+	escapedCSV := strings.Repeat("\"", 200*1024)
+	postJSON(t, fx.app, fx.ownerCookie, path, map[string]any{
+		"sourceId": "escaped", "sourceName": "Escaped", "sourceAssertion": "reviewed", "csv": escapedCSV,
+	}, http.StatusCreated)
+}
+
+func TestCulturalImportPreviewBoundsAmbiguousMatchesAndDoesNotApply(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	const startsAt = "2026-11-01T06:30:00Z"
+	for index := 0; index < culturalImportMatchLimit+1; index++ {
+		event := createEvent(t, fx, "Match fixture "+string(rune('a'+index)), 1)
+		postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+mustString(t, event, "id")+"/occurrences", map[string]any{
+			"name": "Crowded Match", "startsAt": startsAt, "timezone": "America/Chicago", "status": "scheduled",
+		}, http.StatusOK)
+	}
+	var eventsBefore, occurrencesBefore, consentsBefore, announcementsBefore int
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select (select count(*) from events), (select count(*) from event_occurrences),
+		       (select count(*) from consent_grants), (select count(*) from announcements)
+	`).Scan(&eventsBefore, &occurrencesBefore, &consentsBefore, &announcementsBefore); err != nil {
+		t.Fatal(err)
+	}
+	response := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/cultural-imports/preview", map[string]any{
+		"sourceId": "catalog", "sourceName": "Catalog", "sourceAssertion": "reviewed",
+		"csv": culturalImportCSV("source-1,Crowded Match,," + startsAt + ",,America/Chicago,scheduled,,,,US"),
+	}, http.StatusCreated)
+	candidate := mustObject(t, mustObject(t, response.JSON)["candidates"].([]any)[0])
+	matches := candidate["matches"].([]any)
+	if len(matches) != culturalImportMatchLimit || candidate["ambiguous"] != true || candidate["matchesTruncated"] != true {
+		t.Fatalf("bounded ambiguous matches = %#v", candidate)
+	}
+	var eventsAfter, occurrencesAfter, consentsAfter, announcementsAfter int
+	if err := fx.app.db.QueryRow(t.Context(), `
+		select (select count(*) from events), (select count(*) from event_occurrences),
+		       (select count(*) from consent_grants), (select count(*) from announcements)
+	`).Scan(&eventsAfter, &occurrencesAfter, &consentsAfter, &announcementsAfter); err != nil {
+		t.Fatal(err)
+	}
+	if eventsAfter != eventsBefore || occurrencesAfter != occurrencesBefore || consentsAfter != consentsBefore || announcementsAfter != announcementsBefore {
+		t.Fatalf("preview changed canonical/consent/announcement state: before=%d/%d/%d/%d after=%d/%d/%d/%d", eventsBefore, occurrencesBefore, consentsBefore, announcementsBefore, eventsAfter, occurrencesAfter, consentsAfter, announcementsAfter)
+	}
+}
+
+func TestCulturalImportPreviewExcludesDuplicateSourceRowsAndDeniedRoleMatrix(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	path := "/api/workspaces/" + fx.workspaceID + "/cultural-imports/preview"
+	payload := map[string]any{"sourceId": "catalog", "sourceName": "Catalog", "sourceAssertion": "reviewed", "csv": culturalImportCSV(
+		"duplicate,One,,2026-01-01T10:00:00Z,,UTC,scheduled,,,,US",
+		"duplicate,Two,,2026-01-02T10:00:00Z,,UTC,scheduled,,,,US",
+	)}
+	postJSON(t, fx.app, fx.memberCookie, path, payload, http.StatusForbidden)
+	for _, role := range []string{"crew", "door", "finance"} {
+		if _, err := fx.app.db.Exec(t.Context(), `
+			update workspace_members set role = $1, expires_at = null, revoked_at = null
+			where workspace_id = $2 and person_id = (select id from people where email = $3)
+		`, role, fx.workspaceID, fx.email("member")); err != nil {
+			t.Fatal(err)
+		}
+		postJSON(t, fx.app, fx.memberCookie, path, payload, http.StatusForbidden)
+	}
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update workspace_members set role = 'organizer', expires_at = now() - interval '1 second', revoked_at = null
+		where workspace_id = $1 and person_id = (select id from people where email = $2)
+	`, fx.workspaceID, fx.email("member")); err != nil {
+		t.Fatal(err)
+	}
+	postJSON(t, fx.app, fx.memberCookie, path, payload, http.StatusForbidden)
+
+	response := postJSON(t, fx.app, fx.ownerCookie, path, payload, http.StatusCreated)
+	preview := mustObject(t, response.JSON)
+	if candidates, ok := preview["candidates"].([]any); !ok || len(candidates) != 0 {
+		t.Fatalf("duplicate source candidates = %#v", preview["candidates"])
+	}
+	if errors, ok := preview["errors"].([]any); !ok || len(errors) != 2 {
+		t.Fatalf("duplicate source errors = %#v", preview["errors"])
+	}
+	var candidates int
+	if err := fx.app.db.QueryRow(t.Context(), `select count(*) from cultural_import_candidates`).Scan(&candidates); err != nil {
+		t.Fatal(err)
+	}
+	if candidates != 0 {
+		t.Fatalf("duplicate source rows persisted %d candidates", candidates)
+	}
+}
+
+func TestCulturalImportPreviewMigrationUpgradesVersionSixteenFixture(t *testing.T) {
+	ctx := t.Context()
+	db := newMigrationTestPool(t)
+	migrations, err := loadMigrations(migrationFS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(migrations) < 17 {
+		t.Fatalf("migrations = %d, want at least 17", len(migrations))
+	}
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock($1)`, migrationLockID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tx.Exec(ctx, `create table schema_migrations(version integer primary key,name text not null,checksum char(64) not null,applied_at timestamptz not null default now())`); err != nil {
+		t.Fatal(err)
+	}
+	for _, migration := range migrations[:16] {
+		if _, err := tx.Exec(ctx, migration.SQL); err != nil {
+			t.Fatalf("apply historical migration %d: %v", migration.Version, err)
+		}
+		if _, err := tx.Exec(ctx, `insert into schema_migrations(version, name, checksum) values ($1, $2, $3)`, migration.Version, migration.Name, migration.Checksum); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := RunMigrations(ctx, db); err != nil {
+		t.Fatalf("upgrade version-16 fixture: %v", err)
+	}
+	version, err := CurrentSchemaVersion(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if version != migrations[len(migrations)-1].Version || version < 17 {
+		t.Fatalf("schema version = %d, want current version %d at least 17", version, migrations[len(migrations)-1].Version)
+	}
+	for _, table := range []string{"cultural_import_previews", "cultural_import_candidates", "cultural_import_candidate_matches", "cultural_import_preview_errors"} {
+		var exists bool
+		if err := db.QueryRow(ctx, `select to_regclass(current_schema() || '.' || $1) is not null`, table).Scan(&exists); err != nil {
+			t.Fatal(err)
+		}
+		if !exists {
+			t.Fatalf("upgraded fixture missing %s", table)
+		}
+	}
+}
+
+func culturalImportCSV(rows ...string) string {
+	return "source_record_id,title,description,starts_at,ends_at,timezone,status,venue_name,locality,region,country\n" + strings.Join(rows, "\n") + "\n"
+}
