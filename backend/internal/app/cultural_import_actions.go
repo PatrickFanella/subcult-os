@@ -58,7 +58,7 @@ func (a *App) handleGetCulturalImportPreview(w http.ResponseWriter, r *http.Requ
 	previewID := r.PathValue("importID")
 	var out culturalImportPreviewDTO
 	var created time.Time
-	err := a.db.QueryRow(r.Context(), `select id, workspace_id, schema_name, source_id, source_name, source_assertion, content_sha256, created_at from cultural_import_previews where id=$1 and workspace_id=$2`, previewID, workspaceID).Scan(&out.ID, &out.WorkspaceID, &out.Schema, &out.SourceID, &out.SourceName, &out.SourceAssertion, &out.ContentSHA256, &created)
+	err := a.db.QueryRow(r.Context(), `select id, workspace_id, schema_name, source_id, content_sha256, created_at from cultural_import_previews where id=$1 and workspace_id=$2`, previewID, workspaceID).Scan(&out.ID, &out.WorkspaceID, &out.Schema, &out.SourceID, &out.ContentSHA256, &created)
 	if errors.Is(err, pgx.ErrNoRows) {
 		writeError(w, 404, "import preview not found")
 		return

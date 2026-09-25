@@ -61,17 +61,15 @@ type culturalImportPreviewErrorDTO struct {
 }
 
 type culturalImportPreviewDTO struct {
-	SourceName      string                          `json:"sourceName"`
-	SourceAssertion string                          `json:"sourceAssertion"`
-	ID              string                          `json:"id"`
-	WorkspaceID     string                          `json:"workspaceId"`
-	Schema          string                          `json:"schema"`
-	SourceID        string                          `json:"sourceId"`
-	ContentSHA256   string                          `json:"contentSha256"`
-	CreatedAt       string                          `json:"createdAt"`
-	Candidates      []culturalImportCandidateDTO    `json:"candidates"`
-	Errors          []culturalImportPreviewErrorDTO `json:"errors"`
-	Actions         []culturalImportActionDTO       `json:"actions"`
+	ID            string                          `json:"id"`
+	WorkspaceID   string                          `json:"workspaceId"`
+	Schema        string                          `json:"schema"`
+	SourceID      string                          `json:"sourceId"`
+	ContentSHA256 string                          `json:"contentSha256"`
+	CreatedAt     string                          `json:"createdAt"`
+	Candidates    []culturalImportCandidateDTO    `json:"candidates"`
+	Errors        []culturalImportPreviewErrorDTO `json:"errors"`
+	Actions       []culturalImportActionDTO       `json:"actions"`
 }
 
 func (a *App) handleCreateCulturalImportPreview(w http.ResponseWriter, r *http.Request) {
@@ -145,9 +143,9 @@ func previewHasFatalInputError(errors []culturalimport.PreviewError) bool {
 
 func persistCulturalImportPreview(ctx context.Context, tx pgx.Tx, workspaceID, actorID string, assertion culturalimport.SourceAssertion, preview culturalimport.Preview) (culturalImportPreviewDTO, error) {
 	result := culturalImportPreviewDTO{
-		WorkspaceID: workspaceID,
-		Schema:      preview.Schema,
-		SourceName:  assertion.SourceName, SourceAssertion: assertion.Assertion, SourceID: preview.SourceID,
+		WorkspaceID:   workspaceID,
+		Schema:        preview.Schema,
+		SourceID:      preview.SourceID,
 		ContentSHA256: preview.ContentSHA256,
 		Candidates:    []culturalImportCandidateDTO{},
 		Errors:        []culturalImportPreviewErrorDTO{},
