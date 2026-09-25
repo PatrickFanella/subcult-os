@@ -1,0 +1,52 @@
+{
+  "format": "subcult.consent-port/v1",
+  "transferMode": "evidence_only",
+  "exporter": {
+    "id": "synthetic-source.example.test",
+    "authorityRef": "synthetic-authority-2026-09"
+  },
+  "createdAt": "2026-09-24T18:00:00Z",
+  "records": [
+    {
+      "sourceGrantRef": "grant-active-001",
+      "sender": { "id": "workspace-synthetic-001", "controllerId": "controller-synthetic-001" },
+      "recipient": { "kind": "email", "normalizedAddress": "active@example.test" },
+      "channel": "email",
+      "purpose": "announcement",
+      "scope": "monthly-newsletter",
+      "profile": "newsletter",
+      "disclosure": { "version": "synthetic-v1", "text": "Synthetic newsletter disclosure v1.", "sha256": "31b2f8c04c9cd824605bec3d578ee9a4da959d5a30fbf1e5b05e1a2908b1463b" },
+      "capture": { "source": "explicit_form", "grantedAt": "2026-09-01T12:00:00Z" },
+      "verification": { "method": "email_link", "verifiedAt": "2026-09-01T12:05:00Z" },
+      "retention": { "restriction": "synthetic-research-only" }
+    },
+    {
+      "sourceGrantRef": "grant-withdrawn-002",
+      "sender": { "id": "workspace-synthetic-001", "controllerId": "controller-synthetic-001" },
+      "recipient": { "kind": "email", "normalizedAddress": "withdrawn@example.test" },
+      "channel": "email",
+      "purpose": "announcement",
+      "scope": "monthly-newsletter",
+      "profile": "newsletter",
+      "disclosure": { "version": "synthetic-v1", "text": "Synthetic newsletter disclosure v1.", "sha256": "31b2f8c04c9cd824605bec3d578ee9a4da959d5a30fbf1e5b05e1a2908b1463b" },
+      "capture": { "source": "explicit_form", "grantedAt": "2026-09-02T12:00:00Z" },
+      "verification": { "method": "email_link", "verifiedAt": "2026-09-02T12:05:00Z" },
+      "withdrawal": { "at": "2026-09-03T12:00:00Z", "reason": "recipient_requested", "provenance": "source-unsubscribe" },
+      "retention": { "restriction": "synthetic-research-only" }
+    },
+    {
+      "sourceGrantRef": "grant-suppressed-003",
+      "sender": { "id": "workspace-synthetic-001", "controllerId": "controller-synthetic-001" },
+      "recipient": { "kind": "email", "normalizedAddress": "suppressed@example.test" },
+      "channel": "email",
+      "purpose": "announcement",
+      "scope": "monthly-newsletter",
+      "profile": "newsletter",
+      "disclosure": { "version": "synthetic-v1", "text": "Synthetic newsletter disclosure v1.", "sha256": "31b2f8c04c9cd824605bec3d578ee9a4da959d5a30fbf1e5b05e1a2908b1463b" },
+      "capture": { "source": "explicit_form", "grantedAt": "2026-09-04T12:00:00Z" },
+      "verification": { "method": "email_link", "verifiedAt": "2026-09-04T12:05:00Z" },
+      "suppression": { "at": "2026-09-05T12:00:00Z", "reason": "email.bounced", "provenance": "source-delivery-feedback" },
+      "retention": { "restriction": "synthetic-research-only" }
+    }
+  ]
+}
