@@ -167,6 +167,13 @@ func validSourceAssertion(assertion SourceAssertion) bool {
 		validText(assertion.Assertion, 1000, true, false)
 }
 
+// ValidSourceAssertion reports whether all source assertion fields meet the
+// bounded parser contract. Staged-preview callers use it before parsing an
+// oversized or malformed input, which may otherwise stop parsing first.
+func ValidSourceAssertion(assertion SourceAssertion) bool {
+	return validSourceAssertion(assertion)
+}
+
 func sameHeaders(actual, expected []string) bool {
 	if len(actual) != len(expected) {
 		return false

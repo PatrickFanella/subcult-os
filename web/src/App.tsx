@@ -9,6 +9,8 @@ import { PublicEventView } from './views/PublicEventView';
 import { ParticipantPortalView } from './views/ParticipantPortalView';
 import { TicketView } from './views/TicketView';
 import { WorkspaceView } from './views/WorkspaceView';
+import { PublicArchiveItemsPanel } from './components/PublicArchiveItemsPanel';
+import { ImportView } from './views/ImportView';
 
 function getPathname() {
   if (typeof window === 'undefined') {
@@ -62,7 +64,12 @@ export default function App() {
   }
 
   if (pathname.startsWith('/events/')) {
+    if (pathname.endsWith('/public-archive')) return <PublicArchiveItemsPanel eventId={getSegment(pathname, 2)} />;
     return <EventEditorView eventId={getSegment(pathname, 2)} />;
+  }
+
+  if (pathname.startsWith('/workspace/') && pathname.endsWith('/cultural-imports')) {
+    return <ImportView workspaceId={getSegment(pathname, 2)} />;
   }
 
   if (pathname === '/workspace' || pathname === '/') {

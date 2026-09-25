@@ -1,15 +1,17 @@
 # Cultural import preview
 
-Status: partial IMPORT-01 implementation. The current parser validates one
-bounded CSV dialect in memory. It has no HTTP route, database table, migration,
-file storage, remote API fetch, canonical matching, apply action, rollback
-action, consent change, or public publication.
+Status: partial IMPORT-01 implementation. A workspace owner or organizer can
+persist a bounded, review-only preview through the private operator API. The
+preview records the source assertion, parser schema and digest, normalized
+allowlisted candidates, safe parser error codes and bounded canonical-match
+hints. It has no file storage, remote API fetch, apply action, correction,
+rollback action, consent change or public publication.
 
 The parser is `backend/internal/culturalimport`. It is intentionally separate
-from the application package so a preview cannot create an event, occurrence,
-place, profile, consent grant, outbox row, or audit entry. It does not contact
-the asserted source. A source assertion is input metadata, not proof of rights,
-ownership, or accuracy.
+from the application package. The API uses it before writing a staged preview;
+an invalid source assertion prevents every write. It does not contact the
+asserted source. A source assertion is input metadata, not proof of rights,
+ownership or accuracy.
 
 ## Preview contract
 
@@ -59,24 +61,71 @@ duplicate or ambiguous canonical event because it has no database access.
 Errors contain a row number, field name when applicable, and a stable code.
 They never echo CSV text, source assertions, or parse-library messages.
 
-## Remaining IMPORT-01 work
+## Persisted review previews
 
-A later staged-import slice must persist the source assertion, normalized rows,
-review decisions, and source provenance. It must define a workspace-scoped
-importer permission and prevent cross-workspace target references. It must
-show exact source-record duplicates and possible canonical matches for human
-review without automatic merging.
+`POST /api/workspaces/{workspaceID}/cultural-imports/preview` accepts the
+three source-assertion fields and a `csv` string. The JSON request is bounded
+at 2 MiB to accommodate JSON escaping of the parser's 256 KiB decoded CSV
+limit and its metadata.
+Only the `owner` and `organizer` roles have `manage_imports`; every other role,
+including `finance`, `door`, `crew` and legacy `member`, is denied. The handler
+sets `Cache-Control: private, no-store` and `X-Content-Type-Options: nosniff`.
+It checks authority again before returning a saved result.
 
-An apply slice must create or correct canonical records only after an operator
-chooses each candidate. It must not silently overwrite a canonical event. A
-correction needs its target ID, a field diff, and the target's current revision
-token. It must record append-only provenance.
+Migration 000017 persists the source ID, source name, source assertion,
+parser schema, content SHA-256, actor and timestamp. It persists only
+normalized allowlisted candidate fields and the parser's row/field/code errors;
+it never stores the raw CSV bytes. Error responses and persisted parser errors
+do not echo source assertions or cell text. Candidate descriptions are
+allowlisted untrusted text, not error messages or a rights claim.
 
-A rollback slice must distinguish a newly created, unchanged and unreferenced
-record from a record with later edits or dependent work. It may delete only the
-former. Other outcomes need an explicit compensating correction or
-cancellation. Neither importing nor correction may create consent, schedule an
-announcement, or publish a public record.
+For every accepted candidate, the preview records same-workspace occurrences
+whose UTC start instant and case-folded trimmed title match exactly. This is a
+conservative review hint, not an identity decision: zero, one or several
+results never create a link or update. At most 20 matches are returned and
+stored. A candidate reports `ambiguous` for more than one possible match and
+`matchesTruncated` when more than 20 exist, so a bounded result is never shown
+as uniquely matched. Cross-workspace occurrences are excluded by the query and
+database foreign keys. If a canonical occurrence is later deleted, the live
+match reference becomes null without blocking that deletion; the bounded
+occurrence ID, event ID, title, start, status and revision-timestamp snapshot remains as preview
+provenance.
+
+The header, candidates, parser errors and match hints are written in one
+transaction. A preview with parser errors can be retained for review when its
+source assertion is valid. An invalid source assertion is rejected before a
+preview header or any child row is created.
+
+## Applying an explicit action
+
+`GET /api/workspaces/{workspaceID}/cultural-imports/{importID}` reloads a saved
+preview. `POST /api/workspaces/{workspaceID}/cultural-imports/apply` accepts a
+candidate ID, one explicitly selected workspace event, and either `create` or
+`correction`. Matches remain hints: the API never derives an event, occurrence,
+or place from a title or timestamp.
+
+A create makes one occurrence in the selected existing event with `place_id`
+null. It cannot create an event or place. A correction requires the selected
+occurrence in that selected event, a nonempty allowlisted field set, and its
+`expectedUpdatedAt`; `expectedPublicCid` is an optional additional CAS token.
+Only name, description, start, end, timezone, and status are writable. Public
+URI/CID values are preserved, and the occurrence revision advances
+monotonically. A preview with parser errors requires `acknowledgeErrors: true`.
+
+The action transaction locks the candidate, selected event, and selected
+occurrence before mutation, then stores the source ID/digest, candidate row,
+selected-field diff, before/after snapshots, expected tokens, actor, and time
+in `cultural_import_actions`. The candidate has a unique ledger action, so a
+second apply is refused. Authority is checked at request entry, the write
+boundary, and before the response. The action never changes consent,
+announcements, payments, providers, or publication state.
+
+`POST /api/workspaces/{workspaceID}/cultural-import-actions/{actionID}/rollback`
+can delete only a created occurrence whose revision is still the import
+revision, whose public URI/CID are empty, which has no credits, and which is
+not referenced by another active import action. The ledger action remains with
+the rollback actor, time, and outcome. Corrections are never deleted; they need
+an explicit compensating correction.
 
 A remote API adapter is out of scope until the operator selects a source and
 defines its authority, credential, URL, rate-limit, pagination, failure, and
@@ -92,9 +141,10 @@ cd backend
 go test -race ./internal/culturalimport -count=1
 ```
 
-The tests cover normalized DST instants, source assertions, malformed and
+The parser tests cover normalized DST instants, source assertions, malformed and
 sensitive headers, invalid UTF-8, size and row limits, formula-like text,
 invalid time/status/zone values, duplicate source IDs, and errors that do not
-contain input text. These tests prove parser behavior only. They do not prove a
-staged import, apply, correction, rollback, browser journey, provider flow, or
-production qualification.
+contain input text. PostgreSQL integration coverage additionally exercises
+explicit create/correction actions, stale-revision rejection, one-action
+idempotency, create rollback, correction rollback refusal, and the 18-to-19
+upgrade path. It does not prove a public publication or provider workflow.

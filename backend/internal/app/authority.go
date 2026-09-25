@@ -49,6 +49,7 @@ const (
 	permDoor                = "door"                 // door check-in operations
 	permManageConsent       = "manage_consent"       // create/list/withdraw channel consent grants (CONSENT-01)
 	permManageAnnouncements = "manage_announcements" // create/schedule/cancel/list announcements (SIGNAL-01)
+	permManageImports       = "manage_imports"       // create review-only cultural import previews (IMPORT-01)
 )
 
 // rolePermissions is the least-privilege permission matrix. Every role
@@ -64,6 +65,7 @@ var rolePermissions = map[string]map[string]bool{
 		permDoor:                true,
 		permManageConsent:       true,
 		permManageAnnouncements: true,
+		permManageImports:       true,
 	},
 	roleOrganizer: {
 		permOperate:             true,
@@ -71,6 +73,7 @@ var rolePermissions = map[string]map[string]bool{
 		permPublish:             true,
 		permManageConsent:       true,
 		permManageAnnouncements: true,
+		permManageImports:       true,
 	},
 	roleFinance: {
 		permOperate: true,
