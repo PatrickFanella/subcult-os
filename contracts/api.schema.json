@@ -42,6 +42,14 @@
         "publicUrl"
       ]
     },
+    "LifecycleIntentActionDTO": {
+      "required": ["id", "actionKind", "destination", "status", "attemptCount", "createdAt", "updatedAt"],
+      "forbidden": ["payload", "idempotencyKey", "leaseToken", "providerReference"]
+    },
+    "LifecycleIntentDTO": {
+      "required": ["id", "workspaceId", "eventId", "occurrenceId", "kind", "reason", "targetRevision", "expectedPublicCid", "status", "approvedByPersonId", "createdAt", "actions"],
+      "forbidden": ["decisionSnapshot", "requestKey", "providerCredentials", "recipient", "noticeContent", "refundAmount"]
+    },
     "PublicEventDTO": {
       "forbidden": [
         "workspaceId",
