@@ -2419,6 +2419,20 @@ describe('App routes', () => {
 		expect(rendered).not.toContain('Stripe Checkout');
 	});
 
+  it('fences a pending paid checkout and retains its ticket-status link', () => {
+    const event = {
+      id: 'event-1', workspaceId: 'workspace-1', title: 'Night Market', startsAt: '2026-06-13T23:00:00.000Z', publicDescription: 'A late set.', locationDisplay: 'The Hall', ticketAllocation: 100,
+      pricingMode: 'fixed', ticketPriceCents: 1800, ticketCurrency: 'usd', reservedCount: 12, checkedInCount: 0, status: 'published', publicSlug: 'night-market', publicUrl: '/e/night-market', remainingTickets: 88, isFull: false,
+    };
+    const rendered = renderWithState('/e/night-market', <PublicEventView slug="night-market" />, [event, 'guest@example.test', 'Guest', false, false, 'This checkout needs reconciliation.', null, [], {}, true, '/tickets/pending']);
+    expect(rendered).toContain('This checkout needs reconciliation.');
+    expect(rendered).toContain('href="/tickets/pending"');
+    const ticketFormInputs = rendered.match(/<input\b[^>]*>/g) ?? [];
+    expect(ticketFormInputs.filter((input) => input.includes('autoComplete="email"') || input.includes('autoComplete="name"')).every((input) => input.includes('disabled=""'))).toBe(true);
+    const submit = (rendered.match(/<button\b[^>]*>Buy ticket<\/button>/g) ?? [])[0];
+    expect(submit).toContain('disabled=""');
+  });
+
   it('renders the public sold-out ticket CTA', () => {
     const event = {
       id: 'event-1',

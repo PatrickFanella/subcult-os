@@ -454,6 +454,7 @@ export interface PaidReservationDTO {
   ticketUrl: string;
   checkoutSessionId: string;
   checkoutUrl: string;
+  checkoutStatus: 'ready' | 'paid' | 'pending_reconciliation' | 'expired' | 'reconciliation_required';
 }
 
 export interface TicketReservationDTO extends TicketDTO {

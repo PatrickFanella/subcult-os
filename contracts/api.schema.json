@@ -120,7 +120,7 @@
       ]
     },
     "PaidReservationDTO": {
-      "required": ["ticketId", "ticketCode", "ticketUrl", "checkoutSessionId", "checkoutUrl"]
+      "required": ["ticketId", "ticketCode", "ticketUrl", "checkoutSessionId", "checkoutUrl", "checkoutStatus"]
     },
     "PublicDiscoveryOccurrenceDTO": {
       "required": ["uri", "source", "name", "startsAt", "status", "projectionStatus", "handoff"],
