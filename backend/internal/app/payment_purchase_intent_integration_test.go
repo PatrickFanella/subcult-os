@@ -209,6 +209,7 @@ func TestPaidReservationPurchaseIntentPreservesLegacyCallersAndTerminalStates(t 
 	slug := mustString(t, publishEvent(t, fx, mustString(t, event, "id")), "publicSlug")
 	legacy := map[string]any{"email": fx.email("legacy"), "displayName": "Legacy"}
 	firstLegacy := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/paid-reservations", legacy, http.StatusOK)
+	provider.response.ID = testStripeSessionID(t, "cs_intent_states_second")
 	secondLegacy := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/paid-reservations", legacy, http.StatusOK)
 	if mustString(t, firstLegacy.JSON, "ticketId") == mustString(t, secondLegacy.JSON, "ticketId") {
 		t.Fatal("legacy callers unexpectedly shared a purchase intent")
@@ -218,6 +219,7 @@ func TestPaidReservationPurchaseIntentPreservesLegacyCallersAndTerminalStates(t 
 		want   int
 		label  string
 	}{{"fulfilled", http.StatusOK, "paid"}, {"expired", http.StatusConflict, "expired"}, {"anomalous", http.StatusConflict, "reconciliation_required"}} {
+		provider.response.ID = testStripeSessionID(t, "cs_intent_"+terminal.status)
 		key := uuid.NewString()
 		payload := map[string]any{"email": fx.email(terminal.status), "displayName": terminal.status, "purchaseIntentKey": key}
 		postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/paid-reservations", payload, http.StatusOK)
