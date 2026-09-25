@@ -45,6 +45,18 @@ type ticketDTO struct {
 	CheckedInAt   *string `json:"checkedInAt"`
 }
 
+// doorTicketDTO contains only the fields needed to identify an attendee and
+// decide admission at the door. It intentionally omits contact, receipt, and
+// financial fields from the operator door endpoints.
+type doorTicketDTO struct {
+	ID                string  `json:"id"`
+	Code              string  `json:"code"`
+	DisplayName       *string `json:"displayName"`
+	AdmissionEligible bool    `json:"admissionEligible"`
+	Status            string  `json:"status"`
+	CheckedInAt       *string `json:"checkedInAt"`
+}
+
 type reserveTicketRequest struct {
 	Email       string  `json:"email"`
 	DisplayName *string `json:"displayName"`
@@ -516,6 +528,7 @@ func (a *App) handleCreateTestTicket(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleDoorTicketSearch(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
 	if a.db == nil {
 		writeError(w, http.StatusInternalServerError, "database unavailable")
 		return
@@ -529,15 +542,14 @@ func (a *App) handleDoorTicketSearch(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not load event")
 		return
 	}
-	_, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner", "member")
-	if !ok {
+	if _, ok := a.requirePermission(r, event.WorkspaceID, permDoor); !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
 
 	query := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("query")))
 	if query == "" {
-		writeJSON(w, http.StatusOK, []ticketDTO{})
+		writeJSON(w, http.StatusOK, []doorTicketDTO{})
 		return
 	}
 
@@ -559,17 +571,21 @@ func (a *App) handleDoorTicketSearch(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	tickets := make([]ticketDTO, 0)
+	tickets := make([]doorTicketDTO, 0)
 	for rows.Next() {
 		var ticket ticketRow
 		if err := rows.Scan(&ticket.ID, &ticket.EventID, &ticket.Email, &ticket.DisplayName, &ticket.Code, &ticket.Status, &ticket.PaymentStatus, &ticket.AmountCents, &ticket.Currency, &ticket.CheckedInAt); err != nil {
 			writeError(w, http.StatusInternalServerError, "could not search tickets")
 			return
 		}
-		tickets = append(tickets, a.ticketDTOFromRow(ticket))
+		tickets = append(tickets, a.doorTicketDTOFromRow(ticket))
 	}
 	if err := rows.Err(); err != nil {
 		writeError(w, http.StatusInternalServerError, "could not search tickets")
+		return
+	}
+	if _, ok := a.requirePermission(r, event.WorkspaceID, permDoor); !ok {
+		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
 
@@ -577,6 +593,7 @@ func (a *App) handleDoorTicketSearch(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleDoorCheckIn(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
 	if a.db == nil {
 		writeError(w, http.StatusInternalServerError, "database unavailable")
 		return
@@ -590,7 +607,7 @@ func (a *App) handleDoorCheckIn(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not load event")
 		return
 	}
-	actorID, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner", "member")
+	actorID, ok := a.requirePermission(r, event.WorkspaceID, permDoor)
 	if !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
@@ -635,6 +652,10 @@ func (a *App) handleDoorCheckIn(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, "ticket belongs to a different event")
 		return
 	}
+	if actorID, ok = a.requirePermission(r, event.WorkspaceID, permDoor); !ok {
+		writeError(w, http.StatusForbidden, "forbidden")
+		return
+	}
 	if !ticketJourneyCanCheckIn(ticket.PaymentStatus) {
 		writeError(w, http.StatusConflict, "ticket is not eligible for check-in")
 		return
@@ -644,7 +665,7 @@ func (a *App) handleDoorCheckIn(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, "could not save check-in")
 			return
 		}
-		writeJSON(w, http.StatusOK, a.ticketDTOFromRow(ticket))
+		writeJSON(w, http.StatusOK, a.doorTicketDTOFromRow(ticket))
 		return
 	}
 
@@ -679,7 +700,7 @@ func (a *App) handleDoorCheckIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, a.ticketDTOFromRow(ticket))
+	writeJSON(w, http.StatusOK, a.doorTicketDTOFromRow(ticket))
 }
 
 func (a *App) loadPublishedEventBySlug(ctx context.Context, slug string) (eventRow, error) {
@@ -764,6 +785,17 @@ func (a *App) ticketDTOFromRow(row ticketRow) ticketDTO {
 		dto.CheckedInAt = &value
 	}
 	return dto
+}
+
+func (a *App) doorTicketDTOFromRow(row ticketRow) doorTicketDTO {
+	return doorTicketDTO{
+		ID:                row.ID,
+		Code:              row.Code,
+		DisplayName:       nullableString(row.DisplayName),
+		AdmissionEligible: ticketJourneyCanCheckIn(row.PaymentStatus),
+		Status:            row.Status,
+		CheckedInAt:       nullableTimeString(row.CheckedInAt),
+	}
 }
 
 func newTicketCode() (string, error) {

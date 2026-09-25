@@ -28,6 +28,7 @@ func TestFirstEventLifecycle(t *testing.T) {
 	slug := mustString(t, published, "publicSlug")
 	guestEmail := fx.email("guest")
 	ticket := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/reservations", map[string]any{"email": guestEmail, "displayName": "Guest"}, http.StatusOK)
+	grantFixtureDoorPermission(t, fx)
 	checkIn := postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/door/check-ins", map[string]any{"code": mustString(t, ticket.JSON, "code")}, http.StatusOK)
 	report := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
 	reportObj := mustObject(t, report.JSON)
@@ -3147,6 +3148,7 @@ func assertLocalEventLifecycle(t *testing.T, fx lifecycleFixture) {
 	}
 
 	code := mustString(t, reservation.JSON, "code")
+	grantFixtureDoorPermission(t, fx)
 	firstCheckIn := postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/door/check-ins", map[string]any{"code": code}, http.StatusOK)
 	secondCheckIn := postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/door/check-ins", map[string]any{"code": code}, http.StatusOK)
 	first := mustObject(t, firstCheckIn.JSON)
@@ -3195,6 +3197,7 @@ func TestTicketReservationCurrentCapacityAndDoorRules(t *testing.T) {
 	postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/reservations", map[string]any{"email": fx.email("guest-b"), "displayName": "Guest Two"}, http.StatusConflict)
 
 	code := mustString(t, firstReservation.JSON, "code")
+	grantFixtureDoorPermission(t, fx)
 	firstCheckIn := postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/door/check-ins", map[string]any{"code": code}, http.StatusOK)
 	secondCheckIn := postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/door/check-ins", map[string]any{"code": code}, http.StatusOK)
 	if mustString(t, firstCheckIn.JSON, "status") != "checked_in" || mustString(t, secondCheckIn.JSON, "status") != "checked_in" || mustString(t, firstCheckIn.JSON, "checkedInAt") != mustString(t, secondCheckIn.JSON, "checkedInAt") {
@@ -3473,6 +3476,7 @@ func TestDoorTicketSearchExcludesPendingPaidTicket(t *testing.T) {
 	guestEmail := fx.email("guest-search")
 	insertPendingStripeTicket(t, fx, eventID, guestEmail, "Guest Search", testStripeSessionID(t, "cs_test_search"))
 
+	grantFixtureDoorPermission(t, fx)
 	search := getJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/door/tickets?query=guest", http.StatusOK)
 	if len(search.JSON.([]any)) != 0 {
 		t.Fatalf("expected pending paid ticket to be excluded from search: %#v", search.JSON)
@@ -3494,6 +3498,7 @@ func TestDoorCheckInRejectsPendingPaidTicket(t *testing.T) {
 	if err := fx.app.db.QueryRow(t.Context(), `select code from tickets where id = $1`, ticketID).Scan(&code); err != nil {
 		t.Fatal(err)
 	}
+	grantFixtureDoorPermission(t, fx)
 	postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/door/check-ins", map[string]any{"code": code}, http.StatusConflict)
 
 	var paymentStatus string
@@ -3529,6 +3534,7 @@ func TestFirstEventLifecycleDuplicateCheckIn(t *testing.T) {
 	slug := mustString(t, publishEvent(t, fx, eventID), "publicSlug")
 	ticket := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/reservations", map[string]any{"email": fx.email("guest"), "displayName": "Guest"}, http.StatusOK)
 	code := mustString(t, ticket.JSON, "code")
+	grantFixtureDoorPermission(t, fx)
 	firstCheckIn := postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/door/check-ins", map[string]any{"code": code}, http.StatusOK)
 	secondCheckIn := postJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/door/check-ins", map[string]any{"code": code}, http.StatusOK)
 
@@ -3568,6 +3574,7 @@ func TestFirstEventLifecyclePermissions(t *testing.T) {
 	published := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/publish", map[string]any{}, http.StatusOK)
 	slug := mustString(t, published.JSON, "publicSlug")
 	guestTicket := postJSON(t, fx.app, nil, "/api/public/events/"+slug+"/reservations", map[string]any{"email": fx.email("guest"), "displayName": "Guest"}, http.StatusOK)
+	grantFixtureDoorPermission(t, fx)
 	search := getJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/door/tickets?query=guest", http.StatusOK)
 	tickets := search.JSON.([]any)
 	if len(tickets) != 1 {
@@ -3667,6 +3674,7 @@ type testResponse struct {
 	Cookie *http.Cookie
 	JSON   any
 	Body   string
+	Header http.Header
 }
 
 type lifecycleFixture struct {
@@ -3679,6 +3687,18 @@ type lifecycleFixture struct {
 
 func (f lifecycleFixture) email(prefix string) string {
 	return prefix + "+" + f.suffix + "@example.test"
+}
+
+func grantFixtureDoorPermission(t *testing.T, fx lifecycleFixture) {
+	t.Helper()
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update workspace_members
+		set role = 'door'
+		where workspace_id = $1
+		  and person_id = (select id from people where email = $2)
+	`, fx.workspaceID, fx.email("member")); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestLifecycleFixtureSchemaIsolation(t *testing.T) {
@@ -3950,7 +3970,7 @@ func doJSON(t *testing.T, method string, app *App, cookie *http.Cookie, path str
 			cookieOut = c
 		}
 	}
-	return testResponse{Status: rec.Code, Cookie: cookieOut, JSON: decoded, Body: rec.Body.String()}
+	return testResponse{Status: rec.Code, Cookie: cookieOut, JSON: decoded, Body: rec.Body.String(), Header: rec.Header()}
 }
 
 func postJSON(t *testing.T, app *App, cookie *http.Cookie, path string, payload any, wantStatus int) testResponse {
