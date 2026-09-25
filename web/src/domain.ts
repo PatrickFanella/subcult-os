@@ -217,6 +217,46 @@ export interface EventDTO {
   publicUrl: string | null;
 }
 
+export interface EventOccurrenceDTO {
+  id: string;
+  workspaceId: string;
+  eventId: string;
+  name: string;
+  startsAt: string;
+  status: 'scheduled' | 'rescheduled' | 'postponed' | 'cancelled';
+  updatedAt: string;
+  publicCid?: string;
+}
+
+export type LifecycleActionKind = 'public_record' | 'provider_ticket' | 'operational_notice' | 'refund';
+
+export interface LifecycleIntentActionDTO {
+  id: string;
+  actionKind: LifecycleActionKind;
+  destination: string;
+  status: 'pending' | 'running' | 'succeeded' | 'retryable' | 'unknown' | 'failed' | 'superseded';
+  attemptCount: number;
+  failureCategory?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LifecycleIntentDTO {
+  id: string;
+  workspaceId: string;
+  eventId: string;
+  occurrenceId: string;
+  kind: 'cancellation' | 'reschedule';
+  reason: string;
+  targetRevision: string;
+  expectedPublicCid: string;
+  status: 'approved' | 'superseded';
+  approvedByPersonId: string;
+  createdAt: string;
+  supersededAt?: string;
+  actions: LifecycleIntentActionDTO[];
+}
+
 export interface CulturalImportMatchDTO {
   occurrenceId: string;
   eventId: string;

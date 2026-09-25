@@ -18,6 +18,7 @@ This directory converts the Subcult research and funding work into an engineerin
 - [Subcults file-level extraction manifest](subcults-extraction-manifest.md)
 - [AT Protocol kernel and OAuth boundary](atproto-kernel.md)
 - [Private archive approvals](public-archive.md)
+- [Private external ticket handoffs](external-ticket-handoffs.md)
 - [Legacy Subcults replacement runbook](../runbooks/subcults-cutover.md)
 - [Superseded bridge contract](bridge-contract.md)
 - [User journeys and UI acceptance](journeys.md)

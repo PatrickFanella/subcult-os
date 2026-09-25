@@ -104,6 +104,26 @@ than alter a recorded decision or action identity. Failure categories are a
 small internal code set; provider error text and unbounded response bodies do
 not belong in this ledger.
 
+## Private operator worklist
+
+Owner-only `GET` and `POST /api/events/{eventID}/lifecycle-intents` expose the
+ledger as a private, `Cache-Control: private, no-store` worklist. A decision
+must name an existing occurrence in that event and submit its exact
+`updatedAt` and recorded public CID. The server locks the event, validates an
+active owner again inside the transaction, locks the occurrence, and rejects a
+stale revision or CID with 409. It derives the decision snapshot and bounded
+action payload itself; callers choose only from the four ledger action kinds.
+URLs, provider credentials, recipients, notice content, refund amounts, and
+provider responses are not accepted by this route.
+
+The request carries a UUID `decisionKey`. Retrying the same key returns the
+same decision only when its workspace, event, occurrence revision, decision,
+reason, owner, and action kinds are identical; a changed binding is 409. A
+newer decision can supersede only `pending` and `retryable` drafts. `running`,
+`unknown`, succeeded, and failed actions retain their existing state; unknown
+work still requires destination reconciliation. The worklist UI labels every
+entry as draft/unexecuted and provides no dispatch control.
+
 A coordinated change needs one private change record with actor, workspace,
 reason, scope, old/new values, revision and approval digest. Persist the local
 decision and its action intents atomically. Each affected destination then has
@@ -146,18 +166,22 @@ or assume a timeout means failure.
 | Listing cancellation isolation | `TestOccurrenceLifecycleCancellationPreservesPrivateState` | Private event/ticket rows and email queue unchanged; date correction stays cancelled |
 | Listing reschedule isolation | `TestEventOccurrenceRescheduleDoesNotChangeTickets` | Existing ticket identity/admission state retained |
 | Actual remote stale CID | Future #19/#20 conditional-write test | Not implemented |
-| Action-intent fencing, retry scheduling, lease expiry, supersession and upgrade | `TestLifecycleActionLedgerIsIdempotentFencedAndNeverBlindRetriesUnknownWork`; `TestLifecycleActionConcurrentClaimHasOneWinnerAndSupersedeStopsPending`; `TestLifecycleActionCreateThenSupersedeSerializesOnChange`; `TestLifecycleActionMigrationUpgradesVersionFifteen` | Source coverage added; the corrected upgrade fixture awaits the next combined disposable-database gate |
+| Action-intent fencing, retry scheduling, lease expiry, supersession and upgrade | `TestLifecycleActionLedgerIsIdempotentFencedAndNeverBlindRetriesUnknownWork`; `TestLifecycleActionConcurrentClaimHasOneWinnerAndSupersedeStopsPending`; `TestLifecycleActionCreateThenSupersedeSerializesOnChange`; `TestLifecycleActionMigrationUpgradesVersionFifteen` | Durable ledger coverage; it does not prove a provider dispatch |
+| Owner worklist revision/CID, idempotency, authorization and unsent supersession | `TestLifecycleIntentHTTPIsOwnerOnlyFencedAndDraftOnly`; `TestLifecycleIntentSupersedeOnlyStopsUnsentActions` | Owner-only draft visibility; stale revision/CID and changed/replayed decision keys are rejected, while `running` work stays visible for reconciliation |
 | External notice failure/retry and reconciliation | Future coordinated-action dispatch tests | Not implemented; existing mail-worker tests do not prove this workflow |
 | Payment/refund ambiguity | Future #53 provider test-mode journey | Not qualified |
 
-Focused command, inside the installed disposable database test environment:
+Focused commands, inside the installed disposable database test environment:
 
 ```sh
 cd backend
 go test -race ./internal/app -run 'TestOccurrenceLifecycle|TestEventOccurrence' -count=1 -v
+go test -race ./internal/app -run 'TestLifecycle(Intent|Action)' -count=1 -v
 ```
 
 Run `make verify` and the full disposable `make test-db` gate before delivery.
-No migration is required. Rolling back this slice removes edit safeguards;
-it does not undo accepted edits. #50 remains open for the coordinated-action
-and notice-failure proof; no user-facing cancellation/refund workflow is claimed.
+Migrations 000016 and 000023 are required for the private action ledger and
+stable decision-key retries. This owner worklist records draft, unexecuted
+intents only. It does not dispatch a provider request, change a public record,
+send a notice, issue a refund, or establish a coordinated cancellation. #50
+remains open for provider/notice failure and reconciliation proof.

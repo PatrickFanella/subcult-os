@@ -141,6 +141,7 @@ function buildOperatorGuidance(events: EventDTO[], workspaceId: string): Operato
       actions: [
         { label: 'Create event', href: `/events/new?workspaceId=${workspaceId}`, variant: 'primary' },
         { label: 'Import occurrences', href: `/workspace/${workspaceId}/cultural-imports`, variant: 'ghost' },
+        { label: 'Lifecycle worklist', href: `/workspace/${workspaceId}/lifecycle-intents`, variant: 'ghost' },
         { label: 'Invite member', href: '#invite-member', variant: 'secondary' },
       ],
     };
@@ -944,6 +945,7 @@ export function WorkspaceView() {
                       </div>
                       <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.25em] text-zinc-300">{roleLabel(workspace.role)}</span>
                     </div>
+                    {workspace.role === 'owner' && <a className="mt-4 inline-block text-sm text-amber-200 underline" href={`/workspace/${workspace.id}/lifecycle-intents`}>Open lifecycle worklist</a>}
 
                     <div className="mt-6 grid gap-3 sm:grid-cols-3">
                       <div className="rounded-2xl border border-white/10 bg-white/5 p-4">

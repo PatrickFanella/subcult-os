@@ -11,6 +11,7 @@ import { TicketView } from './views/TicketView';
 import { WorkspaceView } from './views/WorkspaceView';
 import { PublicArchiveItemsPanel } from './components/PublicArchiveItemsPanel';
 import { ImportView } from './views/ImportView';
+import { LifecycleIntentsView } from './views/LifecycleIntentsView';
 
 function getPathname() {
   if (typeof window === 'undefined') {
@@ -70,6 +71,10 @@ export default function App() {
 
   if (pathname.startsWith('/workspace/') && pathname.endsWith('/cultural-imports')) {
     return <ImportView workspaceId={getSegment(pathname, 2)} />;
+  }
+
+  if (pathname.startsWith('/workspace/') && pathname.endsWith('/lifecycle-intents')) {
+    return <LifecycleIntentsView workspaceId={getSegment(pathname, 2)} />;
   }
 
   if (pathname === '/workspace' || pathname === '/') {

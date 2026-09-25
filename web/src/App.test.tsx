@@ -8,6 +8,7 @@ import { PublicEventView } from './views/PublicEventView';
 import { TicketView } from './views/TicketView';
 import { ParticipantPortalView } from './views/ParticipantPortalView';
 import { WorkspaceView } from './views/WorkspaceView';
+import { LifecycleIntentsView } from './views/LifecycleIntentsView';
 import { normalizeCurrentWorkspace } from './modules/workspace/workspaceModel';
 import { formFromEvent } from './modules/eventEditor/eventEditorModel';
 import type { EventDTO } from './domain';
@@ -147,6 +148,17 @@ afterEach(() => {
 });
 
 describe('App routes', () => {
+	it('routes the owner lifecycle worklist and does not render cleared private intents after authorization failure', () => {
+		const route = renderAt('/workspace/workspace-1/lifecycle-intents');
+		expect(route).toContain('Lifecycle intents');
+
+		const cleared = renderWithState('/workspace/workspace-1/lifecycle-intents', <LifecycleIntentsView workspaceId="workspace-1" />, [
+			[], '', [], '', [], 'cancellation', '', ['operational_notice'], '', false, 'forbidden',
+		]);
+		expect(cleared).toContain('forbidden');
+		expect(cleared).not.toContain('private reason that must be cleared');
+	});
+
   it.each(['draft', 'published'] as const)('requires saved edits before a %s lifecycle transition', (status) => {
     const event = { id: 'event-1', workspaceId: 'workspace-1', title: 'Saved title', startsAt: '2026-10-01T18:00:00Z', publicDescription: 'Description', locationDisplay: 'Room', ticketAllocation: 10, ticketPriceCents: 0, ticketCurrency: 'usd', pricingMode: 'free', status, reservedCount: 0, checkedInCount: 0 } as EventDTO;
     const initial = formFromEvent(event);
