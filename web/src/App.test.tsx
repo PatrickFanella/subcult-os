@@ -351,7 +351,10 @@ describe('App routes', () => {
     const rendered = renderWithState('/events/new?workspaceId=workspace-1', <EventEditorView eventId="new" />);
 
     expect(rendered).toContain('Fixed paid pricing requires an owner or finance workspace role. Free events can still be created.');
-    expect(rendered).toMatch(/<input[^>]*name="pricingMode"[^>]*value="fixed"[^>]*disabled=""/);
+    const fixedRadio = (rendered.match(/<input\b[^>]*>/g) ?? []).find((input) =>
+      input.includes('name="pricingMode"') && input.includes('value="fixed"'));
+    expect(fixedRadio).toBeDefined();
+    expect(fixedRadio).toContain('disabled=""');
   });
 
   it('renders the workspace archive section', () => {
