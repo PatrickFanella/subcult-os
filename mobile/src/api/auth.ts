@@ -29,6 +29,17 @@ export function verifyEmail(token: string) {
   return postJSON<CurrentUserDTO>('/api/mobile/auth/verify-email', { token });
 }
 
+export function requestRecovery(email: string) {
+  return postJSON<{ ok: boolean }>('/api/mobile/auth/recovery/request', { email });
+}
+
+// A completed recovery revokes every session for the account, including this
+// device's. A rejected token revokes nothing, so the session is kept.
+export async function completeRecovery(token: string, newPassword: string) {
+  await postJSON<{ ok: boolean }>('/api/mobile/auth/recovery/complete', { token, newPassword });
+  await clearSession();
+}
+
 export async function logout() {
   try {
     await postJSON<{ ok: boolean }>('/api/mobile/auth/logout', {});

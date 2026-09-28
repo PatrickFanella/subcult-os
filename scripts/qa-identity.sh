@@ -53,3 +53,37 @@ let body=""; process.stdin.on("data", chunk => body += chunk); process.stdin.on(
   printf '%s' "$payload" | curl -fsS -c "$cookie" -H 'Content-Type: application/json' \
     --data-binary @- "${api_url}/api/auth/verify-email" >/dev/null
 }
+
+# Print the newest unconsumed verify or recover link for a synthetic recipient.
+# Device rehearsals open it on a phone; the link itself is not consumed here.
+qa_identity_link() {
+  local recipient="$1" purpose="$2" related_type path body
+  qa_require_disposable_target || return 1
+  case "$purpose" in
+    verify) related_type=identity_verification path=/verify-email ;;
+    recover) related_type=identity_recovery path=/recover-password ;;
+    *) echo 'Link purpose must be verify or recover.' >&2; return 1 ;;
+  esac
+  if [[ ! "$recipient" =~ ^[a-zA-Z0-9+._-]+@example\.test$ ]]; then
+    echo 'Rehearsal links are only read for synthetic example.test recipients.' >&2
+    return 1
+  fi
+  body="$(psql "$QA_DATABASE_URL" -XAt --set=ON_ERROR_STOP=1 --set=recipient="$recipient" --set=related_type="$related_type" <<'SQL'
+select o.body from email_outbox o
+join identity_challenges c on c.id = o.related_id
+where o.recipient_email = :'recipient' and o.related_type = :'related_type'
+  and o.delivery_status = 'held' and c.consumed_at is null and c.expires_at > now()
+order by o.created_at desc limit 1;
+SQL
+  )" || return 1
+  printf '%s' "$body" | LINK_PATH="$path" node -e '
+let body=""; process.stdin.on("data", chunk => body += chunk); process.stdin.on("end", () => {
+  try {
+    const links=body.split(/\s+/).filter(part=>/^https?:\/\//.test(part));
+    if(links.length!==1) throw new Error();
+    const url=new URL(links[0]);
+    if(url.pathname!==process.env.LINK_PATH || !url.searchParams.get("token")) throw new Error();
+    process.stdout.write(url.href+"\n");
+  } catch { console.error("No valid unconsumed identity message for synthetic account."); process.exitCode=1; }
+});'
+}

@@ -1,5 +1,25 @@
 # Development execution log
 
+## 2026-09-28 — IDENT-02 identity email app links
+
+Verification and recovery email links now open the native app when it is
+installed and the domain association verifies, and fall back to the existing
+web pages otherwise. The API serves `/.well-known/apple-app-site-association`
+and `/.well-known/assetlinks.json` from `MOBILE_APPLE_APP_IDS`,
+`MOBILE_ANDROID_PACKAGE` and `MOBILE_ANDROID_CERT_SHA256`, claiming only
+`/verify-email` and `/recover-password` with a token; each document is 404
+until configured. `mobile/app.config.ts` adds iOS associated domains and an
+Android `autoVerify` intent filter when built with `SUBCULT_APP_LINK_HOST`.
+The app gains a recovery screen (request a link, or set a new password from
+one) and a sign-in entry point; a rejected recovery token keeps the device
+session. `scripts/device-link.sh` prints or opens the newest held identity
+link for a synthetic account in a disposable stack.
+
+Setup and the device checklist are in
+`docs/development/mobile-app-links.md`. No Apple Team ID, signing
+fingerprint, HTTPS host or physical device was exercised; the IDENT-02
+real-device line remains open.
+
 ## 2026-09-24 — Expansion #50–71, first LIFE-01 slice
 
 The owner promoted #50–71 for development ahead of the original roadmap order.

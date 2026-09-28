@@ -17,6 +17,7 @@ This directory converts the Subcult research and funding work into an engineerin
 - [Selective extraction inventory](extraction-inventory.md)
 - [Subcults file-level extraction manifest](subcults-extraction-manifest.md)
 - [AT Protocol kernel and OAuth boundary](atproto-kernel.md)
+- [Mobile app links for identity email](mobile-app-links.md)
 - [Private archive approvals](public-archive.md)
 - [Private external ticket handoffs](external-ticket-handoffs.md)
 - [Legacy Subcults replacement runbook](../runbooks/subcults-cutover.md)

@@ -123,6 +123,8 @@ func (a *App) routes() {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 	a.mux.HandleFunc("GET /api/ready", a.handleReady)
+	a.mux.HandleFunc("GET /.well-known/apple-app-site-association", a.handleAppleAppSiteAssociation)
+	a.mux.HandleFunc("GET /.well-known/assetlinks.json", a.handleAndroidAssetLinks)
 	a.mux.HandleFunc("POST /api/auth/signup", a.handleSignup)
 	a.mux.HandleFunc("POST /api/auth/verify-email", a.handleVerifyEmail)
 	a.mux.HandleFunc("POST /api/auth/request-verification", a.handleRequestVerification)

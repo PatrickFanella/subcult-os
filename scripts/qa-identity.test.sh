@@ -34,4 +34,12 @@ test_mail_body='https://remote.example/verify-email?token=synthetic-challenge' e
 test_http_status=22 expect_failure qa_verify_signup /tmp/unused-synthetic.cookies synthetic@example.test
 psql() { return 9; }
 expect_failure qa_verify_signup /tmp/unused-synthetic.cookies synthetic@example.test
+
+psql() { printf '%s' "${test_mail_body:-Recover account https://app.example.test/recover-password?token=synthetic-recovery}"; }
+[[ "$(qa_identity_link synthetic@example.test recover)" == 'https://app.example.test/recover-password?token=synthetic-recovery' ]]
+expect_failure qa_identity_link synthetic@example.test delete
+expect_failure qa_identity_link real@example.com recover
+test_mail_body='Recover https://app.example.test/verify-email?token=wrong-purpose' expect_failure qa_identity_link synthetic@example.test recover
+test_mail_body='Recover https://app.example.test/recover-password' expect_failure qa_identity_link synthetic@example.test recover
+QA_DISPOSABLE_DATABASE=0 expect_failure qa_identity_link synthetic@example.test recover
 echo 'QA identity guards and verification failure propagation passed.'

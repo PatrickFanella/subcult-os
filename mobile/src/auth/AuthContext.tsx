@@ -12,6 +12,7 @@ type AuthContextValue = {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, displayName?: string) => Promise<SignupResultDTO>;
   verifyEmail: (token: string) => Promise<void>;
+  completeRecovery: (token: string, newPassword: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -80,6 +81,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
   }
 
+  async function completeRecovery(token: string, newPassword: string) {
+    setLoading(true);
+    setError(null);
+    try {
+      await authAPI.completeRecovery(token, newPassword);
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function signOut() {
     setLoading(true);
     setError(null);
@@ -95,7 +107,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     void refresh();
   }, []);
 
-  const value = useMemo(() => ({ user, loading, error, refresh, signIn, signUp, verifyEmail, signOut }), [user, loading, error]);
+  const value = useMemo(() => ({ user, loading, error, refresh, signIn, signUp, verifyEmail, completeRecovery, signOut }), [user, loading, error]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
