@@ -60,6 +60,11 @@ type Config struct {
 	// docs/development/announcements.md.
 	AnnouncementUnitCostCents    int
 	announcementUnitCostCentsRaw string
+	// Native app link verification. Each list is empty unless configured, and
+	// the matching /.well-known document is served only when it is set.
+	MobileAppleAppIDs             []string
+	MobileAndroidPackage          string
+	MobileAndroidCertFingerprints []string
 }
 
 func LoadConfig() Config {
@@ -108,6 +113,9 @@ func LoadConfig() Config {
 		MediaS3Region:                 env("MEDIA_S3_REGION", "us-east-1"),
 		MediaPublicBaseURL:            env("MEDIA_PUBLIC_BASE_URL", ""),
 		LexiconContractDir:            env("LEXICON_CONTRACT_DIR", ""),
+		MobileAppleAppIDs:             parseCommaList(env("MOBILE_APPLE_APP_IDS", ""), strings.TrimSpace),
+		MobileAndroidPackage:          strings.TrimSpace(env("MOBILE_ANDROID_PACKAGE", "")),
+		MobileAndroidCertFingerprints: parseCommaList(env("MOBILE_ANDROID_CERT_SHA256", ""), strings.ToUpper),
 	}
 }
 
@@ -177,6 +185,7 @@ func (c Config) Validate() error {
 			problems = append(problems, "ANNOUNCEMENT_UNIT_COST_CENTS must be a non-negative integer")
 		}
 	}
+	problems = append(problems, c.appLinkProblems()...)
 	if strings.TrimSpace(c.Addr) == "" {
 		problems = append(problems, "API_ADDR is required")
 	}

@@ -7,14 +7,16 @@ import { useAuth } from '@/auth/AuthContext';
 type Mode = 'login' | 'signup';
 
 export default function LoginScreen() {
-  const params = useLocalSearchParams<{ next?: string; mode?: Mode }>();
+  const params = useLocalSearchParams<{ next?: string; mode?: Mode; notice?: string }>();
   const next = typeof params.next === 'string' && params.next.startsWith('/') ? params.next : '/staff';
   const [mode, setMode] = useState<Mode>(params.mode === 'signup' ? 'signup' : 'login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(
+    params.notice === 'recovered' ? 'Password updated. Every session was signed out; sign in with the new password.' : null,
+  );
   const { signIn, signUp, loading } = useAuth();
 
   async function submit() {
@@ -94,6 +96,11 @@ export default function LoginScreen() {
         <Pressable disabled={loading} onPress={submit} style={[styles.button, loading && styles.buttonDisabled]}>
           <Text style={styles.buttonText}>{loading ? 'Working…' : mode === 'signup' ? 'Create account' : 'Sign in'}</Text>
         </Pressable>
+        {mode === 'login' ? (
+          <Pressable onPress={() => router.push('/recover-password')}>
+            <Text style={styles.link}>Forgot password?</Text>
+          </Pressable>
+        ) : null}
       </View>
     </ScrollView>
   );
@@ -117,4 +124,5 @@ const styles = StyleSheet.create({
   button: { minHeight: 56, borderRadius: 18, backgroundColor: '#171717', alignItems: 'center', justifyContent: 'center', marginTop: 4 },
   buttonDisabled: { opacity: 0.55 },
   buttonText: { color: '#ffffff', fontWeight: '800', fontSize: 16 },
+  link: { color: '#2563eb', fontWeight: '800', fontSize: 15, textAlign: 'center' },
 });

@@ -34,6 +34,7 @@ export default function RootLayout() {
           <Stack.Screen name="settings" options={{ headerShown: false }} />
           <Stack.Screen name="login" options={{ headerShown: false }} />
           <Stack.Screen name="verify-email" options={{ headerShown: false }} />
+          <Stack.Screen name="recover-password" options={{ headerShown: false }} />
           <Stack.Screen name="workspace-create" options={{ headerShown: false }} />
         </Stack>
       </AuthProvider>
