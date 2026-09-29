@@ -13,7 +13,7 @@ reconciliation, not a production qualification receipt.
 | [#6 IDENT-02](https://git.subcult.tv/subculture-collective/subcult-os/issues/6) | Mobile verification/recovery app links merged in PR #168 at `89b6ea9`. Current main has passing hosted run 10687. | Run the [physical-device checklist](mobile-app-links.md), including domain association, secure storage, restart, refresh, recovery revocation and logout. |
 | [#7 MAIL-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/7) | Resend adapter, durable outbox, signed feedback and suppression exist in source. | Qualify configured provider delivery to approved test recipients. Automated qualification keeps sending disabled. |
 | [#10 AT-LIVE](https://git.subcult.tv/subculture-collective/subcult-os/issues/10) | Identity-only OAuth source and synthetic checks exist. | Qualify a consenting test identity against the configured HTTPS metadata, callback and JWKS URLs, including refresh and remote revocation. |
-| [#50 LIFE-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/50) | Occurrence safeguards and owner-only draft action worklist are merged. Worklist merge `8166559` has passing hosted run 10160. | Implement separately observable dispatch and notice-failure recovery. Public/provider effects and refunds retain their own authority and qualification gates. |
+| [#50 LIFE-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/50) | Occurrence safeguards and owner-only draft action worklist are merged. Worklist merge `8166559` has passing hosted run 10160. Destination-scoped dispatch infrastructure is implemented locally; no runtime adapter is installed. | Implement approved operational notice content/recipients, per-recipient outcomes and reconciliation. Public/provider effects and refunds retain their own authority and qualification gates. |
 | [#51 OFFLINE-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/51) | Synthetic merge model and separate-client process harness exist. The harness passed in this reconciliation. | Physical-device partition/reconnect, persistence, duplicate scan, revocation, device-loss and manual-fallback evidence. Do not enable offline admission from synthetic results. |
 | [#54 EXPORT-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/54) | PR #167 merged at `d40221f`. Both required head runs 10168 and 10169 passed at `8317ef3`; the issue still says they are queued. | Reconcile the issue's stale CI/merge status and prerequisite #25. A selected accounting-provider format still requires an actual requirement. |
 | [#57 PORTALS-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/57) | Participant portal implementation is merged. The issue records source completion but dependency-blocked closure. Shared merge baseline `8166559` has passing hosted run 10160. | Reconcile prerequisites without deleting dependency links. Do not add vendor fees, invoices or payouts without pilot demand and permission rules. |
@@ -46,10 +46,11 @@ These results supersede old queued-run notes; they do not establish deployment.
 
 The [expansion work order](../superpowers/plans/2026-09-24-expansion-50-71.md)
 also permits independent source work ahead of rollout prerequisites. #50's
-dispatch/notice recovery is a concrete unfinished engineering slice. Specify
-recipient selection, authority rechecks, stable action identity, bounded retries,
-unknown outcomes and visible failure before implementing it. Refunds remain
-separate from event cancellation.
+dispatch infrastructure now includes destination-scoped claims, explicit
+dispatch approval, current owner/revision checks and synthetic adapter outcome
+tests. No runtime adapter is installed. Next, specify and implement notice
+content/recipient approval, suppression, per-recipient outcomes and reconciliation.
+Refunds remain separate from event cancellation.
 
 ## Worktree audit and selected recovery
 

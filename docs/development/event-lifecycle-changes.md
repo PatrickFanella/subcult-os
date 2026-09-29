@@ -85,7 +85,7 @@ clearing an existing end also counts as a schedule change. Changing dates on a
 cancelled/postponed occurrence does not reactivate it. Explicit status changes
 remain available through the existing API.
 
-## Ledgered external action intent (dispatch not implemented)
+## Ledgered external action intent
 
 Migration 000016 now provides the private decision and action ledger only. It
 can persist an approved cancellation/reschedule decision and an action intent,
@@ -93,7 +93,7 @@ claim one due intent with a fenced lease, retain retry scheduling, and
 supersede unsent intents. It does not expose an HTTP cancellation route, change
 an event or occurrence, create recipients, send a notice, write a public
 record, call a provider, or issue a refund. An expired running lease becomes
-`unknown`, never a blind retry; a later orchestration slice must reconcile that
+`unknown`, never a blind retry; a destination-specific workflow must reconcile that
 destination before it can create another external action.
 
 The ledger verifies that a change's event and approving active owner belong to
@@ -103,6 +103,47 @@ The future API and approval flow must append a new approved decision rather
 than alter a recorded decision or action identity. Failure categories are a
 small internal code set; provider error text and unbounded response bodies do
 not belong in this ledger.
+
+## Destination-scoped dispatch infrastructure
+
+Migration 000025 adds `dispatch_approved`, defaulting to false for every existing
+and newly inserted HTTP worklist draft. The internal action-creation helper can
+create an explicitly approved action; replaying a draft's idempotency key with
+that flag changed is a conflict. No HTTP approval route, runtime adapter or
+worker is installed by this slice.
+
+`dispatchLifecycleAction` consumes at most one approved action for an adapter's
+exact action kind and destination. Other destinations and all drafts remain
+untouched. The adapter validates its complete payload locally before the
+dispatcher rechecks the persisted lease, decision status, approving owner's
+current membership and exact occurrence revision/recorded CID. Missing legacy
+snapshot bindings fail validation. Failed preconditions record a terminal
+`permission` or `validation` outcome without invoking the adapter.
+
+Adapters receive the stable action idempotency key and a context bounded to
+45 seconds, below the two-minute lease. Each adapter must supply an attempt
+budget from one to ten; an explicitly retryable result at that limit becomes
+terminal `failed`, retains its sanitized failure category and clears the retry
+schedule. Reducing the budget below an already claimed attempt rejects execution.
+Adapters return a sanitized outcome and
+optional bounded provider reference. Explicit retryable results require a future
+retry time and no provider acceptance reference. Adapter errors become `unknown`
+with the fixed `transport` category; malformed results become `unknown/internal`.
+Neither is reclaimed automatically. A bounded adapter-supplied provider reference
+is retained internally for reconciliation, including uncertain acceptance; raw
+adapter errors are never persisted. A cancelled caller still permits a bounded
+attempt to persist the outcome, and expired leases cannot complete an action.
+The private worklist API exposes dispatch approval, retry time, completion time
+alongside each action's independent status and attempts. Provider references
+remain internal, as required by the existing API contract.
+
+These are local checks immediately before invocation. They do not lock a remote
+destination or prevent authority/revision changes after the check. A future
+adapter must honor cancellation, use provider idempotency/conditional writes,
+recheck its destination authority and reconcile ambiguous acceptance. Before an
+operational notice adapter is installed, its separate approval flow must snapshot
+reviewed content and relationship-derived recipients, enforce suppression, and
+track per-recipient delivery rather than treating enqueue as delivery success.
 
 ## Private operator worklist
 
@@ -168,7 +209,9 @@ or assume a timeout means failure.
 | Actual remote stale CID | Future #19/#20 conditional-write test | Not implemented |
 | Action-intent fencing, retry scheduling, lease expiry, supersession and upgrade | `TestLifecycleActionLedgerIsIdempotentFencedAndNeverBlindRetriesUnknownWork`; `TestLifecycleActionConcurrentClaimHasOneWinnerAndSupersedeStopsPending`; `TestLifecycleActionCreateThenSupersedeSerializesOnChange`; `TestLifecycleActionMigrationUpgradesVersionFifteen` | Durable ledger coverage; it does not prove a provider dispatch |
 | Owner worklist revision/CID, idempotency, authorization and unsent supersession | `TestLifecycleIntentHTTPIsOwnerOnlyFencedAndDraftOnly`; `TestLifecycleIntentSupersedeOnlyStopsUnsentActions` | Owner-only draft visibility; stale revision/CID and changed/replayed decision keys are rejected, while `running` work stays visible for reconciliation |
-| External notice failure/retry and reconciliation | Future coordinated-action dispatch tests | Not implemented; existing mail-worker tests do not prove this workflow |
+| Destination selection, stable retry identity, uncertain outcomes and dispatch-time authority/revision guards | `TestLifecycleDispatchSelectsApprovedDestinationAndKeepsDraftsUnexecuted`; `TestLifecycleDispatchRetryKeepsIdentityAndUnknownNeverReplays`; `TestLifecycleDispatchStopsAfterAdapterRetryBudget`; `TestLifecycleDispatchRechecksAuthorityRevisionCIDAndPayload`; `TestLifecycleDispatchInvalidOutcomeAndExpiredLeaseRequireReconciliation` | Disposable DB with synthetic adapters; no real email, provider or publication calls |
+| Draft approval boundary and migration | `TestLifecycleDispatchApprovalCannotPromoteReplayedDraft`; `TestLifecycleDispatchMigrationKeepsExistingActionsDraftOnly` | Existing drafts stay unexecuted after upgrade; changed approval cannot reuse an action identity |
+| Actual operational notice delivery/reconciliation | Future destination-specific notice workflow tests | Recipient/content approval, per-recipient outcomes and real provider qualification remain unimplemented |
 | Payment/refund ambiguity | Future #53 provider test-mode journey | Not qualified |
 
 Focused commands, inside the installed disposable database test environment:
@@ -176,12 +219,13 @@ Focused commands, inside the installed disposable database test environment:
 ```sh
 cd backend
 go test -race ./internal/app -run 'TestOccurrenceLifecycle|TestEventOccurrence' -count=1 -v
-go test -race ./internal/app -run 'TestLifecycle(Intent|Action)' -count=1 -v
+go test -race ./internal/app -run 'TestLifecycle(Action|Change|Intent|Dispatch)' -count=1 -v
 ```
 
 Run `make verify` and the full disposable `make test-db` gate before delivery.
-Migrations 000016 and 000023 are required for the private action ledger and
-stable decision-key retries. This owner worklist records draft, unexecuted
+Migrations 000016, 000023 and 000025 are required for the private action ledger,
+stable decision-key retries and explicit dispatch approval boundary. This owner
+worklist records draft, unexecuted
 intents only. It does not dispatch a provider request, change a public record,
 send a notice, issue a refund, or establish a coordinated cancellation. #50
 remains open for provider/notice failure and reconciliation proof.

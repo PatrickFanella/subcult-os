@@ -29,6 +29,7 @@ type lifecycleChangeInput struct {
 type lifecycleActionInput struct {
 	ChangeID, ActionKind, Destination, IdempotencyKey string
 	Payload                                           json.RawMessage
+	DispatchApproved                                  bool
 }
 
 type lifecycleActionClaim struct {
@@ -78,15 +79,16 @@ func createLifecycleAction(ctx context.Context, db *pgxpool.Pool, in lifecycleAc
 	}
 	var id string
 	err = tx.QueryRow(ctx, `
-		insert into event_lifecycle_actions (change_id,action_kind,destination,idempotency_key,payload)
-		values ($1,$2,$3,$4,$5)
+		insert into event_lifecycle_actions (change_id,action_kind,destination,idempotency_key,payload,dispatch_approved)
+		values ($1,$2,$3,$4,$5,$6)
 		on conflict (idempotency_key) do update set idempotency_key=excluded.idempotency_key
 		where event_lifecycle_actions.change_id=excluded.change_id
 		  and event_lifecycle_actions.action_kind=excluded.action_kind
 		  and event_lifecycle_actions.destination=excluded.destination
 		  and event_lifecycle_actions.payload=excluded.payload
+		  and event_lifecycle_actions.dispatch_approved=excluded.dispatch_approved
 		returning id
-	`, in.ChangeID, in.ActionKind, strings.TrimSpace(in.Destination), strings.TrimSpace(in.IdempotencyKey), in.Payload).Scan(&id)
+	`, in.ChangeID, in.ActionKind, strings.TrimSpace(in.Destination), strings.TrimSpace(in.IdempotencyKey), in.Payload, in.DispatchApproved).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", errors.New("lifecycle action idempotency conflict")
 	}
@@ -99,8 +101,17 @@ func createLifecycleAction(ctx context.Context, db *pgxpool.Pool, in lifecycleAc
 // claimLifecycleAction first seals expired running work as unknown. A caller
 // must reconcile unknown work; it is intentionally excluded from due claims.
 func claimLifecycleAction(ctx context.Context, db *pgxpool.Pool) (*lifecycleActionClaim, error) {
+	return claimLifecycleActionForDestination(ctx, db, "", "")
+}
+
+// A destination-scoped claim only consumes explicitly dispatch-approved work.
+// The empty selector remains available to the ledger's internal tests.
+func claimLifecycleActionForDestination(ctx context.Context, db *pgxpool.Pool, kind, destination string) (*lifecycleActionClaim, error) {
 	if db == nil {
 		return nil, errors.New("lifecycle actions require a database")
+	}
+	if (kind == "") != (destination == "") {
+		return nil, errors.New("lifecycle claims require both kind and destination")
 	}
 	// Seal uncertain work before taking a change lock. All later lifecycle
 	// transitions take the parent change lock before touching an action row.
@@ -109,7 +120,8 @@ func claimLifecycleAction(ctx context.Context, db *pgxpool.Pool) (*lifecycleActi
 		set status='unknown', finished_at=clock_timestamp(), updated_at=clock_timestamp(),
 		    failure_category='lease_expired', lease_token=null, lease_expires_at=null
 		where status='running' and lease_expires_at < clock_timestamp()
-	`); err != nil {
+		  and ($1='' or (action_kind=$1 and destination=$2 and dispatch_approved))
+	`, kind, destination); err != nil {
 		return nil, err
 	}
 	tx, err := db.Begin(ctx)
@@ -119,13 +131,13 @@ func claimLifecycleAction(ctx context.Context, db *pgxpool.Pool) (*lifecycleActi
 	defer tx.Rollback(ctx)
 	claim := &lifecycleActionClaim{LeaseToken: uuid.NewString()}
 	err = tx.QueryRow(ctx, `
-		with due as (select a.id from event_lifecycle_actions a join event_lifecycle_changes c on c.id=a.change_id where c.status='approved' and a.status in ('pending','retryable') and (a.next_attempt_at is null or a.next_attempt_at <= clock_timestamp()) order by a.created_at for update of c skip locked limit 1)
+		with due as (select a.id from event_lifecycle_actions a join event_lifecycle_changes c on c.id=a.change_id where c.status='approved' and a.status in ('pending','retryable') and (a.next_attempt_at is null or a.next_attempt_at <= clock_timestamp()) and ($2='' or (a.action_kind=$2 and a.destination=$3 and a.dispatch_approved)) order by a.created_at,a.id for update of c skip locked limit 1)
 		update event_lifecycle_actions a set status='running', attempt_count=attempt_count+1, lease_token=$1, lease_expires_at=clock_timestamp() + interval '2 minutes', updated_at=clock_timestamp()
 		from due
 		where a.id=due.id and a.status in ('pending','retryable')
 		  and (a.next_attempt_at is null or a.next_attempt_at <= clock_timestamp())
 		returning a.id,a.change_id,a.action_kind,a.destination,a.idempotency_key,a.payload,a.attempt_count
-	`, claim.LeaseToken).Scan(&claim.ID, &claim.ChangeID, &claim.ActionKind, &claim.Destination, &claim.IdempotencyKey, &claim.Payload, &claim.AttemptCount)
+	`, claim.LeaseToken, kind, destination).Scan(&claim.ID, &claim.ChangeID, &claim.ActionKind, &claim.Destination, &claim.IdempotencyKey, &claim.Payload, &claim.AttemptCount)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, tx.Commit(ctx)
 	}

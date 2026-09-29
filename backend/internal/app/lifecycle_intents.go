@@ -25,14 +25,17 @@ type lifecycleIntentRequest struct {
 }
 
 type lifecycleIntentActionDTO struct {
-	ID              string  `json:"id"`
-	ActionKind      string  `json:"actionKind"`
-	Destination     string  `json:"destination"`
-	Status          string  `json:"status"`
-	AttemptCount    int     `json:"attemptCount"`
-	FailureCategory *string `json:"failureCategory,omitempty"`
-	CreatedAt       string  `json:"createdAt"`
-	UpdatedAt       string  `json:"updatedAt"`
+	ID               string  `json:"id"`
+	ActionKind       string  `json:"actionKind"`
+	Destination      string  `json:"destination"`
+	Status           string  `json:"status"`
+	AttemptCount     int     `json:"attemptCount"`
+	DispatchApproved bool    `json:"dispatchApproved"`
+	NextAttemptAt    *string `json:"nextAttemptAt,omitempty"`
+	FinishedAt       *string `json:"finishedAt,omitempty"`
+	FailureCategory  *string `json:"failureCategory,omitempty"`
+	CreatedAt        string  `json:"createdAt"`
+	UpdatedAt        string  `json:"updatedAt"`
 }
 
 type lifecycleIntentDTO struct {
@@ -433,7 +436,7 @@ func (a *App) loadLifecycleIntent(ctx context.Context, workspaceID, changeID str
 		value := superseded.UTC().Format(time.RFC3339Nano)
 		out.SupersededAt = &value
 	}
-	rows, err := a.db.Query(ctx, `select id,action_kind,destination,status,attempt_count,failure_category,created_at,updated_at from event_lifecycle_actions where change_id=$1 order by action_kind`, changeID)
+	rows, err := a.db.Query(ctx, `select id,action_kind,destination,status,attempt_count,failure_category,created_at,updated_at,dispatch_approved,next_attempt_at,finished_at from event_lifecycle_actions where change_id=$1 order by action_kind,destination`, changeID)
 	if err != nil {
 		return out, err
 	}
@@ -443,12 +446,21 @@ func (a *App) loadLifecycleIntent(ctx context.Context, workspaceID, changeID str
 		var item lifecycleIntentActionDTO
 		var failure *string
 		var actionCreated, actionUpdated time.Time
-		if err := rows.Scan(&item.ID, &item.ActionKind, &item.Destination, &item.Status, &item.AttemptCount, &failure, &actionCreated, &actionUpdated); err != nil {
+		var nextAttempt, finished *time.Time
+		if err := rows.Scan(&item.ID, &item.ActionKind, &item.Destination, &item.Status, &item.AttemptCount, &failure, &actionCreated, &actionUpdated, &item.DispatchApproved, &nextAttempt, &finished); err != nil {
 			return out, err
 		}
 		item.FailureCategory = failure
 		item.CreatedAt = actionCreated.UTC().Format(time.RFC3339Nano)
 		item.UpdatedAt = actionUpdated.UTC().Format(time.RFC3339Nano)
+		if nextAttempt != nil {
+			value := nextAttempt.UTC().Format(time.RFC3339Nano)
+			item.NextAttemptAt = &value
+		}
+		if finished != nil {
+			value := finished.UTC().Format(time.RFC3339Nano)
+			item.FinishedAt = &value
+		}
 		out.Actions = append(out.Actions, item)
 	}
 	return out, rows.Err()

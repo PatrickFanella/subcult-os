@@ -1,5 +1,29 @@
 # Development execution log
 
+## 2026-09-29 — LIFE-01 destination-scoped dispatch infrastructure
+
+Added an internal dispatcher with explicit dispatch approval, exact destination
+selection, a finite adapter attempt budget, current owner and occurrence
+revision/CID checks, fenced completion and independent action outcomes. Migration
+000025 keeps every existing worklist action draft-only. Adapter errors and
+malformed outcomes become unknown; bounded receipt references remain internal
+for reconciliation. The private worklist exposes approval, retry and completion
+metadata while preserving its exclusion of payloads, leases and provider references.
+
+Local `make verify` passed (252 web tests, 34 mobile tests, backend checks,
+contracts, builds and Compose validation). Full disposable `make test-db` passed
+392 top-level tests, with zero failures/skips. The focused race gate
+`^TestLifecycle(Action|Change|Intent|Dispatch)` passed 14 top-level tests / 29 with
+subtests, with zero failures/skips or race reports. A separate attempt to run the
+entire database suite under `-race` reached Go's ten-minute package timeout during
+`TestNotificationLedgerAPI`; it did not complete and is not full-suite race proof.
+Its output and both successful database logs were retained locally.
+
+No runtime adapter, approval endpoint, worker, live email, public write or refund
+is enabled. #50 remains open for approved notice content and relationship-derived
+recipients, suppression, per-recipient delivery outcomes and destination
+reconciliation. See [the lifecycle boundaries](event-lifecycle-changes.md).
+
 ## 2026-09-28 — IDENT-02 identity email app links
 
 Verification and recovery email links now open the native app when it is

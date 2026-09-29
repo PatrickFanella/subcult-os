@@ -237,6 +237,9 @@ export interface LifecycleIntentActionDTO {
   status: 'pending' | 'running' | 'succeeded' | 'retryable' | 'unknown' | 'failed' | 'superseded';
   attemptCount: number;
   failureCategory?: string;
+  dispatchApproved?: boolean;
+  nextAttemptAt?: string;
+  finishedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

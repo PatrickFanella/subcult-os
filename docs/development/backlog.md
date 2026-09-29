@@ -248,7 +248,7 @@ qualification.
 - Repository: OS
 - Priority: active development by owner request, 2026-09-24
 - Depends on: QUAL-01 for rollout; independent source work promoted
-- Status: [state matrix, occurrence edit safeguards and private owner worklist](event-lifecycle-changes.md) implemented, including durable decision-key replay and unsent-only supersession. Coordinated dispatch and notice-failure recovery remain open. Merged worklist baseline `8166559` has passing hosted CI run 10160, rechecked 2026-09-29.
+- Status: [state matrix, occurrence edit safeguards and private owner worklist](event-lifecycle-changes.md) implemented, including durable decision-key replay and unsent-only supersession. Destination-scoped dispatch infrastructure is locally qualified with synthetic adapters; approved notice content/recipients, per-recipient delivery and reconciliation remain open. Merged worklist baseline `8166559` has passing hosted CI run 10160, rechecked 2026-09-29.
 - Size: bounded multi-slice work
 
 **Acceptance:** State matrix covers public record, operator plan, tickets, notice, refund policy, projection and archive continuity.
