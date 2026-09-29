@@ -7,7 +7,7 @@ This directory converts the Subcult research and funding work into an engineerin
 1. Read the [development brief](development-brief.md).
 2. Check the [source baseline](source-baseline.md) against the checkout you will change.
 3. Review the accepted [platform architecture](architecture.md), [selective extraction inventory](extraction-inventory.md), and completed [file-level extraction manifest](subcults-extraction-manifest.md).
-4. Select the first eligible task from the [backlog](backlog.md).
+4. Check the [current delivery work order](current-delivery-work-order.md), then select the first eligible task from the [backlog](backlog.md).
 5. Use the [verification matrix](verification.md) and [release checklist](release-and-migrations.md).
 6. Record unresolved choices in the [decision register](decisions.md).
 

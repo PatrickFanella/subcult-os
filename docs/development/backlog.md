@@ -11,6 +11,11 @@ CONSENT-01 is a boundary task, not authorization to send. COMMONS-01 follows dem
 
 Review [decisions](decisions.md), [architecture](architecture.md), and the [extraction inventory](extraction-inventory.md) before implementation.
 
+For the September 29 checkout and Gitea reconciliation, use the
+[current delivery work order](current-delivery-work-order.md). Historical
+implementation statuses below do not establish device, provider or deployment
+qualification.
+
 ## BASE-01 — Capture current behavior and source evidence
 
 - Repository: OS target; Subcults read-only
@@ -243,7 +248,7 @@ Review [decisions](decisions.md), [architecture](architecture.md), and the [extr
 - Repository: OS
 - Priority: active development by owner request, 2026-09-24
 - Depends on: QUAL-01 for rollout; independent source work promoted
-- Status: first slice — [state matrix and occurrence edit safeguards](event-lifecycle-changes.md); coordinated actions and notice-failure recovery remain open
+- Status: [state matrix, occurrence edit safeguards and private owner worklist](event-lifecycle-changes.md) implemented, including durable decision-key replay and unsent-only supersession. Coordinated dispatch and notice-failure recovery remain open. Merged worklist baseline `8166559` has passing hosted CI run 10160, rechecked 2026-09-29.
 - Size: bounded multi-slice work
 
 **Acceptance:** State matrix covers public record, operator plan, tickets, notice, refund policy, projection and archive continuity.
@@ -257,10 +262,10 @@ Review [decisions](decisions.md), [architecture](architecture.md), and the [extr
 ## OFFLINE-01 — Research disconnected door operations
 
 - Repository: OS
-- Priority: Later
-- Depends on: QUAL-01
-- Status: proposed
-- Size: discovery required
+- Priority: active source research by owner request, 2026-09-24
+- Depends on: QUAL-01 for rollout; independent research promoted
+- Status: [synthetic research slice implemented](../research/offline-door-experiment-2026-09-25.md), with Go merge-model tests and two separate Node client processes. The harness passed again 2026-09-29. Physical-device partition/reconnect, scanner, persistence and manual-fallback qualification remain open; disconnected admission remains unavailable.
+- Size: research slice complete; device qualification required before a product slice
 
 **Acceptance:** Define snapshot expiry, revocation, duplicate check-in conflict, reconnect merge and device loss for a bounded pilot.
 
