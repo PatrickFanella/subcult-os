@@ -1622,3 +1622,27 @@ gate: 296 web/34 mobile, DB421/599, no failures/skips. Narrow light/dark layout
 screenshots inspected; inactive-preview keyboard-focus proof remains open.
 See [role setup](participation-role-setup.md) and the
 [ongoing operator rehearsal](../qa/operator-journey-2026-09-30.md).
+
+
+### Role setup qualified; invitation receipt corrected — 2026-09-30
+
+PR #181 (`6ed01556ff91b51b7997f74543b77e6802b26731`) passed push11075/job20026
+and PR11076/job20027: 296 web/34 mobile and DB421/599, no failures/skips.
+Existing kvant runner preserved; no owned runner or credentials created. PR and
+issue #25 receipts were read back. Normal invitation acceptance and member
+read-only role UI passed; an unauthorized creation returned403 with roles4→4.
+An anonymous public application persisted as submitted, with staffing0.
+
+The next small correction replaces “Invite sent” with a created/queued receipt
+and unconfirmed delivery. The existing transactional API supplies creation and
+queue evidence only. The joined rehearsal and browser connection limit are
+recorded in [the operator journey](../qa/operator-journey-2026-09-30.md).
+Continue owner application review, staffing/commitments, participant views, free
+ticket/door, finance, closeout/template reuse and paired timing qualification.
+
+The invitation-copy candidate passed full pinned local verification: 296 web/34
+mobile tests, backend checks/builds and the complete disposable DB gate (exit0).
+The test database was removed. Its DB output capture was truncated by the tool
+output budget, so this receipt does not derive complete DB test counts from it.
+Changed-copy browser and screen-reader proof is pending the preview connection
+recovery; no live email was sent. Hosted qualification follows publication.

@@ -522,7 +522,7 @@ export function WorkspaceView() {
 
     const email = inviteEmail.trim();
     if (!email) {
-      setError('Enter an email address before sending an invite.');
+      setError('Enter an email address before creating an invite.');
       return;
     }
 
@@ -550,11 +550,11 @@ export function WorkspaceView() {
             }
           : current,
       );
-      setInviteNotice(`Invite sent to ${created.email}.`);
+      setInviteNotice(`Invite created for ${created.email}. Email is queued; delivery has not been confirmed.`);
       const loaded = await loadDevEmailOutbox();
       setEmailOutbox(loaded ? [...loaded].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5) : null);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Unable to send invite');
+      setError(caught instanceof Error ? caught.message : 'Unable to create invite');
     } finally {
       setSendingInvite(false);
     }
@@ -1685,7 +1685,7 @@ export function WorkspaceView() {
               <aside className="space-y-6">
                 <form id="invite-member" className="rounded-panel border border-stroke-subtle bg-surface-panel p-6" onSubmit={handleInvite}>
                   <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Invite member</p>
-                  <p className="mt-2 text-sm leading-6 text-fg-secondary">Send an invite without reloading the page; the new row appears below as soon as it lands.</p>
+                  <p className="mt-2 text-sm leading-6 text-fg-secondary">Create a member invitation and queue its email. The invitation appears below; email delivery is a separate step.</p>
                   <label className="mt-4 block space-y-2 text-sm">
                     <span className="text-fg-secondary">Email</span>
                     <input
@@ -1701,9 +1701,9 @@ export function WorkspaceView() {
                     />
                   </label>
                   <button className="mt-4 w-full rounded-2xl bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-surface-inset" type="submit" disabled={sendingInvite}>
-                    {sendingInvite ? 'Sending…' : 'Send invite'}
+                    {sendingInvite ? 'Creating…' : 'Create invite'}
                   </button>
-                  {inviteNotice ? <p className="mt-3 rounded-2xl border border-status-success/20 bg-status-surface-success px-4 py-3 text-sm text-status-success">{inviteNotice}</p> : null}
+                  {inviteNotice ? <p role="status" aria-atomic="true" className="mt-3 rounded-2xl border border-status-success/20 bg-status-surface-success px-4 py-3 text-sm text-status-success">{inviteNotice}</p> : null}
                 </form>
 
                 <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">

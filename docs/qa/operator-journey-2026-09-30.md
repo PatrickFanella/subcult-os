@@ -50,3 +50,36 @@ unknown-save recovery and private/public absence proof are detailed in
 This stage is real browser-to-API-to-PostgreSQL evidence for signup, workspace,
 event and role setup, with explicit synthetic failure/component checks recorded
 separately. It is not a full lifecycle, member, provider, mobile or deployment receipt.
+
+
+## Role setup qualified; crew and public application stages
+
+PR #181 at `6ed01556ff91b51b7997f74543b77e6802b26731` passed both hosted
+checks: push11075/job20026 and PR11076/job20027. Each ran 296 web/34 mobile
+tests and DB421 top-level/599 including nested, with no failures/skips. The
+existing kvant runner handled both; no owned runner or credentials were created.
+PR and issue #25 receipts were updated and read back.
+
+A second synthetic account verified through the normal browser flow and accepted
+the member invitation. The event editor showed read-only roles without creation
+controls. A direct role-create request returned403; the role count stayed4.
+The three held outbox rows cover owner verification, invitation and crew
+verification. None was sent.
+
+After normal sign-out, `/api/me` returned401. The anonymous public page accepted
+one application for the public performer role. Its button changed to Submitted,
+and the independent ticket form stayed blank. The disposable DB confirms one
+submitted application and zero staffing items: applying did not assign work.
+Acceptance-versus-assignment still needs owner review and participant proof.
+
+The preview lost its page context during the following reservation attempt.
+Corrected navigation and preview reopening reached `chrome-error://chromewebdata/`
+although host API health remained200. No reservation persisted: tickets0,
+applications1, staffing0 and held outbox3. Browser reservation/door proof remains
+pending. The preview and disposable stack are preserved for continuation.
+
+The invitation UI had reported “Invite sent” for its held email. The follow-up
+changes that receipt to invitation creation with queued, unconfirmed delivery,
+and names the action Create invite. The existing API commits the invitation and
+outbox row together; it does not return a provider delivery result. No delivery
+flag, provider configuration, API or database behavior changes.
