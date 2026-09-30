@@ -78,26 +78,36 @@ export function DiscoveryOccurrencesSection() {
 		};
 	}, []);
 
+	const modalRef = useRef<HTMLDialogElement | null>(null);
 	const dialogRef = useRef<HTMLDivElement | null>(null);
 	const openerRef = useRef<HTMLElement | null>(null);
 
 	useEffect(() => {
-		if (!selectedURI) return;
-		function onKeyDown(event: KeyboardEvent) {
-			if (event.key === 'Escape') {
-				setSelectedURI(null);
-			}
-		}
-		document.addEventListener('keydown', onKeyDown);
-		// Move focus into the dialog on open and give it back to the card
-		// that opened it on close, so keyboard users are not left behind
-		// the overlay.
+		const modal = modalRef.current;
+		if (!selectedURI || !modal) return;
+		const opener = openerRef.current;
+		if (!modal.open) modal.showModal();
 		dialogRef.current?.focus();
 		return () => {
-			document.removeEventListener('keydown', onKeyDown);
-			openerRef.current?.focus();
+			if (modal.open) modal.close();
+			if (opener?.isConnected) opener.focus();
 		};
 	}, [selectedURI]);
+
+	function handleDialogKeyDown(event: ReactKeyboardEvent<HTMLDialogElement>) {
+		if (event.key !== 'Tab') return;
+		const controls = event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), a[href]');
+		const first = controls[0];
+		const last = controls[controls.length - 1];
+		if (!first || !last) return;
+		if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) {
+			event.preventDefault();
+			last.focus();
+		} else if (!event.shiftKey && document.activeElement === last) {
+			event.preventDefault();
+			first.focus();
+		}
+	}
 
 	function openDetail(uri: string) {
 		if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
@@ -189,17 +199,21 @@ export function DiscoveryOccurrencesSection() {
 			) : null}
 
 			{selected ? (
-				<div
-					role="dialog"
-					aria-modal="true"
+				<dialog
+					ref={modalRef}
+					onKeyDown={handleDialogKeyDown}
 					aria-label={selected.name}
-					className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
+					className="fixed inset-0 m-0 hidden h-full max-h-none w-full max-w-none items-end justify-center border-0 bg-transparent p-4 backdrop:bg-black/40 open:flex sm:items-center"
+					onCancel={(event) => {
+						event.preventDefault();
+						setSelectedURI(null);
+					}}
 					onClick={() => setSelectedURI(null)}
 				>
 					<div
 						ref={dialogRef}
 						tabIndex={-1}
-						className={`${publicCardClass} w-full max-w-lg outline-none`}
+						className={`${publicCardClass} max-h-full w-full max-w-lg overflow-y-auto outline-none`}
 						onClick={(event) => event.stopPropagation()}
 					>
 						<div className="flex items-start justify-between gap-3">
@@ -238,7 +252,7 @@ export function DiscoveryOccurrencesSection() {
 							<p className="mt-4 rounded-[20px] border border-stroke-subtle bg-surface-inset p-4 text-sm font-medium text-fg-secondary">{handoffUnavailableReasonCopy(selected.handoff)}</p>
 						)}
 					</div>
-				</div>
+				</dialog>
 			) : null}
 		</section>
 	);

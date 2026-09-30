@@ -9,10 +9,8 @@ import type { PublicDiscoveryOccurrenceDTO } from '../domain';
 // IdentityActionView.test.tsx) mocks React's hooks so a function component
 // can be invoked directly as a plain function and its returned element tree
 // walked for handler props, without a jsdom/testing-library dependency.
-// Escape-to-close is wired through a real `document.addEventListener`
-// effect and is therefore not exercised here; see the "Known limits"
-// section of docs/development/discovery-ux.md for what only a real browser
-// check can confirm.
+// Native modal focus containment and Escape require a real browser. These
+// tests cover markup and React state handlers, not browser modality.
 const SKIP = Symbol('skip-state');
 
 function makeUseStateImplementation(values: unknown[] = []) {
@@ -176,6 +174,18 @@ describe('DiscoveryOccurrencesSection states', () => {
 		const { element, setters } = renderSection([list, false, null, 'uri-a']);
 		const closeButton = findOne(element, (el) => el.type === 'button' && el.props.children === 'Close');
 		(closeButton.props.onClick as () => void)();
+		expect(setters[3]).toHaveBeenCalledWith(null);
+	});
+
+	it('uses a named native dialog and synchronizes cancellation with selection', () => {
+		const list = [occurrence({ uri: 'uri-a', name: 'Alpha Night' })];
+		const { element, setters } = renderSection([list, false, null, 'uri-a']);
+		const dialog = findOne(element, (el) => el.type === 'dialog');
+		expect(dialog.props['aria-label']).toBe('Alpha Night');
+		expect(dialog.props.tabIndex).toBeUndefined();
+		const preventDefault = vi.fn();
+		(dialog.props.onCancel as (event: { preventDefault: () => void }) => void)({ preventDefault });
+		expect(preventDefault).toHaveBeenCalledOnce();
 		expect(setters[3]).toHaveBeenCalledWith(null);
 	});
 

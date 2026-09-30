@@ -236,3 +236,11 @@ replay, rollback, pagination, upgrade/replay and public absence. This is a sourc
 slice under the owner's expansion decision; no public accessibility claim,
 partner demand or accessibility-user evidence is inferred. Venue assertion
 history and event verification/public display remain next acceptance work.
+
+### Discovery keyboard follow-up — 2026-09-30
+
+PR #175 remains open with successful push and PR CI. The reproduced occurrence
+dialog focus escape has a bounded native-dialog follow-up. Screen-reader and
+physical-device qualification remain separate; both native device platforms are
+unavailable on this host. See `discovery-ux.md` and the execution log for the
+component fixture and final local/hosted receipts.

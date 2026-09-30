@@ -201,12 +201,10 @@ though only the web client renders it in this slice.
 
 ## Known limits
 
-- The `document`-level Escape-to-close `keydown` listener and any real CSS
-  media-query behavior at a 360px viewport are not exercised by the vitest
-  component tests above, since this repository's existing component-test
-  convention renders via `renderToString`/direct function-call rather than
-  jsdom; both are verifiable only in a real browser and are not claimed to
-  be covered here.
+- Native dialog modality and keyboard focus behavior require a real browser;
+  the Vitest tests only cover markup and selection handlers. The September 30
+  component fixture verified the behavior described below at 1402 × 876 CSS
+  pixels. A 360px viewport, screen reader, and physical device remain unqualified.
 - List/detail location resolution does one extra query per occurrence to
   load its referenced place record (no batched join); acceptable at this
   slice's scale, a known limit for a larger catalog.
@@ -224,3 +222,23 @@ though only the web client renders it in this slice.
   column today.
 - No native mobile UI ships in this slice, only the matching TypeScript
   contract used by the contract checker.
+
+## Native occurrence dialog — 2026-09-30
+
+The custom overlay allowed Tab to leave the detail view. The occurrence detail
+now uses `dialog.showModal()` so background controls are inert. A scoped Tab
+boundary handler cycles the current Close and optional Reserve controls; Chrome
+otherwise inserts a BODY focus stop after the last control even with native
+modality. Escape cancellation clears React selection. Close, outer-overlay
+click, and unmount close the modal; cleanup returns focus to a connected opener.
+The panel retains semantic theme colors and scrolls within the viewport.
+
+The T3 Chrome component fixture used synthetic public occurrence DTOs with both
+no handoff and a local reservation handoff. Forward and reverse Tab stayed within
+the current controls, Escape and Close returned focus to the occurrence card,
+and an attempted programmatic focus on the background card was blocked while
+`:modal` matched. A dispatched outer-dialog click also closed the view. Light and
+dark screenshots were inspected. The fixture and fetch interception were removed;
+unmount left no modal in the top layer. This proves the web component behavior,
+not a live projection feed, completed reservation, screen-reader journey, native
+mobile behavior, or full WCAG conformance.

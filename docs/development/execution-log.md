@@ -1520,3 +1520,16 @@ DB-01 and INV-01 can proceed independently. IDENT-01 and AT-01 remain blocked un
 The product owner selected Subcult OS as the receiving Subcult.tv repository. The older Subcults application will remain read-only source material while useful capabilities are evaluated and extracted selectively. The prior permanent cross-repository bridge, separate-account and separate-database proposal is superseded by ADR 0005.
 
 Planning artifacts now require one Go API, one identity authority and one PostgreSQL database in OS, with modular ownership and a Go/TypeScript AT conformance boundary. No source, migration, test-suite or Git-history merge was performed. Subcults was not modified.
+
+### Discovery modal keyboard containment — 2026-09-30
+
+From qualified PR #175 (`9af914d`), replaced the custom occurrence overlay with a
+native modal dialog and added a scoped Tab boundary handler for Close/Reserve.
+The first full local verification passed before the final Tab handler. The final
+source verification is recorded in `.cache/dev-env/discovery-native-dialog-verify.log`.
+Browser component fixtures verified native background inertness, forward/reverse
+Tab for one/two controls, Escape/Close focus return, outer-dialog click handling,
+themed surfaces, and unmount cleanup. Browser screenshots:
+`browser-screenshot-127-0-0-1-muntx6dy-eb493ed7.png` (light),
+`browser-screenshot-127-0-0-1-muntxsjf-18a16d64.png` (dark).
+No live provider, publication, projection, or native-device claims were added.
