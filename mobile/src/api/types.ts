@@ -113,6 +113,7 @@ export interface PaidReservationDTO {
 export type WorkspaceRole = 'owner' | 'organizer' | 'finance' | 'door' | 'crew' | 'member';
 
 export interface MemberDTO {
+  personId?: string;
   id: string;
   email: string;
   displayName: string | null;

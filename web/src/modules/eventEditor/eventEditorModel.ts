@@ -1,4 +1,5 @@
 import type {
+	MemberDTO,
 	CommitmentDTO,
 	EventDTO,
 	EventRoleApplicationDTO,
@@ -267,4 +268,11 @@ export function buildCommitmentCounts(items: CommitmentDTO[] | null) {
 		}),
 		{ open: 0, done: 0, cancelled: 0 },
 	);
+}
+
+// Membership IDs authorize role management; staffing assignments use person IDs.
+// Older API responses without person identity cannot safely offer assignments.
+export function buildStaffingMemberOptions(members: MemberDTO[]) {
+	return members.filter(member => member.accessState === 'active' && Boolean(member.personId?.trim()))
+		.map(member => ({ value: `member:${member.personId}`, label: member.displayName ?? member.email }));
 }

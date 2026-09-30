@@ -7,7 +7,7 @@ import (
 
 func TestWorkspaceRosterReportsCurrentMembershipAccess(t *testing.T) {
 	fx := newLifecycleFixture(t)
-	_, memberID := memberIdentity(t, fx)
+	personID, memberID := memberIdentity(t, fx)
 	path := "/api/workspaces/" + fx.workspaceID
 	for _, tc := range []struct {
 		name, expiry, revoked, removed, state string
@@ -46,6 +46,9 @@ func TestWorkspaceRosterReportsCurrentMembershipAccess(t *testing.T) {
 				}
 				if found == nil || found["accessState"] != tc.state {
 					t.Fatalf("access state = %v, want %s", found, tc.state)
+				}
+				if found["personId"] != personID || found["personId"] == found["id"] {
+					t.Fatal("roster must distinguish person and membership identities")
 				}
 				if _, present := found["expiresAt"]; present != (tc.expiry != "null") {
 					t.Fatal("expiry serialization does not match persisted state")
