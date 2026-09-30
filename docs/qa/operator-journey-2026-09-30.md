@@ -123,3 +123,42 @@ tests, backend checks/builds and DB421 top-level/599 including nested, with no
 failures/skips. Complete output was retained and the disposable test DB removed.
 Cross-workspace pending invitation callback recovery is not covered by this
 control-visibility slice; existing server authorization remains authoritative.
+
+
+## Free-ticket API rehearsal and current door authority
+
+PR #183 at `b4369fa5a806133961a4c3dc061b7d011928c888` passed hosted
+push11081/job20033 and PR11082/job20034: each ran304 web/34 mobile and
+DB421/599, no failures/skips. Existing kvant runner preserved; no owned runner
+or credentials created, zero repository registrations verified. PR body and
+head were read back.
+
+The unchanged `scripts/alpha-qa.sh` then reproduced a stale rehearsal assumption.
+Its baseline member account received403 at door search after successfully
+reserving a free ticket and checking capacity exhaustion409. AUTHORITY-01
+correctly limits that capability to owner and door roles. The failure is in the
+rehearsal, not evidence to widen server permissions. Its synthetic event/ticket
+remain in the owned disposable DB as partial-run evidence.
+
+The repaired script resolves the accepted member's workspace membership ID
+through an owner workspace read, proves the initial door search403, and uses
+the normal owner PATCH endpoint to grant role `door`. Exact-code search then
+returns one ticket, check-in succeeds and repeated check-in stays idempotent.
+The owner changes the role to `crew`; another check-in returns403. The final
+owner end-of-night report confirms one reservation, one checked-in ticket and
+zero no-shows. The free script run exited0. No paid mode/provider was invoked.
+Failure assertions now avoid dumping outbox messages or ticket responses.
+
+This is API/runtime proof from separate synthetic accounts/workspace/event, not
+browser door, scanner, offline/device or production qualification. The original
+browser event still has no tickets and one submitted application. The suspected
+cross-workspace invitation callback leak has not been reproduced through normal
+navigation: workspace switching uses full-page links. Context recovery remains
+unqualified; do not present that concern as an observed navigation defect.
+
+
+Final script content passed a second free-only API run after assertion-output
+cleanup. `bash -n` and `shellcheck -x` passed. Full pinned local verification
+passed304 web/34 mobile tests, backend checks/builds and DB421 top-level/599
+including nested, no failures/skips; disposable verification DB removed.
+No broader acceptance gate is closed by the repaired script.

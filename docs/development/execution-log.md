@@ -1664,3 +1664,23 @@ Full local verification passed: 304 web/34 mobile, DB421/599, no failures/skips;
 test DB removed. Changed-form browser/SR proof still requires
 preview connection recovery. Continue the original browser event through owner
 application review, assignment/participant views, ticket/door, finance and reuse.
+
+
+### Owner invitation controls qualified; door rehearsal repaired — 2026-09-30
+
+PR #183 (`b4369fa5a806133961a4c3dc061b7d011928c888`) passed push11081/job20033
+and PR11082/job20034: 304 web/34 mobile, DB421/599, no failures/skips. Existing
+kvant runner preserved; qualified PR body/head read back, no owned runner needed.
+
+The free-ticket API rehearsal found a stale baseline-member door assumption.
+The current server correctly rejected it403. The repaired script proves that
+denial, grants the synthetic membership role `door` through the owner API,
+checks search/idempotent check-in, then changes the role to `crew` and proves
+write denial403. Final report is reserved1/checked-in1/no-shows0; script exit0.
+No provider or browser/device claim. See [the operator report](../qa/operator-journey-2026-09-30.md).
+The suspected invitation context leak is unconfirmed through normal navigation,
+which uses full-page workspace links. Continue joined browser qualification
+when the preview connection recovers; owner role-management UI is also not yet
+qualified by this API-only role grant. Full local verification passed304 web/34
+mobile, DB421/599, no failures/skips; disposable test DB removed. Final script
+rehearsal, Bash syntax and ShellCheck with sourced files also passed.
