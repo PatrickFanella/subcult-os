@@ -1,5 +1,52 @@
 # Development execution log
 
+## 2026-09-30 — ACCESS-INFO private venue observations
+
+Extended the private access ledger to workspace-owned cultural places without
+inheriting venue assertions into events. Owner-only venue references expose
+names and IDs; named reference creation recovers an uncertain response with a
+stable request key. Venue observations and event observations have distinct
+source kinds and database scope checks. Topic corrections, conservative expiry,
+exact replay, owner revocation checks and atomic audit use the shared contract.
+Migration 29 preserves existing event revision IDs and payloads.
+
+Full pinned `bash scripts/dev-env.sh verify` passed: 273 web tests, 34 mobile
+tests, backend checks/build and the complete disposable DB gate: 419 top-level
+tests, 595 including nested subtests, zero failures or skips. A separate
+race-enabled access DB run passed 14 top-level tests, 28 including nested
+subtests, with no race warnings. Both disposable databases were removed. The
+initial rollback fixture incorrectly validated a rejecting constraint against
+existing audit rows; it now rejects new writes without validating old fixtures.
+The contract checker also required DTO fields on separate lines; this was fixed
+before the final full gate.
+
+Backed up retained development schema 28 and verified its dump catalog before
+restarting only this checkout's API. Schema 29 preserved two events, five event
+access revisions and four held outbox rows. Real desktop browser actions created
+a venue, recorded expired Yes as effective Unknown, corrected it to No, retained
+both history entries and reloaded revision 2. A real committed creation with a
+simulated lost response recovered through the form's retry without creating a
+third venue: two names and two creation requests remained. Simulated 403 responses
+cleared both worksheet data and index names/draft; actual membership revocation,
+including while waiting for a venue lock, passed in the DB tests. Browser fetch
+interceptions were removed. Dark worksheet and light index screenshots were
+inspected. This proves synthetic desktop behavior, not actual venue conditions,
+full mobile behavior or intended-audience usability.
+
+PR #171's exact head `39893d69` passed hosted push 11019/job 19932 and PR
+11020/job 19933: 272 web, 34 mobile, 412 top-level DB tests (588 including nested),
+zero failures or skips. Its body was updated and read back. PR #170 also has both
+hosted checks green, targeting main after #169 merged at `375451dc`. The
+merge-commit CI attempt failed when the temporary runner daemon exhausted its
+256 MiB limit before tests. Owned orphaned job containers and the ephemeral
+credential were cleaned, the daemon limit was raised to 1 GiB, and the unchanged
+merge commit was rerun as job 19978; that job is currently in progress. Shared
+runner configuration and other worktrees were preserved.
+
+#55 remains open. Explicit occurrence-scoped review of venue information,
+public display/correction wording, accommodation-request privacy decisions and
+meaningful accessibility-user evaluation remain separate acceptance work.
+
 ## 2026-09-30 — ACCESS-INFO private event worksheet
 
 Added a six-topic, owner-only event worksheet with explicit Unknown states,

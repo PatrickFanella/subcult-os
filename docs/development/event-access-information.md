@@ -1,9 +1,16 @@
-# Event access information worksheet
+# Venue and event access information worksheets
 
-Issue #55 (`ACCESS-INFO`) now has a private event-level source slice. The owner
+Issue #55 (`ACCESS-INFO`) now has a private venue and event source slice. The owner
 expansion decision permits source development ahead of rollout prerequisites.
 This does not establish venue conditions, partner demand, public accessibility
 claims or accessibility-user evaluation. Those acceptance items remain open.
+
+Owners open **Venue access worksheets** from the workspace to choose an existing
+venue or create a minimal named reference. This owner-only index includes names
+and IDs, never protected addresses or legacy access notes. Creating a name does
+not assert facilities or publish a listing. Venue observations remain distinct
+from event-specific observations. Neither old notes nor linked occurrence places
+automatically populate either worksheet.
 
 Owners open **Access worksheet** from the saved event editor, or use
 `/events/{eventId}/access-info`. Six topics always have an explicit state:
@@ -12,8 +19,8 @@ access contact. Unknown is the default and remains distinct from No or Not
 available. Venue assertions are not inherited into this event worksheet.
 
 A known value requires a bounded source reference, source kind and review time.
-The three source kinds are organizer assertion, event-specific observation and
-external reference. These labels describe the recorded provenance; none is
+Source kinds are organizer assertion, external reference and either
+venue observation or event-specific observation, according to worksheet scope. These labels describe the recorded provenance; none is
 independent certification. Text topics also require conditions/details. Review
 and optional review-by fields use UTC, preserving an unchanged hydrated instant.
 Future review times are rejected. A review-by deadline must follow its review.
@@ -33,13 +40,13 @@ revision and a conflict for the stale writer. Choosing Unknown withdraws the
 current assertion and clears assertion details/source dates in the new record.
 The prior record remains in owner-only history, twenty revisions per page.
 
-A stable UUID request key binds event, topic, active owner and normalized
+A stable UUID request key binds scope, resource, topic, active owner and normalized
 payload. Exact replay returns the original recorded revision, even after a later
 correction. Derived expiry and evaluation time may advance. A changed binding
 conflicts. The client retains the key after an uncertain response and does not
 replace a newer displayed revision with an older replay.
 
-Reads and writes require current owner membership. Writes lock the event and
+Reads and writes require current owner membership. Writes lock the venue or event and
 recheck the owner before committing. Read/replay/write responses recheck access
 before returning private data and use `Cache-Control: private, no-store`.
 Permission loss clears the worksheet, draft and history in the client. Request
@@ -52,8 +59,8 @@ conditions fields. Individual requests remain private communication outside
 this worksheet.
 
 The worksheet does not enter the general Event DTO, anonymous event endpoints,
-public archive serializer or AT Protocol records. There is no public display or
-venue-level ledger in this slice. Venue assertions versus event verification,
+public archive serializer or AT Protocol records. There is no public display or automatic inheritance in this slice. Explicit
+occurrence-scoped review of a pinned venue revision against an event arrangement,
 public wording/correction routes, privacy/retention decisions for any future
 personal request feature, and meaningful accessibility-user evaluation remain
 unfinished #55 acceptance work.
@@ -68,8 +75,20 @@ unfinished #55 acceptance work.
 - `GET /api/events/{eventId}/access-info/{topic}/history?before={revision}`:
   descending history, twenty records per page and optional `nextBefore` cursor.
 
+- `GET /api/workspaces/{workspaceId}/venue-access?after={placeId}`: owner-only
+  venue names and IDs, at most 100 per page with an optional `nextAfter` cursor.
+- `POST /api/workspaces/{workspaceId}/venue-access`: create a named reference
+  with a required UUID `requestKey`. Exact owner/workspace/name replay returns
+  the same venue; changed binding conflicts. Creation and audit are atomic.
+- `/api/workspaces/{workspaceId}/places/{placeId}/access-info` and its topic
+  update/history routes use the same revision contract with venue scope.
+
 Migration 28 adds `event_access_revisions` without changing event, ticket, notice
-or mail data. API and workers must use matching schema-28 binaries. Older
+or mail data. Migration 29 extends that ledger with an exclusive event-or-place scope,
+separate place/topic revision sequences and source/scope checks. It preserves
+existing event revision identities and adds the venue-reference replay ledger.
+The physical table name is retained to preserve the earlier migration/history.
+API and workers must use matching schema-29 binaries. Older
 binaries reject the newer ledger; a rollback needs a qualified pre-migration
 recovery path. Development backups and synthetic browser fixtures are local,
 ignored artifacts. Automated checks use a separate disposable database.

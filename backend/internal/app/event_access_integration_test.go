@@ -222,7 +222,7 @@ func TestEventAccessMigrationPreservesExistingState(t *testing.T) {
 	if err := fx.app.db.QueryRow(t.Context(), `select to_jsonb(e)::text from events e where id=$1`, id).Scan(&before); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := fx.app.db.Exec(t.Context(), `drop table event_access_revisions;delete from schema_migrations where version=28`); err != nil {
+	if _, err := fx.app.db.Exec(t.Context(), `drop table venue_access_place_requests;drop table event_access_revisions;delete from schema_migrations where version>=28`); err != nil {
 		t.Fatal(err)
 	}
 	for range 2 {
@@ -234,7 +234,7 @@ func TestEventAccessMigrationPreservesExistingState(t *testing.T) {
 	if err := fx.app.db.QueryRow(t.Context(), `select to_jsonb(e)::text from events e where id=$1`, id).Scan(&after); err != nil || after != before {
 		t.Fatal("migration changed existing event")
 	}
-	if version, err := CurrentSchemaVersion(t.Context(), fx.app.db); err != nil || version != 28 {
+	if version, err := CurrentSchemaVersion(t.Context(), fx.app.db); err != nil || version != 29 {
 		t.Fatal("migration not applied")
 	}
 }

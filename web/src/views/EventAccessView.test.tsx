@@ -28,3 +28,11 @@ describe('access information display', () => {
     expect(html).not.toContain('<script>');
   });
 });
+
+it('labels venue provenance separately from event observations', () => {
+  const entry = { ...unknownAccessEntry('entry', 'venue'), value: 'yes' as const, effectiveValue: 'yes' as const, sourceKind: 'venue_observation' as const, sourceReference: 'Synthetic venue visit', reviewedAt: '2026-09-30T00:00:00Z' };
+  const html = renderToStaticMarkup(<AccessEntrySummary entry={entry} evaluatedAt="2026-10-01T00:00:00Z" />);
+  expect(html).toContain('Venue observation');
+  expect(html).toContain('venue assertion');
+  expect(html).not.toContain('event-specific');
+});

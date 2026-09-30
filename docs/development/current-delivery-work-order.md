@@ -6,6 +6,28 @@ Observed 2026-09-29 on Kvant. Source and fetched `origin/main` both point to
 update. Gitea reports 68 open issues and no open pull requests. This is a dated
 reconciliation, not a production qualification receipt.
 
+## 2026-09-30 continuation
+
+PR #169 merged at `375451dc97f7c78d74fed182c46f93375b48c67d` after its
+exact-head push and PR checks passed. PR #170 (`4fbeaafa`) now targets `main`;
+both hosted checks passed. PR #171 (`39893d69`) adds the private event access
+worksheet; both hosted checks passed (runs 11019/11020), including the full
+disposable database gate. These are separate heads and evidence receipts.
+
+The merge-commit follow-up job exhausted the temporary runner daemon's 256 MiB
+limit while downloading actions, before tests started. Its failed attempt was
+retained, owned orphaned job containers were stopped, the ephemeral registration
+credential was removed, and the daemon limit was raised to 1 GiB. Rerunning the
+same merge commit queued job 19978. The repository queue assigned the older
+#171 jobs to that temporary capacity first. No workflow, commit or shared runner
+configuration changed.
+
+Current source work extends #55 with private venue observations, an owner-only
+venue-reference index and separate event/venue provenance. It preserves the
+existing event ledger and does not inherit venue assertions into an event.
+Explicit occurrence-scoped verification, public wording/display and meaningful
+accessibility-user evaluation remain open acceptance work.
+
 ## Merged work and remaining acceptance
 
 | Issue | Verified current state | Next unfinished work |

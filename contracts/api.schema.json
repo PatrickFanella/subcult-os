@@ -47,6 +47,21 @@
       "required": ["topic", "scope", "revision", "value", "effectiveValue", "needsReview", "details", "sourceKind", "sourceReference", "correctionReason", "evaluatedAt"],
       "forbidden": ["requestKey", "requestFingerprint", "recordedByPersonId", "workspaceId"]
     },
+    "VenueAccessRevisionDTO": {
+      "required": ["topic", "scope", "revision", "value", "effectiveValue", "needsReview", "details", "sourceKind", "sourceReference", "correctionReason", "evaluatedAt"],
+      "forbidden": ["requestKey", "requestFingerprint", "recordedByPersonId", "workspaceId"]
+    },
+    "VenueAccessWorksheetDTO": {
+      "required": ["placeId", "placeName", "evaluatedAt", "entries"],
+      "forbidden": ["streetAddress", "accessNotes", "createdByPersonId", "eventId"]
+    },
+    "VenueAccessPlaceDTO": {
+      "required": ["id", "name"],
+      "forbidden": ["streetAddress", "accessNotes", "createdByPersonId", "requestKey"]
+    },
+    "VenueAccessPlaceIndexDTO": {
+      "required": ["places"]
+    },
     "EventAccessWorksheetDTO": {
       "required": ["eventId", "evaluatedAt", "entries"]
     },

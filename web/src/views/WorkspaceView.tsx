@@ -946,6 +946,7 @@ export function WorkspaceView() {
                       <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1 text-xs uppercase tracking-[0.25em] text-fg-secondary">{roleLabel(workspace.role)}</span>
                     </div>
                     {workspace.role === 'owner' && <a className="mt-4 inline-block text-sm text-fg-primary underline" href={`/workspace/${workspace.id}/lifecycle-intents`}>Open lifecycle worklist</a>}
+                    {workspace.role === 'owner' && <a className="ml-4 mt-4 inline-block text-sm text-fg-primary underline" href={`/workspace/${workspace.id}/venue-access`}>Venue access worksheets</a>}
 
                     <div className="mt-6 grid gap-3 sm:grid-cols-3">
                       <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">

@@ -101,14 +101,16 @@ make reset-db
 make dev-mobile
 ```
 
-## Private event access information
+## Private venue and event access information
 
 Owners can open **Access worksheet** from a saved event editor. The worksheet
-records six access topics with explicit Unknown states, source/review dates,
-conservative expiry and retained correction history. It is event-specific and
-owner-only; it does not publish venue claims or collect personal accommodation
+Owners can also open **Venue access worksheets** from their workspace, add
+a named venue reference and record a separate venue observation history. Each
+worksheet records six access topics with explicit Unknown states, source/review dates,
+conservative expiry and retained correction history. Venue information never automatically
+becomes event verification. The worksheets are owner-only; it does not publish venue claims or collect personal accommodation
 requests. See [the worksheet contract](docs/development/event-access-information.md)
-for the API, schema-28 boundary and remaining #55 acceptance work.
+for the API, schema-29 boundary and remaining #55 acceptance work.
 
 ## First lifecycle slice
 

@@ -298,17 +298,17 @@ export interface ParticipantAssignmentDTO {
 }
 
 export type EventAccessTopic = 'entry' | 'bathrooms' | 'seating' | 'sensory' | 'transit' | 'contact';
-export interface EventAccessRevisionDTO {
+export interface AccessInformationRevisionDTO {
   evaluatedAt: string;
   id?: string;
   topic: EventAccessTopic;
-  scope: 'event';
+  scope: 'event' | 'venue';
   revision: number;
   value: 'unknown' | 'yes' | 'no' | 'available' | 'limited' | 'not_available' | 'known';
-  effectiveValue: EventAccessRevisionDTO['value'];
+  effectiveValue: AccessInformationRevisionDTO['value'];
   needsReview: boolean;
   details: string;
-  sourceKind: 'unknown' | 'organizer_assertion' | 'event_observation' | 'external_reference';
+  sourceKind: 'unknown' | 'organizer_assertion' | 'event_observation' | 'venue_observation' | 'external_reference';
   sourceReference: string;
   reviewedAt?: string;
   expiresAt?: string;
@@ -324,4 +324,28 @@ export interface EventAccessHistoryDTO {
   topic: EventAccessTopic;
   revisions: EventAccessRevisionDTO[];
   nextBefore?: number;
+}
+
+export interface EventAccessRevisionDTO extends AccessInformationRevisionDTO {
+  scope: 'event';
+  sourceKind: 'unknown' | 'organizer_assertion' | 'event_observation' | 'external_reference';
+}
+export interface VenueAccessRevisionDTO extends AccessInformationRevisionDTO {
+  scope: 'venue';
+  sourceKind: 'unknown' | 'organizer_assertion' | 'venue_observation' | 'external_reference';
+}
+export interface VenueAccessWorksheetDTO {
+  placeId: string;
+  placeName: string;
+  evaluatedAt: string;
+  entries: VenueAccessRevisionDTO[];
+}
+
+export interface VenueAccessPlaceDTO {
+  id: string;
+  name: string;
+}
+export interface VenueAccessPlaceIndexDTO {
+  places: VenueAccessPlaceDTO[];
+  nextAfter?: string;
 }
