@@ -258,3 +258,19 @@ That slice passed the full local gate with 284 web/34 mobile tests and the same
 421/599 DB tests. Browser component checks and limits are recorded in
 `discovery-ux.md`. Assistive-technology and physical-device qualification remain
 open; this work does not authorize live feeds, publication or mail delivery.
+
+### Discovery controls qualified; long-content blocker repaired — 2026-09-30
+
+PR #177 (`ade02d9a1d5a84454e4dd63ca0ace1eb7bf1f143`) passed push
+11057/job 20006 and PR 11058/job 20007. Each ran 284 web/34 mobile tests
+and 421 top-level DB tests (599 including nested), no failures/skips. Owned
+runner cleanup and zero registrations verified; #26 receipt updated.
+
+The follow-up fixes unbroken text expanding a 360px discovery viewport and
+pushing the modal Close control out of reach. Browser iframe proof now shows no
+horizontal overflow for the original long occurrence fixture, long published
+fields and error text; vertical modal scrolling and native keyboard Close,
+Reserve and Escape were verified. Final local gate passed 284 web/34 mobile
+tests and 421/599 DB tests. This advances #26's long-content/reflow acceptance
+for discovery only; physical devices, screen readers and full journeys remain
+separate. See `discovery-ux.md` for exact geometry and evidence boundaries.

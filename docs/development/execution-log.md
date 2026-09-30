@@ -1552,3 +1552,19 @@ mechanics. Final local gate: 284 web/34 mobile tests, 421 top-level DB tests
 Screenshots `browser-screenshot-127-0-0-1-munupt2m-b7ca4b53.png` (light) and
 `browser-screenshot-127-0-0-1-munupt7v-4e2bc361.png` (dark) were inspected.
 Screen-reader speech, native/device, live feed and full journey remain separate.
+
+### Qualified discovery controls and narrow long-content repair — 2026-09-30
+
+PR #177 (`ade02d9a1d5a84454e4dd63ca0ace1eb7bf1f143`) passed push
+11057/job 20006 and PR 11058/job 20007, each with 284 web/34 mobile tests
+and 421 top-level DB tests (599 including nested), no failures/skips. Owned
+runners exited 0, containers/registration credentials were removed, and zero
+repository registrations were verified. The issue #26 receipt was reconciled.
+
+The next slice fixes reproduced discovery text overflow and displaced Close at
+360px. Same-origin iframe geometry, actual native keyboard, long published
+fields and synthetic error proof are recorded in `discovery-ux.md` and ignored
+`.cache/dev-env/discovery-long-content-*` receipts. Final local full gate passed
+284 web/34 mobile tests and 421/599 DB tests, no failures/skips; disposable DB
+removed. Browser fixtures were removed and original page/appearance preserved.
+Physical/native devices, screen-reader speech and complete journeys remain open.

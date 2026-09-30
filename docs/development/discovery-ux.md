@@ -204,7 +204,8 @@ though only the web client renders it in this slice.
 - Native dialog modality and keyboard focus behavior require a real browser;
   the Vitest tests only cover markup and selection handlers. The September 30
   component fixture verified the behavior described below at 1402 × 876 CSS
-  pixels. A 360px viewport, screen reader, and physical device remain unqualified.
+  pixels. The later long-content slice below qualifies a 360px browser iframe
+  for discovery; screen-reader and physical-device proof remain separate.
 - List/detail location resolution does one extra query per occurrence to
   load its referenced place record (no batched join); acceptable at this
   slice's scale, a known limit for a larger catalog.
@@ -279,3 +280,38 @@ removed; the original page URL and appearance were restored.
 
 Screen-reader speech, a narrow viewport, physical devices and full public
 journeys remain unqualified. No live projection or reservation was performed.
+
+## Long content at a narrow viewport — 2026-09-30
+
+The previous source allowed unbroken event/venue names to expand discovery
+horizontally. At a measured 360 × 800 CSS-pixel iframe viewport, a synthetic
+occurrence expanded page scroll width to 2846px against a 345px client width.
+Its modal had 3483px scroll width against 311px client width and pushed Close
+past x=3400. Native Escape remained available, but Close was outside the viewport.
+
+Discovery text now wraps within its sections. Modal headings can shrink beside
+a non-shrinking Close control; published-event title columns likewise shrink
+beside ticket status. Text remains complete and the long modal scrolls vertically.
+The repaired same fixture had page client/scroll width 345px, title client/scroll
+width 271px, and modal client/scroll width 296px. Close stayed at x=213–293.
+The panel had 766px client height and 1562px content height; keyboard Close
+returned focus to its card. In the dark local-handoff variant, Tab reached Reserve
+at y=715–763 and scrolled the panel; the next Tab returned to Close with scroll
+position zero. Escape returned focus to the opener. Light/dark screenshots were
+inspected: `browser-screenshot-127-0-0-1-munvjnma-70024b00.png` and
+`browser-screenshot-127-0-0-1-munvkg13-44231def.png`.
+
+A full DiscoverView fixture also kept long published-event titles, host/location
+names and an unbroken description URL within the 360px frame (page 345px,
+card client/scroll width 279px). A native search submission with a synthetic
+1033-character error kept the error client/scroll width 279px. The iframe,
+component root, fetch interception and helpers were removed; the original page
+and appearance were preserved.
+
+The same-origin iframe was driven through the T3 preview, with real innerWidth
+and media-query layout. This proves the scoped desktop-browser narrow layout
+and keyboard behavior. It does not qualify physical devices, native mobile,
+screen-reader speech, other routes, reservation completion or full WCAG.
+The full pinned local gate passed 284 web/34 mobile tests and 421 top-level
+disposable DB tests (599 including nested), no failures/skips. No class-mirroring
+unit test was added for this CSS fix; layout evidence comes from the browser.
