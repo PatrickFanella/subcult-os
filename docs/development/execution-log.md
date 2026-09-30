@@ -1862,3 +1862,36 @@ Full pinned local verification passed361 web/34 mobile, DB422 top-level/606
 including nested, no failures/skips; disposable gate DB removed. This gate is
 separate from the retained owned rehearsal DB. Edited Markdown links, syntax,
 ShellCheck and scoped review passed; no broader acceptance closure.
+
+
+## Exact event start preservation during unrelated edits
+
+PR #188 (`fee51e77b254dcc43cbbe284f0b3dc294426aaf6`) passed both hosted
+checks: push11101/job20055 and PR11102/job20056, with361 web/34 mobile tests
+and DB422 top-level/606 including nested, no failures/skips. The existing kvant
+runner was preserved; no owned runner or credentials, repository registrations0.
+Qualified PR body/head/base and issue #25 receipts were read back.
+
+Both event editors reconstructed every saved start from minute-level local text.
+That truncated server seconds/fractions and could select the other instant during
+a repeated local hour. On a published synthetic event with one reserved ticket,
+the actual web and mobile builders converted2026-11-01T07:30:45.123456Z into
+2026-11-01T06:30:00.000Z under America/Chicago. Both unrelated description
+PATCH requests returned409. An exact-start control succeeded200.
+
+Hydrated forms now retain the original timestamp privately. An unchanged displayed
+start uses that original value; a changed input uses the existing parser. The
+metadata never enters the write payload. Both actual fixed builders passed normal
+API description edits200 and retained the exact start and one reservation.
+The first post-fix rehearsal reused an identical description and correctly hit
+the server's no-op400; distinct per-client descriptions resolved the harness
+assertion without changing server validation. Supplemental actual-model runs
+passed under Chicago, New York, Honolulu and Tokyo. Five regression cases per
+client cover fractional precision, repeated-hour instants, offset input, deliberate
+changes and invalid source fallback. The red gate failed the three preservation
+cases before the implementation; the complete green pinned gate passed366 web/
+39 mobile and DB422/606, with no failures/skips and disposable gate DB removed.
+
+This is model and owned synthetic API evidence. Actual browser/native editing,
+legacy event-zone persistence and deliberate ambiguous/nonexistent wall-time
+selection remain open. No live provider, deployment or retained-data action.

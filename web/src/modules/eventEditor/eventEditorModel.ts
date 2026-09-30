@@ -11,6 +11,7 @@ import { sortRunOfShowItems } from '../runOfShow/runOfShowModel';
 export type FormState = {
 	title: string;
 	startsAt: string;
+	startsAtSource?: string;
 	publicDescription: string;
 	locationDisplay: string;
 	ticketAllocation: string;
@@ -91,6 +92,7 @@ export function formFromEvent(event: EventDTO): FormState {
 	return {
 		title: event.title,
 		startsAt: toInputValue(event.startsAt),
+		startsAtSource: event.startsAt,
 		publicDescription: event.publicDescription,
 		locationDisplay: event.locationDisplay,
 		ticketAllocation: String(event.ticketAllocation),
@@ -215,9 +217,14 @@ export function settlementAdjustmentsLockedCopy() {
 }
 
 export function buildPayload(form: FormState) {
+	const source = form.startsAtSource;
+	const hydratedInput = source ? toInputValue(source) : '';
+	// Keep the exact server instant when the minute control is unchanged. This
+	// also retains which offset was selected during a repeated local hour.
+	const startsAt = source && hydratedInput && hydratedInput === form.startsAt ? source : fromInputValue(form.startsAt);
 	return {
 		title: form.title.trim(),
-		startsAt: fromInputValue(form.startsAt),
+		startsAt,
 		publicDescription: form.publicDescription.trim(),
 		locationDisplay: form.locationDisplay.trim(),
 		ticketAllocation: Number(form.ticketAllocation),

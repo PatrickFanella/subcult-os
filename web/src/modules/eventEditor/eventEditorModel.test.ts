@@ -111,6 +111,22 @@ function template(overrides: Partial<EventTemplateDTO>): EventTemplateDTO {
 }
 
 describe('event editor model helpers', () => {
+	it.each(['2026-06-18T10:15:45.123456Z', '2026-11-01T07:30:45.123456Z', '2026-11-01T01:30:45.123456-05:00'])('preserves the exact hydrated start %s during an unrelated edit', startsAt => {
+		const form = formFromEvent(event({ startsAt }));
+		expect(buildPayload({ ...form, publicDescription: 'Updated description' }).startsAt).toBe(startsAt);
+	});
+
+	it('parses a deliberately changed start instead of retaining the hydrated source', () => {
+		const form = formFromEvent(event({ startsAt: '2026-11-01T07:30:45.123456Z' }));
+		const changed = toInputValue('2026-11-02T12:34:00Z');
+		expect(buildPayload({ ...form, startsAt: changed }).startsAt).toBe(fromInputValue(changed));
+		expect(buildPayload({ ...form, startsAt: changed }).startsAt).not.toBe(form.startsAtSource);
+	});
+	it('does not retain an invalid source when the current input is valid', () => {
+		const form = { ...emptyForm(), startsAt: toInputValue('2026-11-02T12:34:00Z'), startsAtSource: 'invalid' };
+		expect(buildPayload(form).startsAt).toBe(fromInputValue(form.startsAt));
+	});
+
 	it('builds form state and save payloads without drifting copy', () => {
 		const source = event({ pricingMode: 'fixed', ticketPriceCents: 4250 });
 		const form = formFromEvent(source);

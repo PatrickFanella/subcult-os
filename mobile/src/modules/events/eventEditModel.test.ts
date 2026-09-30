@@ -1,14 +1,40 @@
 import { describe, expect, it } from 'vitest';
+import type { EventDTO } from '@/api/types';
 
 import {
 	buildEventEditPayload,
 	createEmptyEventEditForm,
+	createEventEditFormFromEvent,
 	eventEditImageSelectionFromResult,
 	eventEditReadinessWarnings,
 	requireEventEditPayload,
 } from './eventEditModel';
 
+function event(startsAt: string): EventDTO {
+	return { id: 'event-a', workspaceId: 'workspace-a', title: 'Synthetic event', startsAt,
+		publicDescription: 'Description', locationDisplay: 'Room', imageUrl: null,
+		ticketAllocation: 2, pricingMode: 'free', ticketPriceCents: 0, ticketCurrency: 'usd',
+		reservedCount: 1, checkedInCount: 0, staffingOpenCount: 0, staffingAssignedCount: 0,
+		staffingCompletedCount: 0, staffingCancelledCount: 0, status: 'published', publicSlug: 'event-a', publicUrl: '/e/event-a' };
+}
+
 describe('eventEditModel', () => {
+	it.each(['2026-06-18T10:15:45.123456Z', '2026-11-01T07:30:45.123456Z', '2026-11-01T01:30:45.123456-05:00'])('preserves the exact hydrated start %s during an unrelated edit', startsAt => {
+		const form = createEventEditFormFromEvent(event(startsAt));
+		expect(buildEventEditPayload({ ...form, publicDescription: 'Updated description' })?.startsAt).toBe(startsAt);
+	});
+
+	it('parses a deliberately changed start instead of retaining the hydrated source', () => {
+		const form = createEventEditFormFromEvent(event('2026-11-01T07:30:45.123456Z'));
+		const changed = '2026-11-02 12:34';
+		expect(buildEventEditPayload({ ...form, startsAt: changed })?.startsAt).toBe(new Date(changed.replace(' ', 'T')).toISOString());
+		expect(buildEventEditPayload({ ...form, startsAt: changed })?.startsAt).not.toBe(form.startsAtSource);
+	});
+	it('does not retain an invalid source when the current input is valid', () => {
+		const form = { ...createEmptyEventEditForm(), startsAt: '2026-11-02 12:34', startsAtSource: 'invalid' };
+		expect(buildEventEditPayload(form)?.startsAt).toBe(new Date('2026-11-02T12:34').toISOString());
+	});
+
 	it('builds a normalized payload', () => {
 		const expectedStartsAt = new Date('2026-06-19 20:00').toISOString();
 		const payload = buildEventEditPayload({
