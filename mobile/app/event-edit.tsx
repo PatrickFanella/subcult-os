@@ -1,3 +1,5 @@
+import { useThemeTokens, useThemedStyles } from '@/theme/ThemeProvider';
+import type { Tokens } from '@/theme/tokens';
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { ChevronLeft, ClipboardCheck, ExternalLink } from 'lucide-react-native';
@@ -28,6 +30,9 @@ import {
 } from '@/modules/events/eventEditModel';
 
 export default function EventEditScreen() {
+  const tokens = useThemeTokens();
+  const styles = useThemedStyles(createStyles);
+
 	const router = useRouter();
 	const params = useLocalSearchParams<{ workspaceId?: string; eventId?: string }>();
 	const workspaceID = typeof params.workspaceId === 'string' ? params.workspaceId : '';
@@ -145,7 +150,7 @@ export default function EventEditScreen() {
 		<KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
 			<View style={styles.header}>
 				<Pressable onPress={() => safeBack('/staff')} style={styles.backButton}>
-					<ChevronLeft size={24} color="#171717" />
+					<ChevronLeft size={24} color={tokens.color.text.primary} />
 				</Pressable>
 				<View style={styles.headerCopy}>
 					<Text style={styles.kicker}>{editing ? 'Edit event' : 'Create event'}</Text>
@@ -162,12 +167,12 @@ export default function EventEditScreen() {
 				{event ? (
 					<View style={styles.linkRow}>
 						<Link href={{ pathname: '/readiness', params: { eventId: event.id } }} style={styles.linkPill}>
-							<View style={styles.linkPillInner}><ClipboardCheck size={15} color="#2563eb" /><Text style={styles.linkPillText}>Readiness</Text></View>
+							<View style={styles.linkPillInner}><ClipboardCheck size={15} color={tokens.color.status.info} /><Text style={styles.linkPillText}>Readiness</Text></View>
 						</Link>
 						{event.publicSlug ? <Link href={{ pathname: '/event-detail', params: { slug: event.publicSlug } }} style={styles.linkPill}>Mobile preview</Link> : null}
 						{event.publicUrl ? (
 							<Pressable onPress={() => void Linking.openURL(event.publicUrl!)} style={styles.linkPillButton}>
-								<ExternalLink size={15} color="#2563eb" /><Text style={styles.linkPillText}>Web preview</Text>
+								<ExternalLink size={15} color={tokens.color.status.info} /><Text style={styles.linkPillText}>Web preview</Text>
 							</Pressable>
 						) : null}
 					</View>
@@ -219,6 +224,9 @@ export default function EventEditScreen() {
 }
 
 function LabeledInput({ label, multiline, style, ...props }: { label: string } & ComponentProps<typeof TextInput>) {
+
+  const styles = useThemedStyles(createStyles);
+
 	return (
 		<View style={styles.fieldBlock}>
 			<Text style={styles.label}>{label}</Text>
@@ -233,6 +241,9 @@ function LabeledInput({ label, multiline, style, ...props }: { label: string } &
 }
 
 function SegmentButton({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+
+  const styles = useThemedStyles(createStyles);
+
 	return (
 		<Pressable onPress={onPress} style={[styles.segmentButton, selected && styles.segmentButtonActive]}>
 			<Text style={[styles.segmentButtonText, selected && styles.segmentButtonTextActive]}>{label}</Text>
@@ -241,6 +252,9 @@ function SegmentButton({ label, selected, onPress }: { label: string; selected: 
 }
 
 function CenteredState({ title, body }: { title: string; body?: string }) {
+
+  const styles = useThemedStyles(createStyles);
+
 	return (
 		<View style={styles.centered}>
 			<Text style={styles.centeredTitle}>{title}</Text>
@@ -249,51 +263,51 @@ function CenteredState({ title, body }: { title: string; body?: string }) {
 	);
 }
 
-const styles = StyleSheet.create({
-	screen: { flex: 1, backgroundColor: '#ffffff' },
+const createStyles = (tokens: Tokens) => StyleSheet.create({
+	screen: { flex: 1, backgroundColor: tokens.color.surface.panel },
 	header: { flexDirection: 'row', alignItems: 'center', gap: 16, padding: 24, paddingTop: 56, paddingBottom: 12 },
-	backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center' },
+	backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: tokens.color.surface.inset, alignItems: 'center', justifyContent: 'center' },
 	headerCopy: { flex: 1 },
-	kicker: { alignSelf: 'flex-start', color: '#2563eb', backgroundColor: '#eff6ff', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 12, fontWeight: '800' },
-	title: { fontSize: 32, fontWeight: '800', letterSpacing: -1, color: '#171717', marginTop: 6 },
-	subtitle: { color: '#737373', fontWeight: '700', marginTop: 4 },
+	kicker: { alignSelf: 'flex-start', color: tokens.color.text.muted, backgroundColor: tokens.color.surface.inset, paddingHorizontal: 8, paddingVertical: 4, borderRadius: tokens.radius.pill, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: tokens.type['label'], fontWeight: '800' },
+	title: { fontSize: tokens.type['title'], fontWeight: '800', letterSpacing: -1, color: tokens.color.text.primary, marginTop: 6 },
+	subtitle: { color: tokens.color.text.muted, fontWeight: '700', marginTop: 4 },
 	content: { gap: 18, padding: 24, paddingTop: 8, paddingBottom: 40 },
 	linkRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-	linkPill: { backgroundColor: '#eff6ff', color: '#2563eb', borderRadius: 999, overflow: 'hidden', paddingHorizontal: 14, paddingVertical: 10, fontWeight: '900' },
+	linkPill: { backgroundColor: tokens.color.statusSurface.info, color: tokens.color.status.info, borderRadius: tokens.radius.pill, overflow: 'hidden', paddingHorizontal: 14, paddingVertical: 10, fontWeight: '900' },
 	linkPillInner: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-	linkPillButton: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#eff6ff', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10 },
-	linkPillText: { color: '#2563eb', fontWeight: '900' },
-	panel: { backgroundColor: '#fafafa', borderRadius: 28, padding: 20, gap: 14 },
-	sectionTitle: { color: '#171717', fontSize: 20, fontWeight: '800' },
+	linkPillButton: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: tokens.color.statusSurface.info, borderRadius: tokens.radius.pill, paddingHorizontal: 14, paddingVertical: 10 },
+	linkPillText: { color: tokens.color.text.primary, fontWeight: '900' },
+	panel: { backgroundColor: tokens.color.surface.inset, borderRadius: tokens.radius.panel, padding: 20, gap: 14 },
+	sectionTitle: { color: tokens.color.text.primary, fontSize: 20, fontWeight: '800' },
 	imagePickerBlock: { gap: 10 },
-	imagePreview: { width: '100%', height: 180, borderRadius: 20, backgroundColor: '#e5e5e5' },
-	imagePlaceholder: { width: '100%', height: 180, borderRadius: 20, backgroundColor: '#eeeeee', alignItems: 'center', justifyContent: 'center' },
-	imagePlaceholderText: { color: '#737373', fontWeight: '800' },
-	imageButton: { alignSelf: 'flex-start', backgroundColor: '#171717', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12 },
-	imageButtonText: { color: '#ffffff', fontWeight: '900' },
+	imagePreview: { width: '100%', height: 180, borderRadius: 20, backgroundColor: tokens.color.border.subtle },
+	imagePlaceholder: { width: '100%', height: 180, borderRadius: 20, backgroundColor: tokens.color.surface.inset, alignItems: 'center', justifyContent: 'center' },
+	imagePlaceholderText: { color: tokens.color.text.muted, fontWeight: '800' },
+	imageButton: { alignSelf: 'flex-start', backgroundColor: tokens.color.action.primary, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12 },
+	imageButtonText: { color: tokens.color.text.inverse, fontWeight: '900' },
 	fieldBlock: { gap: 8 },
-	label: { color: '#737373', fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1.1 },
-	input: { minHeight: 52, borderRadius: 16, borderWidth: 1, borderColor: '#e5e5e5', backgroundColor: '#ffffff', color: '#171717', paddingHorizontal: 16, paddingVertical: 12, fontWeight: '700' },
+	label: { color: tokens.color.text.muted, fontSize: tokens.type['label'], fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1.1 },
+	input: { minHeight: 52, borderRadius: tokens.radius.control, borderWidth: 1, borderColor: tokens.color.border.subtle, backgroundColor: tokens.color.surface.panel, color: tokens.color.text.primary, paddingHorizontal: 16, paddingVertical: 12, fontWeight: '700' },
 	textArea: { minHeight: 132, textAlignVertical: 'top', lineHeight: 21 },
 	segmentRow: { flexDirection: 'row', gap: 10 },
-	segmentButton: { flex: 1, borderRadius: 16, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e5e5e5', paddingVertical: 14, alignItems: 'center' },
-	segmentButtonActive: { backgroundColor: '#171717', borderColor: '#171717' },
-	segmentButtonText: { color: '#171717', fontWeight: '800' },
-	segmentButtonTextActive: { color: '#ffffff' },
-	previewText: { color: '#525252', fontWeight: '700', lineHeight: 20 },
+	segmentButton: { flex: 1, borderRadius: tokens.radius.control, backgroundColor: tokens.color.surface.panel, borderWidth: 1, borderColor: tokens.color.border.subtle, paddingVertical: 14, alignItems: 'center' },
+	segmentButtonActive: { backgroundColor: tokens.color.action.primary, borderColor: tokens.color.text.primary },
+	segmentButtonText: { color: tokens.color.text.primary, fontWeight: '800' },
+	segmentButtonTextActive: { color: tokens.color.text.inverse },
+	previewText: { color: tokens.color.text.secondary, fontWeight: '700', lineHeight: 20 },
 	actionBar: { gap: 12 },
-	publishHint: { backgroundColor: '#f5f5f5', borderRadius: 18, padding: 16, gap: 5 },
-	publishHintTitle: { color: '#171717', fontWeight: '900' },
-	publishHintBody: { color: '#737373', fontWeight: '700', lineHeight: 20 },
-	primaryButton: { minHeight: 56, borderRadius: 18, backgroundColor: '#171717', alignItems: 'center', justifyContent: 'center' },
-	primaryButtonText: { color: '#ffffff', fontWeight: '900', fontSize: 16 },
-	secondaryButton: { minHeight: 56, borderRadius: 18, backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center' },
-	secondaryButtonText: { color: '#2563eb', fontWeight: '900', fontSize: 16 },
+	publishHint: { backgroundColor: tokens.color.surface.inset, borderRadius: 18, padding: 16, gap: 5 },
+	publishHintTitle: { color: tokens.color.text.primary, fontWeight: '900' },
+	publishHintBody: { color: tokens.color.text.muted, fontWeight: '700', lineHeight: 20 },
+	primaryButton: { minHeight: tokens.size.field, borderRadius: 18, backgroundColor: tokens.color.action.primary, alignItems: 'center', justifyContent: 'center' },
+	primaryButtonText: { color: tokens.color.text.inverse, fontWeight: '900', fontSize: 16 },
+	secondaryButton: { minHeight: tokens.size.field, borderRadius: 18, backgroundColor: tokens.color.statusSurface.info, alignItems: 'center', justifyContent: 'center' },
+	secondaryButtonText: { color: tokens.color.text.primary, fontWeight: '900', fontSize: 16 },
 	disabledButton: { opacity: 0.45 },
-	message: { color: '#737373', fontWeight: '700' },
-	error: { color: '#dc2626', fontWeight: '800', lineHeight: 20 },
-	notice: { color: '#16a34a', fontWeight: '800', lineHeight: 20 },
-	centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', padding: 24 },
-	centeredTitle: { color: '#171717', fontSize: 24, fontWeight: '900', textAlign: 'center' },
-	centeredBody: { color: '#737373', textAlign: 'center', marginTop: 8, lineHeight: 21 },
+	message: { color: tokens.color.text.muted, fontWeight: '700' },
+	error: { color: tokens.color.status.danger, fontWeight: '800', lineHeight: 20 },
+	notice: { color: tokens.color.status.success, fontWeight: '800', lineHeight: 20 },
+	centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: tokens.color.surface.panel, padding: 24 },
+	centeredTitle: { color: tokens.color.text.primary, fontSize: 24, fontWeight: '900', textAlign: 'center' },
+	centeredBody: { color: tokens.color.text.muted, textAlign: 'center', marginTop: 8, lineHeight: 21 },
 });

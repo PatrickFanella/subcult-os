@@ -199,26 +199,26 @@ function buildOperatorGuidance(events: EventDTO[], workspaceId: string): Operato
 function toneSurface(tone: OperatorGuidance['tone']) {
   switch (tone) {
     case 'amber':
-      return 'border-amber-400/20 bg-amber-400/[0.07]';
+      return 'border-status-warning/20 bg-status-surface-warning';
     case 'emerald':
-      return 'border-emerald-400/20 bg-emerald-400/[0.07]';
+      return 'border-status-success/20 bg-status-surface-success';
     case 'fuchsia':
-      return 'border-fuchsia-400/20 bg-fuchsia-400/[0.07]';
+      return 'border-status-info/20 bg-status-surface-info';
     case 'zinc':
-      return 'border-white/10 bg-white/[0.04]';
+      return 'border-stroke-subtle bg-surface-inset';
   }
 }
 
 function toneLabel(tone: OperatorGuidance['tone']) {
   switch (tone) {
     case 'amber':
-      return 'text-amber-200';
+      return 'text-status-warning';
     case 'emerald':
-      return 'text-emerald-200';
+      return 'text-status-success';
     case 'fuchsia':
-      return 'text-fuchsia-200';
+      return 'text-status-info';
     case 'zinc':
-      return 'text-zinc-200';
+      return 'text-fg-primary';
   }
 }
 
@@ -855,78 +855,78 @@ export function WorkspaceView() {
   const workspaceId = workspace?.id ?? '';
 
   return (
-    <main className="min-h-screen px-4 py-6 text-zinc-100 sm:px-6 lg:px-8">
+    <main className="min-h-screen px-4 py-6 text-fg-primary sm:px-6 lg:px-8">
       <section className="mx-auto w-full max-w-6xl space-y-6">
-        <header className="flex flex-col gap-4 rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6 shadow-2xl shadow-black/40 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+        <header className="flex flex-col gap-4 rounded-panel border border-stroke-subtle bg-surface-panel p-6 shadow-panel sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-fuchsia-300">subcult-os</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">Operator home</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
+            <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">subcult-os</p>
+            <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-fg-primary">Operator home</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-fg-secondary">
               Run the room from one place: create the next event, invite help, and keep the Door moving.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-2 text-sm">
-			{me ? <a className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-zinc-200 transition hover:bg-white/10" href="/participant">
+			{me ? <a className="rounded-full border border-stroke-subtle bg-surface-inset px-4 py-2 text-fg-primary transition hover:bg-surface-inset" href="/participant">
 			  My assignments
 			</a> : null}
-            <a className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-zinc-200 transition hover:bg-white/10" href="/login">
+            <a className="rounded-full border border-stroke-subtle bg-surface-inset px-4 py-2 text-fg-primary transition hover:bg-surface-inset" href="/login">
               Auth
             </a>
-            <a className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-zinc-200 transition hover:bg-white/10" href="/discover">
+            <a className="rounded-full border border-stroke-subtle bg-surface-inset px-4 py-2 text-fg-primary transition hover:bg-surface-inset" href="/discover">
               Public discovery
             </a>
-            <button className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-zinc-200 transition hover:bg-white/10" type="button" onClick={signOut}>
+            <button className="rounded-full border border-stroke-subtle bg-surface-inset px-4 py-2 text-fg-primary transition hover:bg-surface-inset" type="button" onClick={signOut}>
               Sign out
             </button>
           </div>
         </header>
 
-        {error ? <div role="alert" className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+        {error ? <div role="alert" className="rounded-2xl border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm text-status-danger">
           <p>{error}</p>
-          {!workspace && !loading ? <button type="button" className="mt-3 rounded-full border border-white/20 px-4 py-2" onClick={() => window.location.reload()}>Retry workspace</button> : null}
+          {!workspace && !loading ? <button type="button" className="mt-3 rounded-full border border-stroke-subtle px-4 py-2" onClick={() => window.location.reload()}>Retry workspace</button> : null}
         </div> : null}
-        {workspaceNotice ? <p className="rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">{workspaceNotice}</p> : null}
+        {workspaceNotice ? <p className="rounded-2xl border border-status-warning/20 bg-status-surface-warning px-4 py-3 text-sm text-status-warning">{workspaceNotice}</p> : null}
         {!loading && me ? <ATProtoIdentityPanel /> : null}
 
         {loading ? (
           <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-            <div className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6 shadow-xl shadow-black/30">
-              <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Loading workspace</p>
-              <h2 className="mt-2 text-3xl font-semibold tracking-tight text-white">Finding the right room</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">We are checking your current Workspace, loading its events, and preparing the operator dashboard.</p>
+            <div className="rounded-panel border border-stroke-subtle bg-surface-panel p-6 shadow-panel">
+              <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Loading workspace</p>
+              <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-fg-primary">Finding the right room</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-fg-secondary">We are checking your current Workspace, loading its events, and preparing the operator dashboard.</p>
             </div>
 
-            <aside className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
-              <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Workspace access</p>
-              <p className="mt-2 text-sm leading-6 text-zinc-400">One person can operate multiple Workspaces. Use this switcher to jump between them.</p>
-              <a className="mt-4 inline-flex rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-zinc-200 transition hover:bg-white/10" href="/discover">
+            <aside className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
+              <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Workspace access</p>
+              <p className="mt-2 text-sm leading-6 text-fg-secondary">One person can operate multiple Workspaces. Use this switcher to jump between them.</p>
+              <a className="mt-4 inline-flex rounded-full border border-stroke-subtle bg-surface-inset px-4 py-2 text-sm text-fg-primary transition hover:bg-surface-inset" href="/discover">
                 Public discovery
               </a>
               <div className="mt-4 space-y-2">
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-500">Loading access…</div>
+                <div className="rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-sm text-fg-muted">Loading access…</div>
               </div>
             </aside>
           </section>
         ) : me && me.workspaces.length === 0 ? (
           <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-            <div className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
-              <p className="text-xs uppercase tracking-[0.3em] text-amber-300">No workspace yet</p>
-              <h2 className="mt-2 text-2xl font-semibold text-white">Create one to start</h2>
-              <p className="mt-2 text-sm leading-6 text-zinc-400">You need a workspace before you can invite members or publish events.</p>
+            <div className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
+              <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">No workspace yet</p>
+              <h2 className="mt-2 text-2xl font-extrabold text-fg-primary">Create one to start</h2>
+              <p className="mt-2 text-sm leading-6 text-fg-secondary">You need a workspace before you can invite members or publish events.</p>
             </div>
 
-            <form className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6" onSubmit={handleCreateWorkspace}>
+            <form className="rounded-panel border border-stroke-subtle bg-surface-panel p-6" onSubmit={handleCreateWorkspace}>
               <label className="block space-y-2 text-sm">
-                <span className="text-zinc-300">Workspace name</span>
+                <span className="text-fg-secondary">Workspace name</span>
                 <input
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-white/8"
+                  className="w-full rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-inset"
                   value={workspaceName}
                   onChange={(event) => setWorkspaceName(event.target.value)}
                   required
                 />
               </label>
-              <button className="mt-4 w-full rounded-2xl bg-amber-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-amber-300/60" type="submit" disabled={creatingWorkspace}>
+              <button className="mt-4 w-full rounded-2xl bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-action-disabled" type="submit" disabled={creatingWorkspace}>
                 {creatingWorkspace ? 'Creating…' : 'Create workspace'}
               </button>
             </form>
@@ -936,64 +936,64 @@ export function WorkspaceView() {
             <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
               <div className="space-y-6">
                 <div className="grid gap-4 xl:grid-cols-[1.08fr_0.92fr]">
-                  <div className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6 shadow-xl shadow-black/30">
+                  <div className="rounded-panel border border-stroke-subtle bg-surface-panel p-6 shadow-panel">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Current workspace</p>
-                        <h2 className="mt-2 text-3xl font-semibold tracking-tight text-white">{workspace.name}</h2>
-                        <p className="mt-2 text-sm text-zinc-400">You are signed in as {me?.email ?? 'a member'}.</p>
+                        <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Current workspace</p>
+                        <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-fg-primary">{workspace.name}</h2>
+                        <p className="mt-2 text-sm text-fg-secondary">You are signed in as {me?.email ?? 'a member'}.</p>
                       </div>
-                      <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.25em] text-zinc-300">{roleLabel(workspace.role)}</span>
+                      <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1 text-xs uppercase tracking-[0.25em] text-fg-secondary">{roleLabel(workspace.role)}</span>
                     </div>
-                    {workspace.role === 'owner' && <a className="mt-4 inline-block text-sm text-amber-200 underline" href={`/workspace/${workspace.id}/lifecycle-intents`}>Open lifecycle worklist</a>}
+                    {workspace.role === 'owner' && <a className="mt-4 inline-block text-sm text-fg-primary underline" href={`/workspace/${workspace.id}/lifecycle-intents`}>Open lifecycle worklist</a>}
 
                     <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Members</p>
-                        <p className="mt-2 text-2xl font-semibold text-white">{workspace.members.length}</p>
+                      <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                        <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Members</p>
+                        <p className="mt-2 text-2xl font-semibold text-fg-primary">{workspace.members.length}</p>
                       </div>
-                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Invites</p>
-                        <p className="mt-2 text-2xl font-semibold text-white">{workspace.invitations.length}</p>
+                      <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                        <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Invites</p>
+                        <p className="mt-2 text-2xl font-semibold text-fg-primary">{workspace.invitations.length}</p>
                       </div>
-                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Events</p>
-                        <p className="mt-2 text-2xl font-semibold text-white">{events.length}</p>
+                      <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                        <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Events</p>
+                        <p className="mt-2 text-2xl font-semibold text-fg-primary">{events.length}</p>
                       </div>
                     </div>
 
                     <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Draft</p>
-                        <p className="mt-2 text-2xl font-semibold text-white">{statusCounts.draft}</p>
+                      <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                        <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Draft</p>
+                        <p className="mt-2 text-2xl font-semibold text-fg-primary">{statusCounts.draft}</p>
                       </div>
-                      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Live</p>
-                        <p className="mt-2 text-2xl font-semibold text-white">{statusCounts.published}</p>
+                      <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                        <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Live</p>
+                        <p className="mt-2 text-2xl font-semibold text-fg-primary">{statusCounts.published}</p>
                       </div>
-                      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Closed</p>
-                        <p className="mt-2 text-2xl font-semibold text-white">{statusCounts.end_of_night}</p>
+                      <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                        <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Closed</p>
+                        <p className="mt-2 text-2xl font-semibold text-fg-primary">{statusCounts.end_of_night}</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className={`rounded-[1.75rem] border p-6 shadow-xl shadow-black/20 ${toneSurface(guidance.tone)}`}>
+                  <div className={`rounded-panel border p-6 shadow-panel ${toneSurface(guidance.tone)}`}>
                     <p className={`text-xs uppercase tracking-[0.3em] ${toneLabel(guidance.tone)}`}>{guidance.eyebrow}</p>
-                    <h3 className="mt-2 text-2xl font-semibold tracking-tight text-white">{guidance.title}</h3>
-                    <p className="mt-3 max-w-xl text-sm leading-6 text-zinc-300">{guidance.body}</p>
+                    <h3 className="mt-2 text-2xl font-semibold tracking-tight text-fg-primary">{guidance.title}</h3>
+                    <p className="mt-3 max-w-xl text-sm leading-6 text-fg-secondary">{guidance.body}</p>
                     <div className="mt-6 flex flex-wrap gap-2 text-sm">
                       {guidance.actions.map((action) =>
                         action.variant === 'primary' ? (
-                          <a key={action.label} className="rounded-full bg-amber-300 px-4 py-2 font-medium text-zinc-950 transition hover:bg-amber-200" href={action.href}>
+                          <a key={action.label} className="rounded-full bg-action-primary px-4 py-2 font-medium text-fg-inverse transition hover:bg-action-hover" href={action.href}>
                             {action.label}
                           </a>
                         ) : action.variant === 'secondary' ? (
-                          <a key={action.label} className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-zinc-200 transition hover:bg-white/10" href={action.href}>
+                          <a key={action.label} className="rounded-full border border-stroke-subtle bg-surface-inset px-4 py-2 text-fg-primary transition hover:bg-surface-inset" href={action.href}>
                             {action.label}
                           </a>
                         ) : (
-                          <a key={action.label} className="rounded-full border border-white/10 bg-black/15 px-4 py-2 text-zinc-200 transition hover:bg-black/30" href={action.href}>
+                          <a key={action.label} className="rounded-full border border-stroke-subtle bg-surface-inset px-4 py-2 text-fg-primary transition hover:bg-surface-inset" href={action.href}>
                             {action.label}
                           </a>
                         ),
@@ -1003,23 +1003,23 @@ export function WorkspaceView() {
                 </div>
 
                 <div className="mt-6 space-y-3">
-                  <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Members</p>
+                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Members</p>
                   <div className="space-y-2">
                     {workspace.members.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-5 text-sm text-zinc-400">
-                        <p className="font-medium text-white">No members yet</p>
+                      <div className="rounded-2xl border border-dashed border-stroke-subtle bg-surface-inset p-5 text-sm text-fg-secondary">
+                        <p className="font-medium text-fg-primary">No members yet</p>
                         <p className="mt-1 leading-6">Invite the first operator and this roster will populate automatically.</p>
                       </div>
                     ) : null}
                     {workspace.members.map((member) => (
-                      <div key={member.id} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
+                      <div key={member.id} className="flex items-center justify-between gap-3 rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-sm">
                         <div>
-                          <p className="font-medium text-white">{member.displayName ?? member.email}</p>
-                          <p className="text-zinc-400">{member.email}</p>
+                          <p className="font-medium text-fg-primary">{member.displayName ?? member.email}</p>
+                          <p className="text-fg-secondary">{member.email}</p>
                         </div>
                         <div className="text-right">
-                          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.25em] text-zinc-300">{roleLabel(member.role)}</span>
-                          <p className="mt-2 text-xs leading-5 text-zinc-500">{roleHint(member.role)}</p>
+                          <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1 text-[11px] uppercase tracking-[0.25em] text-fg-secondary">{roleLabel(member.role)}</span>
+                          <p className="mt-2 text-xs leading-5 text-fg-muted">{roleHint(member.role)}</p>
                         </div>
                       </div>
                     ))}
@@ -1028,16 +1028,16 @@ export function WorkspaceView() {
 
                 <div className="mt-6 space-y-3">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Events</p>
-                    <a className="rounded-full bg-amber-300 px-3 py-2 text-xs font-medium uppercase tracking-[0.25em] text-zinc-950 transition hover:bg-amber-200" href={`/events/new?workspaceId=${workspace.id}`}>
+                    <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Events</p>
+                    <a className="rounded-full bg-action-primary px-3 py-2 text-xs font-medium uppercase tracking-[0.25em] text-fg-inverse transition hover:bg-action-hover" href={`/events/new?workspaceId=${workspace.id}`}>
                       New event
                     </a>
                   </div>
 
                   <div className="space-y-3">
                     {events.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-5 text-sm text-zinc-400">
-                        <p className="font-medium text-white">No events yet</p>
+                      <div className="rounded-2xl border border-dashed border-stroke-subtle bg-surface-inset p-5 text-sm text-fg-secondary">
+                        <p className="font-medium text-fg-primary">No events yet</p>
                         <p className="mt-1 leading-6">Create the first event to turn this workspace into a live operator home.</p>
                       </div>
                     ) : null}
@@ -1048,53 +1048,53 @@ export function WorkspaceView() {
                       <article key={event.id} className={`rounded-[1.5rem] border p-4 ${eventStatusSurface(event.status)}`}>
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
-                            <h3 className="text-lg font-medium text-white">{event.title}</h3>
-                            <p className="mt-1 text-sm text-zinc-400">{formatDateTime(event.startsAt)}</p>
-                            <p className="mt-2 text-sm leading-6 text-zinc-300 line-clamp-3">{event.publicDescription}</p>
+                            <h3 className="text-lg font-medium text-fg-primary">{event.title}</h3>
+                            <p className="mt-1 text-sm text-fg-secondary">{formatDateTime(event.startsAt)}</p>
+                            <p className="mt-2 text-sm leading-6 text-fg-secondary line-clamp-3">{event.publicDescription}</p>
                           </div>
                           <span className={`rounded-full border px-3 py-1 text-xs uppercase tracking-[0.25em] ${eventStatusTone(event.status)}`}>{eventStatusLabel(event.status)}</span>
                         </div>
-                        <p className="mt-3 text-sm font-medium text-zinc-200">{eventStatusSummary(event.status)}</p>
-                        <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-zinc-300">{eventCountLabel(event)}</div>
-                        {!isDraftEvent(event.status) ? <p className="mt-3 text-sm leading-6 text-zinc-400">{staffingStatusCopy(event)}</p> : null}
+                        <p className="mt-3 text-sm font-medium text-fg-primary">{eventStatusSummary(event.status)}</p>
+                        <div className="mt-4 rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-sm text-fg-secondary">{eventCountLabel(event)}</div>
+                        {!isDraftEvent(event.status) ? <p className="mt-3 text-sm leading-6 text-fg-secondary">{staffingStatusCopy(event)}</p> : null}
                         <div className="mt-4 flex flex-wrap gap-2 text-sm">
-                          <a className="rounded-full bg-white px-3 py-2 font-medium text-zinc-950 transition hover:bg-zinc-200" href={`/events/${event.id}`}>
+                          <a className="rounded-full bg-action-primary px-3 py-2 font-medium text-fg-inverse transition hover:bg-surface-inset" href={`/events/${event.id}`}>
                             {isDraftEvent(event.status) ? 'Finish draft' : isPublishedEvent(event.status) ? 'View editor' : 'Open archive'}
                           </a>
                           {isDraftEvent(event.status) ? (
-                            <a className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-zinc-200 transition hover:bg-white/10" href={`/events/${event.id}`}>
+                            <a className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-2 text-fg-primary transition hover:bg-surface-inset" href={`/events/${event.id}`}>
                               Publish checklist
                             </a>
                           ) : null}
                           {isPublishedEvent(event.status) ? (
                             <>
-                              <a className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-zinc-200 transition hover:bg-white/10" href={`/door/${event.id}`}>
+                              <a className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-2 text-fg-primary transition hover:bg-surface-inset" href={`/door/${event.id}`}>
                                 Open Door
                               </a>
                               {event.publicUrl ? (
-                                <a className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-zinc-200 transition hover:bg-white/10" href={event.publicUrl}>
+                                <a className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-2 text-fg-primary transition hover:bg-surface-inset" href={event.publicUrl}>
                                   Share public page
                                 </a>
                               ) : null}
-                              <a className="rounded-full border border-white/10 bg-black/15 px-3 py-2 text-zinc-200 transition hover:bg-black/30" href={`/events/${event.id}`}>
+                              <a className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-2 text-fg-primary transition hover:bg-surface-inset" href={`/events/${event.id}`}>
                                 End night
                               </a>
                             </>
                           ) : null}
                           {isClosedEvent(event.status) ? (
                             <>
-                              <div className="rounded-2xl border border-fuchsia-400/20 bg-fuchsia-400/10 px-3 py-3 text-sm text-fuchsia-50">
-                                <p className="text-[11px] uppercase tracking-[0.25em] text-fuchsia-100">Archive ready after closeout</p>
+                              <div className="rounded-2xl border border-status-info/20 bg-status-surface-info px-3 py-3 text-sm text-status-info">
+                                <p className="text-[11px] uppercase tracking-[0.25em] text-status-info">Archive ready after closeout</p>
                                 <p className="mt-2 leading-6">Use the private archive to seed the next draft from the event editor.</p>
                               </div>
                               {workspace?.role === 'owner' ? (
                                 archive?.seededEventId ? (
-                                  <a className="rounded-full border border-violet-400/20 bg-violet-300 px-3 py-2 text-zinc-950 transition hover:bg-violet-200" href={`/events/${archive.seededEventId}`}>
+                                  <a className="rounded-full border border-status-info/20 bg-action-primary px-3 py-2 text-fg-inverse transition hover:bg-action-primary" href={`/events/${archive.seededEventId}`}>
                                     Open seeded draft
                                   </a>
                                 ) : (
                                   <button
-                                    className="rounded-full border border-violet-400/20 bg-violet-300 px-3 py-2 text-zinc-950 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:bg-violet-300/60"
+                                    className="rounded-full border border-status-info/20 bg-action-primary px-3 py-2 text-fg-inverse transition hover:bg-action-primary disabled:cursor-not-allowed disabled:bg-action-disabled"
                                     type="button"
                                     onClick={() => void handleSeedNextDraft(event.id)}
                                     disabled={seedingEventId === event.id}
@@ -1112,28 +1112,28 @@ export function WorkspaceView() {
                   </div>
                 </div>
 
-                <section className="space-y-3 rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Workspace archive</p>
-                  <div className="rounded-2xl border border-violet-400/20 bg-violet-400/10 p-4 text-sm leading-6 text-violet-50">
-                    <p className="text-[11px] uppercase tracking-[0.25em] text-violet-100/80">Operator learning loop</p>
+                <section className="space-y-3 rounded-panel border border-stroke-subtle bg-surface-panel p-6">
+                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Workspace archive</p>
+                  <div className="rounded-2xl border border-status-info/20 bg-status-surface-info p-4 text-sm leading-6 text-status-info">
+                    <p className="text-[11px] uppercase tracking-[0.25em] text-status-info">Operator learning loop</p>
                     <p className="mt-2">{archiveLearningLoop}</p>
                   </div>
 
-                  <form className="flex flex-wrap items-end gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4" onSubmit={handleArchiveSearch}>
+                  <form className="flex flex-wrap items-end gap-3 rounded-2xl border border-stroke-subtle bg-surface-inset p-4" onSubmit={handleArchiveSearch}>
                     <label className="min-w-0 flex-1 space-y-2 text-sm">
-                      <span className="text-zinc-300">Search archives</span>
+                      <span className="text-fg-secondary">Search archives</span>
                       <input
-                        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-white/8"
+                        className="w-full rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-inset"
                         placeholder="Search titles, locations, or notes"
                         value={archiveQuery}
                         onChange={(event) => setArchiveQuery(event.target.value)}
                       />
                     </label>
-                    <button className="rounded-2xl bg-amber-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-amber-300/60" type="submit" disabled={archiveSearching}>
+                    <button className="rounded-2xl bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-action-disabled" type="submit" disabled={archiveSearching}>
                       {archiveSearching ? 'Searching…' : 'Search'}
                     </button>
                     <button
-                      className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-zinc-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-fg-primary transition hover:bg-surface-inset disabled:cursor-not-allowed disabled:opacity-50"
                       type="button"
                       onClick={() => void handleArchiveReset()}
                       disabled={archiveSearching}
@@ -1144,8 +1144,8 @@ export function WorkspaceView() {
 
                   <div className="space-y-3">
                     {orderedArchives.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-5 text-sm text-zinc-400">
-                        <p className="font-medium text-white">{normalizedArchiveQuery ? 'No archives matched your search' : 'No archives yet'}</p>
+                      <div className="rounded-2xl border border-dashed border-stroke-subtle bg-surface-inset p-5 text-sm text-fg-secondary">
+                        <p className="font-medium text-fg-primary">{normalizedArchiveQuery ? 'No archives matched your search' : 'No archives yet'}</p>
                         <p className="mt-1 leading-6">
                           {normalizedArchiveQuery ? 'Try a different search or reset the filter to show every private archive.' : 'Close an event to add its summary here.'}
                         </p>
@@ -1153,32 +1153,32 @@ export function WorkspaceView() {
                     ) : null}
 
                     {orderedArchives.map((archive) => (
-                      <article key={archive.id} className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
+                      <article key={archive.id} className="rounded-[1.5rem] border border-stroke-subtle bg-surface-inset p-4">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
-                            <h3 className="text-lg font-medium text-white">{archive.title}</h3>
-                            <p className="mt-1 text-sm text-zinc-400">Starts {formatDateTime(archive.startsAt)}</p>
-                            <p className="mt-1 text-sm text-zinc-400">Location {archive.locationDisplay}</p>
+                            <h3 className="text-lg font-medium text-fg-primary">{archive.title}</h3>
+                            <p className="mt-1 text-sm text-fg-secondary">Starts {formatDateTime(archive.startsAt)}</p>
+                            <p className="mt-1 text-sm text-fg-secondary">Location {archive.locationDisplay}</p>
                           </div>
-                          <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs uppercase tracking-[0.25em] text-zinc-300">
+                          <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1 text-xs uppercase tracking-[0.25em] text-fg-secondary">
                             {archive.noteCount === 1 ? '1 note' : `${archive.noteCount} notes`}
                           </span>
                         </div>
 
-                        <p className="mt-3 text-sm font-medium text-zinc-200">{archive.seededEventId ? 'Seeded draft ready' : 'No seeded draft yet'}</p>
+                        <p className="mt-3 text-sm font-medium text-fg-primary">{archive.seededEventId ? 'Seeded draft ready' : 'No seeded draft yet'}</p>
 
                         <div className="mt-4 flex flex-wrap gap-2 text-sm">
-                          <a className="rounded-full bg-white px-3 py-2 font-medium text-zinc-950 transition hover:bg-zinc-200" href={`/events/${archive.eventId}`}>
+                          <a className="rounded-full bg-action-primary px-3 py-2 font-medium text-fg-inverse transition hover:bg-surface-inset" href={`/events/${archive.eventId}`}>
                             Open archive
                           </a>
                           {workspace?.role === 'owner' ? (
                             archive.seededEventId ? (
-                              <a className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-zinc-200 transition hover:bg-white/10" href={`/events/${archive.seededEventId}`}>
+                              <a className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-2 text-fg-primary transition hover:bg-surface-inset" href={`/events/${archive.seededEventId}`}>
                                 Open seeded draft
                               </a>
                             ) : (
                               <button
-                                className="rounded-full border border-violet-400/20 bg-violet-300 px-3 py-2 text-zinc-950 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:bg-violet-300/60"
+                                className="rounded-full border border-status-info/20 bg-action-primary px-3 py-2 text-fg-inverse transition hover:bg-action-primary disabled:cursor-not-allowed disabled:bg-action-disabled"
                                 type="button"
                                 onClick={() => void handleSeedNextDraft(archive.eventId)}
                                 disabled={seedingEventId === archive.eventId}
@@ -1194,38 +1194,38 @@ export function WorkspaceView() {
                 </section>
 
                 {templates !== null ? (
-                  <section className="space-y-4 rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
+                  <section className="space-y-4 rounded-panel border border-stroke-subtle bg-surface-panel p-6">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-violet-300">Event templates</p>
-                      <p className="mt-2 text-sm leading-6 text-zinc-400">Private planning memory for repeatable event setup.</p>
+                      <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Event templates</p>
+                      <p className="mt-2 text-sm leading-6 text-fg-secondary">Private planning memory for repeatable event setup.</p>
                     </div>
 
                     {templates.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-5 text-sm text-zinc-400">
-                        <p className="font-medium text-white">No templates yet.</p>
+                      <div className="rounded-2xl border border-dashed border-stroke-subtle bg-surface-inset p-5 text-sm text-fg-secondary">
+                        <p className="font-medium text-fg-primary">No templates yet.</p>
                         <p className="mt-1">Save one from an event or create a new template below.</p>
                       </div>
                     ) : (
                       <div className="space-y-3">
                         {templates.map((template) => (
-                          <article key={template.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                          <article key={template.id} className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                             <div className="flex flex-wrap items-start justify-between gap-3">
                               <div>
-                                <p className="text-lg font-medium text-white">{template.name}</p>
-                                <p className="mt-1 text-sm text-zinc-400">{template.title}</p>
+                                <p className="text-lg font-medium text-fg-primary">{template.name}</p>
+                                <p className="mt-1 text-sm text-fg-secondary">{template.title}</p>
                               </div>
 
                               {workspace.role === 'owner' ? (
                                 <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.25em]">
                                   <button
-                                    className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-zinc-200 transition hover:bg-white/10"
+                                    className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1 text-fg-primary transition hover:bg-surface-inset"
                                     type="button"
                                     onClick={() => editTemplate(template)}
                                   >
                                     Edit
                                   </button>
                                   <button
-                                    className="rounded-full border border-rose-400/20 bg-rose-300 px-3 py-1 text-zinc-950 transition hover:bg-rose-200 disabled:cursor-not-allowed disabled:bg-rose-300/60"
+                                    className="rounded-full border border-status-danger/20 bg-action-primary px-3 py-1 text-fg-inverse transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-action-disabled"
                                     type="button"
                                     onClick={() => void handleTemplateDelete(template.id)}
                                     disabled={templateDeletingId === template.id}
@@ -1236,37 +1236,37 @@ export function WorkspaceView() {
                               ) : null}
                             </div>
 
-                            <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-zinc-500">
-                              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">{template.locationDisplay || 'No location set'}</span>
-                              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">{templatePricingLabel(template)}</span>
-                              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">{template.ticketAllocation} tickets</span>
+                            <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-fg-muted">
+                              <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">{template.locationDisplay || 'No location set'}</span>
+                              <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">{templatePricingLabel(template)}</span>
+                              <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">{template.ticketAllocation} tickets</span>
                             </div>
 
-                            <p className="mt-3 text-sm leading-6 text-zinc-300">
-                              <span className="text-zinc-500">Private note:</span> {template.privateNotes || 'No private note yet.'}
+                            <p className="mt-3 text-sm leading-6 text-fg-secondary">
+                              <span className="text-fg-muted">Private note:</span> {template.privateNotes || 'No private note yet.'}
                             </p>
 
-                            {template.publicDescription ? <p className="mt-3 text-sm leading-6 text-zinc-400">{template.publicDescription}</p> : null}
+                            {template.publicDescription ? <p className="mt-3 text-sm leading-6 text-fg-secondary">{template.publicDescription}</p> : null}
                           </article>
                         ))}
                       </div>
                     )}
 
                     {workspace.role === 'owner' ? (
-                      <form className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4" onSubmit={handleTemplateSubmit}>
+                      <form className="space-y-4 rounded-2xl border border-stroke-subtle bg-surface-inset p-4" onSubmit={handleTemplateSubmit}>
                         <div className="flex flex-wrap items-center justify-between gap-3">
-                          <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">{editingTemplateId ? 'Edit template' : 'Add template'}</p>
+                          <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">{editingTemplateId ? 'Edit template' : 'Add template'}</p>
                           {editingTemplateId ? (
-                            <button className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.25em] text-zinc-200 transition hover:bg-white/10" type="button" onClick={resetTemplateEditor}>
+                            <button className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1 text-xs uppercase tracking-[0.25em] text-fg-primary transition hover:bg-surface-inset" type="button" onClick={resetTemplateEditor}>
                               Cancel
                             </button>
                           ) : null}
                         </div>
 
                         <label className="block space-y-2 text-sm">
-                          <span className="text-zinc-300">Name</span>
+                          <span className="text-fg-secondary">Name</span>
                           <input
-                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-violet-300/60 focus:bg-zinc-950/80"
+                            className="w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-status-info/20 focus:bg-surface-panel"
                             value={templateForm.name}
                             onChange={(event) => setTemplateForm((current) => ({ ...current, name: event.target.value }))}
                             required
@@ -1274,9 +1274,9 @@ export function WorkspaceView() {
                         </label>
 
                         <label className="block space-y-2 text-sm">
-                          <span className="text-zinc-300">Title</span>
+                          <span className="text-fg-secondary">Title</span>
                           <input
-                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-violet-300/60 focus:bg-zinc-950/80"
+                            className="w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-status-info/20 focus:bg-surface-panel"
                             value={templateForm.title}
                             onChange={(event) => setTemplateForm((current) => ({ ...current, title: event.target.value }))}
                             required
@@ -1284,27 +1284,27 @@ export function WorkspaceView() {
                         </label>
 
                         <label className="block space-y-2 text-sm">
-                          <span className="text-zinc-300">Location</span>
+                          <span className="text-fg-secondary">Location</span>
                           <input
-                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-violet-300/60 focus:bg-zinc-950/80"
+                            className="w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-status-info/20 focus:bg-surface-panel"
                             value={templateForm.locationDisplay}
                             onChange={(event) => setTemplateForm((current) => ({ ...current, locationDisplay: event.target.value }))}
                           />
                         </label>
 
                         <label className="block space-y-2 text-sm">
-                          <span className="text-zinc-300">Public description</span>
+                          <span className="text-fg-secondary">Public description</span>
                           <textarea
-                            className="min-h-28 w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-violet-300/60 focus:bg-zinc-950/80"
+                            className="min-h-28 w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-status-info/20 focus:bg-surface-panel"
                             value={templateForm.publicDescription}
                             onChange={(event) => setTemplateForm((current) => ({ ...current, publicDescription: event.target.value }))}
                           />
                         </label>
 
                         <label className="block space-y-2 text-sm">
-                          <span className="text-zinc-300">Ticket allocation</span>
+                          <span className="text-fg-secondary">Ticket allocation</span>
                           <input
-                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-violet-300/60 focus:bg-zinc-950/80"
+                            className="w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-status-info/20 focus:bg-surface-panel"
                             type="number"
                             min="0"
                             step="1"
@@ -1313,19 +1313,19 @@ export function WorkspaceView() {
                           />
                         </label>
 
-                        <fieldset className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
+                        <fieldset className="rounded-[1.5rem] border border-stroke-subtle bg-surface-inset p-4">
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
-                              <p className="text-xs uppercase tracking-[0.3em] text-violet-300">Pricing</p>
-                              <h2 className="mt-2 text-lg font-semibold text-white">Free or fixed paid tickets</h2>
+                              <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Pricing</p>
+                              <h2 className="mt-2 text-lg font-extrabold text-fg-primary">Free or fixed paid tickets</h2>
                             </div>
-                            <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-zinc-300">
+                            <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-fg-secondary">
                               USD only
                             </span>
                           </div>
 
                           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                            <label className={`cursor-pointer rounded-2xl border p-4 transition ${templateForm.pricingMode === 'free' ? 'border-violet-300/40 bg-violet-300/10 text-white' : 'border-white/10 bg-white/5 text-zinc-300 hover:bg-white/8'}`}>
+                            <label className={`cursor-pointer rounded-2xl border p-4 transition ${templateForm.pricingMode === 'free' ? 'border-status-info/20 bg-action-disabled text-fg-primary' : 'border-stroke-subtle bg-surface-inset text-fg-secondary hover:bg-surface-inset'}`}>
                               <input
                                 className="sr-only"
                                 type="radio"
@@ -1338,7 +1338,7 @@ export function WorkspaceView() {
                               <p className="mt-1 text-sm leading-6 text-current/70">Use this for no-cost plans.</p>
                             </label>
 
-                            <label className={`cursor-pointer rounded-2xl border p-4 transition ${templateForm.pricingMode === 'fixed' ? 'border-violet-300/40 bg-violet-300/10 text-white' : 'border-white/10 bg-white/5 text-zinc-300 hover:bg-white/8'}`}>
+                            <label className={`cursor-pointer rounded-2xl border p-4 transition ${templateForm.pricingMode === 'fixed' ? 'border-status-info/20 bg-action-disabled text-fg-primary' : 'border-stroke-subtle bg-surface-inset text-fg-secondary hover:bg-surface-inset'}`}>
                               <input
                                 className="sr-only"
                                 type="radio"
@@ -1354,9 +1354,9 @@ export function WorkspaceView() {
 
                           {templateForm.pricingMode === 'fixed' ? (
                             <label className="mt-4 block space-y-2 text-sm">
-                              <span className="text-zinc-300">Price in USD</span>
+                              <span className="text-fg-secondary">Price in USD</span>
                               <input
-                                className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-violet-300/60 focus:bg-zinc-950/80"
+                                className="w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-status-info/20 focus:bg-surface-panel"
                                 type="number"
                                 min="0.5"
                                 step="0.01"
@@ -1370,66 +1370,66 @@ export function WorkspaceView() {
                         </fieldset>
 
                         <label className="block space-y-2 text-sm">
-                          <span className="text-zinc-300">Private notes</span>
+                          <span className="text-fg-secondary">Private notes</span>
                           <textarea
-                            className="min-h-32 w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-violet-300/60 focus:bg-zinc-950/80"
+                            className="min-h-32 w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-status-info/20 focus:bg-surface-panel"
                             value={templateForm.privateNotes}
                             onChange={(event) => setTemplateForm((current) => ({ ...current, privateNotes: event.target.value }))}
                             placeholder="Run-of-show notes stay private."
                           />
                         </label>
 
-                        <button className="rounded-2xl bg-violet-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:bg-violet-300/60" type="submit" disabled={templateSubmitting}>
+                        <button className="rounded-2xl bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-primary disabled:cursor-not-allowed disabled:bg-action-disabled" type="submit" disabled={templateSubmitting}>
                           {templateSubmitting ? 'Saving…' : editingTemplateId ? 'Save template' : 'Add template'}
                         </button>
 
-                        {templateNotice ? <p className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">{templateNotice}</p> : null}
+                        {templateNotice ? <p className="rounded-2xl border border-status-success/20 bg-status-surface-success px-4 py-3 text-sm text-status-success">{templateNotice}</p> : null}
                       </form>
                     ) : null}
                   </section>
                 ) : null}
 
                 {contacts !== null && !contactsDenied ? (
-                  <section className="space-y-4 rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
+                  <section className="space-y-4 rounded-panel border border-stroke-subtle bg-surface-panel p-6">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Contacts</p>
-                      <p className="mt-2 text-sm leading-6 text-zinc-400">Private memory for people you want to remember across events.</p>
+                      <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Contacts</p>
+                      <p className="mt-2 text-sm leading-6 text-fg-secondary">Private memory for people you want to remember across events.</p>
                     </div>
 
                     {visibleContacts.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-5 text-sm text-zinc-400">
-                        <p className="font-medium text-white">No contacts yet. Add people you want to remember across events.</p>
+                      <div className="rounded-2xl border border-dashed border-stroke-subtle bg-surface-inset p-5 text-sm text-fg-secondary">
+                        <p className="font-medium text-fg-primary">No contacts yet. Add people you want to remember across events.</p>
                       </div>
                     ) : (
                       <div className="space-y-3">
                         {visibleContacts.map((contact) => (
-                          <article key={contact.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                          <article key={contact.id} className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                             <div className="flex flex-wrap items-start justify-between gap-3">
                               <div>
-                                <p className="text-lg font-medium text-white">{contact.displayName}</p>
-                                <p className="mt-1 text-sm text-zinc-400">
+                                <p className="text-lg font-medium text-fg-primary">{contact.displayName}</p>
+                                <p className="mt-1 text-sm text-fg-secondary">
                                   {[contact.email, contact.phone].filter(Boolean).join(' · ') || 'No contact details'}
                                 </p>
                               </div>
                               {workspace.role === 'owner' ? (
-                                <button className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.25em] text-zinc-200 transition hover:bg-white/10" type="button" onClick={() => editContact(contact)}>
+                                <button className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1 text-xs uppercase tracking-[0.25em] text-fg-primary transition hover:bg-surface-inset" type="button" onClick={() => editContact(contact)}>
                                   Edit
                                 </button>
                               ) : null}
                             </div>
 
                             {contact.tags.length > 0 ? (
-                              <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-zinc-500">
+                              <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-fg-muted">
                                 {contact.tags.map((tag) => (
-                                  <span key={tag} className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-zinc-300">
+                                  <span key={tag} className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1 text-fg-secondary">
                                     {tag}
                                   </span>
                                 ))}
                               </div>
                             ) : null}
 
-                            <p className="mt-3 text-sm leading-6 text-zinc-300">
-                              <span className="text-zinc-500">Private note:</span> {contact.notes || 'No private note yet.'}
+                            <p className="mt-3 text-sm leading-6 text-fg-secondary">
+                              <span className="text-fg-muted">Private note:</span> {contact.notes || 'No private note yet.'}
                             </p>
                           </article>
                         ))}
@@ -1437,21 +1437,21 @@ export function WorkspaceView() {
                     )}
 
                     {reminders !== null ? (
-                      <section className="space-y-4 rounded-[1.75rem] border border-fuchsia-400/20 bg-zinc-950/90 p-6 shadow-2xl shadow-black/20">
+                      <section className="space-y-4 rounded-panel border border-status-info/20 bg-surface-panel p-6 shadow-2xl shadow-black/5">
                         <div className="flex flex-wrap items-start justify-between gap-4">
                           <div>
-                            <p className="text-xs uppercase tracking-[0.3em] text-fuchsia-300">Reminder activity</p>
-                            <h3 className="mt-2 text-2xl font-semibold text-white">
+                            <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Reminder activity</p>
+                            <h3 className="mt-2 text-2xl font-semibold text-fg-primary">
                               {reminders === undefined ? 'Loading reminders…' : `${visibleReminders.length} reminder${visibleReminders.length === 1 ? '' : 's'}`}
                             </h3>
-                            <p className="mt-2 text-sm leading-6 text-zinc-400">
+                            <p className="mt-2 text-sm leading-6 text-fg-secondary">
                               Private reminder sweeps stay here for operators without exposing commitment descriptions, staffing notes, or public event copy.
                             </p>
                           </div>
 
                           {workspace.role === 'owner' ? (
                             <button
-                              className="rounded-2xl border border-fuchsia-400/30 bg-fuchsia-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-fuchsia-200 disabled:cursor-not-allowed disabled:bg-fuchsia-300/60"
+                              className="rounded-2xl border border-status-info/20 bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-action-disabled"
                               type="button"
                               onClick={() => void handleRunReminderSweep()}
                               disabled={reminderSweepRunning || reminders === undefined}
@@ -1462,91 +1462,91 @@ export function WorkspaceView() {
                         </div>
 
                         {reminders === undefined ? (
-                          <p className="text-sm leading-6 text-zinc-400">Loading reminder activity…</p>
+                          <p className="text-sm leading-6 text-fg-secondary">Loading reminder activity…</p>
                         ) : visibleReminders.length > 0 ? (
                           <div className="space-y-3">
                             {visibleReminders.map((reminder) => (
-                              <article key={reminder.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                              <article key={reminder.id} className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                                 <div className="flex flex-wrap items-start justify-between gap-3">
                                   <div>
-                                    <p className="text-sm font-semibold text-white">{reminder.subject}</p>
-                                    <p className="mt-1 text-sm text-zinc-400">
+                                    <p className="text-sm font-semibold text-fg-primary">{reminder.subject}</p>
+                                    <p className="mt-1 text-sm text-fg-secondary">
                                       {reminder.recipientEmail} · {reminder.reminderType}
                                     </p>
                                   </div>
-                                  <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-zinc-200">
+                                  <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-fg-primary">
                                     {reminder.status}
                                   </span>
                                 </div>
 
-                                <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-zinc-500">
-                                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Due {formatDateTime(reminder.dueAt)}</span>
-                                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Preview {reminder.preview}</span>
-                                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Created {formatDateTime(reminder.createdAt)}</span>
+                                <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-fg-muted">
+                                  <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">Due {formatDateTime(reminder.dueAt)}</span>
+                                  <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">Preview {reminder.preview}</span>
+                                  <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">Created {formatDateTime(reminder.createdAt)}</span>
                                 </div>
                               </article>
                             ))}
                           </div>
                         ) : (
-                          <p className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-400">No reminder activity yet.</p>
+                          <p className="rounded-2xl border border-dashed border-stroke-subtle bg-surface-inset p-4 text-sm leading-6 text-fg-secondary">No reminder activity yet.</p>
                         )}
                       </section>
                     ) : null}
 
                     {workspace.role === 'owner' ? (
-                      <form className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4" onSubmit={handleContactSubmit}>
+                      <form className="space-y-4 rounded-2xl border border-stroke-subtle bg-surface-inset p-4" onSubmit={handleContactSubmit}>
                         <div className="flex flex-wrap items-center justify-between gap-3">
-                          <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">{editingContactId ? 'Edit contact' : 'Add contact'}</p>
+                          <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">{editingContactId ? 'Edit contact' : 'Add contact'}</p>
                           {editingContactId ? (
-                            <button className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.25em] text-zinc-200 transition hover:bg-white/10" type="button" onClick={resetContactEditor}>
+                            <button className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1 text-xs uppercase tracking-[0.25em] text-fg-primary transition hover:bg-surface-inset" type="button" onClick={resetContactEditor}>
                               Cancel
                             </button>
                           ) : null}
                         </div>
                         <label className="block space-y-2 text-sm">
-                          <span className="text-zinc-300">Display name</span>
+                          <span className="text-fg-secondary">Display name</span>
                           <input
-                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-zinc-950/80"
+                            className="w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-panel"
                             value={contactForm.displayName}
                             onChange={(event) => setContactForm((current) => ({ ...current, displayName: event.target.value }))}
                             required
                           />
                         </label>
                         <label className="block space-y-2 text-sm">
-                          <span className="text-zinc-300">Email</span>
+                          <span className="text-fg-secondary">Email</span>
                           <input
-                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-zinc-950/80"
+                            className="w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-panel"
                             type="email"
                             value={contactForm.email}
                             onChange={(event) => setContactForm((current) => ({ ...current, email: event.target.value }))}
                           />
                         </label>
                         <label className="block space-y-2 text-sm">
-                          <span className="text-zinc-300">Phone</span>
+                          <span className="text-fg-secondary">Phone</span>
                           <input
-                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-zinc-950/80"
+                            className="w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-panel"
                             value={contactForm.phone}
                             onChange={(event) => setContactForm((current) => ({ ...current, phone: event.target.value }))}
                           />
                         </label>
                         <label className="block space-y-2 text-sm">
-                          <span className="text-zinc-300">Tags</span>
+                          <span className="text-fg-secondary">Tags</span>
                           <input
-                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-zinc-950/80"
+                            className="w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-panel"
                             placeholder="trusted, door"
                             value={contactForm.tags}
                             onChange={(event) => setContactForm((current) => ({ ...current, tags: event.target.value }))}
                           />
                         </label>
                         <label className="block space-y-2 text-sm">
-                          <span className="text-zinc-300">Notes</span>
+                          <span className="text-fg-secondary">Notes</span>
                           <textarea
-                            className="min-h-28 w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-zinc-950/80"
+                            className="min-h-28 w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-panel"
                             value={contactForm.notes}
                             onChange={(event) => setContactForm((current) => ({ ...current, notes: event.target.value }))}
                           />
                         </label>
-                        <button className="rounded-2xl bg-amber-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-amber-200" type="submit">
+                        <button className="rounded-2xl bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-hover" type="submit">
                           {editingContactId ? 'Save contact' : 'Add contact'}
                         </button>
                       </form>
@@ -1555,39 +1555,39 @@ export function WorkspaceView() {
                 ) : null}
 
                 {commitments !== null && !commitmentsDenied ? (
-                  <section className="space-y-4 rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
+                  <section className="space-y-4 rounded-panel border border-stroke-subtle bg-surface-panel p-6">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Commitments</p>
-                      <p className="mt-2 text-sm leading-6 text-zinc-400">Track private promises, due dates, and follow-up status across the workspace.</p>
+                      <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Commitments</p>
+                      <p className="mt-2 text-sm leading-6 text-fg-secondary">Track private promises, due dates, and follow-up status across the workspace.</p>
                     </div>
 
                     <div className="grid gap-3 text-sm sm:grid-cols-3">
-                      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Open</p>
-                        <p className="mt-2 text-2xl font-semibold text-white">{commitmentCounts.open}</p>
+                      <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                        <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Open</p>
+                        <p className="mt-2 text-2xl font-semibold text-fg-primary">{commitmentCounts.open}</p>
                       </div>
-                      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Done</p>
-                        <p className="mt-2 text-2xl font-semibold text-white">{commitmentCounts.done}</p>
+                      <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                        <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Done</p>
+                        <p className="mt-2 text-2xl font-semibold text-fg-primary">{commitmentCounts.done}</p>
                       </div>
-                      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Cancelled</p>
-                        <p className="mt-2 text-2xl font-semibold text-white">{commitmentCounts.cancelled}</p>
+                      <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                        <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Cancelled</p>
+                        <p className="mt-2 text-2xl font-semibold text-fg-primary">{commitmentCounts.cancelled}</p>
                       </div>
                     </div>
 
                     {visibleCommitments.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-5 text-sm text-zinc-400">
-                        <p className="font-medium text-white">No commitments yet.</p>
+                      <div className="rounded-2xl border border-dashed border-stroke-subtle bg-surface-inset p-5 text-sm text-fg-secondary">
+                        <p className="font-medium text-fg-primary">No commitments yet.</p>
                       </div>
                     ) : (
                       <div className="space-y-3">
                         {visibleCommitments.map((commitment) => (
-                          <article key={commitment.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                          <article key={commitment.id} className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                             <div className="flex flex-wrap items-start justify-between gap-3">
                               <div>
-                                <p className="text-lg font-medium text-white">{commitment.title}</p>
-                                <p className="mt-1 text-sm text-zinc-400">
+                                <p className="text-lg font-medium text-fg-primary">{commitment.title}</p>
+                                <p className="mt-1 text-sm text-fg-secondary">
                                   {commitment.dueAt ? `Due ${formatDateTime(commitment.dueAt)}` : 'No due date'}
                                   {commitment.eventId ? ` · ${eventTitleById.get(commitment.eventId) ?? 'Workspace event'}` : ' · Workspace level'}
                                 </p>
@@ -1596,26 +1596,26 @@ export function WorkspaceView() {
                                 {commitmentStatusLabel(commitment.status)}
                               </span>
                             </div>
-                            <p className="mt-3 text-sm leading-6 text-zinc-300">{commitment.description || 'No private description yet.'}</p>
+                            <p className="mt-3 text-sm leading-6 text-fg-secondary">{commitment.description || 'No private description yet.'}</p>
 
                             {workspace.role === 'owner' ? (
                               <div className="mt-4 flex flex-wrap gap-2 text-sm">
                                 <button
-                                  className="rounded-full border border-emerald-400/20 bg-emerald-300 px-3 py-2 font-medium text-zinc-950 transition hover:bg-emerald-200"
+                                  className="rounded-full border border-status-success/20 bg-action-primary px-3 py-2 font-medium text-fg-inverse transition hover:bg-action-hover"
                                   type="button"
                                   onClick={() => void handleCommitmentStatus(commitment.id, 'done')}
                                 >
                                   Mark done
                                 </button>
                                 <button
-                                  className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-zinc-200 transition hover:bg-white/10"
+                                  className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-2 text-fg-primary transition hover:bg-surface-inset"
                                   type="button"
                                   onClick={() => void handleCommitmentStatus(commitment.id, 'open')}
                                 >
                                   Reopen
                                 </button>
                                 <button
-                                  className="rounded-full border border-rose-400/20 bg-rose-300 px-3 py-2 font-medium text-zinc-950 transition hover:bg-rose-200"
+                                  className="rounded-full border border-status-danger/20 bg-action-primary px-3 py-2 font-medium text-fg-inverse transition hover:bg-action-hover"
                                   type="button"
                                   onClick={() => void handleCommitmentStatus(commitment.id, 'cancelled')}
                                 >
@@ -1629,38 +1629,38 @@ export function WorkspaceView() {
                     )}
 
                     {workspace.role === 'owner' ? (
-                      <form className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4" onSubmit={handleCommitmentSubmit}>
-                        <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Add commitment</p>
+                      <form className="space-y-4 rounded-2xl border border-stroke-subtle bg-surface-inset p-4" onSubmit={handleCommitmentSubmit}>
+                        <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Add commitment</p>
                         <label className="block space-y-2 text-sm">
-                          <span className="text-zinc-300">Title</span>
+                          <span className="text-fg-secondary">Title</span>
                           <input
-                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-zinc-950/80"
+                            className="w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-panel"
                             value={commitmentForm.title}
                             onChange={(event) => setCommitmentForm((current) => ({ ...current, title: event.target.value }))}
                             required
                           />
                         </label>
                         <label className="block space-y-2 text-sm">
-                          <span className="text-zinc-300">Description</span>
+                          <span className="text-fg-secondary">Description</span>
                           <textarea
-                            className="min-h-28 w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-zinc-950/80"
+                            className="min-h-28 w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-panel"
                             value={commitmentForm.description}
                             onChange={(event) => setCommitmentForm((current) => ({ ...current, description: event.target.value }))}
                           />
                         </label>
                         <label className="block space-y-2 text-sm">
-                          <span className="text-zinc-300">Due at</span>
+                          <span className="text-fg-secondary">Due at</span>
                           <input
-                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-zinc-950/80"
+                            className="w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-panel"
                             type="datetime-local"
                             value={commitmentForm.dueAt}
                             onChange={(event) => setCommitmentForm((current) => ({ ...current, dueAt: event.target.value }))}
                           />
                         </label>
                         <label className="block space-y-2 text-sm">
-                          <span className="text-zinc-300">Event</span>
+                          <span className="text-fg-secondary">Event</span>
                           <select
-                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-zinc-950/80"
+                            className="w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-panel"
                             value={commitmentForm.eventId}
                             onChange={(event) => setCommitmentForm((current) => ({ ...current, eventId: event.target.value }))}
                           >
@@ -1672,7 +1672,7 @@ export function WorkspaceView() {
                             ))}
                           </select>
                         </label>
-                        <button className="rounded-2xl bg-amber-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-amber-200" type="submit">
+                        <button className="rounded-2xl bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-hover" type="submit">
                           Add commitment
                         </button>
                       </form>
@@ -1682,13 +1682,13 @@ export function WorkspaceView() {
               </div>
 
               <aside className="space-y-6">
-                <form id="invite-member" className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6" onSubmit={handleInvite}>
-                  <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Invite member</p>
-                  <p className="mt-2 text-sm leading-6 text-zinc-400">Send an invite without reloading the page; the new row appears below as soon as it lands.</p>
+                <form id="invite-member" className="rounded-panel border border-stroke-subtle bg-surface-panel p-6" onSubmit={handleInvite}>
+                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Invite member</p>
+                  <p className="mt-2 text-sm leading-6 text-fg-secondary">Send an invite without reloading the page; the new row appears below as soon as it lands.</p>
                   <label className="mt-4 block space-y-2 text-sm">
-                    <span className="text-zinc-300">Email</span>
+                    <span className="text-fg-secondary">Email</span>
                     <input
-                      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-white/8"
+                      className="w-full rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-inset"
                       type="email"
                       autoComplete="email"
                       required
@@ -1699,19 +1699,19 @@ export function WorkspaceView() {
                       }}
                     />
                   </label>
-                  <button className="mt-4 w-full rounded-2xl bg-white px-4 py-3 font-medium text-zinc-950 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:bg-white/70" type="submit" disabled={sendingInvite}>
+                  <button className="mt-4 w-full rounded-2xl bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-surface-inset" type="submit" disabled={sendingInvite}>
                     {sendingInvite ? 'Sending…' : 'Send invite'}
                   </button>
-                  {inviteNotice ? <p className="mt-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">{inviteNotice}</p> : null}
+                  {inviteNotice ? <p className="mt-3 rounded-2xl border border-status-success/20 bg-status-surface-success px-4 py-3 text-sm text-status-success">{inviteNotice}</p> : null}
                 </form>
 
-                <section className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Invitations</p>
-                  <p className="mt-2 text-sm leading-6 text-zinc-400">Pending vs accepted, with open links when the token is available.</p>
+                <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
+                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Invitations</p>
+                  <p className="mt-2 text-sm leading-6 text-fg-secondary">Pending vs accepted, with open links when the token is available.</p>
 
                   <div className="mt-4 space-y-3 text-sm">
                     {workspace.invitations.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-zinc-400">
+                      <div className="rounded-2xl border border-dashed border-stroke-subtle bg-surface-inset p-4 text-fg-secondary">
                         No invitations yet. Send one above to start building the crew list.
                       </div>
                     ) : null}
@@ -1720,21 +1720,21 @@ export function WorkspaceView() {
                       const accepted = invitation.acceptedAt !== null;
 
                       return (
-                        <article key={invitation.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <article key={invitation.id} className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                           <div className="flex items-start justify-between gap-3">
                             <div>
-                              <p className="font-medium text-white">{invitation.email}</p>
-                              <p className="mt-1 text-zinc-400">{roleLabel(invitation.role)}</p>
+                              <p className="font-medium text-fg-primary">{invitation.email}</p>
+                              <p className="mt-1 text-fg-secondary">{roleLabel(invitation.role)}</p>
                             </div>
-                            <span className={`rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.25em] ${accepted ? 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200' : 'border-amber-400/20 bg-amber-400/10 text-amber-200'}`}>
+                            <span className={`rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.25em] ${accepted ? 'border-status-success/20 bg-status-surface-success text-status-success' : 'border-status-warning/20 bg-status-surface-warning text-status-warning'}`}>
                               {accepted ? 'Accepted' : 'Pending'}
                             </span>
                           </div>
 
-                          {invitation.acceptedAt ? <p className="mt-3 text-zinc-400">Accepted {formatShortDateTime(invitation.acceptedAt)}</p> : <p className="mt-3 text-zinc-500">Waiting for the invite to be accepted.</p>}
+                          {invitation.acceptedAt ? <p className="mt-3 text-fg-secondary">Accepted {formatShortDateTime(invitation.acceptedAt)}</p> : <p className="mt-3 text-fg-muted">Waiting for the invite to be accepted.</p>}
 
                           {invitation.token ? (
-                            <a className="mt-3 inline-flex rounded-full bg-amber-300 px-3 py-2 text-xs font-medium text-zinc-950 transition hover:bg-amber-200" href={`/invite/${invitation.token}`}>
+                            <a className="mt-3 inline-flex rounded-full bg-action-primary px-3 py-2 text-xs font-medium text-fg-inverse transition hover:bg-action-hover" href={`/invite/${invitation.token}`}>
                               Open invite
                             </a>
                           ) : null}
@@ -1744,30 +1744,30 @@ export function WorkspaceView() {
                   </div>
                 </section>
 
-                <section className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Workspace access</p>
-                  <p className="mt-2 text-sm leading-6 text-zinc-400">One person can operate multiple Workspaces. Use this switcher to jump between them.</p>
-                  <div className="mt-4 space-y-2 text-sm text-zinc-400">
+                <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
+                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Workspace access</p>
+                  <p className="mt-2 text-sm leading-6 text-fg-secondary">One person can operate multiple Workspaces. Use this switcher to jump between them.</p>
+                  <div className="mt-4 space-y-2 text-sm text-fg-secondary">
                     {workspaceSummaries.map((summary) => (
                       <a
                         key={summary.id}
                         className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 transition ${
                           summary.id === workspace.id
-                            ? 'border-amber-300/40 bg-amber-300/10 shadow-[0_0_0_1px_rgba(252,211,77,0.12)]'
-                            : 'border-white/10 bg-white/5 hover:bg-white/10'
+                            ? 'border-status-warning/20 bg-action-disabled shadow-[0_0_0_1px_rgba(252,211,77,0.12)]'
+                            : 'border-stroke-subtle bg-surface-inset hover:bg-surface-inset'
                         }`}
                         href={`/workspace?workspaceId=${summary.id}`}
                         aria-current={summary.id === workspace.id ? 'page' : undefined}
                       >
                         <span className="min-w-0">
-                          <span className={`block truncate ${summary.id === workspace.id ? 'text-white' : 'text-zinc-200'}`}>{summary.name}</span>
-                          <span className="mt-1 block text-xs uppercase tracking-[0.25em] text-zinc-500">{roleLabel(summary.role)}</span>
+                          <span className={`block truncate ${summary.id === workspace.id ? 'text-fg-primary' : 'text-fg-primary'}`}>{summary.name}</span>
+                          <span className="mt-1 block text-xs uppercase tracking-[0.25em] text-fg-muted">{roleLabel(summary.role)}</span>
                         </span>
                         <span
                           className={`shrink-0 rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.25em] ${
                             summary.id === workspace.id
-                              ? 'border-amber-300/40 bg-amber-300/10 text-amber-100'
-                              : 'border-white/10 bg-black/20 text-zinc-300'
+                              ? 'border-status-warning/20 bg-action-disabled text-status-warning'
+                              : 'border-stroke-subtle bg-surface-inset text-fg-secondary'
                           }`}
                         >
                           {summary.id === workspace.id ? 'Active' : 'Open'}
@@ -1775,15 +1775,15 @@ export function WorkspaceView() {
                       </a>
                     ))}
                   </div>
-                  <p className="mt-4 text-xs leading-6 text-zinc-500">
+                  <p className="mt-4 text-xs leading-6 text-fg-muted">
                     The active Workspace is highlighted so you can move between rooms without losing your place.
                   </p>
                 </section>
 
                 {emailOutbox && emailOutbox.length > 0 ? (
-                  <section className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
-                    <p className="text-xs uppercase tracking-[0.3em] text-fuchsia-300">Dev email outbox</p>
-                    <p className="mt-2 text-sm leading-6 text-zinc-400">Development-only mailbox. It surfaces recent invite and ticket emails with quick links when available.</p>
+                  <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
+                    <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Dev email outbox</p>
+                    <p className="mt-2 text-sm leading-6 text-fg-secondary">Development-only mailbox. It surfaces recent invite and ticket emails with quick links when available.</p>
 
                     <div className="mt-4 space-y-3">
                       {emailOutbox.map((email) => {
@@ -1791,29 +1791,29 @@ export function WorkspaceView() {
                         const ticketCode = extractTicketCode(email.body);
 
                         return (
-                          <article key={email.id} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm">
+                          <article key={email.id} className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4 text-sm">
                             <div className="flex items-start justify-between gap-3">
                               <div>
-                                <p className="font-medium text-white">{email.subject}</p>
-                                <p className="mt-1 text-zinc-400">To {email.recipientEmail}</p>
+                                <p className="font-medium text-fg-primary">{email.subject}</p>
+                                <p className="mt-1 text-fg-secondary">To {email.recipientEmail}</p>
                               </div>
-                              <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">{formatDateTime(email.createdAt)}</p>
+                              <p className="text-xs uppercase tracking-[0.25em] text-fg-muted">{formatDateTime(email.createdAt)}</p>
                             </div>
 
-                            <p className="mt-3 line-clamp-3 whitespace-pre-wrap text-zinc-300">{email.body}</p>
+                            <p className="mt-3 line-clamp-3 whitespace-pre-wrap text-fg-secondary">{email.body}</p>
 
-                            <div className="mt-4 flex flex-wrap gap-2 text-xs uppercase tracking-[0.25em] text-zinc-500">
+                            <div className="mt-4 flex flex-wrap gap-2 text-xs uppercase tracking-[0.25em] text-fg-muted">
                               <span>{email.relatedType}</span>
                               <span>{email.relatedId}</span>
                             </div>
 
                             {inviteToken ? (
-                              <a className="mt-4 inline-flex rounded-full bg-amber-300 px-3 py-2 text-xs font-medium text-zinc-950 transition hover:bg-amber-200" href={`/invite/${inviteToken}`}>
+                              <a className="mt-4 inline-flex rounded-full bg-action-primary px-3 py-2 text-xs font-medium text-fg-inverse transition hover:bg-action-hover" href={`/invite/${inviteToken}`}>
                                 Open invite
                               </a>
                             ) : null}
                             {ticketCode ? (
-                              <a className="mt-4 ml-2 inline-flex rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-zinc-200 transition hover:bg-white/10" href={`/tickets/${ticketCode}`}>
+                              <a className="mt-4 ml-2 inline-flex rounded-full border border-stroke-subtle bg-surface-inset px-3 py-2 text-xs font-medium text-fg-primary transition hover:bg-surface-inset" href={`/tickets/${ticketCode}`}>
                                 Open ticket
                               </a>
                             ) : null}
@@ -1826,7 +1826,7 @@ export function WorkspaceView() {
               </aside>
             </section>
 
-            <p className="px-1 text-xs uppercase tracking-[0.3em] text-zinc-500">Workspace ID {workspaceId}</p>
+            <p className="px-1 text-xs uppercase tracking-[0.3em] text-fg-muted">Workspace ID {workspaceId}</p>
           </>
         ) : null}
       </section>

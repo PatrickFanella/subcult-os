@@ -1,3 +1,5 @@
+import { useThemeTokens, useThemedStyles } from '@/theme/ThemeProvider';
+import type { Tokens } from '@/theme/tokens';
 import { useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, Plus, Users, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -16,6 +18,9 @@ const reviewActions: { label: string; status: EventRoleApplicationStatus }[] = [
 ];
 
 export default function RolesScreen() {
+  const tokens = useThemeTokens();
+  const styles = useThemedStyles(createStyles);
+
   const params = useLocalSearchParams<{ eventId?: string }>();
   const eventID = typeof params.eventId === 'string' ? params.eventId : '';
   const [roles, setRoles] = useState<EventRoleDTO[]>([]);
@@ -130,7 +135,7 @@ export default function RolesScreen() {
     <View style={styles.screen}>
       <View style={styles.header}>
         <Pressable onPress={() => safeBack('/staff')} style={styles.backButton}>
-          <ChevronLeft size={24} color="#171717" />
+          <ChevronLeft size={24} color={tokens.color.text.primary} />
         </Pressable>
         <View>
           <Text style={styles.kicker}>Crew</Text>
@@ -146,7 +151,7 @@ export default function RolesScreen() {
           <View style={styles.panelHeaderRow}>
             <Text style={styles.panelTitle}>{editingRoleID ? 'Edit role' : 'Create role'}</Text>
             {editingRoleID ? (
-              <Pressable onPress={stopEditingRole} style={styles.cancelEditButton}><X size={16} color="#737373" /></Pressable>
+              <Pressable onPress={stopEditingRole} style={styles.cancelEditButton}><X size={16} color={tokens.color.text.muted} /></Pressable>
             ) : null}
           </View>
           <TextInput value={name} onChangeText={setName} placeholder="Door volunteer, performer, vendor…" placeholderTextColor="#a3a3a3" style={styles.input} />
@@ -167,7 +172,7 @@ export default function RolesScreen() {
           ) : null}
           <TextInput value={description} onChangeText={setDescription} placeholder="What should applicants know?" placeholderTextColor="#a3a3a3" multiline style={[styles.input, styles.textArea]} />
           <Pressable disabled={creating} onPress={() => void saveRole()} style={[styles.primaryButton, creating && styles.disabled]}>
-            <Plus size={18} color="#ffffff" /><Text style={styles.primaryButtonText}>{creating ? 'Saving…' : editingRoleID ? 'Save role' : 'Create role'}</Text>
+            <Plus size={18} color={tokens.color.text.inverse} /><Text style={styles.primaryButtonText}>{creating ? 'Saving…' : editingRoleID ? 'Save role' : 'Create role'}</Text>
           </Pressable>
         </View>
 
@@ -176,7 +181,7 @@ export default function RolesScreen() {
           {roles.length === 0 ? <Text style={styles.message}>No roles yet.</Text> : null}
           {roles.map((role) => (
             <View key={role.id} style={styles.roleCard}>
-              <View style={styles.roleIcon}><Users size={18} color="#171717" /></View>
+              <View style={styles.roleIcon}><Users size={18} color={tokens.color.text.primary} /></View>
               <View style={styles.roleCopy}>
                 <Text style={styles.roleName}>{role.name}</Text>
                 <Text style={styles.roleMeta}>{role.capacity} spots · {role.public ? 'public' : 'private'} · {role.active ? 'active' : 'inactive'}</Text>
@@ -218,6 +223,9 @@ export default function RolesScreen() {
 }
 
 function VisibilityButton({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+
+  const styles = useThemedStyles(createStyles);
+
   return (
     <Pressable onPress={onPress} style={[styles.visibilityButton, selected && styles.visibilityButtonActive]}>
       <Text style={[styles.visibilityButtonText, selected && styles.visibilityButtonTextActive]}>{label}</Text>
@@ -225,46 +233,46 @@ function VisibilityButton({ label, selected, onPress }: { label: string; selecte
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#ffffff', padding: 24, paddingTop: 56 },
+const createStyles = (tokens: Tokens) => StyleSheet.create({
+  screen: { flex: 1, backgroundColor: tokens.color.surface.panel, padding: 24, paddingTop: 56 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 24 },
-  backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center' },
-  kicker: { alignSelf: 'flex-start', color: '#2563eb', backgroundColor: '#eff6ff', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 12, fontWeight: '800' },
-  title: { fontSize: 32, fontWeight: '900', letterSpacing: -1, color: '#171717', marginTop: 6 },
+  backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: tokens.color.surface.inset, alignItems: 'center', justifyContent: 'center' },
+  kicker: { alignSelf: 'flex-start', color: tokens.color.text.muted, backgroundColor: tokens.color.surface.inset, paddingHorizontal: 8, paddingVertical: 4, borderRadius: tokens.radius.pill, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: tokens.type['label'], fontWeight: '800' },
+  title: { fontSize: tokens.type['title'], fontWeight: '900', letterSpacing: -1, color: tokens.color.text.primary, marginTop: 6 },
   content: { gap: 22, paddingBottom: 48 },
-  panel: { backgroundColor: '#f5f5f5', borderRadius: 28, padding: 18, gap: 12 },
+  panel: { backgroundColor: tokens.color.surface.inset, borderRadius: tokens.radius.panel, padding: 18, gap: 12 },
   panelHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  panelTitle: { color: '#171717', fontSize: 20, fontWeight: '900' },
-  cancelEditButton: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
-  input: { minHeight: 52, borderRadius: 16, backgroundColor: '#ffffff', color: '#171717', paddingHorizontal: 14, paddingVertical: 12, fontWeight: '700' },
+  panelTitle: { color: tokens.color.text.primary, fontSize: 20, fontWeight: '900' },
+  cancelEditButton: { width: 32, height: 32, borderRadius: tokens.radius.control, backgroundColor: tokens.color.surface.panel, alignItems: 'center', justifyContent: 'center' },
+  input: { minHeight: 52, borderRadius: tokens.radius.control, backgroundColor: tokens.color.surface.panel, color: tokens.color.text.primary, paddingHorizontal: 14, paddingVertical: 12, fontWeight: '700' },
   textArea: { minHeight: 104, textAlignVertical: 'top', lineHeight: 20 },
   visibilityRow: { flexDirection: 'row', gap: 10 },
-  visibilityButton: { flex: 1, borderRadius: 16, borderWidth: 1, borderColor: '#e5e5e5', backgroundColor: '#ffffff', paddingVertical: 13, alignItems: 'center' },
-  visibilityButtonActive: { backgroundColor: '#171717', borderColor: '#171717' },
-  visibilityButtonText: { color: '#171717', fontWeight: '900' },
-  visibilityButtonTextActive: { color: '#ffffff' },
-  helpText: { color: '#737373', fontSize: 12, lineHeight: 18, fontWeight: '600' },
-  primaryButton: { minHeight: 52, borderRadius: 16, backgroundColor: '#171717', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
-  primaryButtonText: { color: '#ffffff', fontWeight: '900' },
+  visibilityButton: { flex: 1, borderRadius: tokens.radius.control, borderWidth: 1, borderColor: tokens.color.border.subtle, backgroundColor: tokens.color.surface.panel, paddingVertical: 13, alignItems: 'center' },
+  visibilityButtonActive: { backgroundColor: tokens.color.action.primary, borderColor: tokens.color.text.primary },
+  visibilityButtonText: { color: tokens.color.text.primary, fontWeight: '900' },
+  visibilityButtonTextActive: { color: tokens.color.text.inverse },
+  helpText: { color: tokens.color.text.muted, fontSize: tokens.type['label'], lineHeight: 18, fontWeight: '600' },
+  primaryButton: { minHeight: 52, borderRadius: tokens.radius.control, backgroundColor: tokens.color.action.primary, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+  primaryButtonText: { color: tokens.color.text.inverse, fontWeight: '900' },
   disabled: { opacity: 0.45 },
   section: { gap: 12 },
-  sectionTitle: { color: '#171717', fontSize: 20, fontWeight: '900' },
-  message: { color: '#737373', fontWeight: '700', lineHeight: 20 },
-  error: { color: '#dc2626', fontWeight: '800', lineHeight: 20 },
-  roleCard: { backgroundColor: '#ffffff', borderRadius: 22, borderWidth: 1, borderColor: '#f0f0f0', padding: 16, flexDirection: 'row', gap: 14 },
-  roleIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center' },
+  sectionTitle: { color: tokens.color.text.primary, fontSize: 20, fontWeight: '900' },
+  message: { color: tokens.color.text.muted, fontWeight: '700', lineHeight: 20 },
+  error: { color: tokens.color.status.danger, fontWeight: '800', lineHeight: 20 },
+  roleCard: { backgroundColor: tokens.color.surface.panel, borderRadius: 22, borderWidth: 1, borderColor: tokens.color.surface.inset, padding: 16, flexDirection: 'row', gap: 14 },
+  roleIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: tokens.color.surface.inset, alignItems: 'center', justifyContent: 'center' },
   roleCopy: { flex: 1 },
-  roleName: { color: '#171717', fontSize: 18, fontWeight: '900' },
-  roleMeta: { color: '#737373', fontSize: 12, fontWeight: '700', marginTop: 3 },
-  roleDescription: { color: '#525252', lineHeight: 20, marginTop: 8 },
-  editRoleButton: { alignSelf: 'flex-start', marginTop: 10, borderRadius: 999, borderWidth: 1, borderColor: '#e5e5e5', backgroundColor: '#ffffff', paddingHorizontal: 12, paddingVertical: 8 },
-  editRoleButtonText: { color: '#171717', fontSize: 12, fontWeight: '900' },
-  applicationCard: { backgroundColor: '#fafafa', borderRadius: 22, padding: 16, gap: 12 },
+  roleName: { color: tokens.color.text.primary, fontSize: 18, fontWeight: '900' },
+  roleMeta: { color: tokens.color.text.muted, fontSize: tokens.type['label'], fontWeight: '700', marginTop: 3 },
+  roleDescription: { color: tokens.color.text.secondary, lineHeight: 20, marginTop: 8 },
+  editRoleButton: { alignSelf: 'flex-start', marginTop: 10, borderRadius: tokens.radius.pill, borderWidth: 1, borderColor: tokens.color.border.subtle, backgroundColor: tokens.color.surface.panel, paddingHorizontal: 12, paddingVertical: 8 },
+  editRoleButtonText: { color: tokens.color.text.primary, fontSize: tokens.type['label'], fontWeight: '900' },
+  applicationCard: { backgroundColor: tokens.color.surface.inset, borderRadius: 22, padding: 16, gap: 12 },
   applicationHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
-  applicantName: { color: '#171717', fontSize: 18, fontWeight: '900' },
-  statusPill: { alignSelf: 'flex-start', color: '#2563eb', backgroundColor: '#eff6ff', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, overflow: 'hidden', fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
-  applicationMessage: { color: '#525252', lineHeight: 20 },
+  applicantName: { color: tokens.color.text.primary, fontSize: 18, fontWeight: '900' },
+  statusPill: { alignSelf: 'flex-start', color: tokens.color.status.info, backgroundColor: tokens.color.statusSurface.info, paddingHorizontal: 10, paddingVertical: 6, borderRadius: tokens.radius.pill, overflow: 'hidden', fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
+  applicationMessage: { color: tokens.color.text.secondary, lineHeight: 20 },
   actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  actionButton: { backgroundColor: '#ffffff', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: '#e5e5e5' },
-  actionButtonText: { color: '#171717', fontSize: 12, fontWeight: '900' },
+  actionButton: { backgroundColor: tokens.color.surface.panel, borderRadius: tokens.radius.pill, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: tokens.color.border.subtle },
+  actionButtonText: { color: tokens.color.text.primary, fontSize: tokens.type['label'], fontWeight: '900' },
 });

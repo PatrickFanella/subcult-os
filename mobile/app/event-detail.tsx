@@ -1,3 +1,5 @@
+import { useThemeTokens, useThemedStyles } from '@/theme/ThemeProvider';
+import type { Tokens } from '@/theme/tokens';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Calendar, ChevronLeft, MapPin, Share2, Ticket as TicketIcon } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -23,6 +25,9 @@ import { safeBack } from '@/navigation/safeBack';
 import { savePendingPaidTicket, saveTicketToWallet } from '@/tickets/walletStore';
 
 export default function EventDetailScreen() {
+  const tokens = useThemeTokens();
+  const styles = useThemedStyles(createStyles);
+
   const params = useLocalSearchParams<{ slug?: string }>();
   const slug = typeof params.slug === 'string' ? params.slug : '';
   const [event, setEvent] = useState<PublicEventDTO | null>(null);
@@ -222,16 +227,16 @@ export default function EventDetailScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView style={styles.scroller} contentContainerStyle={[styles.scrollContent, { paddingBottom: 172 + insets.bottom }]}> 
+      <ScrollView style={styles.scroller} contentContainerStyle={[styles.scrollContent, { paddingBottom: 172 + insets.bottom }]}>
         <View style={styles.hero}>
           <Image source={{ uri: event.imageUrl || eventArtwork(event.publicSlug ?? event.id) }} style={styles.heroImage} resizeMode="cover" />
           <View style={styles.heroOverlay} />
           <View style={styles.topBar}>
             <Pressable onPress={() => safeBack('/')} style={styles.roundButton}>
-              <ChevronLeft size={24} color="#ffffff" />
+              <ChevronLeft size={24} color={tokens.color.text.onImmersive} />
             </Pressable>
             <Pressable onPress={() => void shareEvent()} style={styles.roundButton}>
-              <Share2 size={20} color="#ffffff" />
+              <Share2 size={20} color={tokens.color.text.onImmersive} />
             </Pressable>
           </View>
         </View>
@@ -242,8 +247,8 @@ export default function EventDetailScreen() {
             <Text style={styles.subtitle}>{event.publicDescription || 'Published event'}</Text>
           </View>
           <View style={styles.infoList}>
-            <InfoRow icon={<Calendar size={20} color="#171717" />} title={formatDate(event.startsAt)} detail={formatTime(event.startsAt) || 'Doors soon'} />
-            <InfoRow icon={<MapPin size={20} color="#171717" />} title={event.locationDisplay.split(',')[0] || 'Venue'} detail={event.locationDisplay.split(',')[1]?.trim() || 'Local Venue'} />
+            <InfoRow icon={<Calendar size={20} color={tokens.color.text.primary} />} title={formatDate(event.startsAt)} detail={formatTime(event.startsAt) || 'Doors soon'} />
+            <InfoRow icon={<MapPin size={20} color={tokens.color.text.primary} />} title={event.locationDisplay.split(',')[0] || 'Venue'} detail={event.locationDisplay.split(',')[1]?.trim() || 'Local Venue'} />
           </View>
           <View style={styles.aboutBlock}>
             <Text style={styles.aboutTitle}>About</Text>
@@ -342,7 +347,7 @@ export default function EventDetailScreen() {
           </View>
         </View>
       </ScrollView>
-      <View style={[styles.stickyBar, { paddingBottom: Math.max(insets.bottom, 14) }]}> 
+      <View style={[styles.stickyBar, { paddingBottom: Math.max(insets.bottom, 14) }]}>
         <View>
           <Text style={styles.priceLabel}>{event.isFull ? 'Status' : 'Starting from'}</Text>
           <Text style={styles.price}>{event.isFull ? 'Sold out' : price}</Text>
@@ -351,7 +356,7 @@ export default function EventDetailScreen() {
         <View style={styles.stickyAction}>
           {event.isFull ? <Text style={styles.stickyWarning}>No tickets remain.</Text> : null}
           <Pressable disabled={stickyCtaDisabled} onPress={handleReserve} style={[styles.ticketButton, stickyCtaDisabled && styles.ticketButtonDisabled]}>
-            <TicketIcon size={20} color="#ffffff" />
+            <TicketIcon size={20} color={tokens.color.text.inverse} />
             <Text style={styles.ticketButtonText}>{stickyCtaLabel}</Text>
           </Pressable>
         </View>
@@ -361,6 +366,9 @@ export default function EventDetailScreen() {
 }
 
 function CenteredState({ title, body }: { title: string; body?: string }) {
+
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.centerState}>
       <Text style={styles.centerTitle}>{title}</Text>
@@ -370,6 +378,9 @@ function CenteredState({ title, body }: { title: string; body?: string }) {
 }
 
 function InfoRow({ icon, title, detail }: { icon: React.ReactNode; title: string; detail: string }) {
+
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.infoRow}>
       <View style={styles.infoIcon}>{icon}</View>
@@ -381,8 +392,8 @@ function InfoRow({ icon, title, detail }: { icon: React.ReactNode; title: string
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#ffffff' },
+const createStyles = (tokens: Tokens) => StyleSheet.create({
+  screen: { flex: 1, backgroundColor: tokens.color.surface.panel },
   scroller: { flex: 1 },
   scrollContent: {},
   hero: { width: '100%', height: '45%', minHeight: 350, position: 'relative' },
@@ -391,49 +402,49 @@ const styles = StyleSheet.create({
   topBar: { position: 'absolute', top: 48, left: 0, right: 0, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', zIndex: 10 },
   roundButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.20)', alignItems: 'center', justifyContent: 'center' },
   content: { flex: 1, paddingHorizontal: 20, marginTop: -72, zIndex: 10, paddingBottom: 32 },
-  titleCard: { backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: 28, padding: 20, marginBottom: 22, boxShadow: '0 2px 12px rgba(0,0,0,0.12)', elevation: 2 },
-  organizer: { fontSize: 14, fontWeight: '700', letterSpacing: 1.1, color: '#737373', textTransform: 'uppercase' },
-  title: { fontSize: 32, fontWeight: '800', letterSpacing: -1, color: '#171717', marginTop: 4, marginBottom: 8 },
-  subtitle: { fontSize: 18, color: '#737373', marginBottom: 24 },
+  titleCard: { backgroundColor: tokens.color.surface.panel, borderRadius: tokens.radius.panel, padding: 20, marginBottom: 22, boxShadow: '0 2px 12px rgba(0,0,0,0.12)', elevation: 2 },
+  organizer: { fontSize: 14, fontWeight: '700', letterSpacing: 1.1, color: tokens.color.text.muted, textTransform: 'uppercase' },
+  title: { fontSize: tokens.type['title'], fontWeight: '800', letterSpacing: -1, color: tokens.color.text.primary, marginTop: 4, marginBottom: 8 },
+  subtitle: { fontSize: 18, color: tokens.color.text.muted, marginBottom: 24 },
   infoList: { gap: 16, marginBottom: 32 },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  infoIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center' },
-  infoTitle: { fontWeight: '700', color: '#404040' },
-  infoDetail: { fontSize: 14, color: '#737373' },
+  infoIcon: { width: 48, height: 48, borderRadius: tokens.radius.control, backgroundColor: tokens.color.surface.inset, alignItems: 'center', justifyContent: 'center' },
+  infoTitle: { fontWeight: '700', color: tokens.color.text.secondary },
+  infoDetail: { fontSize: 14, color: tokens.color.text.muted },
   aboutBlock: { marginBottom: 24 },
-  aboutTitle: { fontSize: 18, fontWeight: '800', marginBottom: 8, color: '#171717' },
-  aboutText: { color: '#525252', lineHeight: 22 },
-  participationCard: { gap: 12, backgroundColor: '#f5f5f5', borderRadius: 24, padding: 18, marginBottom: 24 },
+  aboutTitle: { fontSize: 18, fontWeight: '800', marginBottom: 8, color: tokens.color.text.primary },
+  aboutText: { color: tokens.color.text.secondary, lineHeight: 22 },
+  participationCard: { gap: 12, backgroundColor: tokens.color.surface.inset, borderRadius: tokens.radius.card, padding: 18, marginBottom: 24 },
   roleList: { gap: 14 },
-  roleCard: { gap: 12, backgroundColor: '#ffffff', borderRadius: 20, padding: 14 },
+  roleCard: { gap: 12, backgroundColor: tokens.color.surface.panel, borderRadius: 20, padding: 14 },
   roleHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
   roleTitleWrap: { flex: 1 },
-  roleName: { color: '#171717', fontSize: 16, fontWeight: '900' },
-  roleDescription: { color: '#737373', lineHeight: 20, marginTop: 4 },
-  rolePill: { color: '#525252', backgroundColor: '#f5f5f5', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, fontSize: 12, fontWeight: '900', overflow: 'hidden' },
-  formCard: { gap: 12, backgroundColor: '#f5f5f5', borderRadius: 24, padding: 18, marginBottom: 48 },
-  formHelp: { color: '#737373', lineHeight: 20 },
-  input: { minHeight: 52, borderRadius: 16, backgroundColor: '#ffffff', color: '#171717', paddingHorizontal: 14, fontSize: 15, fontWeight: '600' },
+  roleName: { color: tokens.color.text.primary, fontSize: 16, fontWeight: '900' },
+  roleDescription: { color: tokens.color.text.muted, lineHeight: 20, marginTop: 4 },
+  rolePill: { color: tokens.color.text.secondary, backgroundColor: tokens.color.surface.inset, borderRadius: tokens.radius.pill, paddingHorizontal: 10, paddingVertical: 6, fontSize: tokens.type['label'], fontWeight: '900', overflow: 'hidden' },
+  formCard: { gap: 12, backgroundColor: tokens.color.surface.inset, borderRadius: tokens.radius.card, padding: 18, marginBottom: 48 },
+  formHelp: { color: tokens.color.text.muted, lineHeight: 20 },
+  input: { minHeight: 52, borderRadius: tokens.radius.control, backgroundColor: tokens.color.surface.panel, color: tokens.color.text.primary, paddingHorizontal: 14, fontSize: tokens.type['body'], fontWeight: '600' },
   messageInput: { minHeight: 96, paddingTop: 14, textAlignVertical: 'top' },
-  roleButton: { alignItems: 'center', justifyContent: 'center', minHeight: 48, borderRadius: 16, borderWidth: 1, borderColor: '#d4d4d4', backgroundColor: '#ffffff' },
+  roleButton: { alignItems: 'center', justifyContent: 'center', minHeight: tokens.size.tap, borderRadius: tokens.radius.control, borderWidth: 1, borderColor: tokens.color.border.strong, backgroundColor: tokens.color.surface.panel },
   roleButtonDisabled: { opacity: 0.55 },
-  roleButtonText: { color: '#171717', fontWeight: '800' },
-  signedInCard: { backgroundColor: '#ffffff', borderRadius: 18, padding: 14, gap: 3 },
-  signedInLabel: { color: '#737373', fontSize: 12, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1 },
-  signedInName: { color: '#171717', fontSize: 16, fontWeight: '900' },
-  signedInEmail: { color: '#737373', fontWeight: '700' },
-  errorText: { color: '#dc2626', fontWeight: '600', lineHeight: 20 },
-  successText: { color: '#047857', fontWeight: '700', lineHeight: 20 },
-  stickyBar: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.97)', borderTopWidth: 1, borderTopColor: '#f5f5f5', paddingTop: 14, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 -2px 10px rgba(0,0,0,0.08)', elevation: 8 },
-  priceLabel: { color: '#737373', fontSize: 14, fontWeight: '600' },
-  price: { color: '#171717', fontSize: 24, fontWeight: '800' },
-  remaining: { color: '#737373', fontSize: 12, fontWeight: '600' },
+  roleButtonText: { color: tokens.color.text.primary, fontWeight: '800' },
+  signedInCard: { backgroundColor: tokens.color.surface.panel, borderRadius: 18, padding: 14, gap: 3 },
+  signedInLabel: { color: tokens.color.text.muted, fontSize: tokens.type['label'], fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1 },
+  signedInName: { color: tokens.color.text.primary, fontSize: 16, fontWeight: '900' },
+  signedInEmail: { color: tokens.color.text.muted, fontWeight: '700' },
+  errorText: { color: tokens.color.status.danger, fontWeight: '600', lineHeight: 20 },
+  successText: { color: tokens.color.status.success, fontWeight: '700', lineHeight: 20 },
+  stickyBar: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: tokens.color.surface.panel, borderTopWidth: 1, borderTopColor: tokens.color.surface.inset, paddingTop: 14, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 -2px 10px rgba(0,0,0,0.08)', elevation: 8 },
+  priceLabel: { color: tokens.color.text.muted, fontSize: 14, fontWeight: '600' },
+  price: { color: tokens.color.text.primary, fontSize: 24, fontWeight: '800' },
+  remaining: { color: tokens.color.text.muted, fontSize: tokens.type['label'], fontWeight: '600' },
   stickyAction: { alignItems: 'flex-end', gap: 6 },
-  stickyWarning: { color: '#dc2626', fontSize: 12, fontWeight: '700' },
-  ticketButton: { backgroundColor: '#171717', paddingHorizontal: 22, paddingVertical: 16, borderRadius: 16, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 8 },
+  stickyWarning: { color: tokens.color.status.danger, fontSize: tokens.type['label'], fontWeight: '700' },
+  ticketButton: { backgroundColor: tokens.color.action.primary, paddingHorizontal: 22, paddingVertical: 16, borderRadius: tokens.radius.control, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 8 },
   ticketButtonDisabled: { opacity: 0.45 },
-  ticketButtonText: { color: '#ffffff', fontWeight: '700' },
-  centerState: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 28, backgroundColor: '#ffffff' },
-  centerTitle: { color: '#171717', fontSize: 24, fontWeight: '800', textAlign: 'center', marginBottom: 8 },
-  centerBody: { color: '#737373', fontSize: 15, lineHeight: 22, textAlign: 'center' },
+  ticketButtonText: { color: tokens.color.text.inverse, fontWeight: '700' },
+  centerState: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 28, backgroundColor: tokens.color.surface.panel },
+  centerTitle: { color: tokens.color.text.primary, fontSize: 24, fontWeight: '800', textAlign: 'center', marginBottom: 8 },
+  centerBody: { color: tokens.color.text.muted, fontSize: tokens.type['body'], lineHeight: 22, textAlign: 'center' },
 });

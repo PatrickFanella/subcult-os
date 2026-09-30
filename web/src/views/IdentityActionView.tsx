@@ -55,25 +55,25 @@ export function IdentityActionView({ action }: { action: IdentityAction }) {
 
   const title = action === 'verify' ? 'Verify your email' : action === 'request-recovery' ? 'Recover your account' : 'Choose a new password';
   return (
-    <main className="min-h-screen px-4 py-6 text-zinc-100">
+    <main className="min-h-screen px-4 py-6 text-fg-primary">
       <section className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-md flex-col justify-center">
-        <div className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6 shadow-2xl shadow-black/40">
-          <p className="text-xs uppercase tracking-[0.3em] text-fuchsia-300">Account security</p>
-          <h1 className="mt-3 text-3xl font-semibold text-white">{title}</h1>
-          {action === 'verify' ? <p className="mt-3 text-sm text-zinc-400">Confirm below to verify your email and sign in.</p> : null}
+        <div className="rounded-panel border border-stroke-subtle bg-surface-panel p-6 shadow-2xl shadow-black/5">
+          <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Account security</p>
+          <h1 className="mt-3 text-3xl font-extrabold text-fg-primary">{title}</h1>
+          {action === 'verify' ? <p className="mt-3 text-sm text-fg-secondary">Confirm below to verify your email and sign in.</p> : null}
           {!notice ? (
             <form className="mt-6 space-y-4" onSubmit={submit}>
               {action === 'request-recovery' ? (
-                <input className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3" type="email" aria-label="Email address" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email address" />
+                <input className="w-full rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3" type="email" aria-label="Email address" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email address" />
               ) : action === 'complete-recovery' ? (
-                <input className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3" type="password" aria-label="New password" autoComplete="new-password" minLength={8} required value={password} onChange={(event) => setPassword(event.target.value)} placeholder="New password" />
+                <input className="w-full rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3" type="password" aria-label="New password" autoComplete="new-password" minLength={8} required value={password} onChange={(event) => setPassword(event.target.value)} placeholder="New password" />
               ) : null}
-              <button className="w-full rounded-2xl bg-amber-300 px-4 py-3 font-medium text-zinc-950 disabled:opacity-60" disabled={loading} type="submit">{loading ? 'Working…' : action === 'verify' ? 'Verify email and sign in' : 'Continue'}</button>
+              <button className="w-full rounded-2xl bg-action-primary px-4 py-3 font-medium text-fg-inverse disabled:opacity-60" disabled={loading} type="submit">{loading ? 'Working…' : action === 'verify' ? 'Verify email and sign in' : 'Continue'}</button>
             </form>
           ) : null}
-          {error ? <p role="alert" className="mt-4 rounded-2xl bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error}</p> : null}
-          {notice ? <p role="status" className="mt-4 rounded-2xl bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">{notice}</p> : null}
-          <a className="mt-5 inline-block text-sm text-amber-300" href="/login">Return to sign in</a>
+          {error ? <p role="alert" className="mt-4 rounded-2xl bg-status-surface-danger px-4 py-3 text-sm text-status-danger">{error}</p> : null}
+          {notice ? <p role="status" className="mt-4 rounded-2xl bg-status-surface-success px-4 py-3 text-sm text-status-success">{notice}</p> : null}
+          <a className="mt-5 inline-block text-sm text-fg-primary" href="/login">Return to sign in</a>
         </div>
       </section>
     </main>

@@ -79,11 +79,11 @@ import type {
 function statusTone(status: EventDTO['status']) {
   switch (status) {
     case 'draft':
-      return 'border-amber-400/30 bg-amber-400/10 text-amber-200';
+      return 'border-status-warning/20 bg-status-surface-warning text-status-warning';
     case 'published':
-      return 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200';
+      return 'border-status-success/20 bg-status-surface-success text-status-success';
     case 'end_of_night':
-      return 'border-fuchsia-400/30 bg-fuchsia-400/10 text-fuchsia-200';
+      return 'border-status-info/20 bg-status-surface-info text-status-info';
   }
 }
 
@@ -1064,7 +1064,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
 
   const effective = event ?? null;
   const lifecycleLabel = effective ? statusLabel(effective.status) : creating ? 'Draft' : 'Loading';
-  const lifecycleTone = effective ? statusTone(effective.status) : 'border-white/10 bg-white/5 text-zinc-300';
+  const lifecycleTone = effective ? statusTone(effective.status) : 'border-stroke-subtle bg-surface-inset text-fg-secondary';
   const lifecycleSummary = effective
     ? statusSummary(effective.status)
     : creating
@@ -1074,113 +1074,113 @@ export function EventEditorView({ eventId }: { eventId: string }) {
       : 'Loading event details.';
 
   return (
-    <main className="min-h-screen px-4 py-6 text-zinc-100 sm:px-6 lg:px-8">
+    <main className="min-h-screen px-4 py-6 text-fg-primary sm:px-6 lg:px-8">
       <section className="mx-auto w-full max-w-4xl space-y-6">
-        <header className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6 shadow-2xl shadow-black/40 backdrop-blur">
+        <header className="rounded-panel border border-stroke-subtle bg-surface-panel p-6 shadow-panel">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-fuchsia-300">Event editor</p>
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">{creating ? 'New event' : effective?.title ?? 'Loading event'}</h1>
-              <p className="mt-2 text-sm leading-6 text-zinc-400">Set the public page, ticket pricing, and door flow from one mobile-friendly editor.</p>
+              <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Event editor</p>
+              <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-fg-primary">{creating ? 'New event' : effective?.title ?? 'Loading event'}</h1>
+              <p className="mt-2 text-sm leading-6 text-fg-secondary">Set the public page, ticket pricing, and door flow from one mobile-friendly editor.</p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <span className={`rounded-full border px-4 py-2 text-xs uppercase tracking-[0.25em] ${lifecycleTone}`}>{lifecycleLabel}</span>
               {effective?.publicUrl ? (
-                <a className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-zinc-200 transition hover:bg-white/10" href={effective.publicUrl}>
+                <a className="rounded-full border border-stroke-subtle bg-surface-inset px-4 py-2 text-fg-primary transition hover:bg-surface-inset" href={effective.publicUrl}>
                   Public page
                 </a>
               ) : null}
               {effective ? (
-                <a className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-zinc-200 transition hover:bg-white/10" href={`/door/${effective.id}`}>
+                <a className="rounded-full border border-stroke-subtle bg-surface-inset px-4 py-2 text-fg-primary transition hover:bg-surface-inset" href={`/door/${effective.id}`}>
                   Door
                 </a>
               ) : null}
-              <a className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-zinc-200 transition hover:bg-white/10" href="/workspace">
+              <a className="rounded-full border border-stroke-subtle bg-surface-inset px-4 py-2 text-fg-primary transition hover:bg-surface-inset" href="/workspace">
                 Workspace
               </a>
             </div>
           </div>
 
-          <p className="mt-4 max-w-2xl text-sm leading-6 text-zinc-400">{lifecycleSummary}</p>
+          <p className="mt-4 max-w-2xl text-sm leading-6 text-fg-secondary">{lifecycleSummary}</p>
 
           {effective ? (
             <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Lifecycle</p>
-                <p className="mt-2 text-sm font-medium text-white">{lifecycleLabel}</p>
+              <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Lifecycle</p>
+                <p className="mt-2 text-sm font-medium text-fg-primary">{lifecycleLabel}</p>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Public URL</p>
+              <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Public URL</p>
                 {effective.publicUrl ? (
-                  <a className="mt-2 block break-all text-sm font-medium text-white transition hover:text-amber-200" href={effective.publicUrl}>
+                  <a className="mt-2 block break-all text-sm font-medium text-fg-primary transition hover:text-fg-primary" href={effective.publicUrl}>
                     {effective.publicUrl}
                   </a>
                 ) : (
-                  <p className="mt-2 text-sm font-medium text-white">Not published yet</p>
+                  <p className="mt-2 text-sm font-medium text-fg-primary">Not published yet</p>
                 )}
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Door URL</p>
-                <a className="mt-2 block break-all text-sm font-medium text-white transition hover:text-amber-200" href={`/door/${effective.id}`}>
+              <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Door URL</p>
+                <a className="mt-2 block break-all text-sm font-medium text-fg-primary transition hover:text-fg-primary" href={`/door/${effective.id}`}>
                   /door/{effective.id}
                 </a>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Reserved / checked in</p>
-                <p className="mt-2 text-sm font-medium text-white">
+              <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Reserved / checked in</p>
+                <p className="mt-2 text-sm font-medium text-fg-primary">
                   {effective.reservedCount} / {effective.checkedInCount}
                 </p>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Pricing</p>
-                <p className="mt-2 text-sm font-medium text-white">{pricingSummary(effective)}</p>
+              <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Pricing</p>
+                <p className="mt-2 text-sm font-medium text-fg-primary">{pricingSummary(effective)}</p>
               </div>
             </div>
           ) : null}
         </header>
 
-        {loading ? <div className="rounded-[1.75rem] border border-white/10 bg-white/5 p-6 text-sm text-zinc-400">Loading event…</div> : null}
-        {error ? <p className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error}</p> : null}
-        {workspaceError ? <div role="alert" className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+        {loading ? <div className="rounded-panel border border-stroke-subtle bg-surface-inset p-6 text-sm text-fg-secondary">Loading event…</div> : null}
+        {error ? <p className="rounded-2xl border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm text-status-danger">{error}</p> : null}
+        {workspaceError ? <div role="alert" className="rounded-2xl border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm text-status-danger">
           <p>Workspace access could not be loaded: {workspaceError}</p>
-          <button type="button" className="mt-3 rounded-full border border-white/20 px-4 py-2" onClick={() => setWorkspaceRefreshTick((value) => value + 1)}>Retry workspace access</button>
+          <button type="button" className="mt-3 rounded-full border border-stroke-subtle px-4 py-2" onClick={() => setWorkspaceRefreshTick((value) => value + 1)}>Retry workspace access</button>
         </div> : null}
-        {reportError ? <div role="alert" className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+        {reportError ? <div role="alert" className="rounded-2xl border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm text-status-danger">
           <p>Report could not be loaded: {reportError}</p>
-          <button type="button" className="mt-3 rounded-full border border-white/20 px-4 py-2" onClick={() => setReportRefreshTick((value) => value + 1)}>Retry report</button>
+          <button type="button" className="mt-3 rounded-full border border-stroke-subtle px-4 py-2" onClick={() => setReportRefreshTick((value) => value + 1)}>Retry report</button>
         </div> : null}
-        {financeAccessDenied ? <div role="alert" className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+        {financeAccessDenied ? <div role="alert" className="rounded-2xl border border-status-warning/20 bg-status-surface-warning px-4 py-3 text-sm text-status-warning">
           Financial closeout details require an owner or finance workspace role.
         </div> : null}
-        {message ? <p className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">{message}</p> : null}
+        {message ? <p className="rounded-2xl border border-status-success/20 bg-status-surface-success px-4 py-3 text-sm text-status-success">{message}</p> : null}
 
         {!loading ? (
           <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
             {creating && !hasWorkspace ? (
-              <section className="space-y-4 rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
-                <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Create from workspace</p>
-                <h2 className="text-2xl font-semibold text-white">Events start inside a workspace</h2>
-                <p className="max-w-xl text-sm leading-6 text-zinc-400">
+              <section className="space-y-4 rounded-panel border border-stroke-subtle bg-surface-panel p-6">
+                <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Create from workspace</p>
+                <h2 className="text-2xl font-extrabold text-fg-primary">Events start inside a workspace</h2>
+                <p className="max-w-xl text-sm leading-6 text-fg-secondary">
                   Open the workspace first, then use its New event button so this event can inherit the right workspace context.
                 </p>
                 <div className="flex flex-wrap gap-3 text-sm">
-                  <a className="rounded-2xl bg-white px-4 py-3 font-medium text-zinc-950 transition hover:bg-zinc-200" href="/workspace">
+                  <a className="rounded-2xl bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-hover" href="/workspace">
                     Go to workspace
                   </a>
-                  <a className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-medium text-zinc-100 transition hover:bg-white/10" href="/">
+                  <a className="rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 font-medium text-fg-primary transition hover:bg-surface-inset" href="/">
                     Home
                   </a>
                 </div>
               </section>
             ) : (
-              <form className="space-y-4 rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6" onSubmit={handleSubmit}>
+              <form className="space-y-4 rounded-panel border border-stroke-subtle bg-surface-panel p-6" onSubmit={handleSubmit}>
                 <fieldset className="min-w-0 space-y-4 border-0 p-0" disabled={saving || actioning}>
                 <legend className="sr-only">Event details</legend>
                 <label className="block space-y-2 text-sm">
-                  <span className="text-zinc-300">Title</span>
+                  <span className="text-fg-secondary">Title</span>
                   <input
-                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-white/8 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="w-full rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-inset disabled:cursor-not-allowed disabled:opacity-60"
                     value={form.title}
                     onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
                     required
@@ -1189,9 +1189,9 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                 </label>
 
                 <label className="block space-y-2 text-sm">
-                  <span className="text-zinc-300">Starts at</span>
+                  <span className="text-fg-secondary">Starts at</span>
                   <input
-                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-white/8 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="w-full rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-inset disabled:cursor-not-allowed disabled:opacity-60"
                     type="datetime-local"
                     value={form.startsAt}
                     onChange={(event) => setForm((current) => ({ ...current, startsAt: event.target.value }))}
@@ -1201,9 +1201,9 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                 </label>
 
                 <label className="block space-y-2 text-sm">
-                  <span className="text-zinc-300">Location</span>
+                  <span className="text-fg-secondary">Location</span>
                   <input
-                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-white/8 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="w-full rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-inset disabled:cursor-not-allowed disabled:opacity-60"
                     value={form.locationDisplay}
                     onChange={(event) => setForm((current) => ({ ...current, locationDisplay: event.target.value }))}
                     required
@@ -1212,9 +1212,9 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                 </label>
 
                 <label className="block space-y-2 text-sm">
-                  <span className="text-zinc-300">Public description</span>
+                  <span className="text-fg-secondary">Public description</span>
                   <textarea
-                    className="min-h-40 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-white/8 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="min-h-40 w-full rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-inset disabled:cursor-not-allowed disabled:opacity-60"
                     value={form.publicDescription}
                     onChange={(event) => setForm((current) => ({ ...current, publicDescription: event.target.value }))}
                     required
@@ -1223,9 +1223,9 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                 </label>
 
                 <label className="block space-y-2 text-sm">
-                  <span className="text-zinc-300">Ticket allocation</span>
+                  <span className="text-fg-secondary">Ticket allocation</span>
                   <input
-                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-white/8 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="w-full rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-inset disabled:cursor-not-allowed disabled:opacity-60"
                     type="number"
                     min="1"
                     step="1"
@@ -1236,19 +1236,19 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                   />
                 </label>
 
-                <fieldset className={`rounded-[1.5rem] border p-4 ${pricingLocked || (!creating && !canEditPricing) ? 'border-white/10 bg-white/5 opacity-70' : 'border-white/10 bg-white/5'}`} disabled={pricingLocked || (!creating && !canEditPricing)}>
+                <fieldset className={`rounded-[1.5rem] border p-4 ${pricingLocked || (!creating && !canEditPricing) ? 'border-stroke-subtle bg-surface-inset opacity-70' : 'border-stroke-subtle bg-surface-inset'}`} disabled={pricingLocked || (!creating && !canEditPricing)}>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-fuchsia-300">Pricing</p>
-                      <h2 className="mt-2 text-lg font-semibold text-white">Free or fixed paid tickets</h2>
+                      <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Pricing</p>
+                      <h2 className="mt-2 text-lg font-extrabold text-fg-primary">Free or fixed paid tickets</h2>
                     </div>
-                    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-zinc-300">
+                    <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-fg-secondary">
                       USD only
                     </span>
                   </div>
 
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <label className={`cursor-pointer rounded-2xl border p-4 transition ${form.pricingMode === 'free' ? 'border-amber-300/40 bg-amber-300/10 text-white' : 'border-white/10 bg-white/5 text-zinc-300 hover:bg-white/8'}`}>
+                    <label className={`cursor-pointer rounded-2xl border p-4 transition ${form.pricingMode === 'free' ? 'border-status-warning/20 bg-action-disabled text-fg-primary' : 'border-stroke-subtle bg-surface-inset text-fg-secondary hover:bg-surface-inset'}`}>
                       <input
                         className="sr-only"
                         type="radio"
@@ -1267,7 +1267,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                       </div>
                     </label>
 
-                    <label className={`cursor-pointer rounded-2xl border p-4 transition ${form.pricingMode === 'fixed' ? 'border-amber-300/40 bg-amber-300/10 text-white' : 'border-white/10 bg-white/5 text-zinc-300 hover:bg-white/8'}`}>
+                    <label className={`cursor-pointer rounded-2xl border p-4 transition ${form.pricingMode === 'fixed' ? 'border-status-warning/20 bg-action-disabled text-fg-primary' : 'border-stroke-subtle bg-surface-inset text-fg-secondary hover:bg-surface-inset'}`}>
                       <input
                         className="sr-only"
                         type="radio"
@@ -1289,9 +1289,9 @@ export function EventEditorView({ eventId }: { eventId: string }) {
 
                   {form.pricingMode === 'fixed' ? (
                     <label className="mt-4 block space-y-2 text-sm">
-                      <span className="text-zinc-300">Price in USD</span>
+                      <span className="text-fg-secondary">Price in USD</span>
                       <input
-                        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-amber-300/60 focus:bg-white/8 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="w-full rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-inset disabled:cursor-not-allowed disabled:opacity-60"
                         type="number"
                         min="0.5"
                         step="0.01"
@@ -1301,22 +1301,22 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                         required
                         disabled={closed || pricingLocked || !canEditPricing}
                       />
-                      <p className="text-xs leading-5 text-zinc-500">Enter dollars; we convert to cents for checkout. Minimum recommended price is $0.50.</p>
+                      <p className="text-xs leading-5 text-fg-muted">Enter dollars; we convert to cents for checkout. Minimum recommended price is $0.50.</p>
                     </label>
                   ) : (
-                    <p className="mt-4 text-sm leading-6 text-zinc-400">Free events keep the existing reservation flow and do not send guests to Stripe.</p>
+                    <p className="mt-4 text-sm leading-6 text-fg-secondary">Free events keep the existing reservation flow and do not send guests to Stripe.</p>
                   )}
 
-                  {pricingLocked ? <p className="mt-4 text-sm leading-6 text-zinc-400">Pricing is locked once tickets exist or after the event closes.</p> : null}
-                  {!canEditPricing ? <p className="mt-4 text-sm leading-6 text-zinc-400">Fixed paid pricing requires an owner or finance workspace role. Free events can still be created.</p> : null}
+                  {pricingLocked ? <p className="mt-4 text-sm leading-6 text-fg-secondary">Pricing is locked once tickets exist or after the event closes.</p> : null}
+                  {!canEditPricing ? <p className="mt-4 text-sm leading-6 text-fg-secondary">Fixed paid pricing requires an owner or finance workspace role. Free events can still be created.</p> : null}
                 </fieldset>
 
                 {!closed ? (
-                  <button className="w-full rounded-2xl bg-amber-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-amber-300/60" type="submit" disabled={saving || actioning || !dirty}>
+                  <button className="w-full rounded-2xl bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-action-disabled" type="submit" disabled={saving || actioning || !dirty}>
                     {saving ? 'Saving…' : dirty ? (creating ? 'Create event' : 'Save event') : creating ? 'Fill in details' : 'No changes'}
                   </button>
                 ) : (
-                  <p className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-400">This event is closed. Editing is disabled.</p>
+                  <p className="rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-sm text-fg-secondary">This event is closed. Editing is disabled.</p>
                 )}
                 </fieldset>
               </form>
@@ -1324,10 +1324,10 @@ export function EventEditorView({ eventId }: { eventId: string }) {
 
             <aside className="space-y-6">
               {creating && hasWorkspace ? (
-                <section className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Publish checklist</p>
-                  <h2 className="mt-2 text-2xl font-semibold text-white">Ready to go live?</h2>
-                  <ul className="mt-4 space-y-3 text-sm leading-6 text-zinc-400">
+                <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
+                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Publish checklist</p>
+                  <h2 className="mt-2 text-2xl font-extrabold text-fg-primary">Ready to go live?</h2>
+                  <ul className="mt-4 space-y-3 text-sm leading-6 text-fg-secondary">
                     <li>• Title, start time, location, and public description are filled out.</li>
                     <li>• Ticket allocation matches the number of tickets you want to reserve.</li>
                     <li>• Save before publishing so the public page and Door links stay in sync.</li>
@@ -1336,10 +1336,10 @@ export function EventEditorView({ eventId }: { eventId: string }) {
               ) : null}
 
               {!creating && isDraftEvent(effective?.status) ? (
-                <section className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Publish checklist</p>
-                  <h2 className="mt-2 text-2xl font-semibold text-white">Before you publish</h2>
-                  <ul className="mt-4 space-y-3 text-sm leading-6 text-zinc-400">
+                <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
+                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Publish checklist</p>
+                  <h2 className="mt-2 text-2xl font-extrabold text-fg-primary">Before you publish</h2>
+                  <ul className="mt-4 space-y-3 text-sm leading-6 text-fg-secondary">
                     <li>• Confirm the public title and description read well on mobile.</li>
                     <li>• Check the start time, location, and ticket allocation.</li>
                     <li>• Make sure the event is saved before you open the public page.</li>
@@ -1348,18 +1348,18 @@ export function EventEditorView({ eventId }: { eventId: string }) {
               ) : null}
 
               {!creating && effective && currentWorkspace?.id === effective.workspaceId && currentWorkspace?.role === 'owner' ? (
-                <section className="rounded-[1.75rem] border border-violet-400/20 bg-zinc-950/95 p-6 shadow-2xl shadow-black/30">
-                  <p className="text-xs uppercase tracking-[0.3em] text-violet-300">Event templates</p>
-                  <h2 className="mt-2 text-2xl font-semibold text-white">Private template tools</h2>
-                  <p className="mt-2 text-sm leading-6 text-zinc-400">Template notes stay inside this private editor panel. Save the current event as a template or apply a saved one while the event is still a draft.</p>
+                <section className="rounded-panel border border-status-info/20 bg-surface-panel p-6 shadow-2xl shadow-black/5">
+                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Event templates</p>
+                  <h2 className="mt-2 text-2xl font-extrabold text-fg-primary">Private template tools</h2>
+                  <p className="mt-2 text-sm leading-6 text-fg-secondary">Template notes stay inside this private editor panel. Save the current event as a template or apply a saved one while the event is still a draft.</p>
 
                   {isDraftEvent(effective.status) ? (
                     <>
-                      <form className="mt-4 space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4" onSubmit={handleApplyTemplate}>
+                      <form className="mt-4 space-y-4 rounded-2xl border border-stroke-subtle bg-surface-inset p-4" onSubmit={handleApplyTemplate}>
                         <label className="block space-y-2 text-sm">
-                          <span className="text-zinc-300">Template</span>
+                          <span className="text-fg-secondary">Template</span>
                           <select
-                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-violet-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-status-info/20 focus:bg-surface-panel disabled:cursor-not-allowed disabled:opacity-60"
                             value={templateSelectionId}
                             onChange={(selectEvent) => setTemplateSelectionId(selectEvent.target.value)}
                             disabled={templateApplying}
@@ -1373,36 +1373,36 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                           </select>
                         </label>
 
-                        <button className="rounded-2xl bg-violet-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:bg-violet-300/60" type="submit" disabled={templateApplying || !templateSelectionId}>
+                        <button className="rounded-2xl bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-primary disabled:cursor-not-allowed disabled:bg-action-disabled" type="submit" disabled={templateApplying || !templateSelectionId}>
                           {templateApplying ? 'Applying…' : 'Apply template'}
                         </button>
                       </form>
 
                       {templates === null ? (
-                        <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-400">Loading templates…</p>
+                        <p className="mt-4 rounded-2xl border border-stroke-subtle bg-surface-inset p-4 text-sm leading-6 text-fg-secondary">Loading templates…</p>
                       ) : templates.length === 0 ? (
-                        <p className="mt-4 rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-400">No saved templates yet.</p>
+                        <p className="mt-4 rounded-2xl border border-dashed border-stroke-subtle bg-surface-inset p-4 text-sm leading-6 text-fg-secondary">No saved templates yet.</p>
                       ) : (
                         <div className="mt-4 space-y-3">
                           {templates.map((template) => (
-                            <article key={template.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                            <article key={template.id} className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                               <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div>
-                                  <p className="text-sm font-semibold text-white">{template.name}</p>
-                                  <p className="mt-1 text-sm text-zinc-400">{template.title}</p>
+                                  <p className="text-sm font-semibold text-fg-primary">{template.name}</p>
+                                  <p className="mt-1 text-sm text-fg-secondary">{template.title}</p>
                                 </div>
-                                <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-zinc-200">
+                                <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-fg-primary">
                                   {template.pricingMode === 'free' ? 'Free' : `${template.ticketPriceCents / 100} USD`}
                                 </span>
                               </div>
 
-                              <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-zinc-500">
-                                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">{template.locationDisplay || 'No location set'}</span>
-                                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">{template.ticketAllocation} tickets</span>
+                              <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-fg-muted">
+                                <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">{template.locationDisplay || 'No location set'}</span>
+                                <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">{template.ticketAllocation} tickets</span>
                               </div>
 
-                              <p className="mt-3 text-sm leading-6 text-zinc-300">
-                                <span className="text-zinc-500">Private note:</span> {template.privateNotes || 'No private note yet.'}
+                              <p className="mt-3 text-sm leading-6 text-fg-secondary">
+                                <span className="text-fg-muted">Private note:</span> {template.privateNotes || 'No private note yet.'}
                               </p>
                             </article>
                           ))}
@@ -1412,7 +1412,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                   ) : null}
 
                   <button
-                    className="mt-4 rounded-2xl bg-violet-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:bg-violet-300/60"
+                    className="mt-4 rounded-2xl bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-primary disabled:cursor-not-allowed disabled:bg-action-disabled"
                     type="button"
                     onClick={() => void handleSaveTemplateFromEvent()}
                     disabled={templateSavingFromEvent}
@@ -1423,23 +1423,23 @@ export function EventEditorView({ eventId }: { eventId: string }) {
               ) : null}
 
               {!creating && isPublishedEvent(effective?.status) ? (
-                <section className="rounded-[1.75rem] border border-emerald-400/20 bg-emerald-400/10 p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-emerald-200">Live event</p>
-                  <h2 className="mt-2 text-2xl font-semibold text-white">Next step: end of night</h2>
+                <section className="rounded-panel border border-status-success/20 bg-status-surface-success p-6">
+                  <p className="text-xs uppercase tracking-[0.3em] text-status-success">Live event</p>
+                  <h2 className="mt-2 text-2xl font-extrabold text-fg-primary">Next step: end of night</h2>
                   <div className="mt-4 space-y-3 text-sm">
                     {effective.publicUrl ? (
-                      <a className="block rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white transition hover:bg-black/30" href={effective.publicUrl}>
+                      <a className="block rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-fg-primary transition hover:bg-surface-inset" href={effective.publicUrl}>
                         Public page: {effective.publicUrl}
                       </a>
                     ) : null}
-                    <a className="block rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white transition hover:bg-black/30" href={`/door/${effective.id}`}>
+                    <a className="block rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-fg-primary transition hover:bg-surface-inset" href={`/door/${effective.id}`}>
                       Door URL: /door/{effective.id}
                     </a>
-                    <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white">
+                    <div className="rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-fg-primary">
                       Reserved {effective.reservedCount} · Checked in {effective.checkedInCount}
                     </div>
-                    {dirty ? <p className="text-sm text-amber-200">Save your changes before ending the night.</p> : null}
-                    <button className="door-action w-full rounded-2xl bg-white px-4 py-3 text-left font-medium text-zinc-950 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:bg-white/70" type="button" onClick={handleEndOfNight} disabled={actioning || saving || dirty}>
+                    {dirty ? <p className="text-sm text-status-warning">Save your changes before ending the night.</p> : null}
+                    <button className="door-action w-full rounded-2xl bg-action-primary px-4 py-3 text-left font-medium text-fg-inverse transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-surface-inset" type="button" onClick={handleEndOfNight} disabled={actioning || saving || dirty}>
                       End of night
                     </button>
                   </div>
@@ -1447,67 +1447,67 @@ export function EventEditorView({ eventId }: { eventId: string }) {
               ) : null}
 
               {report ? (
-                <section className="rounded-[1.75rem] border border-fuchsia-400/20 bg-zinc-950/95 p-6 shadow-2xl shadow-black/30">
-                  <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Report summary</p>
-                  <h2 className="mt-2 text-2xl font-semibold text-white">{report.title}</h2>
-                  <p className="mt-2 text-sm text-zinc-400">Generated {formatDateTime(report.generatedAt)} by {report.generatedByMemberEmail}</p>
-                  <p className="mt-3 text-sm leading-6 text-zinc-300">{reportEndOfNightCopy()}</p>
+                <section className="rounded-panel border border-status-info/20 bg-surface-panel p-6 shadow-2xl shadow-black/5">
+                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Report summary</p>
+                  <h2 className="mt-2 text-2xl font-extrabold text-fg-primary">{report.title}</h2>
+                  <p className="mt-2 text-sm text-fg-secondary">Generated {formatDateTime(report.generatedAt)} by {report.generatedByMemberEmail}</p>
+                  <p className="mt-3 text-sm leading-6 text-fg-secondary">{reportEndOfNightCopy()}</p>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Reserved</p>
-                      <p className="mt-2 text-lg font-semibold text-white">{report.ticketsReserved}</p>
+                    <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Reserved</p>
+                      <p className="mt-2 text-lg font-semibold text-fg-primary">{report.ticketsReserved}</p>
                     </div>
-                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Checked in</p>
-                      <p className="mt-2 text-lg font-semibold text-white">{report.ticketsCheckedIn}</p>
+                    <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Checked in</p>
+                      <p className="mt-2 text-lg font-semibold text-fg-primary">{report.ticketsCheckedIn}</p>
                     </div>
-                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">No-shows</p>
-                      <p className="mt-2 text-lg font-semibold text-white">{report.noShows}</p>
+                    <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">No-shows</p>
+                      <p className="mt-2 text-lg font-semibold text-fg-primary">{report.noShows}</p>
                     </div>
-                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Allocation</p>
-                      <p className="mt-2 text-lg font-semibold text-white">{report.ticketAllocation}</p>
+                    <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Allocation</p>
+                      <p className="mt-2 text-lg font-semibold text-fg-primary">{report.ticketAllocation}</p>
                     </div>
                   </div>
                   {report.settlementSummary?.currency ? (
-                    <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
-                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Settlement summary</p>
+                    <div className="mt-4 rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Settlement summary</p>
                       <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                         <div>
-                          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Gross paid revenue</p>
-                          <p className="mt-2 text-lg font-semibold text-white">
+                          <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Gross paid revenue</p>
+                          <p className="mt-2 text-lg font-semibold text-fg-primary">
                             {formatMoney(report.settlementSummary.grossPaidRevenueCents, report.settlementSummary.currency)}
                           </p>
                         </div>
                         <div>
-                          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Paid tickets</p>
-                          <p className="mt-2 text-lg font-semibold text-white">{report.settlementSummary.paidTicketCount}</p>
+                          <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Paid tickets</p>
+                          <p className="mt-2 text-lg font-semibold text-fg-primary">{report.settlementSummary.paidTicketCount}</p>
                         </div>
                         <div>
-                          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Pending tickets</p>
-                          <p className="mt-2 text-lg font-semibold text-white">{report.settlementSummary.pendingTicketCount}</p>
+                          <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Pending tickets</p>
+                          <p className="mt-2 text-lg font-semibold text-fg-primary">{report.settlementSummary.pendingTicketCount}</p>
                         </div>
                         <div>
-                          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Cancelled tickets</p>
-                          <p className="mt-2 text-lg font-semibold text-white">{report.settlementSummary.cancelledTicketCount}</p>
+                          <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Cancelled tickets</p>
+                          <p className="mt-2 text-lg font-semibold text-fg-primary">{report.settlementSummary.cancelledTicketCount}</p>
                         </div>
                         <div>
-                          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Free tickets</p>
-                          <p className="mt-2 text-lg font-semibold text-white">{report.settlementSummary.freeTicketCount}</p>
+                          <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Free tickets</p>
+                          <p className="mt-2 text-lg font-semibold text-fg-primary">{report.settlementSummary.freeTicketCount}</p>
                         </div>
                         <div>
-                          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Reserved total</p>
-                          <p className="mt-2 text-lg font-semibold text-white">{report.settlementSummary.reservedCount}</p>
+                          <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Reserved total</p>
+                          <p className="mt-2 text-lg font-semibold text-fg-primary">{report.settlementSummary.reservedCount}</p>
                         </div>
                       </div>
                     </div>
                   ) : null}
                   <div className="mt-4 flex flex-wrap gap-3 text-sm">
-                    <a className="rounded-2xl bg-white px-4 py-3 font-medium text-zinc-950 transition hover:bg-zinc-200" href={report.publicUrl}>
+                    <a className="rounded-2xl bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-hover" href={report.publicUrl}>
                       Public page
                     </a>
-                    <a className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-medium text-zinc-100 transition hover:bg-white/10" href="/workspace">
+                    <a className="rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 font-medium text-fg-primary transition hover:bg-surface-inset" href="/workspace">
                       Workspace
                     </a>
                   </div>
@@ -1517,15 +1517,15 @@ export function EventEditorView({ eventId }: { eventId: string }) {
               {effective ? <EventFinanceLinesPanel eventId={effective.id} allowed={canManageFinance} /> : null}
 
               {settlement ? (
-                <section className="rounded-[1.75rem] border border-cyan-400/20 bg-zinc-950/95 p-6 shadow-2xl shadow-black/30">
-                  <p className="text-xs uppercase tracking-[0.3em] text-cyan-300">Settlement closeout</p>
-                  <h2 className="mt-2 text-2xl font-semibold text-white">Review adjustments</h2>
-                  <p className="mt-2 text-sm text-zinc-400">Status: {settlementStatusLabel(settlementFinalized ? 'finalized' : 'open')}</p>
+                <section className="rounded-panel border border-status-info/20 bg-surface-panel p-6 shadow-2xl shadow-black/5">
+                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Settlement closeout</p>
+                  <h2 className="mt-2 text-2xl font-extrabold text-fg-primary">Review adjustments</h2>
+                  <p className="mt-2 text-sm text-fg-secondary">Status: {settlementStatusLabel(settlementFinalized ? 'finalized' : 'open')}</p>
 
                   {canExportSettlement ? (
                     <div className="mt-4 flex flex-wrap gap-3">
                       <button
-                        className="rounded-2xl border border-cyan-300/30 bg-cyan-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:bg-cyan-300/60"
+                        className="rounded-2xl border border-status-info/20 bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-action-disabled"
                         type="button"
                         onClick={handleSettlementExport}
                         disabled={settlementExporting}
@@ -1533,7 +1533,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                         {settlementExporting ? 'Preparing export…' : 'Download settlement CSV'}
                       </button>
                       <button
-                        className="rounded-2xl border border-cyan-300/30 px-4 py-3 disabled:opacity-60"
+                        className="rounded-2xl border border-status-info/20 px-4 py-3 disabled:opacity-60"
                         type="button"
                         disabled={settlementExporting}
                         onClick={() => void handleSettlementReportExport('markdown')}
@@ -1541,7 +1541,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                         Download Markdown report
                       </button>
                       <button
-                        className="rounded-2xl border border-cyan-300/30 px-4 py-3 disabled:opacity-60"
+                        className="rounded-2xl border border-status-info/20 px-4 py-3 disabled:opacity-60"
                         type="button"
                         disabled={settlementExporting}
                         onClick={() => void handleSettlementReportExport('print')}
@@ -1552,52 +1552,52 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                   ) : null}
 
                   {settlementFinalized ? (
-                    <div className="mt-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm text-emerald-100">
+                    <div className="mt-4 rounded-2xl border border-status-success/20 bg-status-surface-success p-4 text-sm text-status-success">
                       <p className="font-medium">Settlement locked</p>
                       <p className="mt-2 leading-6">{settlementLockedCopy(settlement.finalizedAt, settlement.finalizedByPersonId)}</p>
                     </div>
                   ) : null}
 
                   <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Gross revenue</p>
-                      <p className="mt-2 text-lg font-semibold text-white">{formatMoney(settlement.grossPaidRevenueCents, settlement.currency)}</p>
+                    <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Gross revenue</p>
+                      <p className="mt-2 text-lg font-semibold text-fg-primary">{formatMoney(settlement.grossPaidRevenueCents, settlement.currency)}</p>
                     </div>
-                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Adjustment total</p>
-                      <p className="mt-2 text-lg font-semibold text-white">{formatSignedMoney(settlement.adjustmentTotalCents, settlement.currency)}</p>
+                    <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Adjustment total</p>
+                      <p className="mt-2 text-lg font-semibold text-fg-primary">{formatSignedMoney(settlement.adjustmentTotalCents, settlement.currency)}</p>
                     </div>
-                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Net total</p>
-                      <p className="mt-2 text-lg font-semibold text-white">{formatMoney(settlement.netTotalCents, settlement.currency)}</p>
+                    <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Net total</p>
+                      <p className="mt-2 text-lg font-semibold text-fg-primary">{formatMoney(settlement.netTotalCents, settlement.currency)}</p>
                     </div>
                   </div>
 
-                  <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Adjustments</p>
+                  <div className="mt-4 rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                    <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Adjustments</p>
                     {settlement.adjustments.length > 0 ? (
                       <div className="mt-3 space-y-3">
                         {settlement.adjustments.map((adjustment) => (
-                          <div key={adjustment.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                          <div key={adjustment.id} className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                             <div className="flex flex-wrap items-start justify-between gap-3">
                               <div>
-                                <p className="text-sm font-semibold text-white">{adjustment.label}</p>
-                                <p className="mt-1 text-sm leading-6 text-zinc-400">{adjustment.reason}</p>
+                                <p className="text-sm font-semibold text-fg-primary">{adjustment.label}</p>
+                                <p className="mt-1 text-sm leading-6 text-fg-secondary">{adjustment.reason}</p>
                               </div>
-                              <p className="text-sm font-semibold text-white">{formatSignedMoney(adjustment.amountCents, settlement.currency)}</p>
+                              <p className="text-sm font-semibold text-fg-primary">{formatSignedMoney(adjustment.amountCents, settlement.currency)}</p>
                             </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="mt-3 text-sm leading-6 text-zinc-400">{settlementAdjustmentsEmptyCopy()}</p>
+                      <p className="mt-3 text-sm leading-6 text-fg-secondary">{settlementAdjustmentsEmptyCopy()}</p>
                     )}
                   </div>
 
                   <div className="mt-4 flex flex-wrap gap-3 text-sm">
                     {settlementOpen && canManageSettlement ? (
                       <button
-                        className="rounded-2xl border border-emerald-400/20 bg-emerald-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:bg-emerald-300/60"
+                        className="rounded-2xl border border-status-success/20 bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-action-disabled"
                         type="button"
                         onClick={handleFinalizeSettlement}
                         disabled={settlementFinalizing}
@@ -1608,12 +1608,12 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                   </div>
 
                   {settlementOpen && canManageSettlement ? (
-                    <form className="mt-4 space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4" onSubmit={handleSettlementAdjustmentSubmit}>
-                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Add adjustment</p>
+                    <form className="mt-4 space-y-4 rounded-2xl border border-stroke-subtle bg-surface-inset p-4" onSubmit={handleSettlementAdjustmentSubmit}>
+                      <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Add adjustment</p>
                       <label className="block space-y-2 text-sm">
-                        <span className="text-zinc-300">Amount in USD</span>
+                        <span className="text-fg-secondary">Amount in USD</span>
                         <input
-                          className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-cyan-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-panel disabled:cursor-not-allowed disabled:opacity-60"
                           type="number"
                           step="0.01"
                           inputMode="decimal"
@@ -1625,9 +1625,9 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                         />
                       </label>
                       <label className="block space-y-2 text-sm">
-                        <span className="text-zinc-300">Label</span>
+                        <span className="text-fg-secondary">Label</span>
                         <input
-                          className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-cyan-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-panel disabled:cursor-not-allowed disabled:opacity-60"
                           value={settlementForm.label}
                           onChange={(event) => setSettlementForm((current) => ({ ...current, label: event.target.value }))}
                           required
@@ -1635,30 +1635,30 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                         />
                       </label>
                       <label className="block space-y-2 text-sm">
-                        <span className="text-zinc-300">Reason</span>
+                        <span className="text-fg-secondary">Reason</span>
                         <textarea
-                          className="min-h-28 w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-cyan-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="min-h-28 w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-panel disabled:cursor-not-allowed disabled:opacity-60"
                           value={settlementForm.reason}
                           onChange={(event) => setSettlementForm((current) => ({ ...current, reason: event.target.value }))}
                           required
                           disabled={settlementSubmitting}
                         />
                       </label>
-                      <button className="rounded-2xl bg-cyan-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:bg-cyan-300/60" type="submit" disabled={settlementSubmitting}>
+                      <button className="rounded-2xl bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-action-disabled" type="submit" disabled={settlementSubmitting}>
                         {settlementSubmitting ? 'Saving…' : 'Add adjustment'}
                       </button>
                     </form>
                   ) : !settlementOpen ? (
-                    <p className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-zinc-400">{settlementAdjustmentsLockedCopy()}</p>
+                    <p className="mt-4 rounded-2xl border border-stroke-subtle bg-surface-inset p-4 text-sm leading-6 text-fg-secondary">{settlementAdjustmentsLockedCopy()}</p>
                   ) : null}
                 </section>
               ) : null}
 
               {applicationsReady && event ? (
-                <section className="rounded-[1.75rem] border border-emerald-400/20 bg-zinc-950/95 p-6 shadow-2xl shadow-black/30">
-                  <p className="text-xs uppercase tracking-[0.3em] text-emerald-300">Applications</p>
-                  <h2 className="mt-2 text-2xl font-semibold text-white">Private review</h2>
-                  <p className="mt-2 text-sm leading-6 text-zinc-400">Owners and members can read submitted role applications. Owners can move each application through review.</p>
+                <section className="rounded-panel border border-status-success/20 bg-surface-panel p-6 shadow-2xl shadow-black/5">
+                  <p className="text-xs uppercase tracking-[0.3em] text-status-success">Applications</p>
+                  <h2 className="mt-2 text-2xl font-extrabold text-fg-primary">Private review</h2>
+                  <p className="mt-2 text-sm leading-6 text-fg-secondary">Owners and members can read submitted role applications. Owners can move each application through review.</p>
 
                   {applications && applications.length > 0 ? (
                     <div className="mt-4 space-y-3">
@@ -1667,24 +1667,24 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                         const roleName = roleNameById.get(application.roleId) ?? application.roleId;
 
                         return (
-                          <article key={application.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                          <article key={application.id} className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                             <div className="flex flex-wrap items-start justify-between gap-3">
                               <div>
-                                <p className="text-sm font-semibold text-white">{application.applicantName}</p>
-                                <p className="mt-1 text-sm text-zinc-400">{application.applicantEmail}</p>
+                                <p className="text-sm font-semibold text-fg-primary">{application.applicantName}</p>
+                                <p className="mt-1 text-sm text-fg-secondary">{application.applicantEmail}</p>
                               </div>
-                              <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-zinc-200">
+                              <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-fg-primary">
                                 {application.status}
                               </span>
                             </div>
 
-                            <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-zinc-500">
-                              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Role {roleName}</span>
-                              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Created {formatDateTime(application.createdAt)}</span>
-                              {application.reviewedAt ? <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Reviewed {formatDateTime(application.reviewedAt)}</span> : null}
+                            <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-fg-muted">
+                              <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">Role {roleName}</span>
+                              <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">Created {formatDateTime(application.createdAt)}</span>
+                              {application.reviewedAt ? <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">Reviewed {formatDateTime(application.reviewedAt)}</span> : null}
                             </div>
 
-                            <p className="mt-3 text-sm leading-6 text-zinc-300">{application.message || 'No message provided.'}</p>
+                            <p className="mt-3 text-sm leading-6 text-fg-secondary">{application.message || 'No message provided.'}</p>
 
                             {canReviewApplications ? (
                               <form
@@ -1695,9 +1695,9 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                                 }}
                               >
                                 <label className="block min-w-44 space-y-2 text-sm">
-                                  <span className="text-zinc-300">Status</span>
+                                  <span className="text-fg-secondary">Status</span>
                                   <select
-                                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-emerald-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-status-success/20 focus:bg-surface-panel disabled:cursor-not-allowed disabled:opacity-60"
                                     value={selectedStatus}
                                     onChange={(selectEvent) =>
                                       setApplicationReviewDrafts((current) => ({
@@ -1716,7 +1716,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                                 </label>
 
                                 <button
-                                  className="rounded-2xl bg-emerald-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:bg-emerald-300/60"
+                                  className="rounded-2xl bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-action-disabled"
                                   type="submit"
                                   disabled={reviewingApplicationId === application.id}
                                 >
@@ -1729,49 +1729,49 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                       })}
                     </div>
                   ) : (
-                    <p className="mt-4 rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-400">No applications yet.</p>
+                    <p className="mt-4 rounded-2xl border border-dashed border-stroke-subtle bg-surface-inset p-4 text-sm leading-6 text-fg-secondary">No applications yet.</p>
                   )}
                 </section>
               ) : null}
 
               {participantsReady && event ? (
-                <section className="rounded-[1.75rem] border border-cyan-400/20 bg-zinc-950/95 p-6 shadow-2xl shadow-black/30">
-                  <p className="text-xs uppercase tracking-[0.3em] text-cyan-300">Participant roster</p>
-                  <h2 className="mt-2 text-2xl font-semibold text-white">Accepted participants</h2>
-                  <p className="mt-2 text-sm leading-6 text-zinc-400">Accepted and confirmed applications stay visible here for the private operator team.</p>
+                <section className="rounded-panel border border-status-info/20 bg-surface-panel p-6 shadow-2xl shadow-black/5">
+                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Participant roster</p>
+                  <h2 className="mt-2 text-2xl font-extrabold text-fg-primary">Accepted participants</h2>
+                  <p className="mt-2 text-sm leading-6 text-fg-secondary">Accepted and confirmed applications stay visible here for the private operator team.</p>
 
                   {participants && participants.length > 0 ? (
                     <div className="mt-4 space-y-3">
                       {participants.map((participant) => (
-                        <article key={participant.applicationId} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <article key={participant.applicationId} className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
-                              <p className="text-sm font-semibold text-white">{participant.applicantName}</p>
-                              <p className="mt-1 text-sm text-zinc-400">{participant.applicantEmail}</p>
+                              <p className="text-sm font-semibold text-fg-primary">{participant.applicantName}</p>
+                              <p className="mt-1 text-sm text-fg-secondary">{participant.applicantEmail}</p>
                             </div>
-                            <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-zinc-200">
+                            <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-fg-primary">
                               {participant.status}
                             </span>
                           </div>
 
-                          <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-zinc-500">
-                            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Role {participant.roleName}</span>
-                            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Updated {formatDateTime(participant.updatedAt)}</span>
+                          <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-fg-muted">
+                            <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">Role {participant.roleName}</span>
+                            <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">Updated {formatDateTime(participant.updatedAt)}</span>
                           </div>
                         </article>
                       ))}
                     </div>
                   ) : (
-                    <p className="mt-4 rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-400">No accepted participants yet.</p>
+                    <p className="mt-4 rounded-2xl border border-dashed border-stroke-subtle bg-surface-inset p-4 text-sm leading-6 text-fg-secondary">No accepted participants yet.</p>
                   )}
                 </section>
               ) : null}
 
               {staffingReady && event ? (
-                <section className="rounded-[1.75rem] border border-sky-400/20 bg-zinc-950/95 p-6 shadow-2xl shadow-black/30">
-                  <p className="text-xs uppercase tracking-[0.3em] text-sky-300">Staffing</p>
-                  <h2 className="mt-2 text-2xl font-semibold text-white">Staffing board</h2>
-                  <p className="mt-2 text-sm leading-6 text-zinc-400">Track tasks and shifts, then assign them to workspace members or accepted participants.</p>
+                <section className="rounded-panel border border-status-info/20 bg-surface-panel p-6 shadow-2xl shadow-black/5">
+                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Staffing</p>
+                  <h2 className="mt-2 text-2xl font-extrabold text-fg-primary">Staffing board</h2>
+                  <p className="mt-2 text-sm leading-6 text-fg-secondary">Track tasks and shifts, then assign them to workspace members or accepted participants.</p>
 
                   <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     {([
@@ -1780,21 +1780,21 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                       ['completed', 'Completed'],
                       ['cancelled', 'Cancelled'],
                     ] as const).map(([status, label]) => (
-                      <div key={status} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">{label}</p>
-                        <p className="mt-2 text-lg font-semibold text-white">{staffingCounts[status]}</p>
+                      <div key={status} className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                        <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">{label}</p>
+                        <p className="mt-2 text-lg font-semibold text-fg-primary">{staffingCounts[status]}</p>
                       </div>
                     ))}
                   </div>
 
                   {canManageStaffing ? (
-                    <form className="mt-4 space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4" onSubmit={handleCreateStaffing}>
-                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Add staffing item</p>
+                    <form className="mt-4 space-y-4 rounded-2xl border border-stroke-subtle bg-surface-inset p-4" onSubmit={handleCreateStaffing}>
+                      <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Add staffing item</p>
                       <div className="grid gap-4 md:grid-cols-2">
                         <label className="block space-y-2 text-sm">
-                          <span className="text-zinc-300">Title</span>
+                          <span className="text-fg-secondary">Title</span>
                           <input
-                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-sky-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-panel disabled:cursor-not-allowed disabled:opacity-60"
                             value={staffingForm.title}
                             onChange={(event) => setStaffingForm((current) => ({ ...current, title: event.target.value }))}
                             required
@@ -1802,9 +1802,9 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                           />
                         </label>
                         <label className="block space-y-2 text-sm">
-                          <span className="text-zinc-300">Kind</span>
+                          <span className="text-fg-secondary">Kind</span>
                           <select
-                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-sky-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-panel disabled:cursor-not-allowed disabled:opacity-60"
                             value={staffingForm.kind}
                             onChange={(event) => setStaffingForm((current) => ({ ...current, kind: event.target.value as EventStaffingItemDTO['kind'] }))}
                             disabled={staffingActioningId === 'new'}
@@ -1816,9 +1816,9 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                       </div>
 
                       <label className="block space-y-2 text-sm">
-                        <span className="text-zinc-300">Operator notes</span>
+                        <span className="text-fg-secondary">Operator notes</span>
                         <textarea
-                          className="min-h-28 w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-sky-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="min-h-28 w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-panel disabled:cursor-not-allowed disabled:opacity-60"
                           value={staffingForm.notes}
                           onChange={(event) => setStaffingForm((current) => ({ ...current, notes: event.target.value }))}
                           disabled={staffingActioningId === 'new'}
@@ -1826,21 +1826,21 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                       </label>
 
                       <label className="block space-y-2 text-sm">
-                        <span className="text-zinc-300">Participant requirements</span>
+                        <span className="text-fg-secondary">Participant requirements</span>
                         <textarea
-                          className="min-h-28 w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-sky-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="min-h-28 w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-panel disabled:cursor-not-allowed disabled:opacity-60"
                           value={staffingForm.participantRequirements}
                           onChange={(event) => setStaffingForm((current) => ({ ...current, participantRequirements: event.target.value }))}
                           disabled={staffingActioningId === 'new'}
                         />
-                        <span className="block text-xs leading-5 text-zinc-500">Shared with the assigned person through their participant portal. Keep operator notes separate.</span>
+                        <span className="block text-xs leading-5 text-fg-muted">Shared with the assigned person through their participant portal. Keep operator notes separate.</span>
                       </label>
 
                       <div className="grid gap-4 md:grid-cols-2">
                         <label className="block space-y-2 text-sm">
-                          <span className="text-zinc-300">Starts at</span>
+                          <span className="text-fg-secondary">Starts at</span>
                           <input
-                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-sky-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-panel disabled:cursor-not-allowed disabled:opacity-60"
                             type="datetime-local"
                             value={staffingForm.startsAt}
                             onChange={(event) => setStaffingForm((current) => ({ ...current, startsAt: event.target.value }))}
@@ -1848,9 +1848,9 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                           />
                         </label>
                         <label className="block space-y-2 text-sm">
-                          <span className="text-zinc-300">Ends at</span>
+                          <span className="text-fg-secondary">Ends at</span>
                           <input
-                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-sky-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-panel disabled:cursor-not-allowed disabled:opacity-60"
                             type="datetime-local"
                             value={staffingForm.endsAt}
                             onChange={(event) => setStaffingForm((current) => ({ ...current, endsAt: event.target.value }))}
@@ -1859,38 +1859,38 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                         </label>
                       </div>
 
-                      <button className="rounded-2xl bg-sky-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-sky-200 disabled:cursor-not-allowed disabled:bg-sky-300/60" type="submit" disabled={staffingActioningId === 'new'}>
+                      <button className="rounded-2xl bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-action-disabled" type="submit" disabled={staffingActioningId === 'new'}>
                         {staffingActioningId === 'new' ? 'Saving…' : 'Add staffing item'}
                       </button>
                     </form>
                   ) : null}
 
-                  {staffingLoading && !staffingItems ? <p className="mt-4 text-sm leading-6 text-zinc-400">Loading staffing board…</p> : null}
+                  {staffingLoading && !staffingItems ? <p className="mt-4 text-sm leading-6 text-fg-secondary">Loading staffing board…</p> : null}
 
                   {!staffingLoading && staffingItems ? (
                     <div className="mt-4 space-y-4">
                       {staffingGroups.map(({ kind, label, items }) => (
-                        <div key={kind} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">{label}</p>
+                        <div key={kind} className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                          <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">{label}</p>
 
                           {items.length > 0 ? (
                             <div className="mt-3 space-y-3">
                               {items.map((item) => (
-                                <article key={item.id} className="rounded-2xl border border-white/10 bg-zinc-950/50 p-4">
+                                <article key={item.id} className="rounded-2xl border border-stroke-subtle bg-surface-panel p-4">
                                   <div className="flex flex-wrap items-start justify-between gap-3">
                                     <div>
-                                      <p className="text-sm font-semibold text-white">{item.title}</p>
-									  <p className="mt-1 text-sm leading-6 text-zinc-400">{item.notes || 'No operator notes yet.'}</p>
+                                      <p className="text-sm font-semibold text-fg-primary">{item.title}</p>
+									  <p className="mt-1 text-sm leading-6 text-fg-secondary">{item.notes || 'No operator notes yet.'}</p>
                                     </div>
-                                    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-zinc-200">
+                                    <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-fg-primary">
                                       {staffingStatusLabel(item.status)}
                                     </span>
                                   </div>
 
-                                  <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-zinc-500">
-                                    <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">{staffingKindLabel(item.kind)}</span>
-                                    <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">{staffingWindowLabel(item)}</span>
-                                    <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">{item.assigneeName ?? 'Unassigned'}</span>
+                                  <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-fg-muted">
+                                    <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">{staffingKindLabel(item.kind)}</span>
+                                    <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">{staffingWindowLabel(item)}</span>
+                                    <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">{item.assigneeName ?? 'Unassigned'}</span>
                                   </div>
 
                                   {canManageStaffing ? (
@@ -1905,11 +1905,11 @@ export function EventEditorView({ eventId }: { eventId: string }) {
 										}}
 									  >
 										<label className="block space-y-2 text-sm">
-										  <span className="text-zinc-300">Participant requirements</span>
-										  <textarea name="participantRequirements" defaultValue={item.participantRequirements} className="min-h-24 w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-sky-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60" disabled={staffingActioningId === item.id} />
+										  <span className="text-fg-secondary">Participant requirements</span>
+										  <textarea name="participantRequirements" defaultValue={item.participantRequirements} className="min-h-24 w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-panel disabled:cursor-not-allowed disabled:opacity-60" disabled={staffingActioningId === item.id} />
 										</label>
-										<p className="text-xs leading-5 text-zinc-500">Shared with the assigned person through their participant portal. It is never copied from operator notes.</p>
-										<button className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-zinc-100 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:bg-white/5" type="submit" disabled={staffingActioningId === item.id}>Save participant requirements</button>
+										<p className="text-xs leading-5 text-fg-muted">Shared with the assigned person through their participant portal. It is never copied from operator notes.</p>
+										<button className="rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-2 text-sm font-medium text-fg-primary transition hover:bg-surface-inset disabled:cursor-not-allowed disabled:bg-surface-inset" type="submit" disabled={staffingActioningId === item.id}>Save participant requirements</button>
 									  </form>
                                       <form
                                         key={`${item.id}:${item.assignedPersonId ?? item.assignedApplicationId ?? 'none'}`}
@@ -1919,9 +1919,9 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                                         }}
                                       >
                                         <label className="block min-w-64 space-y-2 text-sm">
-                                          <span className="text-zinc-300">Assign to</span>
+                                          <span className="text-fg-secondary">Assign to</span>
                                           <select
-                                            className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-sky-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                                            className="w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-panel disabled:cursor-not-allowed disabled:opacity-60"
                                             name="assignee"
                                             defaultValue={item.assignedPersonId ? `member:${item.assignedPersonId}` : item.assignedApplicationId ? `participant:${item.assignedApplicationId}` : ''}
                                             disabled={staffingActioningId === item.id}
@@ -1944,14 +1944,14 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                                           </select>
                                         </label>
 
-                                        <button className="rounded-2xl bg-sky-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-sky-200 disabled:cursor-not-allowed disabled:bg-sky-300/60" type="submit" disabled={staffingActioningId === item.id}>
+                                        <button className="rounded-2xl bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-action-disabled" type="submit" disabled={staffingActioningId === item.id}>
                                           {staffingActioningId === item.id ? 'Saving…' : 'Assign'}
                                         </button>
                                       </form>
 
                                       <div className="flex flex-wrap gap-3 text-sm">
                                         <button
-                                          className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-medium text-zinc-100 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:bg-white/5"
+                                          className="rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 font-medium text-fg-primary transition hover:bg-surface-inset disabled:cursor-not-allowed disabled:bg-surface-inset"
                                           type="button"
                                           onClick={() => void handleClearStaffingAssignee(item.id)}
                                           disabled={staffingActioningId === item.id || (!item.assignedPersonId && !item.assignedApplicationId)}
@@ -1959,7 +1959,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                                           Clear assignee
                                         </button>
                                         <button
-                                          className="rounded-2xl border border-emerald-400/20 bg-emerald-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:bg-emerald-300/60"
+                                          className="rounded-2xl border border-status-success/20 bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-action-disabled"
                                           type="button"
                                           onClick={() => void handleSetStaffingStatus(item.id, 'completed')}
                                           disabled={staffingActioningId === item.id || item.status === 'completed'}
@@ -1967,7 +1967,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                                           Mark completed
                                         </button>
                                         <button
-                                          className="rounded-2xl border border-rose-400/20 bg-rose-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-rose-200 disabled:cursor-not-allowed disabled:bg-rose-300/60"
+                                          className="rounded-2xl border border-status-danger/20 bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-action-disabled"
                                           type="button"
                                           onClick={() => void handleSetStaffingStatus(item.id, 'cancelled')}
                                           disabled={staffingActioningId === item.id || item.status === 'cancelled'}
@@ -1981,7 +1981,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                               ))}
                             </div>
                           ) : (
-                            <p className="mt-3 rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-400">No {label.toLowerCase()} yet.</p>
+                            <p className="mt-3 rounded-2xl border border-dashed border-stroke-subtle bg-surface-inset p-4 text-sm leading-6 text-fg-secondary">No {label.toLowerCase()} yet.</p>
                           )}
                         </div>
                       ))}
@@ -1991,133 +1991,133 @@ export function EventEditorView({ eventId }: { eventId: string }) {
               ) : null}
 
               {canViewNotificationActivity && event && notifications !== null ? (
-                <section className="rounded-[1.75rem] border border-amber-400/20 bg-zinc-950/95 p-6 shadow-2xl shadow-black/30">
-                  <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Notification activity</p>
-                  <h2 className="mt-2 text-2xl font-semibold text-white">
+                <section className="rounded-panel border border-status-warning/20 bg-surface-panel p-6 shadow-2xl shadow-black/5">
+                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Notification activity</p>
+                  <h2 className="mt-2 text-2xl font-extrabold text-fg-primary">
                     {loadedNotificationActivity === null ? 'Loading notifications…' : `${loadedNotificationActivity.length} queued notification${loadedNotificationActivity.length === 1 ? '' : 's'}`}
                   </h2>
-                  <p className="mt-2 text-sm leading-6 text-zinc-400">Recent operator-visible notifications stay here without application messages, staffing notes, or full email bodies.</p>
+                  <p className="mt-2 text-sm leading-6 text-fg-secondary">Recent operator-visible notifications stay here without application messages, staffing notes, or full email bodies.</p>
 
                   {loadedNotificationActivity === null ? (
-                    <p className="mt-4 text-sm leading-6 text-zinc-400">Loading notification activity…</p>
+                    <p className="mt-4 text-sm leading-6 text-fg-secondary">Loading notification activity…</p>
                   ) : loadedNotificationActivity.length > 0 ? (
                     <div className="mt-4 space-y-3">
                       {loadedNotificationActivity.map((notification) => (
-                        <article key={notification.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <article key={notification.id} className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
-                              <p className="text-sm font-semibold text-white">{notification.subject}</p>
-                              <p className="mt-1 text-sm text-zinc-400">{notification.recipientEmail}</p>
+                              <p className="text-sm font-semibold text-fg-primary">{notification.subject}</p>
+                              <p className="mt-1 text-sm text-fg-secondary">{notification.recipientEmail}</p>
                             </div>
-                            <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-zinc-200">
+                            <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-fg-primary">
                               {notification.status}
                             </span>
                           </div>
 
-                          <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-zinc-500">
-                            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Type {notification.notificationType}</span>
-                            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Preview {notification.preview}</span>
-                            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Created {formatDateTime(notification.createdAt)}</span>
+                          <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-fg-muted">
+                            <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">Type {notification.notificationType}</span>
+                            <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">Preview {notification.preview}</span>
+                            <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">Created {formatDateTime(notification.createdAt)}</span>
                           </div>
                         </article>
                       ))}
                     </div>
                   ) : (
-                    <p className="mt-4 rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-400">No notification activity yet.</p>
+                    <p className="mt-4 rounded-2xl border border-dashed border-stroke-subtle bg-surface-inset p-4 text-sm leading-6 text-fg-secondary">No notification activity yet.</p>
                   )}
                 </section>
               ) : null}
 
               {canViewReminderActivity && event && reminders !== null ? (
-                <section className="rounded-[1.75rem] border border-fuchsia-400/20 bg-zinc-950/95 p-6 shadow-2xl shadow-black/30">
-                  <p className="text-xs uppercase tracking-[0.3em] text-fuchsia-300">Reminder activity</p>
-                  <h2 className="mt-2 text-2xl font-semibold text-white">
+                <section className="rounded-panel border border-status-info/20 bg-surface-panel p-6 shadow-2xl shadow-black/5">
+                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Reminder activity</p>
+                  <h2 className="mt-2 text-2xl font-extrabold text-fg-primary">
                     {loadedReminderActivity === null ? 'Loading reminders…' : `${loadedReminderActivity.length} queued reminder${loadedReminderActivity.length === 1 ? '' : 's'}`}
                   </h2>
-                  <p className="mt-2 text-sm leading-6 text-zinc-400">Event reminder sweeps stay here without private commit text, staffing notes, or public copy.</p>
+                  <p className="mt-2 text-sm leading-6 text-fg-secondary">Event reminder sweeps stay here without private commit text, staffing notes, or public copy.</p>
 
                   {loadedReminderActivity === null ? (
-                    <p className="mt-4 text-sm leading-6 text-zinc-400">Loading reminder activity…</p>
+                    <p className="mt-4 text-sm leading-6 text-fg-secondary">Loading reminder activity…</p>
                   ) : loadedReminderActivity.length > 0 ? (
                     <div className="mt-4 space-y-3">
                       {loadedReminderActivity.map((reminder) => (
-                        <article key={reminder.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <article key={reminder.id} className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
-                              <p className="text-sm font-semibold text-white">{reminder.subject}</p>
-                              <p className="mt-1 text-sm text-zinc-400">{reminder.recipientEmail}</p>
+                              <p className="text-sm font-semibold text-fg-primary">{reminder.subject}</p>
+                              <p className="mt-1 text-sm text-fg-secondary">{reminder.recipientEmail}</p>
                             </div>
-                            <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-zinc-200">
+                            <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-fg-primary">
                               {reminder.status}
                             </span>
                           </div>
 
-                          <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-zinc-500">
-                            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Type {reminder.reminderType}</span>
-                            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Preview {reminder.preview}</span>
-                            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Due {formatDateTime(reminder.dueAt)}</span>
+                          <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-fg-muted">
+                            <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">Type {reminder.reminderType}</span>
+                            <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">Preview {reminder.preview}</span>
+                            <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">Due {formatDateTime(reminder.dueAt)}</span>
                           </div>
                         </article>
                       ))}
                     </div>
                   ) : (
-                    <p className="mt-4 rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-400">No reminder activity yet.</p>
+                    <p className="mt-4 rounded-2xl border border-dashed border-stroke-subtle bg-surface-inset p-4 text-sm leading-6 text-fg-secondary">No reminder activity yet.</p>
                   )}
                 </section>
               ) : null}
 
               {archiveLoading || archive ? (
-                <section className="rounded-[1.75rem] border border-violet-400/20 bg-zinc-950/95 p-6 shadow-2xl shadow-black/30">
-                  <p className="text-xs uppercase tracking-[0.3em] text-violet-300">Private archive</p>
-                  <h2 className="mt-2 text-2xl font-semibold text-white">Lessons learned</h2>
+                <section className="rounded-panel border border-status-info/20 bg-surface-panel p-6 shadow-2xl shadow-black/5">
+                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Private archive</p>
+                  <h2 className="mt-2 text-2xl font-extrabold text-fg-primary">Lessons learned</h2>
 
                   {archiveLoading && !archive ? (
-                    <p className="mt-4 text-sm leading-6 text-zinc-400">Loading private archive…</p>
+                    <p className="mt-4 text-sm leading-6 text-fg-secondary">Loading private archive…</p>
                   ) : archive ? (
                     <>
-                      <p className="mt-2 text-sm text-zinc-400">Status: private workspace memory</p>
-                      <p className="mt-2 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-zinc-300">
+                      <p className="mt-2 text-sm text-fg-secondary">Status: private workspace memory</p>
+                      <p className="mt-2 rounded-2xl border border-stroke-subtle bg-surface-inset p-4 text-sm leading-6 text-fg-secondary">
                         Private notes stay in the archive. The next draft starts clean.
                       </p>
-                      <p className="mt-3 rounded-2xl border border-violet-400/20 bg-violet-400/10 p-4 text-sm leading-6 text-violet-50">
+                      <p className="mt-3 rounded-2xl border border-status-info/20 bg-status-surface-info p-4 text-sm leading-6 text-status-info">
                         {archive.noteCount === 0
                           ? 'Capture one lesson before seeding the next draft.'
                           : 'Use these notes while planning the next event.'}
                       </p>
-                      <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-zinc-500">
-                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Created {formatDateTime(archive.createdAt)}</span>
-                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Updated {formatDateTime(archive.updatedAt)}</span>
-                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Report {archive.reportId}</span>
-                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Settlement {archive.settlementId}</span>
+                      <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-fg-muted">
+                        <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">Created {formatDateTime(archive.createdAt)}</span>
+                        <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">Updated {formatDateTime(archive.updatedAt)}</span>
+                        <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">Report {archive.reportId}</span>
+                        <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">Settlement {archive.settlementId}</span>
                       </div>
-                      <p className="mt-3 text-sm font-medium text-zinc-200">{archive.noteCount === 1 ? '1 note' : `${archive.noteCount} notes`}</p>
+                      <p className="mt-3 text-sm font-medium text-fg-primary">{archive.noteCount === 1 ? '1 note' : `${archive.noteCount} notes`}</p>
 
                       <div className="mt-4 space-y-3">
                         {archive.notes.length > 0 ? (
                           archive.notes.map((note) => (
-                            <article key={note.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                              <p className="text-sm leading-6 text-zinc-100">{note.body}</p>
-                              <p className="mt-2 text-xs uppercase tracking-[0.2em] text-zinc-500">{formatDateTime(note.createdAt)}</p>
+                            <article key={note.id} className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                              <p className="text-sm leading-6 text-fg-primary">{note.body}</p>
+                              <p className="mt-2 text-xs uppercase tracking-[0.2em] text-fg-muted">{formatDateTime(note.createdAt)}</p>
                             </article>
                           ))
                         ) : (
-                          <p className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-400">No lessons yet.</p>
+                          <p className="rounded-2xl border border-dashed border-stroke-subtle bg-surface-inset p-4 text-sm leading-6 text-fg-secondary">No lessons yet.</p>
                         )}
                       </div>
 
-                      <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
-                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Participant memory</p>
-                        <p className="mt-2 text-sm leading-6 text-zinc-400">Accepted and confirmed participants are preserved here without private emails or messages.</p>
+                      <div className="mt-4 rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                        <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Participant memory</p>
+                        <p className="mt-2 text-sm leading-6 text-fg-secondary">Accepted and confirmed participants are preserved here without private emails or messages.</p>
                         {archive.participants.length > 0 ? (
                           <div className="mt-3 space-y-3">
                             {archive.participants.map((participant) => (
-                              <article key={participant.sourceApplicationId} className="rounded-2xl border border-white/10 bg-zinc-950/50 p-4">
+                              <article key={participant.sourceApplicationId} className="rounded-2xl border border-stroke-subtle bg-surface-panel p-4">
                                 <div className="flex flex-wrap items-start justify-between gap-3">
                                   <div>
-                                    <p className="text-sm font-semibold text-white">{participant.participantName}</p>
-                                    <p className="mt-1 text-sm text-zinc-400">Role {participant.roleName}</p>
+                                    <p className="text-sm font-semibold text-fg-primary">{participant.participantName}</p>
+                                    <p className="mt-1 text-sm text-fg-secondary">Role {participant.roleName}</p>
                                   </div>
-                                  <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-zinc-200">
+                                  <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-fg-primary">
                                     {participant.status}
                                   </span>
                                 </div>
@@ -2125,41 +2125,41 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                             ))}
                           </div>
                         ) : (
-                          <p className="mt-3 rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-400">No participant memory yet.</p>
+                          <p className="mt-3 rounded-2xl border border-dashed border-stroke-subtle bg-surface-inset p-4 text-sm leading-6 text-fg-secondary">No participant memory yet.</p>
                         )}
                       </div>
 
-                      <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
-                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Staffing memory</p>
-                        <p className="mt-2 text-sm leading-6 text-zinc-400">Non-cancelled staffing items are preserved here without private notes.</p>
+                      <div className="mt-4 rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                        <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Staffing memory</p>
+                        <p className="mt-2 text-sm leading-6 text-fg-secondary">Non-cancelled staffing items are preserved here without private notes.</p>
                         {archive.staffingItems.length > 0 ? (
                           <div className="mt-3 space-y-3">
                             {archive.staffingItems.map((item) => (
-                              <article key={item.sourceStaffingItemId} className="rounded-2xl border border-white/10 bg-zinc-950/50 p-4">
+                              <article key={item.sourceStaffingItemId} className="rounded-2xl border border-stroke-subtle bg-surface-panel p-4">
                                 <div className="flex flex-wrap items-start justify-between gap-3">
                                   <div>
-                                    <p className="text-sm font-semibold text-white">{item.title}</p>
-                                    <p className="mt-1 text-sm text-zinc-400">{staffingKindLabel(item.kind)}</p>
+                                    <p className="text-sm font-semibold text-fg-primary">{item.title}</p>
+                                    <p className="mt-1 text-sm text-fg-secondary">{staffingKindLabel(item.kind)}</p>
                                   </div>
-                                  <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-zinc-200">
+                                  <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-fg-primary">
                                     {staffingStatusLabel(item.status)}
                                   </span>
                                 </div>
-                                <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-zinc-500">
-                                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">{item.assigneeName ?? 'Unassigned'}</span>
+                                <div className="mt-3 flex flex-wrap gap-2 text-[0.7rem] uppercase tracking-[0.2em] text-fg-muted">
+                                  <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">{item.assigneeName ?? 'Unassigned'}</span>
                                 </div>
                               </article>
                             ))}
                           </div>
                         ) : (
-                          <p className="mt-3 rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-400">No staffing memory yet.</p>
+                          <p className="mt-3 rounded-2xl border border-dashed border-stroke-subtle bg-surface-inset p-4 text-sm leading-6 text-fg-secondary">No staffing memory yet.</p>
                         )}
                         {archive.staffingItems.some((item) => item.status !== 'completed') ? (
-                          <p className="mt-3 rounded-2xl border border-violet-400/20 bg-violet-400/10 p-4 text-sm leading-6 text-violet-50">
+                          <p className="mt-3 rounded-2xl border border-status-info/20 bg-status-surface-info p-4 text-sm leading-6 text-status-info">
                             Unresolved staffing should inform next draft planning.
                           </p>
                         ) : (
-                          <p className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-400">
+                          <p className="mt-3 rounded-2xl border border-stroke-subtle bg-surface-inset p-4 text-sm leading-6 text-fg-secondary">
                             Staffing memory is ready for the next draft.
                           </p>
                         )}
@@ -2167,41 +2167,41 @@ export function EventEditorView({ eventId }: { eventId: string }) {
 
                       {canManageArchive ? (
                         <>
-                          <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
-                            <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Workspace archive</p>
-                            <p className="mt-2 text-sm leading-6 text-zinc-400">Review closed-event notes, then jump back to the workspace archive or continue with the next draft.</p>
+                          <div className="mt-4 rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                            <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Workspace archive</p>
+                            <p className="mt-2 text-sm leading-6 text-fg-secondary">Review closed-event notes, then jump back to the workspace archive or continue with the next draft.</p>
                             <div className="mt-3 flex flex-wrap gap-3 text-sm">
-                              <a className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-medium text-zinc-100 transition hover:bg-white/10" href={`/workspace?workspaceId=${event.workspaceId}`}>
+                              <a className="rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 font-medium text-fg-primary transition hover:bg-surface-inset" href={`/workspace?workspaceId=${event.workspaceId}`}>
                                 Back to workspace archive
                               </a>
-                              <a className="rounded-2xl border border-violet-400/30 bg-violet-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-violet-200" href={`/events/${event.id}/public-archive`}>
+                              <a className="rounded-2xl border border-status-info/20 bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-primary" href={`/events/${event.id}/public-archive`}>
                                 Manage future public archive
                               </a>
                               {archive.seededEventId ? (
-                                <a className="rounded-2xl border border-violet-400/30 bg-violet-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-violet-200" href={`/events/${archive.seededEventId}?workspaceId=${event.workspaceId}`}>
+                                <a className="rounded-2xl border border-status-info/20 bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-primary" href={`/events/${archive.seededEventId}?workspaceId=${event.workspaceId}`}>
                                   Open seeded draft
                                 </a>
                               ) : (
-                                <button className="rounded-2xl border border-violet-400/30 bg-violet-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:bg-violet-300/60" type="button" onClick={handleSeedNextDraft} disabled={actioning}>
+                                <button className="rounded-2xl border border-status-info/20 bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-primary disabled:cursor-not-allowed disabled:bg-action-disabled" type="button" onClick={handleSeedNextDraft} disabled={actioning}>
                                   {actioning ? 'Seeding…' : 'Seed next draft'}
                                 </button>
                               )}
                             </div>
                           </div>
 
-                          <form className="mt-4 space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4" onSubmit={handleArchiveNoteSubmit}>
-                            <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Add lesson</p>
+                          <form className="mt-4 space-y-4 rounded-2xl border border-stroke-subtle bg-surface-inset p-4" onSubmit={handleArchiveNoteSubmit}>
+                            <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Add lesson</p>
                             <label className="block space-y-2 text-sm">
-                              <span className="text-zinc-300">Write a note for the next closeout</span>
+                              <span className="text-fg-secondary">Write a note for the next closeout</span>
                               <textarea
-                                className="min-h-28 w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-violet-300/60 focus:bg-zinc-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+                                className="min-h-28 w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-status-info/20 focus:bg-surface-panel disabled:cursor-not-allowed disabled:opacity-60"
                                 value={archiveNoteBody}
                                 onChange={(event) => setArchiveNoteBody(event.target.value)}
                                 placeholder="Move doors earlier."
                                 disabled={archiveSubmitting}
                               />
                             </label>
-                            <button className="rounded-2xl bg-violet-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:bg-violet-300/60" type="submit" disabled={archiveSubmitting}>
+                            <button className="rounded-2xl bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-primary disabled:cursor-not-allowed disabled:bg-action-disabled" type="submit" disabled={archiveSubmitting}>
                               {archiveSubmitting ? 'Saving…' : 'Add lesson'}
                             </button>
                           </form>
@@ -2213,23 +2213,23 @@ export function EventEditorView({ eventId }: { eventId: string }) {
               ) : null}
 
               {!creating && effective && !isClosedEvent(effective.status) ? (
-                <section className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Actions</p>
+                <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
+                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Actions</p>
                   <div className="mt-4 flex flex-col gap-3">
-                    {isDraftEvent(effective.status) && dirty ? <p className="text-sm text-amber-200">Save your changes before publishing.</p> : null}
+                    {isDraftEvent(effective.status) && dirty ? <p className="text-sm text-status-warning">Save your changes before publishing.</p> : null}
                     {isDraftEvent(effective.status) ? (
-                      <button className="door-action rounded-2xl bg-white px-4 py-3 text-left font-medium text-zinc-950 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:bg-white/70" type="button" onClick={handlePublish} disabled={actioning || saving || dirty}>
+                      <button className="door-action rounded-2xl bg-action-primary px-4 py-3 text-left font-medium text-fg-inverse transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-surface-inset" type="button" onClick={handlePublish} disabled={actioning || saving || dirty}>
                         Publish public page
                       </button>
                     ) : null}
 
                     {effective.publicUrl ? (
-                      <a className="door-action rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left font-medium text-zinc-100 transition hover:bg-white/10" href={effective.publicUrl}>
+                      <a className="door-action rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-left font-medium text-fg-primary transition hover:bg-surface-inset" href={effective.publicUrl}>
                         Open public URL
                       </a>
                     ) : null}
 
-                    <a className="door-action rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left font-medium text-zinc-100 transition hover:bg-white/10" href={`/door/${effective.id}`}>
+                    <a className="door-action rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-left font-medium text-fg-primary transition hover:bg-surface-inset" href={`/door/${effective.id}`}>
                       Open Door
                     </a>
                   </div>
@@ -2238,46 +2238,46 @@ export function EventEditorView({ eventId }: { eventId: string }) {
 
               {!creating && effective && currentWorkspace?.id === effective.workspaceId && !commitmentsDenied ? (
                 commitments === null ? (
-                  <section className="space-y-4 rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
+                  <section className="space-y-4 rounded-panel border border-stroke-subtle bg-surface-panel p-6">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-fuchsia-300">Event commitments</p>
-                      <p className="mt-2 text-sm leading-6 text-zinc-400">Loading commitments…</p>
+                      <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Event commitments</p>
+                      <p className="mt-2 text-sm leading-6 text-fg-secondary">Loading commitments…</p>
                     </div>
                   </section>
                 ) : (
-                <section className="space-y-4 rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
+                <section className="space-y-4 rounded-panel border border-stroke-subtle bg-surface-panel p-6">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.3em] text-fuchsia-300">Event commitments</p>
-                    <p className="mt-2 text-sm leading-6 text-zinc-400">Private promises for {effective.title} stay tied to this workspace only.</p>
+                    <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Event commitments</p>
+                    <p className="mt-2 text-sm leading-6 text-fg-secondary">Private promises for {effective.title} stay tied to this workspace only.</p>
                   </div>
 
                   <div className="grid gap-3 text-sm sm:grid-cols-3">
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Open</p>
-                      <p className="mt-2 text-2xl font-semibold text-white">{commitmentCounts.open}</p>
+                    <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Open</p>
+                      <p className="mt-2 text-2xl font-semibold text-fg-primary">{commitmentCounts.open}</p>
                     </div>
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Done</p>
-                      <p className="mt-2 text-2xl font-semibold text-white">{commitmentCounts.done}</p>
+                    <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Done</p>
+                      <p className="mt-2 text-2xl font-semibold text-fg-primary">{commitmentCounts.done}</p>
                     </div>
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Cancelled</p>
-                      <p className="mt-2 text-2xl font-semibold text-white">{commitmentCounts.cancelled}</p>
+                    <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Cancelled</p>
+                      <p className="mt-2 text-2xl font-semibold text-fg-primary">{commitmentCounts.cancelled}</p>
                     </div>
                   </div>
 
                   {visibleCommitments.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-5 text-sm text-zinc-400">
-                      <p className="font-medium text-white">No commitments yet for this event.</p>
+                    <div className="rounded-2xl border border-dashed border-stroke-subtle bg-surface-inset p-5 text-sm text-fg-secondary">
+                      <p className="font-medium text-fg-primary">No commitments yet for this event.</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
                       {visibleCommitments.map((commitment) => (
-                        <article key={commitment.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                        <article key={commitment.id} className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
-                              <p className="text-lg font-medium text-white">{commitment.title}</p>
-                              <p className="mt-1 text-sm text-zinc-400">
+                              <p className="text-lg font-medium text-fg-primary">{commitment.title}</p>
+                              <p className="mt-1 text-sm text-fg-secondary">
                                 {commitment.dueAt ? `Due ${formatDateTime(commitment.dueAt)}` : 'No due date'}
                                 {commitment.ownerPersonId ? ' · Owner assigned' : ''}
                               </p>
@@ -2287,12 +2287,12 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                             </span>
                           </div>
 
-                          <p className="mt-3 text-sm leading-6 text-zinc-300">{commitment.description || 'No private description yet.'}</p>
+                          <p className="mt-3 text-sm leading-6 text-fg-secondary">{commitment.description || 'No private description yet.'}</p>
 
                           {currentWorkspace?.role === 'owner' ? (
                             <div className="mt-4 flex flex-wrap gap-2 text-sm">
                               <button
-                                className="rounded-full border border-emerald-400/20 bg-emerald-300 px-3 py-2 font-medium text-zinc-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:bg-emerald-300/60"
+                                className="rounded-full border border-status-success/20 bg-action-primary px-3 py-2 font-medium text-fg-inverse transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-action-disabled"
                                 type="button"
                                 onClick={() => void handleCommitmentStatus(commitment.id, 'done')}
                                 disabled={commitmentActioningId === commitment.id}
@@ -2300,7 +2300,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                                 Mark done
                               </button>
                               <button
-                                className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-zinc-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:bg-white/5"
+                                className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-2 text-fg-primary transition hover:bg-surface-inset disabled:cursor-not-allowed disabled:bg-surface-inset"
                                 type="button"
                                 onClick={() => void handleCommitmentStatus(commitment.id, 'open')}
                                 disabled={commitmentActioningId === commitment.id}
@@ -2308,7 +2308,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                                 Reopen
                               </button>
                               <button
-                                className="rounded-full border border-rose-400/20 bg-rose-300 px-3 py-2 font-medium text-zinc-950 transition hover:bg-rose-200 disabled:cursor-not-allowed disabled:bg-rose-300/60"
+                                className="rounded-full border border-status-danger/20 bg-action-primary px-3 py-2 font-medium text-fg-inverse transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-action-disabled"
                                 type="button"
                                 onClick={() => void handleCommitmentStatus(commitment.id, 'cancelled')}
                                 disabled={commitmentActioningId === commitment.id}
@@ -2323,35 +2323,35 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                   )}
 
                   {currentWorkspace?.role === 'owner' ? (
-                    <form className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4" onSubmit={handleCommitmentCreate}>
-                      <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Add commitment</p>
+                    <form className="space-y-4 rounded-2xl border border-stroke-subtle bg-surface-inset p-4" onSubmit={handleCommitmentCreate}>
+                      <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Add commitment</p>
                       <label className="block space-y-2 text-sm">
-                        <span className="text-zinc-300">Title</span>
+                        <span className="text-fg-secondary">Title</span>
                         <input
-                          className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-fuchsia-300/60 focus:bg-zinc-950/80"
+                          className="w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-panel"
                           value={commitmentForm.title}
                           onChange={(event) => setCommitmentForm((current) => ({ ...current, title: event.target.value }))}
                           required
                         />
                       </label>
                       <label className="block space-y-2 text-sm">
-                        <span className="text-zinc-300">Description</span>
+                        <span className="text-fg-secondary">Description</span>
                         <textarea
-                          className="min-h-28 w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-fuchsia-300/60 focus:bg-zinc-950/80"
+                          className="min-h-28 w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-panel"
                           value={commitmentForm.description}
                           onChange={(event) => setCommitmentForm((current) => ({ ...current, description: event.target.value }))}
                         />
                       </label>
                       <label className="block space-y-2 text-sm">
-                        <span className="text-zinc-300">Due at</span>
+                        <span className="text-fg-secondary">Due at</span>
                         <input
-                          className="w-full rounded-2xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-white outline-none transition focus:border-fuchsia-300/60 focus:bg-zinc-950/80"
+                          className="w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-panel"
                           type="datetime-local"
                           value={commitmentForm.dueAt}
                           onChange={(event) => setCommitmentForm((current) => ({ ...current, dueAt: event.target.value }))}
                         />
                       </label>
-                      <button className="rounded-2xl bg-fuchsia-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-fuchsia-200 disabled:cursor-not-allowed disabled:bg-fuchsia-300/60" type="submit" disabled={commitmentSubmitting}>
+                      <button className="rounded-2xl bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-action-disabled" type="submit" disabled={commitmentSubmitting}>
                         {commitmentSubmitting ? 'Saving…' : 'Add commitment'}
                       </button>
                     </form>
@@ -2361,10 +2361,10 @@ export function EventEditorView({ eventId }: { eventId: string }) {
               ) : null}
 
               {creating && hasWorkspace ? (
-                <section className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-zinc-500">Workspace link</p>
-                  <p className="mt-2 text-sm leading-6 text-zinc-400">Finish the draft here, then return to the workspace to publish or share it.</p>
-                  <a className="mt-4 inline-flex rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-zinc-100 transition hover:bg-white/10" href="/workspace">
+                <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
+                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Workspace link</p>
+                  <p className="mt-2 text-sm leading-6 text-fg-secondary">Finish the draft here, then return to the workspace to publish or share it.</p>
+                  <a className="mt-4 inline-flex rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-sm font-medium text-fg-primary transition hover:bg-surface-inset" href="/workspace">
                     Back to workspace
                   </a>
                 </section>

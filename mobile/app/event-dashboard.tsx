@@ -1,3 +1,5 @@
+import { useThemeTokens, useThemedStyles } from '@/theme/ThemeProvider';
+import type { Tokens } from '@/theme/tokens';
 import { Link, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, ClipboardCheck, ExternalLink, Pencil, ShieldCheck, Ticket, Users } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -10,6 +12,9 @@ import { safeBack } from '@/navigation/safeBack';
 import { mobileCloseoutHandoffCopy, mobileCloseoutStatusLabel } from '@/modules/settlement/settlementModel';
 
 export default function EventDashboardScreen() {
+  const tokens = useThemeTokens();
+  const styles = useThemedStyles(createStyles);
+
   const params = useLocalSearchParams<{ eventId?: string }>();
   const eventID = typeof params.eventId === 'string' ? params.eventId : '';
   const [event, setEvent] = useState<EventDTO | null>(null);
@@ -47,7 +52,7 @@ export default function EventDashboardScreen() {
     <View style={styles.screen}>
       <View style={styles.header}>
         <Pressable onPress={() => safeBack('/staff')} style={styles.backButton}>
-          <ChevronLeft size={24} color="#171717" />
+          <ChevronLeft size={24} color={tokens.color.text.primary} />
         </Pressable>
         <View>
           <Text style={styles.kicker}>Live Event</Text>
@@ -66,14 +71,14 @@ export default function EventDashboardScreen() {
           {event ? (
             <View style={styles.actionRow}>
               <Link href={{ pathname: '/event-edit', params: { eventId: event.id, workspaceId: event.workspaceId } }} style={styles.editButton}>
-                <View style={styles.editButtonInner}><Pencil size={16} color="#ffffff" /><Text style={styles.editButtonText}>Edit event</Text></View>
+                <View style={styles.editButtonInner}><Pencil size={16} color={tokens.color.text.inverse} /><Text style={styles.editButtonText}>Edit event</Text></View>
               </Link>
               <Link href={{ pathname: '/readiness', params: { eventId: event.id } }} style={styles.lightButton}>
-                <View style={styles.lightButtonInner}><ClipboardCheck size={16} color="#2563eb" /><Text style={styles.lightButtonText}>Readiness</Text></View>
+                <View style={styles.lightButtonInner}><ClipboardCheck size={16} color={tokens.color.status.info} /><Text style={styles.lightButtonText}>Readiness</Text></View>
               </Link>
               {event.publicUrl ? (
                 <Pressable onPress={() => void Linking.openURL(event.publicUrl!)} style={styles.lightButton}>
-                  <View style={styles.lightButtonInner}><ExternalLink size={16} color="#2563eb" /><Text style={styles.lightButtonText}>Preview</Text></View>
+                  <View style={styles.lightButtonInner}><ExternalLink size={16} color={tokens.color.status.info} /><Text style={styles.lightButtonText}>Preview</Text></View>
                 </Pressable>
               ) : null}
             </View>
@@ -85,7 +90,7 @@ export default function EventDashboardScreen() {
             const Icon = stat.icon;
             return (
               <View key={stat.label} style={styles.statCard}>
-                <View style={styles.iconBubble}><Icon size={20} color="#171717" /></View>
+                <View style={styles.iconBubble}><Icon size={20} color={tokens.color.text.primary} /></View>
                 <Text style={styles.statValue}>{stat.value}</Text>
                 <Text style={styles.statLabel}>{stat.label}</Text>
               </View>
@@ -102,33 +107,33 @@ export default function EventDashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#ffffff', padding: 24, paddingTop: 56 },
+const createStyles = (tokens: Tokens) => StyleSheet.create({
+  screen: { flex: 1, backgroundColor: tokens.color.surface.panel, padding: 24, paddingTop: 56 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 24 },
-  backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center' },
-  kicker: { alignSelf: 'flex-start', color: '#2563eb', backgroundColor: '#eff6ff', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 12, fontWeight: '800' },
-  title: { fontSize: 32, fontWeight: '800', letterSpacing: -1, color: '#171717', marginTop: 6 },
+  backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: tokens.color.surface.inset, alignItems: 'center', justifyContent: 'center' },
+  kicker: { alignSelf: 'flex-start', color: tokens.color.text.muted, backgroundColor: tokens.color.surface.inset, paddingHorizontal: 8, paddingVertical: 4, borderRadius: tokens.radius.pill, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: tokens.type['label'], fontWeight: '800' },
+  title: { fontSize: tokens.type['title'], fontWeight: '800', letterSpacing: -1, color: tokens.color.text.primary, marginTop: 6 },
   content: { gap: 20, paddingBottom: 32 },
-  message: { color: '#737373', fontWeight: '700' },
-  error: { color: '#dc2626', fontWeight: '700', lineHeight: 20 },
-  heroCard: { backgroundColor: '#f5f5f5', borderRadius: 28, padding: 22 },
-  heroLabel: { color: '#737373', fontSize: 12, fontWeight: '700', marginBottom: 8 },
-  eventTitle: { color: '#171717', fontSize: 24, fontWeight: '800', letterSpacing: -0.6 },
-  eventMeta: { color: '#737373', marginTop: 6 },
-  closeoutCue: { color: '#166534', backgroundColor: '#f0fdf4', borderRadius: 14, marginTop: 12, paddingHorizontal: 12, paddingVertical: 10, fontWeight: '700', lineHeight: 20 },
+  message: { color: tokens.color.text.muted, fontWeight: '700' },
+  error: { color: tokens.color.status.danger, fontWeight: '700', lineHeight: 20 },
+  heroCard: { backgroundColor: tokens.color.surface.inset, borderRadius: tokens.radius.panel, padding: 22 },
+  heroLabel: { color: tokens.color.text.muted, fontSize: tokens.type['label'], fontWeight: '700', marginBottom: 8 },
+  eventTitle: { color: tokens.color.text.primary, fontSize: 24, fontWeight: '800', letterSpacing: -0.6 },
+  eventMeta: { color: tokens.color.text.muted, marginTop: 6 },
+  closeoutCue: { color: tokens.color.status.success, backgroundColor: tokens.color.statusSurface.success, borderRadius: 14, marginTop: 12, paddingHorizontal: 12, paddingVertical: 10, fontWeight: '700', lineHeight: 20 },
   actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
-  editButton: { alignSelf: 'flex-start', backgroundColor: '#171717', borderRadius: 16, overflow: 'hidden', paddingHorizontal: 16, paddingVertical: 12 },
+  editButton: { alignSelf: 'flex-start', backgroundColor: tokens.color.action.primary, borderRadius: tokens.radius.control, overflow: 'hidden', paddingHorizontal: 16, paddingVertical: 12 },
   editButtonInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  editButtonText: { color: '#ffffff', fontWeight: '900' },
-  lightButton: { alignSelf: 'flex-start', backgroundColor: '#eff6ff', borderRadius: 16, overflow: 'hidden', paddingHorizontal: 16, paddingVertical: 12 },
+  editButtonText: { color: tokens.color.text.inverse, fontWeight: '900' },
+  lightButton: { alignSelf: 'flex-start', backgroundColor: tokens.color.statusSurface.info, borderRadius: tokens.radius.control, overflow: 'hidden', paddingHorizontal: 16, paddingVertical: 12 },
   lightButtonInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  lightButtonText: { color: '#2563eb', fontWeight: '900' },
+  lightButtonText: { color: tokens.color.text.primary, fontWeight: '900' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
-  statCard: { width: '47.5%', backgroundColor: '#ffffff', borderRadius: 22, borderWidth: 1, borderColor: '#f0f0f0', padding: 18, boxShadow: '0 3px 8px rgba(0,0,0,0.05)', elevation: 1 },
-  iconBubble: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  statValue: { color: '#171717', fontSize: 30, fontWeight: '800' },
-  statLabel: { color: '#737373', fontSize: 13, fontWeight: '600' },
-  panel: { backgroundColor: '#fafafa', borderRadius: 22, padding: 20 },
-  panelTitle: { color: '#171717', fontSize: 20, fontWeight: '800', marginBottom: 8 },
-  panelBody: { color: '#525252', lineHeight: 22 },
+  statCard: { width: '47.5%', backgroundColor: tokens.color.surface.panel, borderRadius: 22, borderWidth: 1, borderColor: tokens.color.surface.inset, padding: 18, boxShadow: '0 3px 8px rgba(0,0,0,0.05)', elevation: 1 },
+  iconBubble: { width: 40, height: 40, borderRadius: 20, backgroundColor: tokens.color.surface.inset, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  statValue: { color: tokens.color.text.primary, fontSize: 30, fontWeight: '800' },
+  statLabel: { color: tokens.color.text.muted, fontSize: 13, fontWeight: '600' },
+  panel: { backgroundColor: tokens.color.surface.inset, borderRadius: 22, padding: 20 },
+  panelTitle: { color: tokens.color.text.primary, fontSize: 20, fontWeight: '800', marginBottom: 8 },
+  panelBody: { color: tokens.color.text.secondary, lineHeight: 22 },
 });

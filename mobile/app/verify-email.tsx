@@ -1,3 +1,5 @@
+import { useThemedStyles } from '@/theme/ThemeProvider';
+import type { Tokens } from '@/theme/tokens';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -5,6 +7,9 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '@/auth/AuthContext';
 
 export default function VerifyEmailScreen() {
+
+  const styles = useThemedStyles(createStyles);
+
   const params = useLocalSearchParams<{ token?: string }>();
   const token = typeof params.token === 'string' ? params.token : '';
   const { verifyEmail } = useAuth();
@@ -34,11 +39,11 @@ export default function VerifyEmailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, justifyContent: 'center', backgroundColor: '#ffffff', padding: 24, gap: 14 },
-  kicker: { color: '#2563eb', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 12, fontWeight: '800' },
-  title: { color: '#171717', fontSize: 34, fontWeight: '800', letterSpacing: -1 },
-  body: { color: '#525252', fontSize: 16, lineHeight: 23 },
-  button: { alignSelf: 'flex-start', borderRadius: 16, backgroundColor: '#171717', paddingHorizontal: 18, paddingVertical: 14 },
-  buttonText: { color: '#ffffff', fontWeight: '800' },
+const createStyles = (tokens: Tokens) => StyleSheet.create({
+  screen: { flex: 1, justifyContent: 'center', backgroundColor: tokens.color.surface.panel, padding: 24, gap: 14 },
+  kicker: { color: tokens.color.text.muted, textTransform: 'uppercase', letterSpacing: 1.5, fontSize: tokens.type['label'], fontWeight: '800' },
+  title: { color: tokens.color.text.primary, fontSize: 34, fontWeight: '800', letterSpacing: -1 },
+  body: { color: tokens.color.text.secondary, fontSize: 16, lineHeight: 23 },
+  button: { alignSelf: 'flex-start', borderRadius: tokens.radius.control, backgroundColor: tokens.color.action.primary, paddingHorizontal: 18, paddingVertical: 14 },
+  buttonText: { color: tokens.color.text.inverse, fontWeight: '800' },
 });

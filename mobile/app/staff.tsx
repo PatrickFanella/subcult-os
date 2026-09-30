@@ -1,3 +1,5 @@
+import { useThemeTokens, useThemedStyles } from '@/theme/ThemeProvider';
+import type { Tokens } from '@/theme/tokens';
 import { Link, router, type Href } from 'expo-router';
 import { Building2, CalendarPlus, ClipboardCheck, ListChecks, Mic2, Pencil, QrCode, ShieldCheck, UserPlus, Users } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -13,6 +15,9 @@ import { nextSelectedEvent, selectedEventLabel, selectedWorkspaceLabel, staffSel
 import { AppChrome } from '@/ui/AppChrome';
 
 export default function StaffScreen() {
+  const tokens = useThemeTokens();
+  const styles = useThemedStyles(createStyles);
+
   const { user, loading: authLoading, signOut } = useAuth();
   const [selectedWorkspaceID, setSelectedWorkspaceID] = useState<string | null>(null);
   const [events, setEvents] = useState<EventDTO[]>([]);
@@ -163,7 +168,7 @@ export default function StaffScreen() {
             ))}
             <Link href={{ pathname: '/workspace-create', params: { next: '/staff' } }} style={styles.createWorkspaceChip}>
               <View style={styles.createWorkspaceInner}>
-                <Building2 size={18} color="#2563eb" />
+                <Building2 size={18} color={tokens.color.status.info} />
                 <Text style={styles.createWorkspaceText}>New workspace</Text>
               </View>
             </Link>
@@ -199,14 +204,14 @@ export default function StaffScreen() {
         </View>
 
         <View style={styles.grid}>
-          <DashboardCard to={{ pathname: '/event-edit', params: { workspaceId: workspace.id } }} icon={<CalendarPlus size={24} color="#ffffff" />} title="Create Event" subtitle="Draft & publish" primary />
-          <DashboardCard to={activeEvent ? { pathname: '/event-edit', params: { eventId: activeEvent.id, workspaceId: workspace.id } } : { pathname: '/event-edit', params: { workspaceId: workspace.id } }} icon={<Pencil size={24} color="#171717" />} title="Edit Event" subtitle="Basics & tickets" />
-          <DashboardCard disabled={!selectionReady} to={activeEvent ? { pathname: '/readiness', params: { eventId: activeEvent.id } } : '/staff'} icon={<ClipboardCheck size={24} color="#ffffff" />} title="Readiness" subtitle="Setup checklist" primary />
-          <DashboardCard disabled={!selectionReady} to={activeEvent ? { pathname: '/scanner', params: { eventId: activeEvent.id } } : '/staff'} icon={<QrCode size={24} color="#ffffff" />} title="Scan Tickets" subtitle="Run the door" primary />
-          <DashboardCard disabled={!selectionReady} to={activeEvent ? { pathname: '/run-of-show', params: { eventId: activeEvent.id } } : '/staff'} icon={<ListChecks size={24} color="#171717" />} title="Run of Show" subtitle="Event timeline" />
-          <DashboardCard disabled={!selectionReady} to={activeEvent ? { pathname: '/roles', params: { eventId: activeEvent.id } } : '/staff'} icon={<UserPlus size={24} color="#171717" />} title="Roles" subtitle="Applicants" />
-          <DashboardCard disabled={!selectionReady} to={activeEvent ? { pathname: '/door', params: { eventId: activeEvent.id } } : '/staff'} icon={<Users size={24} color="#171717" />} title="Guest List" subtitle="VIP & Comp" />
-          <DashboardCard disabled={!selectionReady} to={activeEvent ? { pathname: '/event-dashboard', params: { eventId: activeEvent.id } } : '/staff'} icon={<Mic2 size={24} color="#171717" />} title="Live Event" subtitle="Counters" />
+          <DashboardCard to={{ pathname: '/event-edit', params: { workspaceId: workspace.id } }} icon={<CalendarPlus size={24} color={tokens.color.text.inverse} />} title="Create Event" subtitle="Draft & publish" primary />
+          <DashboardCard to={activeEvent ? { pathname: '/event-edit', params: { eventId: activeEvent.id, workspaceId: workspace.id } } : { pathname: '/event-edit', params: { workspaceId: workspace.id } }} icon={<Pencil size={24} color={tokens.color.text.primary} />} title="Edit Event" subtitle="Basics & tickets" />
+          <DashboardCard disabled={!selectionReady} to={activeEvent ? { pathname: '/readiness', params: { eventId: activeEvent.id } } : '/staff'} icon={<ClipboardCheck size={24} color={tokens.color.text.inverse} />} title="Readiness" subtitle="Setup checklist" primary />
+          <DashboardCard disabled={!selectionReady} to={activeEvent ? { pathname: '/scanner', params: { eventId: activeEvent.id } } : '/staff'} icon={<QrCode size={24} color={tokens.color.text.inverse} />} title="Scan Tickets" subtitle="Run the door" primary />
+          <DashboardCard disabled={!selectionReady} to={activeEvent ? { pathname: '/run-of-show', params: { eventId: activeEvent.id } } : '/staff'} icon={<ListChecks size={24} color={tokens.color.text.primary} />} title="Run of Show" subtitle="Event timeline" />
+          <DashboardCard disabled={!selectionReady} to={activeEvent ? { pathname: '/roles', params: { eventId: activeEvent.id } } : '/staff'} icon={<UserPlus size={24} color={tokens.color.text.primary} />} title="Roles" subtitle="Applicants" />
+          <DashboardCard disabled={!selectionReady} to={activeEvent ? { pathname: '/door', params: { eventId: activeEvent.id } } : '/staff'} icon={<Users size={24} color={tokens.color.text.primary} />} title="Guest List" subtitle="VIP & Comp" />
+          <DashboardCard disabled={!selectionReady} to={activeEvent ? { pathname: '/event-dashboard', params: { eventId: activeEvent.id } } : '/staff'} icon={<Mic2 size={24} color={tokens.color.text.primary} />} title="Live Event" subtitle="Counters" />
         </View>
 
         <View style={styles.statsSection}>
@@ -216,7 +221,7 @@ export default function StaffScreen() {
               <Text style={styles.statMuted}>Tickets</Text>
               <Text style={styles.statValue}>{remainingTickets ?? '—'} <Text style={styles.statTotal}>remaining</Text></Text>
             </View>
-            <View style={styles.statPercent}><ShieldCheck size={16} color="#22c55e" /><Text style={styles.percentText}>{activeEvent ? activeEvent.status : '—'}</Text></View>
+            <View style={styles.statPercent}><ShieldCheck size={16} color={tokens.color.status.success} /><Text style={styles.percentText}>{activeEvent ? activeEvent.status : '—'}</Text></View>
           </View>
           {eventError ? <Text style={styles.error}>{eventError}</Text> : null}
           <Text onPress={() => void signOut()} style={styles.signOut}>Sign out {user.email}</Text>
@@ -227,6 +232,9 @@ export default function StaffScreen() {
 }
 
 function WorkspaceChip({ workspace, selected, onPress }: { workspace: WorkspaceSummaryDTO; selected: boolean; onPress: () => void }) {
+
+  const styles = useThemedStyles(createStyles);
+
   return (
     <Pressable onPress={onPress} style={[styles.workspaceChip, selected && styles.workspaceChipActive]}>
       <Text style={[styles.workspaceChipTitle, selected && styles.workspaceChipTitleActive]}>{workspace.name}</Text>
@@ -236,6 +244,9 @@ function WorkspaceChip({ workspace, selected, onPress }: { workspace: WorkspaceS
 }
 
 function CenteredStaffState({ title }: { title: string }) {
+
+  const styles = useThemedStyles(createStyles);
+
   return (
     <AppChrome>
       <View style={styles.authGate}><Text style={styles.emptyTitle}>{title}</Text></View>
@@ -244,6 +255,9 @@ function CenteredStaffState({ title }: { title: string }) {
 }
 
 function DashboardCard({ to, icon, title, subtitle, primary, disabled }: { to: Href; icon: React.ReactNode; title: string; subtitle: string; primary?: boolean; disabled?: boolean }) {
+
+  const styles = useThemedStyles(createStyles);
+
   return (
     <Pressable disabled={disabled} onPress={() => router.push(to)} style={[styles.dashboardCard, primary ? styles.dashboardCardPrimary : styles.dashboardCardNeutral, disabled && styles.dashboardCardDisabled]}>
       <View style={[styles.cardIcon, primary && styles.cardIconPrimary]}>{icon}</View>
@@ -255,62 +269,62 @@ function DashboardCard({ to, icon, title, subtitle, primary, disabled }: { to: H
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#ffffff' },
+const createStyles = (tokens: Tokens) => StyleSheet.create({
+  screen: { flex: 1, backgroundColor: tokens.color.surface.panel },
   content: { padding: 24, paddingTop: 64, paddingBottom: 32 },
-  authGate: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#ffffff' },
-  authButton: { marginTop: 8, backgroundColor: '#171717', color: '#ffffff', paddingHorizontal: 22, paddingVertical: 14, borderRadius: 16, overflow: 'hidden', fontWeight: '800' },
-  emptyTitle: { color: '#171717', fontSize: 24, fontWeight: '800', textAlign: 'center', marginBottom: 8 },
-  emptyBody: { color: '#737373', textAlign: 'center', lineHeight: 21, marginBottom: 8 },
-  emptyInline: { color: '#737373', fontWeight: '700' },
+  authGate: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: tokens.color.surface.panel },
+  authButton: { marginTop: 8, backgroundColor: tokens.color.action.primary, color: tokens.color.text.inverse, paddingHorizontal: 22, paddingVertical: 14, borderRadius: tokens.radius.control, overflow: 'hidden', fontWeight: '800' },
+  emptyTitle: { color: tokens.color.text.primary, fontSize: 24, fontWeight: '800', textAlign: 'center', marginBottom: 8 },
+  emptyBody: { color: tokens.color.text.muted, textAlign: 'center', lineHeight: 21, marginBottom: 8 },
+  emptyInline: { color: tokens.color.text.muted, fontWeight: '700' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 },
-  staffPill: { alignSelf: 'flex-start', color: '#2563eb', backgroundColor: '#eff6ff', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 12, fontWeight: '800' },
-  title: { fontSize: 32, fontWeight: '800', letterSpacing: -1, color: '#171717', marginTop: 8 },
-  avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#171717', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#ffffff', fontWeight: '800' },
-  activeEvent: { backgroundColor: '#f5f5f5', borderRadius: 28, padding: 20, marginBottom: 24, flexDirection: 'row', gap: 16, alignItems: 'center' },
+  staffPill: { alignSelf: 'flex-start', color: tokens.color.text.muted, backgroundColor: tokens.color.surface.inset, paddingHorizontal: 8, paddingVertical: 4, borderRadius: tokens.radius.pill, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: tokens.type['label'], fontWeight: '800' },
+  title: { fontSize: tokens.type['title'], fontWeight: '800', letterSpacing: -1, color: tokens.color.text.primary, marginTop: 8 },
+  avatar: { width: 48, height: 48, borderRadius: tokens.radius.card, backgroundColor: tokens.color.action.primary, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: tokens.color.text.inverse, fontWeight: '800' },
+  activeEvent: { backgroundColor: tokens.color.surface.inset, borderRadius: tokens.radius.panel, padding: 20, marginBottom: 24, flexDirection: 'row', gap: 16, alignItems: 'center' },
   activeEventCopy: { flex: 1 },
   activeImage: { width: 64, height: 64, borderRadius: 16 },
-  activeImagePlaceholder: { width: 64, height: 64, borderRadius: 16, backgroundColor: '#e5e5e5' },
-  mutedTiny: { color: '#737373', fontSize: 12, fontWeight: '600', marginBottom: 4 },
-  activeTitle: { color: '#171717', fontWeight: '800' },
+  activeImagePlaceholder: { width: 64, height: 64, borderRadius: tokens.radius.control, backgroundColor: tokens.color.border.subtle },
+  mutedTiny: { color: tokens.color.text.muted, fontSize: tokens.type['label'], fontWeight: '600', marginBottom: 4 },
+  activeTitle: { color: tokens.color.text.primary, fontWeight: '800' },
   selectorSection: { marginBottom: 24 },
   selectorRow: { gap: 10, paddingRight: 24 },
-  workspaceChip: { minWidth: 180, borderRadius: 20, borderWidth: 1, borderColor: '#e5e5e5', backgroundColor: '#ffffff', padding: 14 },
-  workspaceChipActive: { borderColor: '#171717', backgroundColor: '#171717' },
-  workspaceChipTitle: { color: '#171717', fontWeight: '800' },
-  workspaceChipTitleActive: { color: '#ffffff' },
-  workspaceChipMeta: { color: '#737373', fontSize: 12, fontWeight: '700', marginTop: 6, textTransform: 'uppercase', letterSpacing: 1 },
-  workspaceChipMetaActive: { color: 'rgba(255,255,255,0.65)' },
-  createWorkspaceChip: { minWidth: 180, borderRadius: 20, borderWidth: 1, borderColor: '#bfdbfe', backgroundColor: '#eff6ff', padding: 14, overflow: 'hidden' },
+  workspaceChip: { minWidth: 180, borderRadius: 20, borderWidth: 1, borderColor: tokens.color.border.subtle, backgroundColor: tokens.color.surface.panel, padding: 14 },
+  workspaceChipActive: { borderColor: tokens.color.text.primary, backgroundColor: tokens.color.action.primary },
+  workspaceChipTitle: { color: tokens.color.text.primary, fontWeight: '800' },
+  workspaceChipTitleActive: { color: tokens.color.text.inverse },
+  workspaceChipMeta: { color: tokens.color.text.muted, fontSize: tokens.type['label'], fontWeight: '700', marginTop: 6, textTransform: 'uppercase', letterSpacing: 1 },
+  workspaceChipMetaActive: { color: tokens.color.text.inverse },
+  createWorkspaceChip: { minWidth: 180, borderRadius: 20, borderWidth: 1, borderColor: tokens.color.border.strong, backgroundColor: tokens.color.statusSurface.info, padding: 14, overflow: 'hidden' },
   createWorkspaceInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  createWorkspaceText: { color: '#2563eb', fontWeight: '900' },
-  eventChip: { width: 190, borderRadius: 20, backgroundColor: '#f5f5f5', padding: 14 },
-  eventChipActive: { backgroundColor: '#171717' },
-  eventChipTitle: { color: '#171717', fontWeight: '800' },
-  eventChipTitleActive: { color: '#ffffff' },
-  eventChipMeta: { color: '#737373', fontSize: 12, fontWeight: '600', marginTop: 6 },
-  eventChipMetaActive: { color: 'rgba(255,255,255,0.65)' },
+  createWorkspaceText: { color: tokens.color.text.primary, fontWeight: '900' },
+  eventChip: { width: 190, borderRadius: 20, backgroundColor: tokens.color.surface.inset, padding: 14 },
+  eventChipActive: { backgroundColor: tokens.color.action.primary },
+  eventChipTitle: { color: tokens.color.text.primary, fontWeight: '800' },
+  eventChipTitleActive: { color: tokens.color.text.inverse },
+  eventChipMeta: { color: tokens.color.text.muted, fontSize: tokens.type['label'], fontWeight: '600', marginTop: 6 },
+  eventChipMetaActive: { color: tokens.color.text.inverse },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginBottom: 32 },
-  dashboardCard: { width: '47.5%', height: 160, borderRadius: 24, padding: 20, justifyContent: 'space-between', overflow: 'hidden', borderWidth: 1, borderColor: 'transparent' },
-  dashboardCardDisabled: { opacity: 1, backgroundColor: '#fafafa', borderColor: '#e5e5e5' },
-  dashboardCardPrimary: { backgroundColor: '#000000' },
-  dashboardCardNeutral: { backgroundColor: '#f5f5f5' },
+  dashboardCard: { width: '47.5%', height: 160, borderRadius: tokens.radius.card, padding: 20, justifyContent: 'space-between', overflow: 'hidden', borderWidth: 1, borderColor: 'transparent' },
+  dashboardCardDisabled: { opacity: 1, backgroundColor: tokens.color.surface.inset, borderColor: tokens.color.border.subtle },
+  dashboardCardPrimary: { backgroundColor: tokens.color.surface.immersive },
+  dashboardCardNeutral: { backgroundColor: tokens.color.surface.inset },
   cardIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.20)', alignItems: 'center', justifyContent: 'center' },
   cardIconPrimary: { backgroundColor: 'rgba(255,255,255,0.18)' },
-  cardTitle: { fontSize: 18, fontWeight: '800', color: '#171717', lineHeight: 22 },
-  cardTitlePrimary: { color: '#ffffff' },
-  cardSubtitle: { fontSize: 12, opacity: 0.7, marginTop: 4, color: '#171717' },
-  cardSubtitlePrimary: { color: '#ffffff' },
-  cardTextDisabled: { color: '#a3a3a3' },
-  statsSection: { borderTopWidth: 1, borderTopColor: '#f5f5f5', paddingTop: 32 },
-  sectionLabel: { fontSize: 14, fontWeight: '800', color: '#a3a3a3', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 16 },
-  statBox: { backgroundColor: '#fafafa', padding: 20, borderRadius: 16, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
-  statMuted: { color: '#737373', fontSize: 14, marginBottom: 4 },
-  statValue: { fontSize: 32, fontWeight: '800', color: '#171717' },
-  statTotal: { fontSize: 16, fontWeight: '400', color: '#a3a3a3' },
+  cardTitle: { fontSize: 18, fontWeight: '800', color: tokens.color.text.primary, lineHeight: 22 },
+  cardTitlePrimary: { color: tokens.color.text.inverse },
+  cardSubtitle: { fontSize: tokens.type['label'], opacity: 0.7, marginTop: 4, color: tokens.color.text.primary },
+  cardSubtitlePrimary: { color: tokens.color.text.inverse },
+  cardTextDisabled: { color: tokens.color.text.muted },
+  statsSection: { borderTopWidth: 1, borderTopColor: tokens.color.surface.inset, paddingTop: 32 },
+  sectionLabel: { fontSize: 14, fontWeight: '800', color: tokens.color.text.muted, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 16 },
+  statBox: { backgroundColor: tokens.color.surface.inset, padding: 20, borderRadius: tokens.radius.control, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
+  statMuted: { color: tokens.color.text.muted, fontSize: 14, marginBottom: 4 },
+  statValue: { fontSize: tokens.type['title'], fontWeight: '800', color: tokens.color.text.primary },
+  statTotal: { fontSize: 16, fontWeight: '400', color: tokens.color.text.muted },
   statPercent: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  percentText: { color: '#22c55e', fontWeight: '800', fontSize: 14 },
-  error: { color: '#dc2626', fontWeight: '700', lineHeight: 20, marginTop: 12 },
-  signOut: { color: '#737373', fontWeight: '700', textAlign: 'center', marginTop: 18 },
+  percentText: { color: tokens.color.status.success, fontWeight: '800', fontSize: 14 },
+  error: { color: tokens.color.status.danger, fontWeight: '700', lineHeight: 20, marginTop: 12 },
+  signOut: { color: tokens.color.text.muted, fontWeight: '700', textAlign: 'center', marginTop: 18 },
 });

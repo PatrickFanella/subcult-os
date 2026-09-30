@@ -1,3 +1,5 @@
+import { useThemeTokens, useThemedStyles } from '@/theme/ThemeProvider';
+import type { Tokens } from '@/theme/tokens';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { useState } from 'react';
@@ -9,6 +11,9 @@ import { safeBack } from '@/navigation/safeBack';
 import { storeSelectedWorkspaceID } from '@/staff/selectionStore';
 
 export default function WorkspaceCreateScreen() {
+  const tokens = useThemeTokens();
+  const styles = useThemedStyles(createStyles);
+
   const params = useLocalSearchParams<{ next?: string }>();
   const next = typeof params.next === 'string' && params.next.startsWith('/') ? params.next : '/staff';
   const { user, loading: authLoading, refresh } = useAuth();
@@ -48,7 +53,7 @@ export default function WorkspaceCreateScreen() {
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.header}>
         <Pressable onPress={() => safeBack('/staff')} style={styles.backButton}>
-          <ChevronLeft size={24} color="#171717" />
+          <ChevronLeft size={24} color={tokens.color.text.primary} />
         </Pressable>
         <View style={styles.headerCopy}>
           <Text style={styles.kicker}>Organizer setup</Text>
@@ -81,6 +86,9 @@ export default function WorkspaceCreateScreen() {
 }
 
 function CenteredState({ title, body }: { title: string; body?: string }) {
+
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.centered}>
       <Text style={styles.centeredTitle}>{title}</Text>
@@ -89,24 +97,24 @@ function CenteredState({ title, body }: { title: string; body?: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#ffffff' },
+const createStyles = (tokens: Tokens) => StyleSheet.create({
+  screen: { flex: 1, backgroundColor: tokens.color.surface.panel },
   header: { flexDirection: 'row', alignItems: 'center', gap: 16, padding: 24, paddingTop: 56, paddingBottom: 12 },
-  backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center' },
+  backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: tokens.color.surface.inset, alignItems: 'center', justifyContent: 'center' },
   headerCopy: { flex: 1 },
-  kicker: { alignSelf: 'flex-start', color: '#2563eb', backgroundColor: '#eff6ff', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 12, fontWeight: '800' },
-  title: { fontSize: 32, fontWeight: '800', letterSpacing: -1, color: '#171717', marginTop: 6 },
-  subtitle: { color: '#737373', fontWeight: '700', marginTop: 4, lineHeight: 21 },
+  kicker: { alignSelf: 'flex-start', color: tokens.color.text.muted, backgroundColor: tokens.color.surface.inset, paddingHorizontal: 8, paddingVertical: 4, borderRadius: tokens.radius.pill, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: tokens.type['label'], fontWeight: '800' },
+  title: { fontSize: tokens.type['title'], fontWeight: '800', letterSpacing: -1, color: tokens.color.text.primary, marginTop: 6 },
+  subtitle: { color: tokens.color.text.muted, fontWeight: '700', marginTop: 4, lineHeight: 21 },
   content: { gap: 18, padding: 24, paddingTop: 8, paddingBottom: 40 },
-  panel: { backgroundColor: '#fafafa', borderRadius: 28, padding: 20, gap: 12 },
-  sectionTitle: { color: '#171717', fontSize: 20, fontWeight: '800' },
-  input: { minHeight: 56, borderRadius: 16, borderWidth: 1, borderColor: '#e5e5e5', backgroundColor: '#ffffff', color: '#171717', paddingHorizontal: 16, fontSize: 16, fontWeight: '800' },
-  helper: { color: '#737373', lineHeight: 20, fontWeight: '600' },
-  error: { color: '#dc2626', fontWeight: '800', lineHeight: 20 },
-  primaryButton: { minHeight: 56, borderRadius: 18, backgroundColor: '#171717', alignItems: 'center', justifyContent: 'center' },
-  primaryButtonText: { color: '#ffffff', fontWeight: '900', fontSize: 16 },
+  panel: { backgroundColor: tokens.color.surface.inset, borderRadius: tokens.radius.panel, padding: 20, gap: 12 },
+  sectionTitle: { color: tokens.color.text.primary, fontSize: 20, fontWeight: '800' },
+  input: { minHeight: tokens.size.field, borderRadius: tokens.radius.control, borderWidth: 1, borderColor: tokens.color.border.subtle, backgroundColor: tokens.color.surface.panel, color: tokens.color.text.primary, paddingHorizontal: 16, fontSize: 16, fontWeight: '800' },
+  helper: { color: tokens.color.text.muted, lineHeight: 20, fontWeight: '600' },
+  error: { color: tokens.color.status.danger, fontWeight: '800', lineHeight: 20 },
+  primaryButton: { minHeight: tokens.size.field, borderRadius: 18, backgroundColor: tokens.color.action.primary, alignItems: 'center', justifyContent: 'center' },
+  primaryButtonText: { color: tokens.color.text.inverse, fontWeight: '900', fontSize: 16 },
   disabledButton: { opacity: 0.45 },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', padding: 24 },
-  centeredTitle: { color: '#171717', fontSize: 24, fontWeight: '900', textAlign: 'center' },
-  centeredBody: { color: '#737373', textAlign: 'center', marginTop: 8, lineHeight: 21 },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: tokens.color.surface.panel, padding: 24 },
+  centeredTitle: { color: tokens.color.text.primary, fontSize: 24, fontWeight: '900', textAlign: 'center' },
+  centeredBody: { color: tokens.color.text.muted, textAlign: 'center', marginTop: 8, lineHeight: 21 },
 });

@@ -93,7 +93,7 @@ func (a *App) processEmailDeliveries(ctx context.Context, send func(context.Cont
 	report.Quarantined = int(expired.RowsAffected())
 	for range limit {
 		var message mailprovider.Message
-		var lease, purpose string
+		var lease, purpose, relatedType string
 		var attempts int
 		var workspaceID sql.NullString
 		err := a.db.QueryRow(ctx, `with candidate as (
@@ -109,8 +109,8 @@ func (a *App) processEmailDeliveries(ctx context.Context, send func(context.Cont
 		 update email_outbox e set delivery_status='leased',attempts=e.attempts+1,
 		 first_attempt_at=coalesce(e.first_attempt_at,now()),lease_token=gen_random_uuid(),lease_until=now()+interval '2 minutes'
 		 from candidate where e.id=candidate.id
-		 returning e.id::text,e.sender_address,e.reply_to_address,e.recipient_email,e.subject,e.body,e.lease_token::text,e.attempts,e.purpose,e.workspace_id::text`).Scan(
-			&message.ID, &message.From, &message.ReplyTo, &message.To, &message.Subject, &message.Text, &lease, &attempts, &purpose, &workspaceID)
+		 returning e.id::text,e.sender_address,e.reply_to_address,e.recipient_email,e.subject,e.body,e.lease_token::text,e.attempts,e.purpose,e.workspace_id::text,e.related_type`).Scan(
+			&message.ID, &message.From, &message.ReplyTo, &message.To, &message.Subject, &message.Text, &lease, &attempts, &purpose, &workspaceID, &relatedType)
 		if errors.Is(err, pgx.ErrNoRows) {
 			break
 		}
@@ -153,6 +153,32 @@ func (a *App) processEmailDeliveries(ctx context.Context, send func(context.Cont
 			}
 			report.Withheld++
 			continue
+		}
+		if relatedType == "lifecycle_notice" {
+			allowed, checkErr := a.lifecycleNoticeSendAllowed(ctx, message.ID, lease)
+			if checkErr != nil {
+				return report, errors.New("listing notice authority check failed")
+			}
+			if !allowed {
+				status := "withheld_authority"
+				// A previous attempt may have been accepted before its reply
+				// was lost. Do not assert that such a message stayed unsent.
+				if attempts > 1 {
+					status = "quarantined"
+				}
+				ack, ackErr := a.db.Exec(ctx, `update email_outbox set delivery_status=$3,last_error_code='notice_authority_changed',body='',lease_token=null,lease_until=null where id=$1 and lease_token=$2 and delivery_status='leased' and lease_until>clock_timestamp()`, message.ID, lease, status)
+				if ackErr != nil {
+					return report, errors.New("listing notice withholding failed")
+				}
+				if ack.RowsAffected() == 0 {
+					report.Superseded++
+				} else if status == "quarantined" {
+					report.Quarantined++
+				} else {
+					report.Withheld++
+				}
+				continue
+			}
 		}
 		callCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 		providerID, callErr := send(callCtx, message)

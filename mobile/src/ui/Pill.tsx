@@ -1,7 +1,7 @@
 import type { PropsWithChildren } from 'react';
 import { Text } from 'react-native';
 
-type PillTone = 'neutral' | 'accent' | 'success' | 'warning' | 'info';
+type PillTone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger' | 'info';
 
 type PillProps = PropsWithChildren<{
   tone?: PillTone;
@@ -12,6 +12,7 @@ const toneClasses: Record<PillTone, string> = {
   accent: 'text-action-primary',
   success: 'text-status-success',
   warning: 'text-status-warning',
+  danger: 'text-status-danger',
   info: 'text-status-info',
 };
 

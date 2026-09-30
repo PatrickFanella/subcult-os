@@ -153,7 +153,7 @@ export function TicketView({ code }: { code: string }) {
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className={publicEyebrowClass}>Ticket</p>
-            <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] text-[#171717] sm:text-4xl">Your ticket</h1>
+            <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] text-fg-primary sm:text-4xl">Your ticket</h1>
           </div>
           <a className={publicSecondaryButtonClass} href="/">
             Workspace
@@ -164,7 +164,7 @@ export function TicketView({ code }: { code: string }) {
           <p className={`${publicMutedTextClass} leading-6`}>Your reservation lives here. Keep this page open or save the code for arrival.</p>
 
           {loading ? <div className={`${publicCardClass} ${publicMutedTextClass}`}>Loading ticket…</div> : null}
-          {error ? <div role="alert" className="rounded-[22px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
+          {error ? <div role="alert" className="rounded-[22px] border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm font-bold text-status-danger">
             <p>{error}</p>
             {ticket ? <p className="mt-2">Showing the last loaded ticket. Its payment and check-in status may have changed.</p> : null}
           </div> : null}
@@ -174,38 +174,38 @@ export function TicketView({ code }: { code: string }) {
 
           {ticket ? (
             <>
-              <div className="overflow-hidden rounded-[32px] border border-neutral-200 bg-white p-6 shadow-sm">
+              <div className="overflow-hidden rounded-hero border border-stroke-subtle bg-surface-panel p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <span className={publicStatusPillClass(ticketStatusTone(ticket))}>{ticketJourneyStatusBadge(ticket)}</span>
-                  <span className="rounded-full bg-white p-3 text-xl shadow-sm" aria-hidden="true">
+                  <span className="rounded-full bg-surface-panel p-3 text-xl shadow-sm" aria-hidden="true">
                     ↗
                   </span>
                 </div>
 
                 <div className="mt-5">
-                  <h2 className="text-2xl font-black tracking-[-0.03em] text-[#171717]">Ticket {ticket.code}</h2>
-                  <p className="mt-1 text-sm text-neutral-500">{ticketJourneyDisplayName(ticket)}</p>
+                  <h2 className="text-2xl font-black tracking-[-0.03em] text-fg-primary">Ticket {ticket.code}</h2>
+                  <p className="mt-1 text-sm text-fg-muted">{ticketJourneyDisplayName(ticket)}</p>
                 </div>
 
-                <div className="mt-5 grid gap-3 text-sm font-semibold text-neutral-700 sm:grid-cols-2">
+                <div className="mt-5 grid gap-3 text-sm font-semibold text-fg-secondary sm:grid-cols-2">
                   <p>Payment: {ticket.paymentStatus}</p>
                   <p>Status: {ticket.status}</p>
                 </div>
 
-                <div className="my-6 border-t-2 border-dashed border-neutral-200" />
+                <div className="my-6 border-t-2 border-dashed border-stroke-subtle" />
 
                 <div className="flex flex-col items-center text-center">
-				<div className="flex h-56 w-56 items-center justify-center rounded-[24px] border border-neutral-200 bg-white p-4" aria-label="Ticket QR code">
+				<div className="flex h-56 w-56 items-center justify-center rounded-[24px] border border-stroke-subtle bg-surface-panel p-4" aria-label="Ticket QR code">
 					{qr?.code === ticket.code ? (
 						<img className="h-full w-full" src={qr.dataUrl} alt={`QR code for ticket ${ticket.code}`} />
 					) : qrFailedCode === ticket.code ? (
-                      <span role="status" className="text-sm font-bold text-neutral-700">QR unavailable. Show the ticket code below for manual entry.</span>
+                      <span role="status" className="text-sm font-bold text-fg-secondary">QR unavailable. Show the ticket code below for manual entry.</span>
                     ) : (
-                      <span className="text-xs font-black uppercase tracking-[0.28em] text-neutral-500">Preparing QR</span>
+                      <span className="text-xs font-black uppercase tracking-[0.28em] text-fg-muted">Preparing QR</span>
                     )}
                   </div>
-                  <p className="mt-4 break-words font-mono text-sm tracking-[0.28em] text-neutral-600">{ticket.code}</p>
-                  <p className="mt-2 text-sm text-neutral-500">{ticketJourneyCodeCopy(ticket)}</p>
+                  <p className="mt-4 break-words font-mono text-sm tracking-[0.28em] text-fg-secondary">{ticket.code}</p>
+                  <p className="mt-2 text-sm text-fg-muted">{ticketJourneyCodeCopy(ticket)}</p>
                 </div>
               </div>
 
@@ -214,48 +214,48 @@ export function TicketView({ code }: { code: string }) {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className={publicEyebrowClass}>Payment status</p>
-                      <p className="mt-2 text-2xl font-black tracking-[-0.03em] text-[#171717]">{ticketJourneyPaymentLabel(ticket.paymentStatus)}</p>
+                      <p className="mt-2 text-2xl font-black tracking-[-0.03em] text-fg-primary">{ticketJourneyPaymentLabel(ticket.paymentStatus)}</p>
                     </div>
                     <span className={publicStatusPillClass(ticketPaymentTone(ticket.paymentStatus))}>{ticketJourneyPaymentBadge(ticket)}</span>
                   </div>
 
-                  <p className="mt-3 text-sm leading-6 text-neutral-600">{ticketJourneyPaymentSummary(ticket)}</p>
+                  <p className="mt-3 text-sm leading-6 text-fg-secondary">{ticketJourneyPaymentSummary(ticket)}</p>
                 </div>
 
                 <div className={publicCardClass}>
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className={publicEyebrowClass}>Status</p>
-                      <p className="mt-2 text-2xl font-black tracking-[-0.03em] text-[#171717]">{ticketJourneyStatusLabel(ticket.status)}</p>
+                      <p className="mt-2 text-2xl font-black tracking-[-0.03em] text-fg-primary">{ticketJourneyStatusLabel(ticket.status)}</p>
                     </div>
                     <span className={publicStatusPillClass(ticketStatusTone(ticket))}>{ticketJourneyStatusBadge(ticket)}</span>
                   </div>
 
-                  <p className="mt-3 text-sm leading-6 text-neutral-600">
+                  <p className="mt-3 text-sm leading-6 text-fg-secondary">
                     {ticketJourneyStatusCopy(ticket, formatHumanTime(ticket.checkedInAt))}
                   </p>
                 </div>
               </div>
 
               <div className={publicCardClass}>
-                <p className="text-xl font-black tracking-[-0.03em] text-[#171717]">Arrival notes</p>
-                <p className="mt-2 text-sm leading-6 text-neutral-600">{ticketArrivalNotes(ticket.paymentStatus)}</p>
+                <p className="text-xl font-black tracking-[-0.03em] text-fg-primary">Arrival notes</p>
+                <p className="mt-2 text-sm leading-6 text-fg-secondary">{ticketArrivalNotes(ticket.paymentStatus)}</p>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                  <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                     <p className={publicEyebrowClass}>Name</p>
-                    <p className="mt-2 text-sm font-bold text-[#171717]">{ticketJourneyDisplayName(ticket)}</p>
+                    <p className="mt-2 text-sm font-bold text-fg-primary">{ticketJourneyDisplayName(ticket)}</p>
                   </div>
-                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                  <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                     <p className={publicEyebrowClass}>Email</p>
-                    <p className="mt-2 break-words text-sm font-bold text-[#171717]">{ticket.email}</p>
+                    <p className="mt-2 break-words text-sm font-bold text-fg-primary">{ticket.email}</p>
                   </div>
-                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                  <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                     <p className={publicEyebrowClass}>Checked in</p>
-                    <p className="mt-2 text-sm font-bold text-[#171717]">{formatHumanTime(ticket.checkedInAt)}</p>
+                    <p className="mt-2 text-sm font-bold text-fg-primary">{formatHumanTime(ticket.checkedInAt)}</p>
                   </div>
-                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                  <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                     <p className={publicEyebrowClass}>Ticket code</p>
-                    <p className="mt-2 text-sm font-bold text-[#171717]">{formatTicketCode(ticket.code)}</p>
+                    <p className="mt-2 text-sm font-bold text-fg-primary">{formatTicketCode(ticket.code)}</p>
                   </div>
                 </div>
               </div>

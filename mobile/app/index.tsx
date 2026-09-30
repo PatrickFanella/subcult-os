@@ -1,3 +1,5 @@
+import { useThemeTokens, useThemedStyles } from '@/theme/ThemeProvider';
+import type { Tokens } from '@/theme/tokens';
 import { Link } from 'expo-router';
 import { Calendar, MapPin } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -21,6 +23,9 @@ import {
 } from '@/modules/discovery/discoveryModel';
 
 export default function DiscoveryFeedScreen() {
+  const tokens = useThemeTokens();
+  const styles = useThemedStyles(createStyles);
+
 	const [events, setEvents] = useState<PublicEventSummaryDTO[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -64,7 +69,7 @@ export default function DiscoveryFeedScreen() {
 				value={searchQuery}
 				onChangeText={setSearchQuery}
 				placeholder={discoverySearchPlaceholder}
-				placeholderTextColor="#737373"
+				placeholderTextColor={tokens.color.text.muted}
 				style={styles.searchInput}
 				returnKeyType="search"
 			/>
@@ -147,8 +152,8 @@ export default function DiscoveryFeedScreen() {
 	);
 }
 
-const styles = StyleSheet.create({
-	scroll: { flex: 1, backgroundColor: '#000000' },
+const createStyles = (tokens: Tokens) => StyleSheet.create({
+	scroll: { flex: 1, backgroundColor: tokens.color.surface.immersive },
 	searchWrap: {
 		position: 'absolute',
 		top: 16,
@@ -156,15 +161,15 @@ const styles = StyleSheet.create({
 		right: 16,
 		zIndex: 10,
 		borderRadius: 18,
-		backgroundColor: 'rgba(255,255,255,0.94)',
+		backgroundColor: tokens.color.surface.panel,
 		padding: 6,
-		shadowColor: '#000000',
+		shadowColor: tokens.color.surface.immersive,
 		shadowOpacity: 0.14,
 		shadowRadius: 18,
 		shadowOffset: { width: 0, height: 8 },
 	},
-	searchInput: { borderRadius: 14, backgroundColor: '#ffffff', color: '#171717', fontSize: 16, fontWeight: '700', paddingHorizontal: 14, paddingVertical: 12 },
-	slide: { position: 'relative', width: '100%', backgroundColor: '#000000' },
+	searchInput: { borderRadius: 14, backgroundColor: tokens.color.surface.panel, color: tokens.color.text.primary, fontSize: 16, fontWeight: '700', paddingHorizontal: 14, paddingVertical: 12 },
+	slide: { position: 'relative', width: '100%', backgroundColor: tokens.color.surface.immersive },
 	slideFallback: { minHeight: 640 },
 	image: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, width: '100%', height: '100%' },
 	gradient: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(0,0,0,0.38)' },
@@ -174,31 +179,31 @@ const styles = StyleSheet.create({
 		paddingHorizontal: 12,
 		paddingVertical: 6,
 		backgroundColor: 'rgba(255,255,255,0.20)',
-		borderRadius: 999,
-		color: '#ffffff',
-		fontSize: 12,
+		borderRadius: tokens.radius.pill,
+		color: tokens.color.text.onImmersive,
+		fontSize: tokens.type['label'],
 		fontWeight: '600',
 		textTransform: 'uppercase',
 		letterSpacing: 1.2,
 		overflow: 'hidden',
 	},
-	title: { color: '#ffffff', fontSize: 40, fontWeight: '800', letterSpacing: -1.2, lineHeight: 42, marginBottom: 4 },
+	title: { color: tokens.color.text.onImmersive, fontSize: tokens.type['display'], fontWeight: '800', letterSpacing: -1.2, lineHeight: 42, marginBottom: 4 },
 	subtitle: { color: 'rgba(255,255,255,0.82)', fontSize: 18, fontWeight: '300', marginBottom: 16 },
 	metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginBottom: 24 },
 	metaItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
 	metaText: { color: 'rgba(255,255,255,0.72)', fontSize: 14, fontWeight: '600' },
 	button: {
 		width: '100%',
-		backgroundColor: '#ffffff',
-		color: '#000000',
+		backgroundColor: tokens.color.surface.panel,
+		color: tokens.color.text.primary,
 		paddingVertical: 16,
-		borderRadius: 16,
+		borderRadius: tokens.radius.control,
 		textAlign: 'center',
 		fontSize: 18,
 		fontWeight: '700',
 		overflow: 'hidden',
 	},
-	centerState: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 28, backgroundColor: '#ffffff' },
-	centerTitle: { color: '#171717', fontSize: 24, fontWeight: '800', textAlign: 'center', marginBottom: 8 },
-	centerBody: { color: '#737373', fontSize: 15, lineHeight: 22, textAlign: 'center' },
+	centerState: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 28, backgroundColor: tokens.color.surface.panel },
+	centerTitle: { color: tokens.color.text.primary, fontSize: 24, fontWeight: '800', textAlign: 'center', marginBottom: 8 },
+	centerBody: { color: tokens.color.text.muted, fontSize: tokens.type['body'], lineHeight: 22, textAlign: 'center' },
 });

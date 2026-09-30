@@ -166,6 +166,27 @@ export interface LifecycleIntentActionDTO {
   updatedAt: string;
 }
 
+export interface LifecycleNoticeDTO {
+  id: string;
+  changeId: string;
+  subject: string;
+  body: string;
+  queuedAt: string;
+  recipients: Array<{ email: string; status: string; attempts: number; feedback: string }>;
+}
+
+export interface LifecycleNoticePreviewDTO {
+  changeId: string;
+  occurrenceId: string;
+  revision: string;
+  publicCid: string;
+  audiences: Array<'ticket_holders' | 'assigned_crew'>;
+  subject: string;
+  body: string;
+  recipients: Array<{ email: string; sourceType: 'ticket' | 'crew_person' | 'crew_application'; suppressed: boolean }>;
+  previewHash: string;
+}
+
 export interface LifecycleIntentDTO {
   id: string;
   workspaceId: string;

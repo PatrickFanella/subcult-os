@@ -1,3 +1,5 @@
+import { useThemeTokens, useThemedStyles } from '@/theme/ThemeProvider';
+import type { Tokens } from '@/theme/tokens';
 import { Link, useLocalSearchParams } from 'expo-router';
 import { CheckCircle2, ChevronLeft, Search, Ticket, UserCheck } from 'lucide-react-native';
 import { useState } from 'react';
@@ -14,6 +16,9 @@ import {
 } from '@/modules/tickets/ticketJourney';
 
 export default function DoorScreen() {
+  const tokens = useThemeTokens();
+  const styles = useThemedStyles(createStyles);
+
   const params = useLocalSearchParams<{ eventId?: string }>();
   const eventID = typeof params.eventId === 'string' ? params.eventId : '';
   const { user, loading: authLoading } = useAuth();
@@ -85,7 +90,7 @@ export default function DoorScreen() {
     <View style={styles.screen}>
       <View style={styles.header}>
         <Pressable onPress={() => safeBack('/staff')} style={styles.backButton}>
-          <ChevronLeft size={24} color="#171717" />
+          <ChevronLeft size={24} color={tokens.color.text.primary} />
         </Pressable>
         <View>
           <Text style={styles.kicker}>Door Mode</Text>
@@ -108,24 +113,24 @@ export default function DoorScreen() {
           />
         </View>
         <Pressable disabled={loading} onPress={search} style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}>
-          <Search size={20} color="#ffffff" />
+          <Search size={20} color={tokens.color.text.inverse} />
           <Text style={styles.primaryButtonText}>{loading ? 'Searching…' : 'Search'}</Text>
         </Pressable>
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
-        {notice ? <View style={styles.notice}><CheckCircle2 size={20} color="#22c55e" /><Text style={styles.noticeText}>{notice}</Text></View> : null}
+        {notice ? <View style={styles.notice}><CheckCircle2 size={20} color={tokens.color.status.success} /><Text style={styles.noticeText}>{notice}</Text></View> : null}
 
         {results.map((ticket) => (
           <View key={ticket.id} style={styles.resultCard}>
             <View style={styles.resultHeader}>
               <Text style={[styles.statusPill, ticket.status === 'checked_in' && styles.statusPillChecked]}>{ticketJourneyDoorBadge(ticket.status)}</Text>
-              <Ticket size={20} color="#737373" />
+              <Ticket size={20} color={tokens.color.text.muted} />
             </View>
             <Text style={styles.guestName}>{ticket.displayName ?? 'Guest'}</Text>
             <Text style={styles.guestMeta}>{ticket.code} · {ticket.admissionEligible ? 'Ready for entry' : 'Not eligible'}</Text>
             <View style={styles.divider} />
             <Pressable disabled={checkingIn === ticket.code || !ticket.admissionEligible} onPress={() => void checkIn(ticket)} style={styles.primaryButton}>
-              <UserCheck size={20} color="#ffffff" />
+              <UserCheck size={20} color={tokens.color.text.inverse} />
               <Text style={styles.primaryButtonText}>{doorCheckInButtonLabel(checkingIn === ticket.code, ticket.status === 'checked_in')}</Text>
             </Pressable>
           </View>
@@ -136,33 +141,36 @@ export default function DoorScreen() {
 }
 
 function CenteredDoorState({ title }: { title: string }) {
+
+  const styles = useThemedStyles(createStyles);
+
   return <View style={styles.authGate}><Text style={styles.emptyTitle}>{title}</Text></View>;
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#ffffff', padding: 24, paddingTop: 56 },
-  authGate: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#ffffff' },
-  authButton: { marginTop: 8, backgroundColor: '#171717', color: '#ffffff', paddingHorizontal: 22, paddingVertical: 14, borderRadius: 16, overflow: 'hidden', fontWeight: '800' },
-  emptyTitle: { color: '#171717', fontSize: 24, fontWeight: '800', textAlign: 'center', marginBottom: 8 },
-  emptyBody: { color: '#737373', textAlign: 'center', lineHeight: 21, marginBottom: 8 },
+const createStyles = (tokens: Tokens) => StyleSheet.create({
+  screen: { flex: 1, backgroundColor: tokens.color.surface.panel, padding: 24, paddingTop: 56 },
+  authGate: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: tokens.color.surface.panel },
+  authButton: { marginTop: 8, backgroundColor: tokens.color.action.primary, color: tokens.color.text.inverse, paddingHorizontal: 22, paddingVertical: 14, borderRadius: tokens.radius.control, overflow: 'hidden', fontWeight: '800' },
+  emptyTitle: { color: tokens.color.text.primary, fontSize: 24, fontWeight: '800', textAlign: 'center', marginBottom: 8 },
+  emptyBody: { color: tokens.color.text.muted, textAlign: 'center', lineHeight: 21, marginBottom: 8 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 24 },
-  backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center' },
-  kicker: { alignSelf: 'flex-start', color: '#2563eb', backgroundColor: '#eff6ff', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 12, fontWeight: '800' },
-  title: { fontSize: 32, fontWeight: '800', letterSpacing: -1, color: '#171717', marginTop: 6 },
+  backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: tokens.color.surface.inset, alignItems: 'center', justifyContent: 'center' },
+  kicker: { alignSelf: 'flex-start', color: tokens.color.text.muted, backgroundColor: tokens.color.surface.inset, paddingHorizontal: 8, paddingVertical: 4, borderRadius: tokens.radius.pill, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: tokens.type['label'], fontWeight: '800' },
+  title: { fontSize: tokens.type['title'], fontWeight: '800', letterSpacing: -1, color: tokens.color.text.primary, marginTop: 6 },
   content: { gap: 16, paddingBottom: 32 },
-  searchBox: { minHeight: 56, borderRadius: 18, backgroundColor: '#f5f5f5', paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  input: { flex: 1, color: '#171717', fontSize: 16, fontWeight: '500' },
-  resultCard: { backgroundColor: '#ffffff', borderRadius: 28, borderWidth: 1, borderColor: '#f0f0f0', padding: 22, boxShadow: '0 3px 10px rgba(0,0,0,0.06)', elevation: 2 },
+  searchBox: { minHeight: tokens.size.field, borderRadius: 18, backgroundColor: tokens.color.surface.inset, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  input: { flex: 1, color: tokens.color.text.primary, fontSize: 16, fontWeight: '500' },
+  resultCard: { backgroundColor: tokens.color.surface.panel, borderRadius: tokens.radius.panel, borderWidth: 1, borderColor: tokens.color.surface.inset, padding: 22, boxShadow: '0 3px 10px rgba(0,0,0,0.06)', elevation: 2 },
   resultHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  statusPill: { alignSelf: 'flex-start', color: '#171717', backgroundColor: '#f5f5f5', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1, fontSize: 12, fontWeight: '800' },
-  statusPillChecked: { color: '#16a34a', backgroundColor: '#f0fdf4' },
-  guestName: { fontSize: 26, fontWeight: '800', color: '#171717', letterSpacing: -0.7 },
-  guestMeta: { color: '#737373', fontSize: 15, marginTop: 4 },
-  divider: { borderTopWidth: 1, borderTopColor: '#f0f0f0', marginVertical: 20 },
-  primaryButton: { minHeight: 56, borderRadius: 18, backgroundColor: '#171717', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+  statusPill: { alignSelf: 'flex-start', color: tokens.color.text.primary, backgroundColor: tokens.color.surface.inset, paddingHorizontal: 10, paddingVertical: 5, borderRadius: tokens.radius.pill, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1, fontSize: tokens.type['label'], fontWeight: '800' },
+  statusPillChecked: { color: tokens.color.status.success, backgroundColor: tokens.color.statusSurface.success },
+  guestName: { fontSize: 26, fontWeight: '800', color: tokens.color.text.primary, letterSpacing: -0.7 },
+  guestMeta: { color: tokens.color.text.muted, fontSize: tokens.type['body'], marginTop: 4 },
+  divider: { borderTopWidth: 1, borderTopColor: tokens.color.surface.inset, marginVertical: 20 },
+  primaryButton: { minHeight: tokens.size.field, borderRadius: 18, backgroundColor: tokens.color.action.primary, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
   primaryButtonDisabled: { opacity: 0.55 },
-  primaryButtonText: { color: '#ffffff', fontWeight: '800', fontSize: 16 },
-  notice: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fafafa', borderRadius: 18, padding: 16 },
-  noticeText: { flex: 1, color: '#525252', lineHeight: 20 },
-  errorText: { color: '#dc2626', fontWeight: '700', lineHeight: 20 },
+  primaryButtonText: { color: tokens.color.text.inverse, fontWeight: '800', fontSize: 16 },
+  notice: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: tokens.color.surface.inset, borderRadius: 18, padding: 16 },
+  noticeText: { flex: 1, color: tokens.color.text.secondary, lineHeight: 20 },
+  errorText: { color: tokens.color.status.danger, fontWeight: '700', lineHeight: 20 },
 });

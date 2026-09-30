@@ -237,8 +237,33 @@ export interface LifecycleIntentActionDTO {
   status: 'pending' | 'running' | 'succeeded' | 'retryable' | 'unknown' | 'failed' | 'superseded';
   attemptCount: number;
   failureCategory?: string;
+  dispatchApproved?: boolean;
+  nextAttemptAt?: string;
+  finishedAt?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface LifecycleNoticeDTO {
+  id: string;
+  changeId: string;
+  subject: string;
+  body: string;
+  queuedAt: string;
+  recipients: Array<{ email: string; status: string; attempts: number; feedback: string }>;
+  reviews: Array<{ id: string; note: string; recordedAt: string; recipients: LifecycleNoticeDTO['recipients'] }>;
+}
+
+export interface LifecycleNoticePreviewDTO {
+  changeId: string;
+  occurrenceId: string;
+  revision: string;
+  publicCid: string;
+  audiences: Array<'ticket_holders' | 'assigned_crew'>;
+  subject: string;
+  body: string;
+  recipients: Array<{ email: string; sourceType: 'ticket' | 'crew_person' | 'crew_application'; suppressed: boolean }>;
+  previewHash: string;
 }
 
 export interface LifecycleIntentDTO {

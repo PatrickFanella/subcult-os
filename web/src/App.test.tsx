@@ -9,6 +9,7 @@ import { TicketView } from './views/TicketView';
 import { ParticipantPortalView } from './views/ParticipantPortalView';
 import { WorkspaceView } from './views/WorkspaceView';
 import { LifecycleIntentsView } from './views/LifecycleIntentsView';
+import { LifecycleNoticePreview } from './views/LifecycleNoticePreview';
 import { normalizeCurrentWorkspace } from './modules/workspace/workspaceModel';
 import { formFromEvent } from './modules/eventEditor/eventEditorModel';
 import type { EventDTO } from './domain';
@@ -71,6 +72,43 @@ function renderWithState(pathname: string, element: React.ReactElement, stateVal
 
   return renderToString(element);
 }
+
+describe('listing notice preview', () => {
+  it('shows the exact review and queue approval separately from sending', () => {
+    const rendered = renderWithState('/workspace/one/lifecycle-intents', <LifecycleNoticePreview eventId="one" changeId="change" onAuthorizationLoss={() => undefined} />, [true, true, {
+      changeId: 'change', occurrenceId: 'listing', revision: 'revision', publicCid: '', audiences: ['assigned_crew', 'ticket_holders'],
+      subject: 'Listing cancelled: <script>unsafe</script>', body: 'The listing was cancelled. This does not change your ticket.', previewHash: 'hash',
+      recipients: [{ email: 'guest@example.test', sourceType: 'ticket', suppressed: false }, { email: 'crew@example.test', sourceType: 'crew_person', suppressed: true }],
+    }, false, null]);
+    expect(rendered.replace(/<!--.*?-->/g, '')).toContain('1 eligible · 1 suppressed');
+    expect(rendered).toContain('crew@example.test');
+    expect(rendered).toContain('suppressed; would be withheld');
+    expect(rendered).toContain('This does not change your ticket.');
+    expect(rendered).toContain('Messages remain held while sending is disabled');
+    expect(rendered).toContain('Approve and queue this notice');
+    expect(rendered).toContain('&lt;script&gt;unsafe&lt;/script&gt;');
+    expect(rendered).not.toContain('<script>');
+    expect(rendered).not.toContain('Approve and send');
+  });
+  it('keeps queued outcomes visible after supersession without offering another approval', () => {
+    const rendered = renderWithState('/workspace/one/lifecycle-intents', <LifecycleNoticePreview eventId="one" changeId="change" canApprove={false} onAuthorizationLoss={() => undefined} />, [true, true, null, false, null, {
+      id: 'notice', changeId: 'change', subject: 'Listing cancelled', body: 'Approved message', queuedAt: '2026-09-29T18:00:00Z',
+      recipients: [{ email: 'guest@example.test', status: 'accepted', attempts: 1, feedback: 'unknown' }, { email: 'crew@example.test', status: 'quarantined', attempts: 2, feedback: 'unknown' }],
+      reviews: [{ id: 'review', recordedAt: '2026-09-29T19:00:00Z', note: 'Check <provider> records first.', recipients: [{ email: 'guest@example.test', status: 'held', attempts: 0, feedback: 'unknown' }] }],
+    }, null]);
+    expect(rendered).toContain('decision was superseded');
+    expect(rendered).toContain('Refresh delivery outcomes');
+    expect(rendered).toContain('Provider acceptance and delivery feedback are separate');
+    expect(rendered).toContain('quarantined');
+    expect(rendered).toContain('Owner review log');
+    expect(rendered).toContain('Check &lt;provider&gt; records first.');
+    expect(rendered).toContain('Outcomes when saved:');
+    expect(rendered).toContain('1 held');
+    expect(rendered).toContain('does not send, retry, or mark a message delivered');
+    expect(rendered).not.toContain('Approve and queue');
+    expect(rendered).not.toContain('Preview listing notice');
+  });
+});
 
 describe('participant portal', () => {
   it('renders person-linked assignments and commitments without private operator fields', () => {

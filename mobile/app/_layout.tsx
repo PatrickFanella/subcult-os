@@ -1,21 +1,25 @@
+import { useThemeTokens } from '@/theme/ThemeProvider';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import '@/global.css';
 import { AuthProvider } from '@/auth/AuthContext';
+import { ThemeProvider } from '@/theme/ThemeProvider';
 
 export default function RootLayout() {
+  const tokens = useThemeTokens();
+
   return (
-    <SafeAreaProvider>
+    <ThemeProvider><SafeAreaProvider>
       <AuthProvider>
         <StatusBar style="auto" />
         <Stack
           screenOptions={{
-            headerStyle: { backgroundColor: '#ffffff' },
-            headerTintColor: '#171717',
+            headerStyle: { backgroundColor: tokens.color.surface.panel },
+            headerTintColor: tokens.color.text.primary,
             headerTitleStyle: { fontWeight: '800' },
-            contentStyle: { backgroundColor: '#ffffff' },
+            contentStyle: { backgroundColor: tokens.color.surface.panel },
           }}
         >
           <Stack.Screen name="index" options={{ headerShown: false }} />
@@ -38,6 +42,6 @@ export default function RootLayout() {
           <Stack.Screen name="workspace-create" options={{ headerShown: false }} />
         </Stack>
       </AuthProvider>
-    </SafeAreaProvider>
+    </SafeAreaProvider></ThemeProvider>
   );
 }
