@@ -62,6 +62,9 @@ export interface MemberDTO {
   email: string;
   displayName: string | null;
   role: WorkspaceRole;
+  accessState?: 'active' | 'expired' | 'revoked';
+  expiresAt?: string;
+  revokedAt?: string;
 }
 
 export interface ContactDTO {

@@ -1,10 +1,10 @@
 import type { PublicDiscoveryHandoffDTO, PublicDiscoveryLocationDTO, PublicDiscoveryOccurrenceDTO } from '../../domain';
 
 export const discoveryOccurrencesTitle = 'Cultural discovery';
-export const discoveryOccurrencesDescription = 'Browse occurrences mirrored from the public AT Protocol projection.';
+export const discoveryOccurrencesDescription = 'Explore public cultural events and their locations. Open an event to check its details and reservation availability.';
 export const discoveryOccurrencesLoadingCopy = 'Loading discovery occurrences…';
 export const discoveryOccurrencesEmptyTitle = 'No discovery occurrences yet';
-export const discoveryOccurrencesEmptyBody = 'Discovery occurrences will appear here once the projection mirrors a public record.';
+export const discoveryOccurrencesEmptyBody = 'Public cultural events will appear here when they are shared.';
 export const discoveryOccurrenceDetailCloseLabel = 'Close';
 export const discoveryOccurrenceUnavailableLabel = 'This occurrence is no longer available from its source.';
 export const discoveryOccurrenceExternalLabel = '(opens an external site)';
@@ -42,8 +42,20 @@ export function formatOccurrenceDateTime(startsAt: string, timezone?: string) {
 	if (Number.isNaN(date.getTime())) {
 		return startsAt;
 	}
-	const formatted = new Intl.DateTimeFormat([], { dateStyle: 'medium', timeStyle: 'short' }).format(date);
-	return timezone ? `${formatted} (${timezone})` : formatted;
+	if (timezone) {
+		try {
+			const formatted = new Intl.DateTimeFormat([], { dateStyle: 'medium', timeStyle: 'short', timeZone: timezone }).format(date);
+			const offset = new Intl.DateTimeFormat([], { timeZone: timezone, timeZoneName: 'shortOffset' })
+				.formatToParts(date).find((part) => part.type === 'timeZoneName')?.value;
+			return `${formatted} (${timezone}${offset ? `, ${offset}` : ''})`;
+		} catch (error) {
+			if (!(error instanceof RangeError)) throw error;
+			// Projected zone strings are untrusted. Never relabel the viewer's
+			// local clock with an invalid or unsupported event zone.
+		}
+	}
+	const formatted = new Intl.DateTimeFormat([], { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' }).format(date);
+	return `${formatted} (UTC; event time zone unavailable)`;
 }
 
 export function occurrenceLocationSummary(location?: PublicDiscoveryLocationDTO | null) {
@@ -94,6 +106,7 @@ export function handoffLocalPath(handoff: PublicDiscoveryHandoffDTO) {
 
 export interface DiscoveryPlotPoint {
 	uri: string;
+	label: string;
 	x: number;
 	y: number;
 }
@@ -115,7 +128,7 @@ export function projectOccurrencesToPlot(occurrences: PublicDiscoveryOccurrenceD
 		const lon = Number(occurrence.location.longitude);
 		const x = ((lon + 180) / 360) * width;
 		const y = ((90 - lat) / 180) * height;
-		points.push({ uri: occurrence.uri, x, y });
+		points.push({ uri: occurrence.uri, label: `View ${occurrence.name}: ${formatOccurrenceDateTime(occurrence.startsAt, occurrence.timezone)}`, x, y });
 	}
 	return points;
 }

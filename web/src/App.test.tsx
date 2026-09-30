@@ -365,11 +365,12 @@ describe('App routes', () => {
 
   it('renders the public event route', () => {
     const rendered = renderAt('/e/night-market');
-    expect(rendered).toContain('Free guest reservation');
+    expect(rendered).toContain('Pricing unavailable');
+    expect(rendered).toContain('Loading event…');
+    expect(rendered).not.toContain('<form');
     expect(rendered).toContain('No account needed');
     expect(rendered).toContain('Discover more events');
-    expect(rendered).toContain('free ticket');
-    expect(rendered).toContain('Email required');
+    expect(rendered).not.toContain('free ticket');
     expect(rendered).not.toContain('Private note:');
     expect(rendered).not.toContain('Keep private');
     expect(rendered).not.toContain(REMINDER_PRIVATE_SUBJECT);
@@ -379,7 +380,9 @@ describe('App routes', () => {
   it('keeps the legacy public event route alias on the public event view', () => {
     const rendered = renderAt('/public/events/night-market');
 
-    expect(rendered).toContain('Free guest reservation');
+    expect(rendered).toContain('Pricing unavailable');
+    expect(rendered).toContain('Loading event…');
+    expect(rendered).not.toContain('<form');
     expect(rendered).toContain('No account needed');
     expect(rendered).toContain('Discover more events');
   });
@@ -2438,6 +2441,29 @@ describe('App routes', () => {
     expect(rendered).toContain('accepted');
     expect(rendered).toContain('confirmed');
     expect(rendered).not.toContain('applicantEmail');
+  });
+
+  it.each([
+    { publicSlug: 'previous-event', loading: false },
+    { publicSlug: 'night-market', loading: true },
+  ])('hides unconfirmed public event data and forms ($publicSlug, loading=$loading)', ({ publicSlug, loading }) => {
+    const previousEvent = {
+      id: 'previous-event', title: 'Previous event details', publicSlug,
+      pricingMode: 'free', isFull: false, remainingTickets: 10,
+    };
+    const previousTicket = { code: 'previous-ticket-code', email: 'previous@example.test', ticketUrl: '/tickets/previous' };
+    const rendered = renderWithState('/e/night-market', <PublicEventView slug="night-market" />, [
+      previousEvent, 'previous@example.test', 'Previous guest', loading, false,
+      'Current event unavailable', previousTicket, [], {}, true, null,
+    ]);
+    expect(rendered).not.toContain('Previous event details');
+    expect(rendered).not.toContain('previous@example.test');
+    expect(rendered).not.toContain('previous-ticket-code');
+    expect(rendered).not.toContain('<form');
+    expect(rendered).not.toContain('Reserve free ticket');
+    expect(rendered).not.toContain('Buy ticket');
+    expect(rendered).toContain('Pricing unavailable');
+    expect(rendered).toContain('Availability unavailable');
   });
 
 	it('renders the public paid ticket CTA', () => {

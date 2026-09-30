@@ -41,12 +41,42 @@ describe('discoveryOccurrenceModel', () => {
 		expect(occurrenceStatusLabel(occurrence({ status: 'scheduled' }))).toBe('Scheduled');
 	});
 
-	it('formats date/time with an explicit timezone label when present', () => {
-		const withTz = formatOccurrenceDateTime('2026-10-01T20:00:00.000Z', 'America/Chicago');
-		expect(withTz).toContain('America/Chicago');
-		const withoutTz = formatOccurrenceDateTime('2026-10-01T20:00:00.000Z');
-		expect(withoutTz).not.toContain('(');
-		expect(formatOccurrenceDateTime('not-a-date')).toBe('not-a-date');
+	it('converts the same instant into different event zones, including the calendar date', () => {
+		const instant = '2026-10-01T20:00:00.000Z';
+		const chicago = formatOccurrenceDateTime(instant, 'America/Chicago');
+		const tokyo = formatOccurrenceDateTime(instant, 'Asia/Tokyo');
+		const wallTime = (zone: string) => new Intl.DateTimeFormat([], { dateStyle: 'medium', timeStyle: 'short', timeZone: zone }).format(new Date(instant));
+		expect(chicago).toContain(wallTime('America/Chicago'));
+		expect(tokyo).toContain(wallTime('Asia/Tokyo'));
+		expect(chicago.split(' (')[0]).not.toBe(tokyo.split(' (')[0]);
+		expect(chicago).toContain('America/Chicago');
+		expect(tokyo).toContain('Asia/Tokyo');
+	});
+
+	it('distinguishes repeated fall-back wall times using their actual offsets', () => {
+		const daylight = formatOccurrenceDateTime('2026-11-01T06:30:00Z', 'America/Chicago');
+		const standard = formatOccurrenceDateTime('2026-11-01T07:30:00Z', 'America/Chicago');
+		expect(daylight.split(' (')[0]).toBe(standard.split(' (')[0]);
+		expect(daylight).not.toBe(standard);
+	});
+
+	it('skips the nonexistent spring-forward hour in the event zone', () => {
+		const before = formatOccurrenceDateTime('2026-03-08T07:30:00Z', 'America/Chicago');
+		const after = formatOccurrenceDateTime('2026-03-08T08:30:00Z', 'America/Chicago');
+		const wall = (instant: string) => new Intl.DateTimeFormat([], { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Chicago' }).format(new Date(instant));
+		expect(before).toContain(wall('2026-03-08T07:30:00Z'));
+		expect(after).toContain(wall('2026-03-08T08:30:00Z'));
+		expect(before.slice(before.lastIndexOf('('))).not.toBe(after.slice(after.lastIndexOf('(')));
+	});
+
+	it('uses explicit UTC for missing or invalid zones without endorsing the bad label', () => {
+		const instant = '2026-10-01T20:00:00Z';
+		const utc = new Intl.DateTimeFormat([], { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' }).format(new Date(instant));
+		for (const zone of [undefined, '', 'Invalid/Zone', ' America/Chicago ']) {
+			const result = formatOccurrenceDateTime(instant, zone);
+			expect(result).toBe(`${utc} (UTC; event time zone unavailable)`);
+		}
+		expect(formatOccurrenceDateTime('not-a-date', 'America/Chicago')).toBe('not-a-date');
 	});
 
 	it('summarizes a safe public location without ever needing a street address field', () => {
@@ -66,7 +96,7 @@ describe('discoveryOccurrenceModel', () => {
 		const withoutLocation = occurrence({ uri: 'uri-b' });
 		const points = projectOccurrencesToPlot([withLocation, withoutLocation], 200, 100);
 		expect(points).toHaveLength(1);
-		expect(points[0]).toEqual({ uri: 'uri-a', x: 100, y: 50 });
+		expect(points[0]).toMatchObject({ uri: 'uri-a', x: 100, y: 50 });
 	});
 
 	it('labels the handoff button and never invents a fallback destination', () => {

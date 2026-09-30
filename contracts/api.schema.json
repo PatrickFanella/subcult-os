@@ -1,6 +1,9 @@
 {
   "version": 1,
   "dtos": {
+    "MemberDTO": {
+      "required": ["id", "email", "displayName", "role"]
+    },
     "CurrentUserDTO": {
       "required": ["id", "email", "displayName", "workspaces"]
     },
