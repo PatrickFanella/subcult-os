@@ -256,6 +256,8 @@ func (a *App) routes() {
 	a.mux.HandleFunc("GET /api/workspaces/{workspaceID}/places/{placeID}/access-info", a.handleGetEventAccess)
 	a.mux.HandleFunc("GET /api/workspaces/{workspaceID}/places/{placeID}/access-info/{topic}/history", a.handleGetEventAccessHistory)
 	a.mux.HandleFunc("POST /api/workspaces/{workspaceID}/places/{placeID}/access-info/{topic}", a.handleCreateEventAccessRevision)
+	a.mux.HandleFunc("GET /api/events/{eventID}/access-info/occurrences", a.handleListAccessComparisonOccurrences)
+	a.mux.HandleFunc("GET /api/events/{eventID}/access-info/occurrences/{occurrenceID}/comparison", a.handleGetOccurrenceAccessComparison)
 	a.mux.HandleFunc("GET /api/events/{eventID}/access-info", a.handleGetEventAccess)
 	a.mux.HandleFunc("GET /api/events/{eventID}/access-info/{topic}/history", a.handleGetEventAccessHistory)
 	a.mux.HandleFunc("POST /api/events/{eventID}/access-info/{topic}", a.handleCreateEventAccessRevision)

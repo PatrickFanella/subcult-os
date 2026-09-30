@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ApiError, api, postJSON } from '../api';
 import type { AccessInformationRevisionDTO, EventAccessTopic, EventAccessWorksheetDTO, VenueAccessWorksheetDTO, EventDTO } from '../domain';
+import { AccessEntrySummary } from '../components/AccessEntrySummary';
+import { OccurrenceAccessComparison } from '../components/OccurrenceAccessComparison';
 import { Button } from '../ui/Button';
-import { accessExpiry, accessSourceLabels, accessTimestamp, accessTopics, accessValueLabels, accessValues, nextAccessRetry, unknownAccessEntry, type AccessRetry } from '../modules/eventAccess/eventAccessModel';
+import { accessSourceLabels, accessTimestamp, accessTopics, accessValueLabels, accessValues, nextAccessRetry, unknownAccessEntry, type AccessRetry } from '../modules/eventAccess/eventAccessModel';
 
 type Worksheet = { evaluatedAt: string; entries: AccessInformationRevisionDTO[] };
 type History = { topic: EventAccessTopic; revisions: AccessInformationRevisionDTO[]; nextBefore?: number };
@@ -10,19 +12,7 @@ type Draft = { entry: AccessInformationRevisionDTO; reviewed: string; expires: s
 const draftFrom = (entry: AccessInformationRevisionDTO): Draft => ({ entry, reviewed: entry.reviewedAt?.slice(0, 16) ?? '', expires: entry.expiresAt?.slice(0, 16) ?? '', reason: '' });
 const control = 'mt-1 w-full rounded-control border border-stroke-subtle bg-surface-inset p-3 text-fg-primary';
 
-export function AccessEntrySummary({ entry, evaluatedAt }: { entry: AccessInformationRevisionDTO; evaluatedAt: string }) {
-  const expired = accessExpiry(entry, Date.parse(entry.evaluatedAt || evaluatedAt));
-  return <div className="space-y-2 text-sm">
-    <p className="font-bold">{accessValueLabels[entry.effectiveValue]}{expired && ' · review expired'}</p>
-    {entry.value === 'unknown' ? <p className="text-fg-secondary">No current assertion. Unknown does not mean no.</p> : <>
-      {expired && <p className="text-status-warning">The recorded assertion needs confirmation. Its previous value was {accessValueLabels[entry.value].toLowerCase()}.</p>}
-      {entry.details && <p className="whitespace-pre-wrap break-words">{entry.details}</p>}
-      <p className="text-fg-secondary">{accessSourceLabels[entry.sourceKind]} · {entry.scope === 'venue' ? 'venue assertion' : 'event-specific'}</p>
-      <p className="whitespace-pre-wrap break-words text-fg-secondary">Source: {entry.sourceReference}</p>
-      <p className="break-words text-xs text-fg-muted">Reviewed: {entry.reviewedAt} {entry.expiresAt && `· Review by: ${entry.expiresAt}`}</p>
-    </>}
-  </div>;
-}
+export { AccessEntrySummary } from '../components/AccessEntrySummary';
 
 export function EventAccessView({ eventId }: { eventId: string }) { return <AccessInformationView key={eventId} eventId={eventId} />; }
 export function VenueAccessView({ workspaceId, placeId }: { workspaceId: string; placeId: string }) { return <AccessInformationView key={`${workspaceId}:${placeId}`} workspaceId={workspaceId} placeId={placeId} />; }
@@ -99,6 +89,7 @@ function AccessInformationView({ eventId, workspaceId, placeId }: { eventId?: st
         <p className="text-xs text-fg-muted">Worksheet checked at {worksheet.evaluatedAt}. Refresh to check for newer corrections and elapsed review dates.</p>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{worksheet.entries.map((entry) => <article key={entry.topic} className="space-y-3 rounded-panel border border-stroke-subtle bg-surface-panel p-4"><h3 className="font-bold">{accessTopics.find((item) => item.topic === entry.topic)?.label}</h3><AccessEntrySummary entry={entry} evaluatedAt={worksheet.evaluatedAt} /><Button variant="ghost" disabled={busy} onClick={() => selectTopic(entry.topic)}>Edit {accessTopics.find((item) => item.topic === entry.topic)?.label.toLowerCase()}</Button></article>)}</div>
       </section>
+      {eventId && <OccurrenceAccessComparison eventId={eventId} onAuthorizationLoss={() => { clearPrivate(); setDenied(true); setNotice('Owner access is no longer available. Private information has been cleared.'); }} />}
       <form onSubmit={submit} className="space-y-4 rounded-panel border border-stroke-subtle bg-surface-panel p-5"><h2 className="text-xl font-bold">Record an update</h2>
         <fieldset disabled={busy} className="grid min-w-0 gap-4 sm:grid-cols-2"><legend className="sr-only">Access information revision</legend>
           <label>Topic<select className={control} value={draft.entry.topic} onChange={(e) => selectTopic(e.target.value as EventAccessTopic)}>{accessTopics.map((item) => <option key={item.topic} value={item.topic}>{item.label}</option>)}</select></label>

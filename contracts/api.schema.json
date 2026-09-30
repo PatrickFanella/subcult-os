@@ -62,6 +62,14 @@
     "VenueAccessPlaceIndexDTO": {
       "required": ["places"]
     },
+    "AccessComparisonOccurrenceDTO": {
+      "required": ["id", "name", "startsAt", "status", "updatedAt"],
+      "forbidden": ["createdByPersonId", "publicCid", "publicUri", "description"]
+    },
+    "OccurrenceAccessComparisonDTO": {
+      "required": ["eventId", "workspaceId", "evaluatedAt", "occurrence", "event", "venue"],
+      "forbidden": ["requestKey", "recordedByPersonId", "accommodationRequests", "streetAddress", "accessNotes"]
+    },
     "EventAccessWorksheetDTO": {
       "required": ["eventId", "evaluatedAt", "entries"]
     },

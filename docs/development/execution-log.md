@@ -1,5 +1,42 @@
 # Development execution log
 
+## 2026-09-30 — ACCESS-INFO occurrence venue comparison
+
+Added an owner-only, read-only comparison inside the event worksheet. It shows
+the selected occurrence's linked venue beside the event's six recorded topics,
+with distinct source/review/expiry labels and explicit Unknown states for a
+missing venue or assertion. A repeatable-read transaction returns the occurrence
+revision and both worksheets from one database snapshot and expiry clock. Owner
+membership is rechecked after the transaction. Minimal occurrence options omit
+creator identity, description and public record metadata. No source assertion is
+copied, no occurrence verification is recorded, and no public DTO changes.
+
+Full pinned `bash scripts/dev-env.sh verify` passed: 277 web tests, 34 mobile
+tests, backend checks/build and complete disposable DB gate: 421 top-level tests,
+599 including nested subtests, zero failures or skips. The separate race-enabled
+access run passed 16 top-level tests, 32 including nested, with no race warnings.
+Tests hold a worksheet table lock while changing the occurrence link/venue name
+or revoking owner membership: the original comparison keeps one snapshot, the
+next read sees the change, and revoked ownership returns 403 with no private
+payload. Both disposable databases were removed.
+
+Real synthetic desktop browser checks showed venue No beside event Yes with
+separate provenance, six rows and a correct private venue link. An unlinked
+occurrence displayed venue Unknown. Switching selection while an older actual
+server response was held cleared the old rows; releasing that response did not
+overwrite the new selection. An actual occurrence venue-link change appeared on
+Refresh comparison; the QA fixture's original link was then restored. A
+simulated comparison 403 cleared parent title, draft, history, cards and
+comparison. Fetch interceptions were removed. Light and dark screenshots were
+inspected. This is synthetic desktop proof, not actual venue conditions, a saved
+occurrence-specific verification, full mobile/device evidence or user evaluation.
+
+Restarted only this checkout's development API after qualification. Schema 29
+and retained counts were preserved: two events, five occurrences, seven access
+revisions, two venue references and four held outbox rows. No migration,
+production deployment, mail delivery, provider call or public publication was
+performed. #55 remains open for its unfinished acceptance gates.
+
 ## 2026-09-30 — ACCESS-INFO private venue observations
 
 Extended the private access ledger to workspace-owned cultural places without
@@ -40,7 +77,12 @@ hosted checks green, targeting main after #169 merged at `375451dc`. The
 merge-commit CI attempt failed when the temporary runner daemon exhausted its
 256 MiB limit before tests. Owned orphaned job containers and the ephemeral
 credential were cleaned, the daemon limit was raised to 1 GiB, and the unchanged
-merge commit was rerun as job 19978; that job is currently in progress. Shared
+merge commit passed as job 19978: 405 top-level DB tests (567 including nested),
+zero failures or skips. PR #172 at `7c772723` then passed hosted push
+11037/job 19983 and PR 11038/job 19984, each with the same full 273 web/34 mobile/
+419 top-level DB gate (595 including nested). The successful temporary runners
+were removed, their credentials deleted, and zero repository registrations
+verified. Its PR body was updated and read back. Shared
 runner configuration and other worktrees were preserved.
 
 #55 remains open. Explicit occurrence-scoped review of venue information,

@@ -103,13 +103,15 @@ make dev-mobile
 
 ## Private venue and event access information
 
-Owners can open **Access worksheet** from a saved event editor. The worksheet
-Owners can also open **Venue access worksheets** from their workspace, add
-a named venue reference and record a separate venue observation history. Each
-worksheet records six access topics with explicit Unknown states, source/review dates,
-conservative expiry and retained correction history. Venue information never automatically
-becomes event verification. The worksheets are owner-only; it does not publish venue claims or collect personal accommodation
-requests. See [the worksheet contract](docs/development/event-access-information.md)
+Owners can open **Access worksheet** from a saved event editor, or **Venue access
+worksheets** from the workspace. The venue index lets owners add a named reference
+and record a separate observation history. Each worksheet records six topics
+with explicit Unknown states, source/review dates, conservative expiry and
+retained correction history. Venue information never automatically becomes event
+verification. The event worksheet also compares the linked venue and event
+information for a selected occurrence, with separate source and expiry labels.
+These owner-only worksheets do not publish venue claims or collect
+personal accommodation requests. See [the worksheet contract](docs/development/event-access-information.md)
 for the API, schema-29 boundary and remaining #55 acceptance work.
 
 ## First lifecycle slice

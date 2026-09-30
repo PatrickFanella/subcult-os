@@ -194,6 +194,31 @@ func (a *App) accessResourceOwner(w http.ResponseWriter, r *http.Request) (acces
 	}
 	return accessResource{ID: event.ID, WorkspaceID: event.WorkspaceID, Scope: "event", Column: "event_id", ParentTable: "events", AuditPrefix: "event_access", IDField: "eventId"}, true
 }
+
+type accessWorksheetQuery interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
+func readAccessWorksheet(ctx context.Context, query accessWorksheetQuery, resource accessResource, now time.Time) (eventAccessWorksheetDTO, error) {
+	out := eventAccessWorksheetDTO{EvaluatedAt: now.UTC().Format(time.RFC3339Nano), Entries: []eventAccessRevisionDTO{}}
+	if resource.Scope == "event" {
+		out.EventID = resource.ID
+	} else {
+		out.PlaceID = resource.ID
+		out.PlaceName = resource.Name
+	}
+	for _, topic := range accessTopics {
+		x, err := scanAccessRevision(query.QueryRow(ctx, "select "+accessRevisionColumns+" from event_access_revisions where "+resource.Column+"=$1 and topic=$2 order by revision desc limit 1", resource.ID, topic), now)
+		if errors.Is(err, pgx.ErrNoRows) {
+			x = eventAccessRevisionDTO{EvaluatedAt: now.UTC().Format(time.RFC3339Nano), Topic: topic, Scope: resource.Scope, Value: "unknown", EffectiveValue: "unknown", SourceKind: "unknown", NeedsReview: true}
+		} else if err != nil {
+			return eventAccessWorksheetDTO{}, err
+		}
+		out.Entries = append(out.Entries, x)
+	}
+	return out, nil
+}
+
 func (a *App) handleGetEventAccess(w http.ResponseWriter, r *http.Request) {
 	resource, ok := a.accessResourceOwner(w, r)
 	if !ok {
@@ -204,22 +229,10 @@ func (a *App) handleGetEventAccess(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 500, "could not load access worksheet")
 		return
 	}
-	out := eventAccessWorksheetDTO{EvaluatedAt: now.UTC().Format(time.RFC3339Nano), Entries: []eventAccessRevisionDTO{}}
-	if resource.Scope == "event" {
-		out.EventID = resource.ID
-	} else {
-		out.PlaceID = resource.ID
-		out.PlaceName = resource.Name
-	}
-	for _, topic := range accessTopics {
-		x, err := scanAccessRevision(a.db.QueryRow(r.Context(), "select "+accessRevisionColumns+" from event_access_revisions where "+resource.Column+"=$1 and topic=$2 order by revision desc limit 1", resource.ID, topic), now)
-		if errors.Is(err, pgx.ErrNoRows) {
-			x = eventAccessRevisionDTO{EvaluatedAt: now.UTC().Format(time.RFC3339Nano), Topic: topic, Scope: resource.Scope, Value: "unknown", EffectiveValue: "unknown", SourceKind: "unknown", NeedsReview: true}
-		} else if err != nil {
-			writeError(w, 500, "could not load access worksheet")
-			return
-		}
-		out.Entries = append(out.Entries, x)
+	out, err := readAccessWorksheet(r.Context(), a.db, resource, now)
+	if err != nil {
+		writeError(w, 500, "could not load access worksheet")
+		return
 	}
 	if _, _, ok := a.requireWorkspaceRole(r, resource.WorkspaceID, roleOwner); !ok {
 		writeError(w, 403, "forbidden")

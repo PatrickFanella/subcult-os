@@ -18,9 +18,26 @@ The merge-commit follow-up job exhausted the temporary runner daemon's 256 MiB
 limit while downloading actions, before tests started. Its failed attempt was
 retained, owned orphaned job containers were stopped, the ephemeral registration
 credential was removed, and the daemon limit was raised to 1 GiB. Rerunning the
-same merge commit queued job 19978. The repository queue assigned the older
+same merge commit produced a passing job 19978, including the full disposable DB
+gate: 405 top-level tests (567 including nested), zero failures or skips. The repository queue assigned the older
 #171 jobs to that temporary capacity first. No workflow, commit or shared runner
 configuration changed.
+
+PR #172 (`7c7727239bfd7acc4263a8d89003c01519676044`) passed hosted push
+11037/job 19983 and PR 11038/job 19984: 273 web tests, 34 mobile tests and the
+complete DB gate with 419 top-level tests (595 including nested), zero failures
+or skips. Temporary runners exited successfully, were removed, and their local
+registration credentials were deleted. Zero repository runner registrations
+were verified. The published stack #170 → #171 → #172 remains open and linked
+to this thread.
+
+The next source slice implements an owner-only comparison of the selected
+occurrence's linked venue worksheet and event information. It reads from one
+database snapshot with distinct source/review/expiry labels and Unknown states.
+Full local verification passed: 277 web/34 mobile tests, 421 top-level DB tests
+(599 including nested), zero failures or skips. A separate race run and synthetic
+desktop selection/refresh/access-loss checks passed. A stored occurrence-specific
+review, public display and intended-audience evaluation remain separate work.
 
 Current source work extends #55 with private venue observations, an owner-only
 venue-reference index and separate event/venue provenance. It preserves the
