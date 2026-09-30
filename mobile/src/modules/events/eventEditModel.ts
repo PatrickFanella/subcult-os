@@ -13,6 +13,7 @@ export type EventEditImagePickerResult<TAsset extends EventEditImageAsset = Even
 export type EventEditFormState = {
 	title: string;
 	startsAt: string;
+	startsAtSource?: string;
 	publicDescription: string;
 	locationDisplay: string;
 	imageUrl: string;
@@ -52,6 +53,7 @@ export function createEventEditFormFromEvent(event: EventDTO): EventEditFormStat
 	return {
 		title: event.title,
 		startsAt: toLocalInput(event.startsAt),
+		startsAtSource: event.startsAt,
 		publicDescription: event.publicDescription,
 		locationDisplay: event.locationDisplay,
 		imageUrl: event.imageUrl ?? '',
@@ -63,7 +65,11 @@ export function createEventEditFormFromEvent(event: EventDTO): EventEditFormStat
 }
 
 export function buildEventEditPayload(form: EventEditFormState): EventWritePayload | null {
-	const startsAt = parseEventEditStartsAt(form.startsAt);
+	const source = form.startsAtSource;
+	const hydratedInput = source ? toLocalInput(source) : '';
+	// Unchanged local minute text must not reselect a DST offset or truncate
+	// the server's seconds/fractions during an unrelated edit.
+	const startsAt = source && hydratedInput && hydratedInput === form.startsAt ? source : parseEventEditStartsAt(form.startsAt);
 	const ticketAllocation = Number.parseInt(form.ticketAllocation, 10);
 	if (!startsAt || Number.isNaN(ticketAllocation)) return null;
 	const ticketPriceCents = form.pricingMode === 'free' ? 0 : Math.round(Number.parseFloat(form.ticketPriceDollars || '0') * 100);

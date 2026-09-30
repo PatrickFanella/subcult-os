@@ -487,3 +487,20 @@ Full pinned local verification passed361 web/34 mobile, DB422 top-level/606
 including nested, no failures/skips; disposable gate DB removed. This gate is
 separate from the retained owned rehearsal DB. Edited Markdown links, syntax,
 ShellCheck and scoped review passed; no broader acceptance closure.
+
+
+### Preserve exact starts while editing — 2026-09-30
+
+PR #188 passed both hosted checks atfee51e77b254dcc43cbbe284f0b3dc294426aaf6
+(push11101/job20055, PR11102/job20056;361 web/34 mobile, DB422/606).
+
+The next slice preserves the original hydrated event start in web/mobile forms
+when minute-level start text is unchanged. Actual old builders shifted a Chicago
+repeated-hour instant and lost seconds; reserved-event description edits failed409.
+Fixed builders passed200 and kept the exact start/reservation. Full pinned local
+gate passed366 web/39 mobile and DB422/606. See the operator evidence for red/green
+checks, four viewer-zone model runs and API rehearsal limitations.
+
+Continue hosted qualification, then the first bounded unfinished slice. Joined
+browser/native editing, legacy event-zone persistence and deliberate DST gap/fold
+selection remain open; this fix does not qualify those gates.
