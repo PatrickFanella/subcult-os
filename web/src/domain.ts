@@ -62,6 +62,9 @@ export interface MemberDTO {
   email: string;
   displayName: string | null;
   role: WorkspaceRole;
+  accessState?: 'active' | 'expired' | 'revoked';
+  expiresAt?: string;
+  revokedAt?: string;
 }
 
 export interface ContactDTO {
@@ -753,4 +756,21 @@ export interface VenueAccessPlaceDTO {
 export interface VenueAccessPlaceIndexDTO {
   places: VenueAccessPlaceDTO[];
   nextAfter?: string;
+}
+
+export interface AccessComparisonOccurrenceDTO {
+  id: string;
+  name: string;
+  startsAt: string;
+  status: 'scheduled' | 'rescheduled' | 'postponed' | 'cancelled';
+  updatedAt: string;
+  placeId?: string;
+}
+export interface OccurrenceAccessComparisonDTO {
+  eventId: string;
+  workspaceId: string;
+  evaluatedAt: string;
+  occurrence: AccessComparisonOccurrenceDTO;
+  event: EventAccessWorksheetDTO;
+  venue: VenueAccessWorksheetDTO | null;
 }

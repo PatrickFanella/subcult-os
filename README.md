@@ -71,7 +71,9 @@ The helpers pin Node 24.18.0, pnpm 10.33.0, and Go 1.26.6. Each worktree has
 its own Compose project, network, development database, and Go caches. Test DB
 containers use temporary storage and are removed after the run, including failed
 runs. Test database logs are retained in ignored `.cache/dev-env/test-db.log`;
-the container uses a 768 MiB limit matching the shared T3 test environment.
+the container uses a 1 GiB limit. The growing migration suite exhausted the
+previous 768 MiB limit and killed a PostgreSQL checkpointer; this repository
+limit is independent of the installed shared T3 test recipe.
 Test, Test Database and Verify share the installed T3 launcher's host test
 lock, so verification does not overlap another worktree's checks. The API mounts
 the current Lexicon contracts read-only for cultural record validation.
@@ -103,13 +105,15 @@ make dev-mobile
 
 ## Private venue and event access information
 
-Owners can open **Access worksheet** from a saved event editor. The worksheet
-Owners can also open **Venue access worksheets** from their workspace, add
-a named venue reference and record a separate venue observation history. Each
-worksheet records six access topics with explicit Unknown states, source/review dates,
-conservative expiry and retained correction history. Venue information never automatically
-becomes event verification. The worksheets are owner-only; it does not publish venue claims or collect personal accommodation
-requests. See [the worksheet contract](docs/development/event-access-information.md)
+Owners can open **Access worksheet** from a saved event editor, or **Venue access
+worksheets** from the workspace. The venue index lets owners add a named reference
+and record a separate observation history. Each worksheet records six topics
+with explicit Unknown states, source/review dates, conservative expiry and
+retained correction history. Venue information never automatically becomes event
+verification. The event worksheet also compares the linked venue and event
+information for a selected occurrence, with separate source and expiry labels.
+These owner-only worksheets do not publish venue claims or collect
+personal accommodation requests. See [the worksheet contract](docs/development/event-access-information.md)
 for the API, schema-29 boundary and remaining #55 acceptance work.
 
 ## First lifecycle slice

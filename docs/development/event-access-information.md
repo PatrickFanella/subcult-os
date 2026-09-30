@@ -32,6 +32,34 @@ projected revision include the server evaluation time; Refresh information
 checks current expiry and newer corrections. There is no background venue
 verification or inference from old text, photographs or previous events.
 
+## Occurrence venue comparison
+
+The event worksheet includes **Compare venue and event information**. Owners
+choose an occurrence and see its actual linked venue beside the event's six
+recorded topics. Missing venue links and missing topic assertions remain
+Unknown. Source kind, review time and expiry remain visible in each column;
+expired original values retain their history/provenance and display effective
+Unknown. A venue assertion is never promoted into the event worksheet.
+
+The owner-only comparison reads occurrence time/status/revision, linked venue
+name and both worksheets from one repeatable-read database snapshot, using one
+expiry evaluation time. Owner membership is rechecked after that transaction
+before returning private data. The occurrence selector has a separate minimal
+owner-only endpoint; it excludes creator identity, description and public record
+metadata. Responses are private and not cacheable.
+
+**Refresh comparison** reloads the occurrence choices and both worksheets.
+Selecting another occurrence immediately clears the prior comparison; late
+responses cannot replace the newer selection. A failed refresh clears the old
+comparison, and permission loss clears the entire parent worksheet, draft,
+history and comparison. The displayed occurrence revision and comparison time
+identify what was read. Conditions can change after that read.
+
+This is a read-only comparison, not a saved occurrence-specific verification.
+Event information remains event-wide. Comparing matching values does not prove
+that those facilities or arrangements apply to this occurrence. There is no
+copy, confirmation, certification or public sharing action in this view.
+
 ## Corrections and private boundaries
 
 Each update appends a topic revision and an atomic audit entry. It requires the
@@ -67,6 +95,11 @@ unfinished #55 acceptance work.
 
 ## API and schema
 
+- `GET /api/events/{eventId}/access-info/occurrences`: minimal owner-only
+  occurrence choices, ordered by start time and ID.
+- `GET /api/events/{eventId}/access-info/occurrences/{occurrenceId}/comparison`:
+  the occurrence, event worksheet and nullable linked venue worksheet, from one
+  snapshot with a shared `evaluatedAt`; wrong event/occurrence binding is 404.
 - `GET /api/events/{eventId}/access-info`: six current event entries and server
   evaluation time; topics without history have revision zero and Unknown.
 - `POST /api/events/{eventId}/access-info/{topic}`: append one private revision;
