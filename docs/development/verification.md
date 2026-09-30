@@ -12,6 +12,7 @@ Commands below were inspected in repository Makefiles/package scripts on 2026-09
 | rtk proxy make test-mobile | Mobile module tests | Not device behavior |
 | rtk proxy make alpha-qa | API free-event lifecycle, baseline door denial, owner door-role grant and removal against running stack | Requires loopback API, matching `QA_DATABASE_URL` named `subcult_qa_*`, `QA_DISPOSABLE_DATABASE=1`, mail disabled; creates synthetic records |
 | rtk proxy make fake-event-qa | Organizer setup rehearsal | Same disposable target gates; not real door-pressure or email-delivery proof |
+| rtk proxy make finance-closeout-qa | Fresh free-ticket/finance/private-closeout/reuse and private export API rehearsal | Requires explicit loopback `API_URL`, matching `QA_DATABASE_URL` named `subcult_qa_*`, `QA_DISPOSABLE_DATABASE=1`, mail disabled; creates fresh synthetic accounts/workspace/events each run; not browser/device/Print-PDF or accounting-user proof |
 | rtk proxy make alpha-qa-paid | Optional provider-backed paid flow | Test-mode credentials and explicit authorized environment |
 | rtk proxy git diff --check | Whitespace/error check | Include untracked docs via dedicated validator as well |
 

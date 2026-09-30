@@ -210,3 +210,161 @@ was contacted. Recursive public-event reads omit all new membership fields.
 
 Changed-roster visual/keyboard/SR proof remains pending the same preview
 connection error. The API and fixture receipts do not replace that browser gate.
+
+
+## Owner member-role assignment
+
+PR #185 (`32a474ec77ca2e188332f9e5f40930921719c7b9`) passed both hosted
+checks: push11089/job20041 and PR11090/job20042. Each passed315 web/34 mobile
+and DB422 top-level/606 including nested, with no failures/skips. The existing
+kvant runner was preserved; no owned runner or credentials were created and
+repository runner registrations remain0. Qualified PR body/head read back.
+
+Owners now have a dedicated Member roles page linked from their workspace.
+It offers Owner, Organizer, Finance, Door and Crew with capability descriptions
+before assignment. The legacy member role defaults to its effective Crew bundle;
+unchanged selections do not write. Nonowners and inactive, unknown-role or
+unresolved memberships remain read-only. The request contains only the selected
+role and targets the membership row ID, preserving expiry/revocation metadata.
+The server still decides permissions and rejects last-active-owner demotion.
+No authority policy, schema or access-restoration control changed.
+
+A synchronous pending guard fences duplicate submissions across the page.
+Matched receipts trigger a fresh canonical roster read; permissions are never
+applied optimistically. Denied writes clear the private roster. Unknown outcomes
+fence further writes until a fresh read, without replaying the write. Known
+validation/last-owner rejections remain editable. Unmounted callbacks cannot
+update the departed page. Separate route instances are keyed by workspace ID.
+
+Eleven transport cases cover encoded membership paths, role-only payloads,
+metadata preservation, invalid roles, mismatched receipts, server rejections and
+workspace identity. Eleven static-render cases cover all five nonowner roles,
+owner choices/review, inactive/unresolved rows, unknown roles and missing private
+workspace data. These do not prove browser callback timing or native interaction.
+Changed-page visual, keyboard and screen-reader proof remains pending T3 preview
+connection recovery. No provider, native-device or deployment claim.
+
+
+A normal API rehearsal on separate synthetic alpha workspace
+`3449e469-cbde-44bf-9a32-3a3e1996bb1e`, membership
+`eec8aa9c-8fc2-4dbb-9c2d-3100efcd60d4`, proved role-only Door/Crew changes
+preserve a future expiry, canonical refreshed roster state, nonowner change403
+and last-owner demotion409. The original Crew/no-expiry state was restored through
+normal owner API calls. Original browser actors/event were untouched. This proves
+the existing API boundary, not the page's actual browser interaction.
+
+
+Full pinned local verification passed337 web/34 mobile tests, backend checks and
+builds, DB422 top-level/606 including nested, no failures/skips. Disposable test
+DB removed. The initial TypeScript fixture-cast failure was corrected before the
+complete rerun. Scoped review, edited Markdown links and diffcheck passed.
+
+
+## Owner role controls qualified; finance/closeout API rehearsal
+
+PR #186 (`dc095ffad2d7b639ed2cae5a91a5bc068bd8ec32`) passed push11093/job20046
+and PR11094/job20047:337 web/34 mobile, DB422 top-level/606 including nested,
+no failures/skips. Existing kvant runner preserved; no owned runner/credentials,
+repository registrations0. Qualified PR body/head and issue #25 read back.
+
+On separate disposable alpha workspace3449e469-cbde-44bf-9a32-3a3e1996bb1e,
+closed free event46d57735-6a5a-403a-9689-66056e5ab73a, normal API calls retained
+four finance rows: budget10000 cents, payable8000, actual3000 corrected to2500.
+Current categories remain separate; ticket gross stays0. Same request-key replay
+returned the same correction ID; changed payload with that key returned409.
+Crew reads403, assigned Finance reads200, restored Crew reads403. No provider.
+
+Settlement finalized with gross0; late adjustment rejected409. Private archive
+was available to owner and denied anonymous401. Private note remains in archive.
+Reuse seeded draft36a59dda-e344-4703-8624-af9e5dc91aad once; retry returned the
+same ID. Tickets/check-ins, roles, staffing, finance lines and archive were not
+copied. Private templatefc7e7cd7-16b8-4a23-b5d3-7a20843a71ae applied while
+draft; after synthetic local publication, applying again returned409. Public
+response omits private finance/archive/template sentinel text and fields.
+The first ad-hoc lookup used ended instead of source-owned end_of_night and
+stopped before mutations; corrected before proof. Do not rerun this ad-hoc script
+against the finalized event; its initial conditions are no longer present.
+
+API source remained185/Go1.26.6; frontend186. Original browser actor/event state
+stays roles4/applications1/staffing0/tickets0; aggregate10people/5workspaces/
+7events/3tickets, all21 outbox held. Retained development stack/data untouched.
+T3 status/open retry still reaches chrome-error with no application root, while
+host web/health return200. This is API proof, not joined browser, intended-user,
+paired-timing, keyboard/SR/device, provider or deployment acceptance.
+
+## Private finance read and write session
+
+The finance panel previously rendered its editor after a failed/denied ledger
+read and guarded submissions using rendered busy state. A new event-owned session
+requires a valid event-scoped private read before editing, admits one write
+synchronously, and validates receipt event/type/direction/amount/currency and
+correction/payable references before displaying it. Denial or uncertain write
+outcomes clear private lines/draft and fence further writes until a fresh read;
+refresh never replays the mutation. Known400/409 rejections remain editable and
+retain an unchanged request key. Successful writes retain existing manual-record
+and category-separation behavior. No payment execution or authority policy change.
+
+Keyed inner panels isolate event lifetimes; permission loss unmounts the private
+panel. Layout cleanup invalidates session and view lifetimes, including reactivation
+before an old response arrives. Loading does not claim the ledger is empty.
+Shared Button and a persistent atomic status region cover save/recovery controls.
+Nineteen transport/session cases cover pending read/write fences, identity,
+400/409 retry,401/403/500 denial/uncertainty, disconnects, mismatched receipts and
+departed/restarted lifetimes. Five static-render cases cover absent permission,
+loading, unavailable recovery, confirmed empty data and retained payable history.
+These fixtures do not prove actual React callback timing or browser/SR interaction.
+
+
+Full pinned local gate passed361 web/34 mobile tests, backend checks/builds,
+DB422 top-level/606 including nested, no failures/skips; test DB removed.
+Initial key-generator typing and fixture React-import/401-refresh failures were
+corrected before the final complete rerun. All attempts retained as local logs.
+Scoped review, edited Markdown links and diffcheck passed. Browser proof remains
+pending; no live provider/deployment/retained-state action.
+
+
+## Finance panel qualified; repeatable free API rehearsal
+
+PR #187 (`1cdd075f4c7eed9344a92e55ab89317cdb07538e`) passed push11097/job20050
+and PR11098/job20051:361 web/34 mobile, DB422 top-level/606 including nested,
+no failures/skips. Existing kvant runner preserved; no owned runner/credentials,
+repository registrations0. Qualified PR body/head/base and issue #25 read back.
+
+Read-only exports on the earlier synthetic finalized event passed owner200,
+Crew403 and anonymous401 for CSV, Markdown and printable HTML, with no-store,
+UTF-8, retained4 history rows, current budget10000/payable8000/actual2500 cents,
+superseded actual exclusion and UTC timestamp. Unrelated archive/template note
+sentinels are absent. Initial ad-hoc assertions used an incorrect CSV row name
+and false rather than its blank noncurrent flag; corrected against source before
+proof. No data mutation or browser Print/PDF qualification.
+
+The new finance-closeout-qa harness turns the precondition-dependent ad-hoc run
+into fresh-record normal API proof. Shell and Python entrypoints both enforce
+existing disposable-target guards. Private temp cookies are removed on exit;
+output contains named checks and bounded errors, not tokens/capabilities/DTOs.
+Fresh verified owner/crew actors cover ledger corrections/key replay, Finance
+permission removal, free door/closeout, private notes, seed retry/no copied data,
+private template reuse and scoped CSV/Markdown/HTML exports with exact cents/UTC.
+See [the harness guide](../qa/finance-closeout-rehearsal.md).
+
+The first run stopped401 before workspace creation: urllib uses localhost.local
+for a single-label host, while curl stored host-only cookies under localhost.
+The helper now normalizes only those host-only cookies for a localhost API.
+Both subsequent localhost runs passed all27 checks. Six unsafe wrapper/helper
+invocations (remote API, missing opt-in, retained DB name) rejected before cookie
+or API use. Bash syntax, ShellCheck with sourced files and Python syntax passed.
+All attempts retained. Original browser event remains roles4/applications1/
+staffing0/tickets0. After these runs:16people/7workspaces/11events/5tickets and
+all31 outbox rows held. Owned runtime has only API/PG/web, mail/OAuth/projection
+flags false, backend source185/Go1.26.6. Retained development data/stack untouched.
+No live provider/device/deployment or broader acceptance claim.
+
+
+A third27-check run through127.0.0.1 also passed. Read-only persisted checks show
+three distinct fresh rehearsal workspaces, each with2 members/2 events/4 finance
+history rows/1 ticket/1 private archive. Post-run aggregate18people/8workspaces/
+13events/6tickets, all35 outbox held. The original browser vector is unchanged.
+Full pinned local verification passed361 web/34 mobile, DB422 top-level/606
+including nested, no failures/skips; disposable gate DB removed. This gate is
+separate from the retained owned rehearsal DB. Edited Markdown links, syntax,
+ShellCheck and scoped review passed; no broader acceptance closure.
