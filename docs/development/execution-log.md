@@ -1815,3 +1815,50 @@ Initial key-generator typing and fixture React-import/401-refresh failures were
 corrected before the final complete rerun. All attempts retained as local logs.
 Scoped review, edited Markdown links and diffcheck passed. Browser proof remains
 pending; no live provider/deployment/retained-state action.
+
+
+## Finance panel qualified; repeatable free API rehearsal
+
+PR #187 (`1cdd075f4c7eed9344a92e55ab89317cdb07538e`) passed push11097/job20050
+and PR11098/job20051:361 web/34 mobile, DB422 top-level/606 including nested,
+no failures/skips. Existing kvant runner preserved; no owned runner/credentials,
+repository registrations0. Qualified PR body/head/base and issue #25 read back.
+
+Read-only exports on the earlier synthetic finalized event passed owner200,
+Crew403 and anonymous401 for CSV, Markdown and printable HTML, with no-store,
+UTF-8, retained4 history rows, current budget10000/payable8000/actual2500 cents,
+superseded actual exclusion and UTC timestamp. Unrelated archive/template note
+sentinels are absent. Initial ad-hoc assertions used an incorrect CSV row name
+and false rather than its blank noncurrent flag; corrected against source before
+proof. No data mutation or browser Print/PDF qualification.
+
+The new finance-closeout-qa harness turns the precondition-dependent ad-hoc run
+into fresh-record normal API proof. Shell and Python entrypoints both enforce
+existing disposable-target guards. Private temp cookies are removed on exit;
+output contains named checks and bounded errors, not tokens/capabilities/DTOs.
+Fresh verified owner/crew actors cover ledger corrections/key replay, Finance
+permission removal, free door/closeout, private notes, seed retry/no copied data,
+private template reuse and scoped CSV/Markdown/HTML exports with exact cents/UTC.
+See [the harness guide](../qa/finance-closeout-rehearsal.md).
+
+The first run stopped401 before workspace creation: urllib uses localhost.local
+for a single-label host, while curl stored host-only cookies under localhost.
+The helper now normalizes only those host-only cookies for a localhost API.
+Both subsequent localhost runs passed all27 checks. Six unsafe wrapper/helper
+invocations (remote API, missing opt-in, retained DB name) rejected before cookie
+or API use. Bash syntax, ShellCheck with sourced files and Python syntax passed.
+All attempts retained. Original browser event remains roles4/applications1/
+staffing0/tickets0. After these runs:16people/7workspaces/11events/5tickets and
+all31 outbox rows held. Owned runtime has only API/PG/web, mail/OAuth/projection
+flags false, backend source185/Go1.26.6. Retained development data/stack untouched.
+No live provider/device/deployment or broader acceptance claim.
+
+
+A third27-check run through127.0.0.1 also passed. Read-only persisted checks show
+three distinct fresh rehearsal workspaces, each with2 members/2 events/4 finance
+history rows/1 ticket/1 private archive. Post-run aggregate18people/8workspaces/
+13events/6tickets, all35 outbox held. The original browser vector is unchanged.
+Full pinned local verification passed361 web/34 mobile, DB422 top-level/606
+including nested, no failures/skips; disposable gate DB removed. This gate is
+separate from the retained owned rehearsal DB. Edited Markdown links, syntax,
+ShellCheck and scoped review passed; no broader acceptance closure.

@@ -459,3 +459,31 @@ Initial key-generator typing and fixture React-import/401-refresh failures were
 corrected before the final complete rerun. All attempts retained as local logs.
 Scoped review, edited Markdown links and diffcheck passed. Browser proof remains
 pending; no live provider/deployment/retained-state action.
+
+
+### Finance session qualified; fresh API rehearsal — 2026-09-30
+
+PR #187 passed both hosted checks at1cdd075f4c7eed9344a92e55ab89317cdb07538e,
+push11097/job20050 and PR11098/job20051:361 web/34 mobile, DB422/606, no
+failures/skips. Existing kvant runner preserved; qualified body/head read back.
+
+The next slice adds `make finance-closeout-qa`, a repeatable normal API journey
+with fresh verified synthetic actors and records, guarded disposable targets,
+private temp cookies and bounded failure output. Two localhost runs passed27
+checks each; unsafe targets rejected at both entrypoints. No retained application
+or original browser-vector changes. See [the harness guide](../qa/finance-closeout-rehearsal.md)
+and [operator evidence](../qa/operator-journey-2026-09-30.md).
+
+Continue joined browser/paired-timing qualification when preview recovers. This
+harness does not satisfy physical-device, provider, browser Print/PDF or actual
+accounting-user gates, and does not justify enabling offline admission.
+
+
+A third27-check run through127.0.0.1 also passed. Read-only persisted checks show
+three distinct fresh rehearsal workspaces, each with2 members/2 events/4 finance
+history rows/1 ticket/1 private archive. Post-run aggregate18people/8workspaces/
+13events/6tickets, all35 outbox held. The original browser vector is unchanged.
+Full pinned local verification passed361 web/34 mobile, DB422 top-level/606
+including nested, no failures/skips; disposable gate DB removed. This gate is
+separate from the retained owned rehearsal DB. Edited Markdown links, syntax,
+ShellCheck and scoped review passed; no broader acceptance closure.
