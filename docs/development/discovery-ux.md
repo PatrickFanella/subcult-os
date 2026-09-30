@@ -133,6 +133,34 @@ the existing published-events grid:
   `sm:grid-cols-2`/`xl:grid-cols-3` only at wider breakpoints, so the
   360px-narrow case never depends on a multi-column layout existing.
 
+### Occurrence time and themed interaction — 2026-09-30
+
+Cards and detail dialogs convert `startsAt` into the recorded event `timezone`;
+they do not attach the event-zone label to the viewer's local clock. The visible
+label includes the event zone and offset at that instant, so the repeated 1:30
+AM at a daylight-saving fall-back has distinct offsets. A missing or unsupported
+zone displays the UTC instant with **event time zone unavailable**. Invalid
+start timestamps retain their original text. This applies to projected occurrence
+cards/detail, not the legacy local-event time display or all-day semantics.
+
+Formatting uses the browser's locale and its supported time-zone data through
+[`Intl.DateTimeFormat`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat/DateTimeFormat).
+The card focus outline and coordinate-point fill use semantic theme tokens;
+dark mode displays a light outline and points against dark surfaces.
+
+Regression checks cover event-zone date rollover, daylight-saving gaps/repeated
+hours and unknown-zone fallback. The same 13 formatting/model tests passed under
+Honolulu and Tokyo viewer zones. T3 Code on Linux (Chrome 152.0.7977.130,
+Electron 44.4.2; 1402 × 876 CSS pixels) mounted the actual
+`DiscoveryOccurrencesSection` with intercepted synthetic public-list responses:
+Chicago and Tokyo cards/detail showed different event-local dates/times, an
+invalid zone showed the UTC fallback, Enter opened detail, Escape closed it and
+returned focus, and the dark keyboard focus outline/coordinate fill were read
+from computed styles. The fixture root and fetch interception were removed and
+the original page restored. This is component-fixture browser evidence; it does
+not qualify an external projection feed, the complete discovery journey, native
+mobile, all-day records or the remaining dialog accessibility behavior.
+
 ### Contracts
 
 `PublicDiscoveryOccurrenceDTO` (and its nested `PublicDiscoverySourceDTO`/
@@ -173,12 +201,11 @@ though only the web client renders it in this slice.
 
 ## Known limits
 
-- The `document`-level Escape-to-close `keydown` listener and any real CSS
-  media-query behavior at a 360px viewport are not exercised by the vitest
-  component tests above, since this repository's existing component-test
-  convention renders via `renderToString`/direct function-call rather than
-  jsdom; both are verifiable only in a real browser and are not claimed to
-  be covered here.
+- Native dialog modality and keyboard focus behavior require a real browser;
+  the Vitest tests only cover markup and selection handlers. The September 30
+  component fixture verified the behavior described below at 1402 × 876 CSS
+  pixels. The later long-content slice below qualifies a 360px browser iframe
+  for discovery; screen-reader and physical-device proof remain separate.
 - List/detail location resolution does one extra query per occurrence to
   load its referenced place record (no batched join); acceptable at this
   slice's scale, a known limit for a larger catalog.
@@ -196,3 +223,95 @@ though only the web client renders it in this slice.
   column today.
 - No native mobile UI ships in this slice, only the matching TypeScript
   contract used by the contract checker.
+
+## Native occurrence dialog — 2026-09-30
+
+The custom overlay allowed Tab to leave the detail view. The occurrence detail
+now uses `dialog.showModal()` so background controls are inert. A scoped Tab
+boundary handler cycles the current Close and optional Reserve controls; Chrome
+otherwise inserts a BODY focus stop after the last control even with native
+modality. Escape cancellation clears React selection. Close, outer-overlay
+click, and unmount close the modal; cleanup returns focus to a connected opener.
+The panel retains semantic theme colors and scrolls within the viewport.
+
+The T3 Chrome component fixture used synthetic public occurrence DTOs with both
+no handoff and a local reservation handoff. Forward and reverse Tab stayed within
+the current controls, Escape and Close returned focus to the occurrence card,
+and an attempted programmatic focus on the background card was blocked while
+`:modal` matched. A dispatched outer-dialog click also closed the view. Light and
+dark screenshots were inspected. The fixture and fetch interception were removed;
+unmount left no modal in the top layer. This proves the web component behavior,
+not a live projection feed, completed reservation, screen-reader journey, native
+mobile behavior, or full WCAG conformance.
+
+## Named map controls and result status — 2026-09-30
+
+Each coordinate point now has an event-and-time name and sits inside a named
+SVG group. The previous role described the interactive plot as one image; every point
+also had the same “View occurrence” name. Opening detail now captures both HTML
+and SVG focus targets. A real fixture reproduced Escape leaving focus on BODY
+when opened from a point; the repair returns focus to the exact point after
+Escape or Close. The complete card list remains an equivalent way to open each
+occurrence; the plot is a simple coordinate index, not a navigable map.
+
+The public event and cultural occurrence lists each retain an atomic status
+region through loading and result counts. On failure, the same status region carries the error; the visible error
+remains readable without a second live region. Search keyboard focus
+uses the shared theme ring. Public introduction/empty copy describes browsing
+and availability; the detail retains its source attribution.
+
+Final local pinned verification passed: 284 web tests, 34 mobile tests, backend
+checks/build, and 421 top-level disposable DB tests (599 including nested), no
+failures/skips. Initial failures were test-only: the plot's exact object assertion
+needed to allow its new label, and new fixtures needed the required location
+name. Both were corrected before the final full gate.
+
+T3 Chrome desktop component fixtures at 1402 × 876 CSS pixels verified two
+named points, Enter/Space opening, and Escape/Close returning to their respective
+points. A held public-list fixture kept the same status node through loading,
+zero results, one result, a synthetic 503 error and Reset recovery. Snapshot
+inspection exposed the group and named point controls; this is not a full
+assistive-technology tree or speech qualification. Keyboard search focus had a
+2px dark outline in light mode and a light outline in dark mode. Both screenshots
+were inspected. Review moved errors into the persistent status node; a final
+503/Reset fixture verified the same node carried error, loading and zero count,
+with no extra live region. The fixture, observer, fetch interception and helpers were
+removed; the original page URL and appearance were restored.
+
+Screen-reader speech, a narrow viewport, physical devices and full public
+journeys remain unqualified. No live projection or reservation was performed.
+
+## Long content at a narrow viewport — 2026-09-30
+
+The previous source allowed unbroken event/venue names to expand discovery
+horizontally. At a measured 360 × 800 CSS-pixel iframe viewport, a synthetic
+occurrence expanded page scroll width to 2846px against a 345px client width.
+Its modal had 3483px scroll width against 311px client width and pushed Close
+past x=3400. Native Escape remained available, but Close was outside the viewport.
+
+Discovery text now wraps within its sections. Modal headings can shrink beside
+a non-shrinking Close control; published-event title columns likewise shrink
+beside ticket status. Text remains complete and the long modal scrolls vertically.
+The repaired same fixture had page client/scroll width 345px, title client/scroll
+width 271px, and modal client/scroll width 296px. Close stayed at x=213–293.
+The panel had 766px client height and 1562px content height; keyboard Close
+returned focus to its card. In the dark local-handoff variant, Tab reached Reserve
+at y=715–763 and scrolled the panel; the next Tab returned to Close with scroll
+position zero. Escape returned focus to the opener. Light/dark screenshots were
+inspected: `browser-screenshot-127-0-0-1-munvjnma-70024b00.png` and
+`browser-screenshot-127-0-0-1-munvkg13-44231def.png`.
+
+A full DiscoverView fixture also kept long published-event titles, host/location
+names and an unbroken description URL within the 360px frame (page 345px,
+card client/scroll width 279px). A native search submission with a synthetic
+1033-character error kept the error client/scroll width 279px. The iframe,
+component root, fetch interception and helpers were removed; the original page
+and appearance were preserved.
+
+The same-origin iframe was driven through the T3 preview, with real innerWidth
+and media-query layout. This proves the scoped desktop-browser narrow layout
+and keyboard behavior. It does not qualify physical devices, native mobile,
+screen-reader speech, other routes, reservation completion or full WCAG.
+The full pinned local gate passed 284 web/34 mobile tests and 421 top-level
+disposable DB tests (599 including nested), no failures/skips. No class-mirroring
+unit test was added for this CSS fix; layout evidence comes from the browser.
