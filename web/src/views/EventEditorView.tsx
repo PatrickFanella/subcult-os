@@ -60,6 +60,7 @@ import {
 } from '../modules/eventEditor/eventEditorLoaders';
 import { canDownloadSettlementExport, downloadSettlementExport, downloadSettlementReport } from '../modules/eventEditor/settlementExport';
 import { EventFinanceLinesPanel } from '../components/EventFinanceLinesPanel';
+import { EventRoleSetupPanel } from '../components/EventRoleSetupPanel';
 import type {
   CommitmentDTO,
   CurrentWorkspaceDTO,
@@ -1086,6 +1087,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
 
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <span className={`rounded-full border px-4 py-2 text-xs uppercase tracking-[0.25em] ${lifecycleTone}`}>{lifecycleLabel}</span>
+              {effective && currentWorkspace?.id === effective.workspaceId && currentWorkspace.role === 'owner' && <a className="btn-secondary px-4 py-2" href={`/events/${effective.id}/access-info`}>Access worksheet</a>}
               {effective?.publicUrl ? (
                 <a className="rounded-full border border-stroke-subtle bg-surface-inset px-4 py-2 text-fg-primary transition hover:bg-surface-inset" href={effective.publicUrl}>
                   Public page
@@ -1652,6 +1654,12 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                     <p className="mt-4 rounded-2xl border border-stroke-subtle bg-surface-inset p-4 text-sm leading-6 text-fg-secondary">{settlementAdjustmentsLockedCopy()}</p>
                   ) : null}
                 </section>
+              ) : null}
+
+              {roles !== null && event ? (
+                <EventRoleSetupPanel key={`${event.id}:${canReviewApplications}:${closed}`} eventId={event.id} roles={roles}
+                  allowed={canReviewApplications && !closed}
+                  onCreated={role => setRoles(current => [...(current ?? []), role])} />
               ) : null}
 
               {applicationsReady && event ? (

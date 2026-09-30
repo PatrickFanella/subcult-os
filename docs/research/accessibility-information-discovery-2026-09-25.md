@@ -1,8 +1,10 @@
 # Accessibility information discovery record — 2026-09-25
 
-Status: planning record for issue #55 (`ACCESS-INFO`). No accessibility
-information model, public claim, accommodation workflow, outreach activity, or
-user validation is implemented by this record. Issue #55 remains open.
+Status: historical planning record for issue #55 (`ACCESS-INFO`). This record
+implemented no model or outreach. The owner's later expansion-development
+instruction permits a [private event worksheet](../development/event-access-information.md)
+source slice. Public claims, venue inheritance, personal accommodation workflow
+and accessibility-user evaluation remain unfinished. Issue #55 remains open.
 
 ## Decision boundary
 

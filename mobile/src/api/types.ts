@@ -110,7 +110,17 @@ export interface PaidReservationDTO {
   checkoutStatus: 'ready' | 'paid' | 'pending_reconciliation' | 'expired' | 'reconciliation_required';
 }
 
-export type WorkspaceRole = 'owner' | 'member';
+export type WorkspaceRole = 'owner' | 'organizer' | 'finance' | 'door' | 'crew' | 'member';
+
+export interface MemberDTO {
+  id: string;
+  email: string;
+  displayName: string | null;
+  role: WorkspaceRole;
+  accessState?: 'active' | 'expired' | 'revoked';
+  expiresAt?: string;
+  revokedAt?: string;
+}
 
 export interface WorkspaceSummaryDTO {
   id: string;
@@ -295,4 +305,74 @@ export interface ParticipantAssignmentDTO {
   endsAt?: string | null;
   status: 'open' | 'assigned' | 'completed';
   participantRequirements: string;
+}
+
+export type EventAccessTopic = 'entry' | 'bathrooms' | 'seating' | 'sensory' | 'transit' | 'contact';
+export interface AccessInformationRevisionDTO {
+  evaluatedAt: string;
+  id?: string;
+  topic: EventAccessTopic;
+  scope: 'event' | 'venue';
+  revision: number;
+  value: 'unknown' | 'yes' | 'no' | 'available' | 'limited' | 'not_available' | 'known';
+  effectiveValue: AccessInformationRevisionDTO['value'];
+  needsReview: boolean;
+  details: string;
+  sourceKind: 'unknown' | 'organizer_assertion' | 'event_observation' | 'venue_observation' | 'external_reference';
+  sourceReference: string;
+  reviewedAt?: string;
+  expiresAt?: string;
+  correctionReason: string;
+  recordedAt?: string;
+}
+export interface EventAccessWorksheetDTO {
+  eventId: string;
+  evaluatedAt: string;
+  entries: EventAccessRevisionDTO[];
+}
+export interface EventAccessHistoryDTO {
+  topic: EventAccessTopic;
+  revisions: EventAccessRevisionDTO[];
+  nextBefore?: number;
+}
+
+export interface EventAccessRevisionDTO extends AccessInformationRevisionDTO {
+  scope: 'event';
+  sourceKind: 'unknown' | 'organizer_assertion' | 'event_observation' | 'external_reference';
+}
+export interface VenueAccessRevisionDTO extends AccessInformationRevisionDTO {
+  scope: 'venue';
+  sourceKind: 'unknown' | 'organizer_assertion' | 'venue_observation' | 'external_reference';
+}
+export interface VenueAccessWorksheetDTO {
+  placeId: string;
+  placeName: string;
+  evaluatedAt: string;
+  entries: VenueAccessRevisionDTO[];
+}
+
+export interface VenueAccessPlaceDTO {
+  id: string;
+  name: string;
+}
+export interface VenueAccessPlaceIndexDTO {
+  places: VenueAccessPlaceDTO[];
+  nextAfter?: string;
+}
+
+export interface AccessComparisonOccurrenceDTO {
+  id: string;
+  name: string;
+  startsAt: string;
+  status: 'scheduled' | 'rescheduled' | 'postponed' | 'cancelled';
+  updatedAt: string;
+  placeId?: string;
+}
+export interface OccurrenceAccessComparisonDTO {
+  eventId: string;
+  workspaceId: string;
+  evaluatedAt: string;
+  occurrence: AccessComparisonOccurrenceDTO;
+  event: EventAccessWorksheetDTO;
+  venue: VenueAccessWorksheetDTO | null;
 }

@@ -109,7 +109,7 @@ func TestLifecycleNoticeReviewMigrationPreservesApprovedQueue(t *testing.T) {
 	if err := fx.app.db.QueryRow(t.Context(), `select jsonb_agg(to_jsonb(e) order by e.id)::text from email_outbox e`).Scan(&before); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := fx.app.db.Exec(t.Context(), `drop table lifecycle_notice_reviews; delete from schema_migrations where version=27`); err != nil {
+	if _, err := fx.app.db.Exec(t.Context(), `drop table venue_access_place_requests;drop table event_access_revisions; drop table lifecycle_notice_reviews; delete from schema_migrations where version>=27`); err != nil {
 		t.Fatal(err)
 	}
 	for range 2 {
