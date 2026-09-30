@@ -5,7 +5,7 @@ PROJECT_NAME := subcult-os
 COMPOSE_PROJECT_NAME ?= $(PROJECT_NAME)
 BACKEND_BIN ?= bin/$(PROJECT_NAME)
 
-.PHONY: help deps deps-web deps-mobile verify quick fmt lint lint-mobile test test-backend test-db test-web test-mobile build build-backend build-web run-backend generate-atproto-key dev dev-mobile up up-build down reset-db restart logs ps urls smoke alpha-qa alpha-qa-paid fake-event-qa compose-config db-shell migrate migrate-status migrate-reset clean open-pilot-check check-contracts identity-rekey-status identity-rekey
+.PHONY: help deps deps-web deps-mobile verify quick fmt lint lint-mobile test test-backend test-db test-web test-mobile build build-backend build-web run-backend generate-atproto-key dev dev-mobile up up-build down reset-db restart logs ps urls smoke alpha-qa alpha-qa-paid fake-event-qa finance-closeout-qa compose-config db-shell migrate migrate-status migrate-reset clean open-pilot-check check-contracts identity-rekey-status identity-rekey
 
 help:
 	@awk 'BEGIN {FS = ":.*##"; printf "$(PROJECT_NAME) commands:\n"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -151,6 +151,9 @@ alpha-qa-paid: ## Run paid alpha lifecycle QA against the running stack
 
 fake-event-qa: ## Run organizer fake-event rehearsal QA against the running stack
 	bash scripts/fake-event-qa.sh
+
+finance-closeout-qa: ## Run fresh synthetic free-only finance, closeout and reuse API QA
+	bash scripts/qa-finance-closeout.sh
 
 operations-qa: ## Run operations-panel rehearsal QA (contacts, commitments, staffing, templates, roles, reminders) against the running stack
 	bash scripts/qa-operations.sh

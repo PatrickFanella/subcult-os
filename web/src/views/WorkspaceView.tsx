@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { api, deleteJSON, patchJSON, postJSON } from '../api';
 import { ATProtoIdentityPanel } from '../components/ATProtoIdentityPanel';
+import { WorkspaceInviteForm } from '../components/WorkspaceInviteForm';
+import { MembershipAccess } from '../components/MembershipAccess';
+import { roleLabel } from '../modules/workspace/memberAuthority';
 import { isClosedEvent, isDraftEvent, isPublishedEvent } from '../modules/eventLifecycle/eventLifecycle';
 import {
 	archiveLearningLoopCopy,
@@ -47,6 +50,7 @@ import type {
   ReminderEventDTO,
   WorkspaceArchiveSummaryDTO,
   WorkspaceDTO,
+  WorkspaceRole,
 } from '../domain';
 
 type ContactFormState = ReturnType<typeof emptyContactForm>;
@@ -68,14 +72,6 @@ function signOut() {
   void postJSON('/api/auth/logout', {}).finally(() => {
     window.location.href = '/login';
   });
-}
-
-function roleLabel(role: string) {
-  return role === 'owner' ? 'Owner' : 'Member';
-}
-
-function roleHint(role: string) {
-  return role === 'owner' ? 'Can invite members and publish events' : 'Can help run the room';
 }
 
 function formatDateTime(value: string) {
@@ -127,7 +123,7 @@ type OperatorGuidance = {
   actions: OperatorAction[];
 };
 
-function buildOperatorGuidance(events: EventDTO[], workspaceId: string): OperatorGuidance {
+export function buildOperatorGuidance(events: EventDTO[], workspaceId: string, role: WorkspaceRole | undefined): OperatorGuidance {
   const newestDraft = events.find((event) => isDraftEvent(event.status)) ?? null;
   const newestPublished = events.find((event) => isPublishedEvent(event.status)) ?? null;
   const newestClosed = events.find((event) => isClosedEvent(event.status)) ?? null;
@@ -142,7 +138,7 @@ function buildOperatorGuidance(events: EventDTO[], workspaceId: string): Operato
         { label: 'Create event', href: `/events/new?workspaceId=${workspaceId}`, variant: 'primary' },
         { label: 'Import occurrences', href: `/workspace/${workspaceId}/cultural-imports`, variant: 'ghost' },
         { label: 'Lifecycle worklist', href: `/workspace/${workspaceId}/lifecycle-intents`, variant: 'ghost' },
-        { label: 'Invite member', href: '#invite-member', variant: 'secondary' },
+        ...(role === 'owner' ? [{ label: 'Invite member', href: '#invite-member', variant: 'secondary' } as OperatorAction] : []),
       ],
     };
   }
@@ -322,7 +318,7 @@ export function WorkspaceView() {
       ),
     [orderedEvents],
   );
-  const guidance = useMemo(() => buildOperatorGuidance(orderedEvents, workspace?.id ?? ''), [orderedEvents, workspace?.id]);
+  const guidance = useMemo(() => buildOperatorGuidance(orderedEvents, workspace?.id ?? '', workspace?.role), [orderedEvents, workspace?.id, workspace?.role]);
 
   useEffect(() => {
     let cancelled = false;
@@ -518,7 +514,7 @@ export function WorkspaceView() {
 
   async function handleInvite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!workspace) return;
+    if (!workspace || workspace.role !== 'owner') return;
 
     const email = inviteEmail.trim();
     if (!email) {
@@ -947,6 +943,7 @@ export function WorkspaceView() {
                     </div>
                     {workspace.role === 'owner' && <a className="mt-4 inline-block text-sm text-fg-primary underline" href={`/workspace/${workspace.id}/lifecycle-intents`}>Open lifecycle worklist</a>}
                     {workspace.role === 'owner' && <a className="ml-4 mt-4 inline-block text-sm text-fg-primary underline" href={`/workspace/${workspace.id}/venue-access`}>Venue access worksheets</a>}
+                    {workspace.role === 'owner' && <a className="ml-4 mt-4 inline-block text-sm text-fg-primary underline" href={`/workspace/${workspace.id}/members`}>Manage member roles</a>}
 
                     <div className="mt-6 grid gap-3 sm:grid-cols-3">
                       <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
@@ -1020,7 +1017,7 @@ export function WorkspaceView() {
                         </div>
                         <div className="text-right">
                           <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1 text-[11px] uppercase tracking-[0.25em] text-fg-secondary">{roleLabel(member.role)}</span>
-                          <p className="mt-2 text-xs leading-5 text-fg-muted">{roleHint(member.role)}</p>
+                          <MembershipAccess member={member} />
                         </div>
                       </div>
                     ))}
@@ -1683,28 +1680,17 @@ export function WorkspaceView() {
               </div>
 
               <aside className="space-y-6">
-                <form id="invite-member" className="rounded-panel border border-stroke-subtle bg-surface-panel p-6" onSubmit={handleInvite}>
-                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Invite member</p>
-                  <p className="mt-2 text-sm leading-6 text-fg-secondary">Create a member invitation and queue its email. The invitation appears below; email delivery is a separate step.</p>
-                  <label className="mt-4 block space-y-2 text-sm">
-                    <span className="text-fg-secondary">Email</span>
-                    <input
-                      className="w-full rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-fg-primary outline-none transition focus:border-stroke-focus focus:bg-surface-inset"
-                      type="email"
-                      autoComplete="email"
-                      required
-                      value={inviteEmail}
-                      onChange={(event) => {
-                        setInviteEmail(event.target.value);
-                        setInviteNotice(null);
-                      }}
-                    />
-                  </label>
-                  <button className="mt-4 w-full rounded-2xl bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-surface-inset" type="submit" disabled={sendingInvite}>
-                    {sendingInvite ? 'Creating…' : 'Create invite'}
-                  </button>
-                  {inviteNotice ? <p role="status" aria-atomic="true" className="mt-3 rounded-2xl border border-status-success/20 bg-status-surface-success px-4 py-3 text-sm text-status-success">{inviteNotice}</p> : null}
-                </form>
+                <WorkspaceInviteForm
+                  role={workspace.role}
+                  email={inviteEmail}
+                  busy={sendingInvite}
+                  notice={inviteNotice}
+                  onEmailChange={(email) => {
+                    setInviteEmail(email);
+                    setInviteNotice(null);
+                  }}
+                  onSubmit={handleInvite}
+                />
 
                 <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
                   <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Invitations</p>
