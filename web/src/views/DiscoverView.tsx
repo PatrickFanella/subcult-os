@@ -127,7 +127,7 @@ export function DiscoveryOccurrencesSection() {
 	const plotPoints = occurrences ? projectOccurrencesToPlot(occurrences, DISCOVERY_MAP_WIDTH, DISCOVERY_MAP_HEIGHT) : [];
 
 	return (
-		<section aria-label={discoveryOccurrencesTitle} className="flex flex-col gap-4">
+		<section aria-label={discoveryOccurrencesTitle} className="flex min-w-0 flex-col gap-4 [overflow-wrap:anywhere]">
 			<header className="rounded-hero border border-stroke-subtle bg-surface-panel p-6 shadow-sm sm:p-8">
 				<p className={publicEyebrowClass}>{discoveryOccurrencesTitle}</p>
 				<p className="mt-3 max-w-2xl text-base leading-7 text-fg-secondary">{discoveryOccurrencesDescription}</p>
@@ -220,8 +220,8 @@ export function DiscoveryOccurrencesSection() {
 						onClick={(event) => event.stopPropagation()}
 					>
 						<div className="flex items-start justify-between gap-3">
-							<h2 className="text-2xl font-black text-fg-primary">{selected.name}</h2>
-							<button type="button" className={publicSecondaryButtonClass} onClick={() => setSelectedURI(null)}>
+							<h2 className="min-w-0 flex-1 text-2xl font-black text-fg-primary">{selected.name}</h2>
+							<button type="button" className={`${publicSecondaryButtonClass} shrink-0`} onClick={() => setSelectedURI(null)}>
 								{discoveryOccurrenceDetailCloseLabel}
 							</button>
 						</div>
@@ -318,7 +318,7 @@ export function DiscoverView() {
 
 	return (
 		<main className={publicPageShellClass}>
-			<section className={`${publicPageInnerClass} max-w-6xl`}>
+			<section className={`${publicPageInnerClass} min-w-0 max-w-6xl [overflow-wrap:anywhere]`}>
 				<header className="rounded-hero border border-stroke-subtle bg-surface-panel p-6 shadow-sm sm:p-8">
 					<p className={publicEyebrowClass}>{discoveryBrowseLabel}</p>
 					<div className="mt-3 flex flex-wrap items-center gap-2">
@@ -377,11 +377,11 @@ export function DiscoverView() {
 
 								<div className="flex h-full flex-col p-5">
 									<div className="flex items-start justify-between gap-3">
-										<div>
+										<div className="min-w-0 flex-1">
 											<p className={publicEyebrowClass}>{formatDiscoveryDateTime(event.startsAt)}</p>
 											<h2 className="mt-2 text-2xl font-black leading-tight text-fg-primary">{event.title}</h2>
 										</div>
-										<span className={publicStatusPillClass(event.isFull ? 'danger' : 'neutral')}>{discoveryRemainingLabel(event)}</span>
+										<span className={`${publicStatusPillClass(event.isFull ? 'danger' : 'neutral')} shrink-0`}>{discoveryRemainingLabel(event)}</span>
 									</div>
 
 									<div className="mt-4 grid gap-3 text-sm text-fg-secondary">
