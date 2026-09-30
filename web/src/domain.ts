@@ -58,6 +58,7 @@ export interface CurrentWorkspaceDTO extends WorkspaceDTO {
 }
 
 export interface MemberDTO {
+  personId?: string;
   id: string;
   email: string;
   displayName: string | null;

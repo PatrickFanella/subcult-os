@@ -19,6 +19,7 @@ type workspaceDTO struct {
 }
 
 type memberDTO struct {
+	PersonID    string  `json:"personId"`
 	ID          string  `json:"id"`
 	Email       string  `json:"email"`
 	DisplayName *string `json:"displayName"`
@@ -630,7 +631,7 @@ func (a *App) handleRemoveMember(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) listWorkspaceMembers(ctx context.Context, workspaceID string) ([]memberDTO, error) {
 	rows, err := a.db.Query(ctx, `
-		select wm.id, p.email, p.display_name, wm.role,
+		select wm.id, p.id, p.email, p.display_name, wm.role,
 		       case when wm.revoked_at is not null then 'revoked'
 		            when wm.expires_at <= now() then 'expired'
 		            else 'active' end, wm.expires_at, wm.revoked_at
@@ -647,13 +648,13 @@ func (a *App) listWorkspaceMembers(ctx context.Context, workspaceID string) ([]m
 
 	out := make([]memberDTO, 0)
 	for rows.Next() {
-		var id, email, role, accessState string
+		var id, personID, email, role, accessState string
 		var displayName sql.NullString
 		var expiresAt, revokedAt sql.NullTime
-		if err := rows.Scan(&id, &email, &displayName, &role, &accessState, &expiresAt, &revokedAt); err != nil {
+		if err := rows.Scan(&id, &personID, &email, &displayName, &role, &accessState, &expiresAt, &revokedAt); err != nil {
 			return nil, err
 		}
-		item := memberDTO{ID: id, Email: email, Role: role, AccessState: accessState, ExpiresAt: formatNullableTime(expiresAt), RevokedAt: formatNullableTime(revokedAt)}
+		item := memberDTO{ID: id, PersonID: personID, Email: email, Role: role, AccessState: accessState, ExpiresAt: formatNullableTime(expiresAt), RevokedAt: formatNullableTime(revokedAt)}
 		if displayName.Valid {
 			item.DisplayName = &displayName.String
 		}

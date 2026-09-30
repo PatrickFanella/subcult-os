@@ -504,3 +504,20 @@ checks, four viewer-zone model runs and API rehearsal limitations.
 Continue hosted qualification, then the first bounded unfinished slice. Joined
 browser/native editing, legacy event-zone persistence and deliberate DST gap/fold
 selection remain open; this fix does not qualify those gates.
+
+
+### Browser recovery; staffing identity — 2026-09-30
+
+The stack through #188 is merged; #189 targets main with the exact-start fix.
+Its hosted jobs11160/20126 and11161/20127 remain queued behind merge runs.
+The preview recovered and the real description-only web save preserved the exact
+start/reservation. Original owner/browser application acceptance and task setup
+then exposed stale participant options and membership-vs-person staffing identity.
+
+The staffing candidate adds personId to the private roster, uses explicitly active
+person identities for member assignment, and refreshes participants on application
+updates. Real browser assignment and under-review/accepted option removal/return
+passed. Full pinned local gate passed373 web/39 mobile, DB422/606. Continue hosted
+monitoring, then the preserved joined journey. Crew portal proof awaits the correct
+synthetic credential; no password reset. Free booking/door, commitments, shifts,
+closeout/reuse, paired timings and native/provider gates remain open.

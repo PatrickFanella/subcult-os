@@ -15,6 +15,7 @@ import {
 	buildCommitmentCounts,
 	buildPayload,
 	buildRoleNameById,
+	buildStaffingMemberOptions,
 	buildStaffingCounts,
 	buildStaffingGroups,
 	commitmentStatusLabel,
@@ -176,10 +177,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   const roleNameById = useMemo(() => buildRoleNameById(roles), [roles]);
   const staffingAssigneeOptions = useMemo(
     () => ({
-      members: (currentWorkspace?.members ?? []).map((member) => ({
-        value: `member:${member.id}`,
-        label: member.displayName ?? member.email,
-      })),
+      members: buildStaffingMemberOptions(currentWorkspace?.members ?? []),
       participants: (participants ?? []).map((participant) => ({
         value: `participant:${participant.applicationId}`,
         label: `${participant.applicantName} • ${participant.roleName} • ${participant.status}`,
@@ -477,7 +475,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [creating, event?.id]);
+  }, [creating, event?.id, applications]);
 
   useEffect(() => {
     let cancelled = false;
@@ -787,6 +785,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
       setApplications((current) => current?.map((application) => (application.id === applicationID ? updated : application)) ?? current);
       setApplicationReviewDrafts((current) => ({ ...current, [applicationID]: updated.status }));
       setNotificationsRefreshTick((current) => current + 1);
+      setParticipants(null);
       setMessage('Application updated');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to review application');

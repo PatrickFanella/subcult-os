@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CommitmentDTO, EventDTO, EventRoleDTO, EventStaffingItemDTO, EventTemplateDTO } from '../../domain';
 
 import {
+	buildStaffingMemberOptions,
 	buildPayload,
 	buildRoleNameById,
 	buildStaffingCounts,
@@ -205,5 +206,20 @@ describe('event editor model helpers', () => {
 			template({ id: 'a-new', name: 'Alpha', createdAt: '2026-06-18T10:00:00.000Z' }),
 			template({ id: 'a-old', name: 'Alpha', createdAt: '2026-06-18T08:00:00.000Z' }),
 		]).map((item) => item.id)).toEqual(['a-old', 'a-new', 'b']);
+	});
+});
+
+
+describe('staffing member identity', () => {
+	const member = { id: 'membership-a', personId: 'person-a', email: 'synthetic@example.test', displayName: 'Synthetic crew', role: 'crew' as const, accessState: 'active' as const };
+	it('offers the person identity while retaining the roster membership identity', () => {
+		expect(buildStaffingMemberOptions([member])).toEqual([{ value: 'member:person-a', label: 'Synthetic crew' }]);
+		expect(member.id).toBe('membership-a');
+	});
+	it.each(['expired', 'revoked', undefined] as const)('does not offer an assignee with %s access', accessState => {
+		expect(buildStaffingMemberOptions([{ ...member, accessState }])).toEqual([]);
+	});
+	it.each([undefined, '', ' '] as const)('does not substitute a membership ID for missing person identity %s', personId => {
+		expect(buildStaffingMemberOptions([{ ...member, personId }])).toEqual([]);
 	});
 });

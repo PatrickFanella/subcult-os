@@ -401,3 +401,45 @@ cases before the implementation; the complete green pinned gate passed366 web/
 This is model and owned synthetic API evidence. Actual browser/native editing,
 legacy event-zone persistence and deliberate ambiguous/nonexistent wall-time
 selection remain open. No live provider, deployment or retained-data action.
+
+
+## Browser recovery and staffing assignment identity
+
+The earlier stack through #188 is now merged into main (observed main52c5ad7).
+PR #189 ataa13a855dadaf271e155c656b0bb46da74893d62 targets main and is linked
+to the thread. Its push11160/job20126 and PR11161/job20127 are queued behind
+merge runs; the shared kvant runner is online/busy and was left intact. Normal
+web login and description-only Save event on the precision fixture preserved
+2026-11-01T07:30:45.123456Z and one reservation, returning No changes. This
+qualifies the web edit path for that fixture, not native or deliberate DST editing.
+
+The collaborative preview resumed with an actual application root. The original
+owner/browser event progressed: its public application was accepted and a private
+setup task created. Acceptance did not create an assignment. Two defects appeared:
+the accepted participant roster/options stayed empty until full navigation, and
+assigning the Crew workspace member returned400 because the selector submitted a
+membership row ID as assignedPersonId. Both identities existed before the roster
+metadata work; the staffing contract expects the person's identity.
+
+Private MemberDTO now includes personId while retaining id for membership role
+management. Web staffing options use personId only for explicitly active members;
+missing identity or expired/revoked/unresolved access cannot substitute a membership
+ID. Mobile's private DTO gains the same optional field for older API compatibility.
+Application-list updates refresh the canonical participant roster, clearing stale
+options while loading. Seven model cases cover identity and inactive/missing-field
+boundaries; existing DB roster cases assert distinct person/membership identities.
+
+After restarting only the owned rehearsal API (Postgres/data/retained stack left
+intact), the browser assigned the existing task to Crew successfully. Under review
+removed the participant/options; Accepted restored both without navigation. One
+assigned task remains; participant requirements were saved separately from the
+private operator note. Crew portal proof remains pending: the preserved synthetic
+crew login rejected the credential recorded in the continuation context. No reset
+or credential change was performed; the earlier owner session was signed out.
+
+The first gate failed six static-route fixtures because a new positional state hook
+shifted their overrides. The final implementation refreshes from application state
+without adding that hook. Full pinned verification then passed373 web/39 mobile,
+DB422 top-level/606 including nested, no failures/skips; gate database removed.
+Backend source and mounted frontend are this staffing candidate; no migrations,
+live provider, deployment, intended-user or broad acceptance closure.
