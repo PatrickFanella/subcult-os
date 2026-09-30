@@ -274,3 +274,20 @@ Reserve and Escape were verified. Final local gate passed 284 web/34 mobile
 tests and 421/599 DB tests. This advances #26's long-content/reflow acceptance
 for discovery only; physical devices, screen readers and full journeys remain
 separate. See `discovery-ux.md` for exact geometry and evidence boundaries.
+
+### Discovery reflow qualified; public booking context repaired — 2026-09-30
+
+PR #178 (`702d2f8b6793632d1240866f2ac9d3d6edba9005`) passed push
+11061/job 20010 and PR 11062/job 20011 with 284 web/34 mobile tests and
+421/599 DB tests, no failures/skips. Owned runner cleanup and zero repository
+registrations were verified; #26 evidence was reconciled.
+
+The next public booking slice scopes guest state to one mounted slug and hides
+forms until a matching event read completes. It prevents stale write callbacks
+and paid redirects after that view is removed, including A → B → A. Final local
+gate passed 286 web/34 mobile tests and 421/599 DB tests, no failures/skips.
+Actual Strict Mode component fixtures verified delayed responses, duplicate
+submit guards and current success/pending states with seven simulated writes.
+See [the booking-context record](public-booking-context.md). Real backend booking
+journeys, responsive booking forms, legacy event-zone semantics, assistive
+technology, native devices and live providers remain separate gates.

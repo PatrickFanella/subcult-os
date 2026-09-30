@@ -1568,3 +1568,21 @@ fields and synthetic error proof are recorded in `discovery-ux.md` and ignored
 284 web/34 mobile tests and 421/599 DB tests, no failures/skips; disposable DB
 removed. Browser fixtures were removed and original page/appearance preserved.
 Physical/native devices, screen-reader speech and complete journeys remain open.
+
+### Qualified discovery reflow and public booking context — 2026-09-30
+
+PR #178 (`702d2f8b6793632d1240866f2ac9d3d6edba9005`) passed push
+11061/job 20010 and PR 11062/job 20011: 284 web/34 mobile tests and
+421 top-level DB tests (599 including nested), no failures/skips. Owned runners
+exited 0, containers and registration credentials were removed, and zero
+repository registrations were verified. The issue #26 receipt was updated.
+
+The next slice repairs a reproduced public event component state leak: a failed
+new-slug read left the previous event and its enabled booking form visible.
+Keyed guest state, current-read gating, unmount callback invalidation and
+synchronous submission guards now pass the full local gate: 286 web/34 mobile
+tests and 421/599 DB tests, no failures/skips. Strict Mode browser fixtures cover
+old free/role successes, paid redirects/errors, A → B → A, repeated submits and
+current confirmations. Seven writes were simulated; actual development inventory
+remained nine before/after. See [public booking context](public-booking-context.md)
+for source decisions, inspected light/dark screenshots and evidence limits.

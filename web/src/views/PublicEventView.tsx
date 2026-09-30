@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ApiError, api, postJSON } from '../api';
 import type { EventRoleApplicationDTO, EventRoleDTO, PaidReservationDTO, PublicEventDTO, TicketReservationDTO } from '../domain';
@@ -39,7 +39,8 @@ function formatCurrency(cents: number, currency: string) {
 }
 
 function pricingLabel(event: PublicEventDTO | null) {
-  if (!event || event.pricingMode === 'free') {
+  if (!event) return 'Pricing unavailable';
+  if (event.pricingMode === 'free') {
     return 'Free guest reservation';
   }
 
@@ -71,7 +72,11 @@ function countRunes(value: string) {
 }
 
 export function PublicEventView({ slug }: { slug: string }) {
-  const [event, setEvent] = useState<PublicEventDTO | null>(null);
+  return <PublicEventPage key={slug} slug={slug} />;
+}
+
+function PublicEventPage({ slug }: { slug: string }) {
+  const [loadedEvent, setEvent] = useState<PublicEventDTO | null>(null);
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(true);
@@ -83,14 +88,23 @@ export function PublicEventView({ slug }: { slug: string }) {
   const [availabilityKnown, setAvailabilityKnown] = useState(true);
   const [pendingTicketURL, setPendingTicketURL] = useState<string | null>(null);
   const paidIntent = useRef<{ email: string; displayName: string; key: string } | null>(null);
-  const latestSlug = useRef(slug);
-  latestSlug.current = slug;
+  const event = !loading && loadedEvent?.publicSlug === slug ? loadedEvent : null;
+  const active = useRef(true);
+  const ticketSubmitting = useRef(false);
+  const roleSubmissions = useRef(new Set<string>());
+
+  // Invalidate callbacks in the commit that removes this event's keyed view.
+  useLayoutEffect(() => {
+    active.current = true;
+    return () => { active.current = false; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       setLoading(true);
+      setEvent(null);
       setError(null);
       setReservation(null);
       setEmail('');
@@ -104,6 +118,7 @@ export function PublicEventView({ slug }: { slug: string }) {
 
       try {
         const loaded = await api<PublicEventDTO>(`/api/public/events/${slug}`);
+        if (loaded.publicSlug !== slug) throw new Error('Event details do not match this page. Return to Discover and try again.');
         if (!cancelled) {
           setEvent(loaded);
         }
@@ -165,6 +180,7 @@ export function PublicEventView({ slug }: { slug: string }) {
 
   async function handleRoleSubmit(role: EventRoleDTO, formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault();
+    if (!active.current || !event || role.eventId !== event.id || roleSubmissions.current.has(role.id)) return;
 
     const draft = applicationDrafts[role.id] ?? emptyRoleApplicationDraft();
     const trimmedName = draft.applicantName.trim();
@@ -184,6 +200,8 @@ export function PublicEventView({ slug }: { slug: string }) {
       return;
     }
 
+    if (draft.submitted) return;
+    roleSubmissions.current.add(role.id);
     updateRoleDraft(role.id, (current) => ({ ...current, submitting: true, error: null }));
 
     try {
@@ -194,6 +212,7 @@ export function PublicEventView({ slug }: { slug: string }) {
         message: trimmedMessage,
       });
 
+      if (!active.current) return;
       updateRoleDraft(role.id, (current) => ({
         ...current,
         applicantName: submitted.applicantName,
@@ -204,6 +223,8 @@ export function PublicEventView({ slug }: { slug: string }) {
         error: null,
       }));
     } catch (caught) {
+      if (!active.current) return;
+      roleSubmissions.current.delete(role.id);
       updateRoleDraft(role.id, (current) => ({
         ...current,
         submitting: false,
@@ -216,7 +237,7 @@ export function PublicEventView({ slug }: { slug: string }) {
   async function handleSubmit(formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault();
 
-    if (event?.pricingMode === 'fixed' && pendingTicketURL) return;
+    if (!active.current || !event || event.isFull || ticketSubmitting.current || pendingTicketURL) return;
 
     const trimmedEmail = email.trim();
     const trimmedDisplayName = displayName.trim();
@@ -226,7 +247,7 @@ export function PublicEventView({ slug }: { slug: string }) {
       return;
     }
 
-    const requestSlug = slug;
+    ticketSubmitting.current = true;
     setReserving(true);
     setError(null);
 	setPendingTicketURL(null);
@@ -241,7 +262,7 @@ export function PublicEventView({ slug }: { slug: string }) {
         });
 
         const destination = checkoutDestination(checkout);
-        if (latestSlug.current !== requestSlug) return;
+        if (!active.current) return;
         if (destination) {
           window.location.href = destination;
           return;
@@ -256,12 +277,12 @@ export function PublicEventView({ slug }: { slug: string }) {
         displayName: trimmedDisplayName || undefined,
       });
 
-      if (latestSlug.current !== requestSlug) return;
+      if (!active.current) return;
       setReservation(result.ticket);
-      setAvailabilityKnown(result.event !== null);
-      if (result.event) setEvent(result.event);
+      setAvailabilityKnown(result.event?.publicSlug === slug);
+      if (result.event?.publicSlug === slug) setEvent(result.event);
     } catch (caught) {
-      if (latestSlug.current !== requestSlug) return;
+      if (!active.current) return;
       if (caught instanceof ApiError && caught.status === 409) {
         const terminal = checkoutTerminalState(caught.data);
         if (terminal) {
@@ -274,7 +295,10 @@ export function PublicEventView({ slug }: { slug: string }) {
       }
       setError(caught instanceof Error ? caught.message : 'Unable to reserve ticket');
     } finally {
-      if (latestSlug.current === requestSlug) setReserving(false);
+      if (active.current) {
+        ticketSubmitting.current = false;
+        setReserving(false);
+      }
     }
   }
 
@@ -292,32 +316,32 @@ export function PublicEventView({ slug }: { slug: string }) {
                 Discover more events
               </a>
               {event?.pricingMode === 'fixed' ? <span className={publicStatusPillClass()}>Secure checkout</span> : null}
-              <span className={publicStatusPillClass(event?.isFull ? 'danger' : 'success')}>{!availabilityKnown ? 'Availability unavailable' : event?.isFull ? 'Sold out' : `${event?.remainingTickets ?? '—'} remaining`}</span>
+              <span className={publicStatusPillClass(!event || !availabilityKnown ? 'neutral' : event.isFull ? 'danger' : 'success')}>{!event || !availabilityKnown ? 'Availability unavailable' : event.isFull ? 'Sold out' : `${event.remainingTickets} remaining`}</span>
             </div>
 
             <div className="mt-5 grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
               <div>
-                <p className={publicEyebrowClass}>{event ? pricingLabel(event) : 'Free guest reservation'}</p>
-                <h1 className="mt-3 text-4xl font-black tracking-tight text-fg-primary sm:text-5xl">{event?.title ?? 'Reserve your free ticket'}</h1>
-                <p className="mt-3 max-w-2xl text-base leading-7 text-fg-secondary">{availabilityKnown ? publicEventConversionSummary(event, pricingLabel(event)) : 'Your ticket is reserved. Current availability could not be refreshed.'}</p>
+                <p className={publicEyebrowClass}>{event ? pricingLabel(event) : 'Event details'}</p>
+                <h1 className="mt-3 text-4xl font-black tracking-tight text-fg-primary sm:text-5xl">{event?.title ?? (loading ? 'Loading event…' : 'Event unavailable')}</h1>
+                <p className="mt-3 max-w-2xl text-base leading-7 text-fg-secondary">{!event ? (loading ? 'Loading event details and availability.' : 'Return to Discover to choose an available event.') : availabilityKnown ? publicEventConversionSummary(event, pricingLabel(event)) : 'Your ticket is reserved. Current availability could not be refreshed.'}</p>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-3xl bg-surface-inset p-4">
                   <p className={publicEyebrowClass}>Date & time</p>
-                  <p className="mt-2 text-sm font-bold text-fg-primary">{event ? formatDateTime(event.startsAt) : 'Loading event…'}</p>
+                  <p className="mt-2 text-sm font-bold text-fg-primary">{event ? formatDateTime(event.startsAt) : loading ? 'Loading event…' : 'Date unavailable'}</p>
                 </div>
                 <div className="rounded-3xl bg-surface-inset p-4">
                   <p className={publicEyebrowClass}>Location</p>
-                  <p className="mt-2 text-sm font-bold text-fg-primary">{event?.locationDisplay ?? 'Loading location…'}</p>
+                  <p className="mt-2 text-sm font-bold text-fg-primary">{event?.locationDisplay ?? (loading ? 'Loading location…' : 'Location unavailable')}</p>
                 </div>
                 <div className="rounded-3xl bg-surface-inset p-4">
                   <p className={publicEyebrowClass}>Tickets</p>
-                  <p className={`mt-2 text-sm font-bold ${event?.isFull ? 'text-status-danger' : 'text-fg-primary'}`}>{!availabilityKnown ? 'Availability unavailable' : event ? (event.isFull ? 'Sold out' : `${event.remainingTickets} left`) : 'Loading availability…'}</p>
+                  <p className={`mt-2 text-sm font-bold ${event?.isFull ? 'text-status-danger' : 'text-fg-primary'}`}>{!availabilityKnown ? 'Availability unavailable' : event ? (event.isFull ? 'Sold out' : `${event.remainingTickets} left`) : loading ? 'Loading availability…' : 'Availability unavailable'}</p>
                 </div>
                 <div className="rounded-3xl bg-surface-inset p-4">
                   <p className={publicEyebrowClass}>Pricing</p>
-                  <p className="mt-2 text-sm font-bold text-fg-primary">{event ? pricingLabel(event) : 'Loading pricing…'}</p>
+                  <p className="mt-2 text-sm font-bold text-fg-primary">{event ? pricingLabel(event) : loading ? 'Loading pricing…' : 'Pricing unavailable'}</p>
                 </div>
               </div>
             </div>
