@@ -60,6 +60,7 @@ import {
 } from '../modules/eventEditor/eventEditorLoaders';
 import { canDownloadSettlementExport, downloadSettlementExport, downloadSettlementReport } from '../modules/eventEditor/settlementExport';
 import { EventFinanceLinesPanel } from '../components/EventFinanceLinesPanel';
+import { EventRoleSetupPanel } from '../components/EventRoleSetupPanel';
 import type {
   CommitmentDTO,
   CurrentWorkspaceDTO,
@@ -1653,6 +1654,12 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                     <p className="mt-4 rounded-2xl border border-stroke-subtle bg-surface-inset p-4 text-sm leading-6 text-fg-secondary">{settlementAdjustmentsLockedCopy()}</p>
                   ) : null}
                 </section>
+              ) : null}
+
+              {roles !== null && event ? (
+                <EventRoleSetupPanel key={`${event.id}:${canReviewApplications}:${closed}`} eventId={event.id} roles={roles}
+                  allowed={canReviewApplications && !closed}
+                  onCreated={role => setRoles(current => [...(current ?? []), role])} />
               ) : null}
 
               {applicationsReady && event ? (

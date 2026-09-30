@@ -10,6 +10,7 @@ import { PublicEventView } from './views/PublicEventView';
 import { ParticipantPortalView } from './views/ParticipantPortalView';
 import { TicketView } from './views/TicketView';
 import { WorkspaceView } from './views/WorkspaceView';
+import { MemberRolesView } from './views/MemberRolesView';
 import { PublicArchiveItemsPanel } from './components/PublicArchiveItemsPanel';
 import { ImportView } from './views/ImportView';
 import { LifecycleIntentsView } from './views/LifecycleIntentsView';
@@ -75,6 +76,7 @@ export default function App() {
     return <EventEditorView eventId={getSegment(pathname, 2)} />;
   }
 
+  if (/^\/workspace\/[^/]+\/members$/.test(pathname)) return <MemberRolesView key={getSegment(pathname, 2)} workspaceId={getSegment(pathname, 2)} />;
   if (/^\/workspace\/[^/]+\/places\/[^/]+\/access-info$/.test(pathname)) return <VenueAccessView workspaceId={getSegment(pathname, 2)} placeId={getSegment(pathname, 4)} />;
   if (/^\/workspace\/[^/]+\/venue-access$/.test(pathname)) return <VenueAccessIndexView key={getSegment(pathname, 2)} workspaceId={getSegment(pathname, 2)} />;
 

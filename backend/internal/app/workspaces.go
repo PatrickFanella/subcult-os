@@ -23,6 +23,9 @@ type memberDTO struct {
 	Email       string  `json:"email"`
 	DisplayName *string `json:"displayName"`
 	Role        string  `json:"role"`
+	AccessState string  `json:"accessState"`
+	ExpiresAt   *string `json:"expiresAt,omitempty"`
+	RevokedAt   *string `json:"revokedAt,omitempty"`
 }
 
 type invitationDTO struct {
@@ -125,6 +128,7 @@ func (a *App) handleCreateWorkspace(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleCurrentWorkspace(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
 	if a.db == nil {
 		writeError(w, http.StatusInternalServerError, "database unavailable")
 		return
@@ -149,6 +153,7 @@ func (a *App) handleCurrentWorkspace(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleGetWorkspace(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
 	if a.db == nil {
 		writeError(w, http.StatusInternalServerError, "database unavailable")
 		return
@@ -625,7 +630,10 @@ func (a *App) handleRemoveMember(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) listWorkspaceMembers(ctx context.Context, workspaceID string) ([]memberDTO, error) {
 	rows, err := a.db.Query(ctx, `
-		select wm.id, p.email, p.display_name, wm.role
+		select wm.id, p.email, p.display_name, wm.role,
+		       case when wm.revoked_at is not null then 'revoked'
+		            when wm.expires_at <= now() then 'expired'
+		            else 'active' end, wm.expires_at, wm.revoked_at
 		from workspace_members wm
 		join people p on p.id = wm.person_id
 		where wm.workspace_id = $1
@@ -639,12 +647,13 @@ func (a *App) listWorkspaceMembers(ctx context.Context, workspaceID string) ([]m
 
 	out := make([]memberDTO, 0)
 	for rows.Next() {
-		var id, email, role string
+		var id, email, role, accessState string
 		var displayName sql.NullString
-		if err := rows.Scan(&id, &email, &displayName, &role); err != nil {
+		var expiresAt, revokedAt sql.NullTime
+		if err := rows.Scan(&id, &email, &displayName, &role, &accessState, &expiresAt, &revokedAt); err != nil {
 			return nil, err
 		}
-		item := memberDTO{ID: id, Email: email, Role: role}
+		item := memberDTO{ID: id, Email: email, Role: role, AccessState: accessState, ExpiresAt: formatNullableTime(expiresAt), RevokedAt: formatNullableTime(revokedAt)}
 		if displayName.Valid {
 			item.DisplayName = &displayName.String
 		}

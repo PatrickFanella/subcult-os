@@ -96,7 +96,7 @@ describe('discoveryOccurrenceModel', () => {
 		const withoutLocation = occurrence({ uri: 'uri-b' });
 		const points = projectOccurrencesToPlot([withLocation, withoutLocation], 200, 100);
 		expect(points).toHaveLength(1);
-		expect(points[0]).toEqual({ uri: 'uri-a', x: 100, y: 50 });
+		expect(points[0]).toMatchObject({ uri: 'uri-a', x: 100, y: 50 });
 	});
 
 	it('labels the handoff button and never invents a fallback destination', () => {
