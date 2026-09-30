@@ -251,6 +251,7 @@ export interface LifecycleNoticeDTO {
   body: string;
   queuedAt: string;
   recipients: Array<{ email: string; status: string; attempts: number; feedback: string }>;
+  reviews: Array<{ id: string; note: string; recordedAt: string; recipients: LifecycleNoticeDTO['recipients'] }>;
 }
 
 export interface LifecycleNoticePreviewDTO {

@@ -1,5 +1,42 @@
 # Development execution log
 
+## 2026-09-29 — LIFE-01 private notice review log
+
+Added an owner-only review endpoint and append-only review log for queued
+listing notices, including superseded decisions. Each private note records a
+server snapshot of recipient queue state, attempts and provider feedback. The
+review and audit entry commit atomically. Exact request-key replay preserves the
+original observation; changed bindings conflict. The endpoint never modifies
+the mail queue or treats an owner's note as delivery evidence.
+
+The outcome screen now summarizes queue states, explains uncertainty after
+earlier attempts and uses the shared outlined control for saving reviews.
+Historical observations remain separate from current delivery feedback. The
+client retains request identity after an uncertain response and clears private
+state on access denial. Provider identifiers and request keys stay excluded
+from the response contract.
+
+Final `bash scripts/dev-env.sh verify` exited 0: full `make verify` with 261 web
+and 34 mobile tests, then the complete disposable database gate with 405
+top-level passing tests, 567 including subtests, zero failures/skips. New
+regressions cover owner privacy/revocation, validation, replay, concurrent
+duplicates, frozen observations after later feedback, complete audit rollback,
+unchanged outbox fields and migration/replay preservation. The first full run
+found an older schema-24 reconstruction fixture that needed to drop the new
+review table; the corrected full rerun passed.
+
+T3 preview status reported no automation-capable tab. Both explicit open
+attempts timed out. The rendered regressions and real backend database tests
+passed; browser interaction and live-provider reconciliation remain unqualified.
+
+Verified the API mounts this worktree and took a private custom-format backup
+of the retained schema-26 development database, with archive catalog readback.
+Restarted only this worktree's API; startup applied schema 27 and health returned
+200. Retained counts remain one event, zero tickets, one held outbox row and
+zero notices/reviews. Mail, OAuth and projection remain disabled. The API,
+Postgres and web preview are healthy at `http://127.0.0.1:32880/`; the disposable
+test database was removed after verification. Other worktrees were preserved.
+
 ## 2026-09-29 — LIFE-01 listing notice approval and mail guards
 
 Added owner-only approval and outcome endpoints for saved listing-change notices.

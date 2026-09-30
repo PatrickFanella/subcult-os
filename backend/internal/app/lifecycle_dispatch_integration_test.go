@@ -268,7 +268,7 @@ func TestLifecycleDispatchMigrationKeepsExistingActionsDraftOnly(t *testing.T) {
 	fx, _, changeID, _ := lifecycleDispatchFixture(t)
 	// Reconstruct the exact v24 lifecycle table and ledger in this fixture's
 	// disposable schema, retaining its four existing draft actions.
-	if _, err := fx.app.db.Exec(t.Context(), `drop table lifecycle_notice_recipients; drop table lifecycle_notices; alter table event_lifecycle_actions drop column dispatch_approved; delete from schema_migrations where version>=25`); err != nil {
+	if _, err := fx.app.db.Exec(t.Context(), `drop table lifecycle_notice_reviews; drop table lifecycle_notice_recipients; drop table lifecycle_notices; alter table event_lifecycle_actions drop column dispatch_approved; delete from schema_migrations where version>=25`); err != nil {
 		t.Fatal(err)
 	}
 	if err := RunMigrations(t.Context(), fx.app.db); err != nil {

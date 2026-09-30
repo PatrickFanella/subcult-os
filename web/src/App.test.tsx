@@ -94,11 +94,17 @@ describe('listing notice preview', () => {
     const rendered = renderWithState('/workspace/one/lifecycle-intents', <LifecycleNoticePreview eventId="one" changeId="change" canApprove={false} onAuthorizationLoss={() => undefined} />, [true, true, null, false, null, {
       id: 'notice', changeId: 'change', subject: 'Listing cancelled', body: 'Approved message', queuedAt: '2026-09-29T18:00:00Z',
       recipients: [{ email: 'guest@example.test', status: 'accepted', attempts: 1, feedback: 'unknown' }, { email: 'crew@example.test', status: 'quarantined', attempts: 2, feedback: 'unknown' }],
+      reviews: [{ id: 'review', recordedAt: '2026-09-29T19:00:00Z', note: 'Check <provider> records first.', recipients: [{ email: 'guest@example.test', status: 'held', attempts: 0, feedback: 'unknown' }] }],
     }, null]);
     expect(rendered).toContain('decision was superseded');
     expect(rendered).toContain('Refresh delivery outcomes');
     expect(rendered).toContain('Provider acceptance and delivery feedback are separate');
     expect(rendered).toContain('quarantined');
+    expect(rendered).toContain('Owner review log');
+    expect(rendered).toContain('Check &lt;provider&gt; records first.');
+    expect(rendered).toContain('Outcomes when saved:');
+    expect(rendered).toContain('1 held');
+    expect(rendered).toContain('does not send, retry, or mark a message delivered');
     expect(rendered).not.toContain('Approve and queue');
     expect(rendered).not.toContain('Preview listing notice');
   });

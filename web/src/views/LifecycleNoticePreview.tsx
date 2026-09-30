@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ApiError, api, postJSON } from '../api';
 import type { LifecycleNoticeDTO, LifecycleNoticePreviewDTO } from '../domain';
 import { nextLifecycleIntentRetry, type LifecycleIntentRetry } from '../modules/lifecycleIntents/lifecycleIntentModel';
+import { LifecycleNoticeOutcomes } from './LifecycleNoticeOutcomes';
 
 export function LifecycleNoticePreview({ eventId, changeId, canApprove = true, onAuthorizationLoss }: { eventId: string; changeId: string; canApprove?: boolean; onAuthorizationLoss: () => void }) {
   const generation = useRef(0);
@@ -71,10 +72,6 @@ export function LifecycleNoticePreview({ eventId, changeId, canApprove = true, o
       <p className="text-xs text-fg-muted">Recipients reflect current relationships. Any later approval must recheck the listing, recipients and suppression.</p>
       <button disabled={busy || preview.recipients.length === 0} onClick={() => void approve()} className="rounded bg-action-primary px-3 py-2 text-sm text-fg-inverse">Approve and queue this notice</button>
     </div>}
-    {queued && <div className="space-y-3 rounded bg-surface-inset p-3" aria-label="Notice delivery outcomes">
-      <p className="font-medium">Queued: {queued.subject}</p><pre className="whitespace-pre-wrap font-sans text-sm">{queued.body}</pre>
-      <p className="text-sm text-fg-secondary">Queue approval is recorded. Provider acceptance and delivery feedback are separate. Pending retries or quarantine may retain unknown earlier acceptance; suppression blocks further attempts.</p>
-      <ul className="max-h-64 space-y-1 overflow-auto text-sm">{queued.recipients.map((recipient) => <li key={recipient.email} className="break-all">{recipient.email} · {recipient.status.replaceAll('_', ' ')} · attempts {recipient.attempts} · feedback {recipient.feedback}</li>)}</ul>
-    </div>}
+    {queued && <LifecycleNoticeOutcomes eventId={eventId} changeId={changeId} notice={queued} onUpdate={setQueued} onAuthorizationLoss={() => { setQueued(null); setPreview(null); setRetry(null); onAuthorizationLoss(); }} />}
   </section>;
 }

@@ -53,7 +53,10 @@ notice previews with exact saved
 revision/CID checks, templated content, deduplicated operational recipients and
 suppression visibility. Atomic approval/queuing, send-time authority and
 relationship guards, and per-recipient outcomes now exist locally. Next, qualify
-live delivery and add operator reconciliation controls.
+live delivery. A private owner review log now records notes with server-observed
+recipient outcomes and explains held, retrying, accepted, quarantined and
+withheld states. It does not retry messages or resolve uncertain provider
+acceptance. Provider-backed reconciliation remains unfinished.
 Refunds remain separate from event cancellation.
 
 ## Worktree audit and selected recovery

@@ -263,9 +263,38 @@ outcomes after supersession.
 
 Migration 000026 adds the immutable notice/recipient ledgers and the authority
 withholding state. Prior held messages and draft actions remain unchanged.
-Older binaries reject schema 26; rollback needs a qualified pre-migration
-recovery path. No live provider delivery or operator reconciliation control is
-qualified by these local tests.
+Older binaries reject a newer schema; rollback needs a qualified pre-migration
+recovery path. Live provider delivery remains a separate qualification gate.
+
+## Private notice review log
+
+`POST /api/events/{eventId}/lifecycle-intents/{changeId}/notice/reviews` records
+an owner observation for an existing queued notice. It accepts a UUID
+`requestKey` and a nonblank `note` of at most 2000 characters. Current owner
+authority is checked under the event and membership locks. Reviews are allowed
+after decision supersession so owners can inspect earlier outcomes and plan a
+correction. They do not require the original approver to remain the reviewer.
+
+The server snapshots recipient email, queue status, attempt count and delivery
+feedback in one SQL statement. The snapshot is the state observed when the
+note was saved; it may differ from what the browser displayed before saving.
+The review and an audit entry commit together. The endpoint only appends
+reviews: it never changes queue state, starts a provider call, retries a message,
+or asserts delivery from an owner's note. Exact request-key replay by the same
+owner for the same notice and note returns the original review. A changed
+binding returns 409. The browser retains the key across uncertain responses.
+
+Owner-only notice responses include the review log with timestamps and frozen
+recipient outcomes, using `private, no-store`. Provider identifiers, request keys
+and internal actor identifiers remain excluded. Access denial clears private
+client state. Status guidance distinguishes a first pending attempt from a
+pending retry, and calls for provider reconciliation before correcting an
+uncertain acceptance. Provider feedback remains separate from these notes.
+
+Migration 000027 adds the review table without changing existing notice,
+recipient, action or outbox rows. Schema 27 requires the matching API and worker
+binaries. A provider-backed unknown-outcome reconciliation workflow remains
+unfinished; this log records follow-up work without resolving that uncertainty.
 
 ## Refund gate
 

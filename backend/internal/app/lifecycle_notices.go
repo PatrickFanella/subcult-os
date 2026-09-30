@@ -26,6 +26,7 @@ type lifecycleNoticeDTO struct {
 	Body       string                       `json:"body"`
 	QueuedAt   string                       `json:"queuedAt"`
 	Recipients []lifecycleNoticeDeliveryDTO `json:"recipients"`
+	Reviews    []lifecycleNoticeReviewDTO   `json:"reviews"`
 }
 
 func (a *App) handleApproveLifecycleNotice(w http.ResponseWriter, r *http.Request) {
@@ -250,6 +251,11 @@ func (a *App) respondLifecycleNotice(w http.ResponseWriter, r *http.Request, wor
 		return
 	}
 	rows.Close()
+	notice.Reviews, err = a.loadLifecycleNoticeReviews(r.Context(), id)
+	if err != nil {
+		writeNoticeError(w, err)
+		return
+	}
 	if _, _, ok := a.requireWorkspaceRole(r, workspaceID, roleOwner); !ok {
 		writeError(w, 403, "forbidden")
 		return
