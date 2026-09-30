@@ -521,3 +521,20 @@ passed. Full pinned local gate passed373 web/39 mobile, DB422/606. Continue host
 monitoring, then the preserved joined journey. Crew portal proof awaits the correct
 synthetic credential; no password reset. Free booking/door, commitments, shifts,
 closeout/reuse, paired timings and native/provider gates remain open.
+
+
+### Crew portal and free admission browser stages — 2026-09-30
+
+#189/#190 are merged; observed main717b79a matches the qualified local files.
+Hosted checks remain queued on original/updated heads and main. Normal recovery
+of the synthetic Crew fixture unblocked its portal: assigned task/requirements
+visible, operator note absent. Original owner/browser event now has one completed
+private commitment and one browser-reserved/browser-checked-in free ticket.
+Persisted staffing1 remains assigned to Crew; all40 outbox rows held.
+
+The next source slice fixes unconfirmed recovery-delivery copy in web/mobile.
+Full pinned local gate passed375 web/39 mobile and DB422/606, no failures/skips.
+The corrected web generic notice was checked in the real browser. Continue hosted
+monitoring and then timed shifts, finance/closeout and private archive/template
+reuse in the preserved original event. Paired timings, intended-user and real
+device/provider/deployment gates remain open; offline admission stays disabled.

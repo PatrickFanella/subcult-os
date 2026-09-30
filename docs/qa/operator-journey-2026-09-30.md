@@ -443,3 +443,46 @@ without adding that hook. Full pinned verification then passed373 web/39 mobile,
 DB422 top-level/606 including nested, no failures/skips; gate database removed.
 Backend source and mounted frontend are this staffing candidate; no migrations,
 live provider, deployment, intended-user or broad acceptance closure.
+
+
+## Merged source; crew portal, commitment and free admission browser proof
+
+PRs #189 and #190 are merged. Observed main717b79a3e2f055311e4bd4b3f7500bfac565652d
+has the same files as the locally qualified staffing candidate. Gitea's updated
+PR heads6d78fb6 (#189) and20e0cee (#190), their original qualified-local heads,
+and main still have queued hosted checks. Merge status does not establish hosted
+qualification. Existing shared runner/queued work was preserved.
+
+The owned runtime identity was rechecked: same API/PG containers and tmpfs QA DB;
+mail delivery, AT OAuth and projection flags false. The synthetic Crew account
+was recovered through the normal browser request/held-email link/password form,
+not a direct database update. Its one-use challenge was consumed and removed from
+the URL. Only this example.test fixture credential changed; no provider contacted.
+Normal login then showed its assigned task and participant requirements in the
+participant portal, with the private operator note absent.
+
+The original owner/browser event now has one completed private commitment, created
+and marked done through normal controls. An anonymous public page omitted both
+that private text and the staffing note. A new synthetic guest reserved one free
+ticket; remaining10 became9. Its ticket page displayed the guest and QR pass.
+Owner Door search found the guest, Check in succeeded, and the disabled Checked in
+control appeared. Read-only DB proof confirms tickets1/checked-in1, commitments1/
+done1, staffing1/assigned-to-Crew1. These are real browser stages of the same
+original event, separate from earlier fresh API-only harness runs. They do not
+qualify physical scanning, offline/reconnect, paired timings or intended-user use.
+
+Recovery exposed another delivery-copy defect: web claimed a link had been sent
+and mobile claimed it was on its way, although the API receipt does not confirm
+provider delivery and the rehearsal message was held. Both notices now keep
+account existence conditional and state delivery is unconfirmed. Mobile action
+and guidance describe requesting the link. API, sending policy and account
+privacy behavior are unchanged. Web handler fixtures cover accepted and rejected
+requests; mobile notice regression retains the conditional wording. A real web
+request for a missing synthetic account showed the corrected generic notice.
+Full pinned local gate passed375 web/39 mobile, DB422 top-level/606 including
+nested, no failures/skips; separate disposable gate DB removed. All40 rehearsal
+outbox rows are held. Private receipts contain no ticket/recovery capability.
+
+Remaining original-event browser stages include timed shifts, finance/closeout,
+private archive/template reuse and paired workflow measurements. Physical device,
+provider, deployment and issue #25 acceptance gates remain open.
