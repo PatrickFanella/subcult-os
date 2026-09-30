@@ -407,3 +407,27 @@ See [the operator report](../qa/operator-journey-2026-09-30.md) for scope and li
 Continue owner role-management controls and the joined browser work when preview
 connection recovers; finance, private closeout/reuse, paired timings, native
 devices, screen readers and provider/deployment gates remain separate.
+
+
+### Membership roster qualified; owner role controls added — 2026-09-30
+
+PR #185 passed both hosted checks at32a474ec77ca2e188332f9e5f40930921719c7b9:
+push11089/job20041, PR11090/job20042,315 web/34 mobile, DB422/606, no failures
+or skips. Existing kvant runner preserved; qualified PR body/head read back.
+
+The next slice adds a dedicated owner Member roles page using the existing
+role-only API. Capability review precedes assignment; canonical refresh follows
+a matched receipt. Nonowners and inactive/unknown memberships are read-only.
+Denied responses clear private state; unknown write outcomes require refresh
+without replay. No expiry/revocation restoration or authority-policy change.
+Transport and static-render tests keep browser interaction proof separate.
+See [the operator report](../qa/operator-journey-2026-09-30.md).
+Continue joined browser qualification when preview recovers, then finance,
+private closeout/reuse and paired timings. Native devices, screen readers,
+providers and deployment remain separate gates.
+
+
+Full pinned local verification passed337 web/34 mobile tests, backend checks and
+builds, DB422 top-level/606 including nested, no failures/skips. Disposable test
+DB removed. The initial TypeScript fixture-cast failure was corrected before the
+complete rerun. Scoped review, edited Markdown links and diffcheck passed.

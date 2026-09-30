@@ -260,3 +260,18 @@ role is usable, and old responses without status remain unqualified. Metadata
 is private workspace data and is absent from public event reads. See the
 [disposable roster rehearsal](../qa/operator-journey-2026-09-30.md) for API,
 regression and remaining browser/native evidence.
+
+
+## Owner role-assignment page
+
+The private Member roles page uses the existing owner-only membership PATCH.
+Owners review Owner, Organizer, Finance, Door or Crew capabilities before saving;
+the historical member alias defaults to Crew. The payload changes only role,
+using the membership row ID, and preserves expiry/revocation. Inactive, unknown
+or unresolved rows remain read-only; restoring access has no control in this page.
+The server checks permissions and the last-active-owner invariant on every write.
+
+The client reloads the authoritative workspace after a matched receipt. A denied
+write clears the roster; an uncertain outcome fences new writes until refresh.
+It does not replay uncertain mutations. Status and capability displays remain
+snapshots, with browser/keyboard/screen-reader qualification still pending.

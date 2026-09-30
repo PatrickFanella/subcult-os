@@ -210,3 +210,51 @@ was contacted. Recursive public-event reads omit all new membership fields.
 
 Changed-roster visual/keyboard/SR proof remains pending the same preview
 connection error. The API and fixture receipts do not replace that browser gate.
+
+
+## Owner member-role assignment
+
+PR #185 (`32a474ec77ca2e188332f9e5f40930921719c7b9`) passed both hosted
+checks: push11089/job20041 and PR11090/job20042. Each passed315 web/34 mobile
+and DB422 top-level/606 including nested, with no failures/skips. The existing
+kvant runner was preserved; no owned runner or credentials were created and
+repository runner registrations remain0. Qualified PR body/head read back.
+
+Owners now have a dedicated Member roles page linked from their workspace.
+It offers Owner, Organizer, Finance, Door and Crew with capability descriptions
+before assignment. The legacy member role defaults to its effective Crew bundle;
+unchanged selections do not write. Nonowners and inactive, unknown-role or
+unresolved memberships remain read-only. The request contains only the selected
+role and targets the membership row ID, preserving expiry/revocation metadata.
+The server still decides permissions and rejects last-active-owner demotion.
+No authority policy, schema or access-restoration control changed.
+
+A synchronous pending guard fences duplicate submissions across the page.
+Matched receipts trigger a fresh canonical roster read; permissions are never
+applied optimistically. Denied writes clear the private roster. Unknown outcomes
+fence further writes until a fresh read, without replaying the write. Known
+validation/last-owner rejections remain editable. Unmounted callbacks cannot
+update the departed page. Separate route instances are keyed by workspace ID.
+
+Eleven transport cases cover encoded membership paths, role-only payloads,
+metadata preservation, invalid roles, mismatched receipts, server rejections and
+workspace identity. Eleven static-render cases cover all five nonowner roles,
+owner choices/review, inactive/unresolved rows, unknown roles and missing private
+workspace data. These do not prove browser callback timing or native interaction.
+Changed-page visual, keyboard and screen-reader proof remains pending T3 preview
+connection recovery. No provider, native-device or deployment claim.
+
+
+A normal API rehearsal on separate synthetic alpha workspace
+`3449e469-cbde-44bf-9a32-3a3e1996bb1e`, membership
+`eec8aa9c-8fc2-4dbb-9c2d-3100efcd60d4`, proved role-only Door/Crew changes
+preserve a future expiry, canonical refreshed roster state, nonowner change403
+and last-owner demotion409. The original Crew/no-expiry state was restored through
+normal owner API calls. Original browser actors/event were untouched. This proves
+the existing API boundary, not the page's actual browser interaction.
+
+
+Full pinned local verification passed337 web/34 mobile tests, backend checks and
+builds, DB422 top-level/606 including nested, no failures/skips. Disposable test
+DB removed. The initial TypeScript fixture-cast failure was corrected before the
+complete rerun. Scoped review, edited Markdown links and diffcheck passed.
