@@ -70,3 +70,46 @@ checkout, native/physical devices and screen-reader speech remain separate.
 Public booking long-content reflow, input focus contrast and legacy event-clock
 semantics are not qualified by this slice. Hosted results belong to the exact
 published head and must be recorded separately from the local gate.
+
+## Hosted context repair and narrow reflow — 2026-09-30
+
+PR #179 (`2d0dca74cc8f204f0394b451b5e244c09176715d`) passed push
+11065/job 20015 and PR 11066/job 20016. Both ran 286 web/34 mobile tests and
+421 top-level DB tests (599 including nested), no failures/skips. Owned runners
+exited 0, their containers and registration credentials were removed, and zero
+repository registrations were verified. PR and issue #26 receipts were read back.
+
+The next source slice addresses public booking reflow. At that head, the actual
+component with unbroken synthetic event/role text expanded a measured 360 × 800
+CSS-pixel iframe: page scroll/client width 6682/345, event heading 8211px,
+ticket form 6664px and role form 3707px. The title had 465 characters and the
+role name 370, with long location and description URLs.
+
+The public booking section now permits text to wrap anywhere and shrink within
+its width. Role headings shrink beside a non-shrinking capacity badge. These
+three class changes are confined to this consumer; they preserve full text and
+vertical scrolling. The same fixture now has page width 345/345, heading
+271/271, ticket form 311/311 and role form 269/269. The capacity badge remains
+at x=216–291. Normal-length content also fits with the same form widths.
+
+Native T3 keyboard input, Tab and Enter verified the booking and role controls
+in the iframe. The reservation button remained at x=37–308, y=524–580 when
+focused. An intercepted free confirmation with long guest name/email retained
+its ticket link and stayed within width345. A 910-character role failure wraps
+within width235; a 1310-character failed event read wraps within width311 and
+shows no forms. All three POST responses were intercepted fixtures; no real
+reservation, role application, mail or provider was contacted.
+
+The existing global focus rule was verified rather than changed: light input
+outline rgb(23,23,23), dark textarea outline rgb(250,250,250), both 2px with 3px
+offset. Dark proof used the actual `data-theme` setting. Inspected screenshots:
+`browser-screenshot-127-0-0-1-muny3imz-b1a00818.png` (light booking focus) and
+`browser-screenshot-127-0-0-1-muny53td-4ff9cfbe.png` (dark role focus).
+
+Final full local gate passed 286 web/34 mobile tests, backend checks/builds and
+421/599 DB tests, no failures/skips; disposable DB removed. The fixture root,
+interception, iframe and globals were removed; the original archive URL, root,
+light data-theme and stored appearance were restored. Receipts remain in ignored
+`.cache/dev-env/public-booking-reflow-*`. This qualifies scoped desktop iframe
+reflow and keyboard behavior, not physical/native devices, screen-reader speech,
+real backend/provider journeys or legacy event-clock semantics.

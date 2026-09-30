@@ -291,3 +291,19 @@ submit guards and current success/pending states with seven simulated writes.
 See [the booking-context record](public-booking-context.md). Real backend booking
 journeys, responsive booking forms, legacy event-zone semantics, assistive
 technology, native devices and live providers remain separate gates.
+
+### Public booking context qualified; narrow reflow repaired — 2026-09-30
+
+PR #179 (`2d0dca74cc8f204f0394b451b5e244c09176715d`) passed push
+11065/job 20015 and PR 11066/job 20016 with 286 web/34 mobile tests and
+421/599 DB tests, no failures/skips. Owned runner cleanup and zero repository
+registrations were verified; PR and issue #26 receipts were read back.
+
+The next slice fixes unbroken text overflowing public booking forms at 360px.
+Actual scoped iframe proof now fits the original long fixture, normal fields,
+confirmation holder/email and long role/read failures. Native keyboard input,
+Tab and Enter reach the controls; light/dark focus screenshots inspected.
+Full local gate passed 286 web/34 mobile tests and 421/599 DB tests, no
+failures/skips. See [the updated booking report](public-booking-context.md).
+The joined backend operator journey (#25), event-clock semantics, assistive
+technology and physical/native/provider qualification remain unfinished.

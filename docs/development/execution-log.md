@@ -1586,3 +1586,20 @@ old free/role successes, paid redirects/errors, A → B → A, repeated submits 
 current confirmations. Seven writes were simulated; actual development inventory
 remained nine before/after. See [public booking context](public-booking-context.md)
 for source decisions, inspected light/dark screenshots and evidence limits.
+
+### Public booking context qualified and reflow repaired — 2026-09-30
+
+PR #179 (`2d0dca74cc8f204f0394b451b5e244c09176715d`) passed push
+11065/job 20015 and PR 11066/job 20016. Each passed 286 web/34 mobile tests
+and 421/599 DB tests, no failures/skips. Owned runners exited 0 and were removed;
+registration credentials deleted and zero repository registrations verified.
+The PR body and issue #26 were reconciled and read back.
+
+The next three-class public booking repair fixes page overflow reproduced at
+360px: scroll/client width6682/345 now345/345. Long event, role, guest, email
+and error text fit; the capacity badge and native keyboard booking/application
+controls remain reachable. Light/dark focus screenshots inspected. Three writes
+were intercepted synthetic responses, and all helpers/interception/iframe were
+removed. Full local gate passed 286 web/34 mobile tests and 421/599 DB tests,
+no failures/skips. See [booking context and reflow](public-booking-context.md)
+for exact geometry and remaining journey/device/provider limits.
