@@ -1,7 +1,7 @@
 import { AuthView } from './views/AuthView';
 import { DiscoverView } from './views/DiscoverView';
 import { DoorView } from './views/DoorView';
-import { EventAccessView } from './views/EventAccessView';
+import { EventAccessView, VenueAccessView } from './views/EventAccessView';
 import { EventEditorView } from './views/EventEditorView';
 import { InviteView } from './views/InviteView';
 import { IdentityActionView } from './views/IdentityActionView';
@@ -10,9 +10,11 @@ import { PublicEventView } from './views/PublicEventView';
 import { ParticipantPortalView } from './views/ParticipantPortalView';
 import { TicketView } from './views/TicketView';
 import { WorkspaceView } from './views/WorkspaceView';
+import { MemberRolesView } from './views/MemberRolesView';
 import { PublicArchiveItemsPanel } from './components/PublicArchiveItemsPanel';
 import { ImportView } from './views/ImportView';
 import { LifecycleIntentsView } from './views/LifecycleIntentsView';
+import { VenueAccessIndexView } from './views/VenueAccessIndexView';
 import { DesignSystemView } from './views/DesignSystemView';
 
 function getPathname() {
@@ -73,6 +75,10 @@ export default function App() {
     if (pathname.endsWith('/public-archive')) return <PublicArchiveItemsPanel eventId={getSegment(pathname, 2)} />;
     return <EventEditorView eventId={getSegment(pathname, 2)} />;
   }
+
+  if (/^\/workspace\/[^/]+\/members$/.test(pathname)) return <MemberRolesView key={getSegment(pathname, 2)} workspaceId={getSegment(pathname, 2)} />;
+  if (/^\/workspace\/[^/]+\/places\/[^/]+\/access-info$/.test(pathname)) return <VenueAccessView workspaceId={getSegment(pathname, 2)} placeId={getSegment(pathname, 4)} />;
+  if (/^\/workspace\/[^/]+\/venue-access$/.test(pathname)) return <VenueAccessIndexView key={getSegment(pathname, 2)} workspaceId={getSegment(pathname, 2)} />;
 
   if (pathname.startsWith('/workspace/') && pathname.endsWith('/cultural-imports')) {
     return <ImportView workspaceId={getSegment(pathname, 2)} />;

@@ -18,6 +18,9 @@ func TestPublicArchiveItemsStayApprovedUnpublishedAndPrivate(t *testing.T) {
 	publishEvent(t, fx, eventID)
 	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/end-of-night", map[string]any{}, http.StatusOK)
 	created := postJSON(t, fx.app, fx.ownerCookie, path, map[string]any{"kind": "link", "title": "Press", "attributionName": "Artist", "externalUrl": "https://example.test/press", "intendedUse": "link_only", "rightsAssertion": "permission_asserted", "evidenceReference": "ref"}, http.StatusCreated)
+	if got := created.Header.Get("Cache-Control"); got != "private, no-store" {
+		t.Fatalf("private approval Cache-Control = %q", got)
+	}
 	item := mustObject(t, created.JSON)
 	for _, key := range []string{"email", "amountCents", "currency", "settlementId", "reportId", "notes", "participants"} {
 		if _, ok := item[key]; ok {
@@ -28,6 +31,9 @@ func TestPublicArchiveItemsStayApprovedUnpublishedAndPrivate(t *testing.T) {
 	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/archive/notes", map[string]any{"body": "ARCHIVE_PRIVATE_NOTE_SENTINEL"}, http.StatusOK)
 	postJSON(t, fx.app, fx.ownerCookie, path+"/"+id+"/correct", map[string]any{"kind": "credit", "title": "Correct", "attributionName": "Artist", "intendedUse": "display_credit", "rightsAssertion": "owned", "evidenceReference": "ref"}, http.StatusCreated)
 	listResponse := getJSON(t, fx.app, fx.ownerCookie, path, http.StatusOK)
+	if got := listResponse.Header.Get("Cache-Control"); got != "private, no-store" {
+		t.Fatalf("private ledger Cache-Control = %q", got)
+	}
 	if strings.Contains(listResponse.Body, "ARCHIVE_PRIVATE_NOTE_SENTINEL") {
 		t.Fatalf("public archive ledger leaked a private archive note: %s", listResponse.Body)
 	}

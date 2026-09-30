@@ -38,7 +38,9 @@ type eventAccessRevisionDTO struct {
 	RecordedAt       string  `json:"recordedAt,omitempty"`
 }
 type eventAccessWorksheetDTO struct {
-	EventID     string                   `json:"eventId"`
+	EventID     string                   `json:"eventId,omitempty"`
+	PlaceID     string                   `json:"placeId,omitempty"`
+	PlaceName   string                   `json:"placeName,omitempty"`
 	EvaluatedAt string                   `json:"evaluatedAt"`
 	Entries     []eventAccessRevisionDTO `json:"entries"`
 }
@@ -79,6 +81,9 @@ func accessTextValid(value string, max int) bool {
 	return utf8.ValidString(value) && utf8.RuneCountInString(value) <= max && strings.IndexFunc(value, func(r rune) bool { return unicode.IsControl(r) && r != '\n' && r != '\t' }) < 0
 }
 func validateAccessRequest(topic string, req *eventAccessRequest) (*time.Time, *time.Time, error) {
+	return validateAccessRequestForScope("event", topic, req)
+}
+func validateAccessRequestForScope(scope, topic string, req *eventAccessRequest) (*time.Time, *time.Time, error) {
 	req.Details = strings.TrimSpace(req.Details)
 	req.SourceReference = strings.TrimSpace(req.SourceReference)
 	req.CorrectionReason = strings.TrimSpace(req.CorrectionReason)
@@ -109,7 +114,7 @@ func validateAccessRequest(topic string, req *eventAccessRequest) (*time.Time, *
 			return nil, nil, errors.New("unknown must not retain an assertion or source dates")
 		}
 	} else {
-		if (req.SourceKind != "organizer_assertion" && req.SourceKind != "event_observation" && req.SourceKind != "external_reference") || req.SourceReference == "" || reviewed == nil {
+		if (req.SourceKind != "organizer_assertion" && req.SourceKind != "external_reference" && !(scope == "event" && req.SourceKind == "event_observation") && !(scope == "venue" && req.SourceKind == "venue_observation")) || req.SourceReference == "" || reviewed == nil {
 			return nil, nil, errors.New("an assertion requires source kind, reference and review date")
 		}
 		if req.Value == "known" && req.Details == "" {
@@ -124,13 +129,13 @@ func validateAccessRequest(topic string, req *eventAccessRequest) (*time.Time, *
 	return reviewed, expires, nil
 }
 
-const accessRevisionColumns = "id,topic,revision,value,details,source_kind,source_reference,reviewed_at,expires_at,correction_reason,recorded_at"
+const accessRevisionColumns = "id,case when event_id is null then 'venue' else 'event' end,topic,revision,value,details,source_kind,source_reference,reviewed_at,expires_at,correction_reason,recorded_at"
 
 func scanAccessRevision(row pgx.Row, now time.Time) (eventAccessRevisionDTO, error) {
 	x := eventAccessRevisionDTO{Scope: "event", EvaluatedAt: now.UTC().Format(time.RFC3339Nano)}
 	var reviewed, expires *time.Time
 	var recorded time.Time
-	err := row.Scan(&x.ID, &x.Topic, &x.Revision, &x.Value, &x.Details, &x.SourceKind, &x.SourceReference, &reviewed, &expires, &x.CorrectionReason, &recorded)
+	err := row.Scan(&x.ID, &x.Scope, &x.Topic, &x.Revision, &x.Value, &x.Details, &x.SourceKind, &x.SourceReference, &reviewed, &expires, &x.CorrectionReason, &recorded)
 	x.ReviewedAt = nullableTimePtr(reviewed)
 	x.ExpiresAt = nullableTimePtr(expires)
 	x.RecordedAt = recorded.UTC().Format(time.RFC3339Nano)
@@ -141,25 +146,81 @@ func scanAccessRevision(row pgx.Row, now time.Time) (eventAccessRevisionDTO, err
 	}
 	return x, err
 }
-func (a *App) accessEventOwner(w http.ResponseWriter, r *http.Request) (eventRow, bool) {
+
+// SQL identifiers are selected here from constants, never from request text.
+type accessResource struct{ ID, WorkspaceID, Scope, Column, ParentTable, AuditPrefix, IDField, Name string }
+
+func (a *App) accessResourceOwner(w http.ResponseWriter, r *http.Request) (accessResource, bool) {
 	w.Header().Set("Cache-Control", "private, no-store")
 	if a.db == nil {
 		writeError(w, 500, "database unavailable")
-		return eventRow{}, false
+		return accessResource{}, false
+	}
+	if r.PathValue("placeID") != "" {
+		placeID, err := uuid.Parse(r.PathValue("placeID"))
+		if err != nil {
+			writeError(w, 400, "invalid place ID")
+			return accessResource{}, false
+		}
+		workspaceID, err := uuid.Parse(r.PathValue("workspaceID"))
+		if err != nil {
+			writeError(w, 400, "invalid workspace ID")
+			return accessResource{}, false
+		}
+		if _, _, ok := a.requireWorkspaceRole(r, workspaceID.String(), roleOwner); !ok {
+			writeError(w, 403, "forbidden")
+			return accessResource{}, false
+		}
+		resource := accessResource{Scope: "venue", Column: "place_id", ParentTable: "cultural_places", AuditPrefix: "place_access", IDField: "placeId"}
+		err = a.db.QueryRow(r.Context(), "select id,workspace_id,name from cultural_places where id=$1 and workspace_id=$2", placeID.String(), workspaceID.String()).Scan(&resource.ID, &resource.WorkspaceID, &resource.Name)
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeError(w, 404, "place not found")
+			return accessResource{}, false
+		}
+		if err != nil {
+			writeError(w, 500, "could not load place")
+			return accessResource{}, false
+		}
+		return resource, true
 	}
 	event, err := a.loadEventDetails(r.Context(), r.PathValue("eventID"))
 	if err != nil {
 		lifecycleIntentEventError(w, err)
-		return eventRow{}, false
+		return accessResource{}, false
 	}
 	if _, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, roleOwner); !ok {
 		writeError(w, 403, "forbidden")
-		return eventRow{}, false
+		return accessResource{}, false
 	}
-	return event, true
+	return accessResource{ID: event.ID, WorkspaceID: event.WorkspaceID, Scope: "event", Column: "event_id", ParentTable: "events", AuditPrefix: "event_access", IDField: "eventId"}, true
 }
+
+type accessWorksheetQuery interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
+func readAccessWorksheet(ctx context.Context, query accessWorksheetQuery, resource accessResource, now time.Time) (eventAccessWorksheetDTO, error) {
+	out := eventAccessWorksheetDTO{EvaluatedAt: now.UTC().Format(time.RFC3339Nano), Entries: []eventAccessRevisionDTO{}}
+	if resource.Scope == "event" {
+		out.EventID = resource.ID
+	} else {
+		out.PlaceID = resource.ID
+		out.PlaceName = resource.Name
+	}
+	for _, topic := range accessTopics {
+		x, err := scanAccessRevision(query.QueryRow(ctx, "select "+accessRevisionColumns+" from event_access_revisions where "+resource.Column+"=$1 and topic=$2 order by revision desc limit 1", resource.ID, topic), now)
+		if errors.Is(err, pgx.ErrNoRows) {
+			x = eventAccessRevisionDTO{EvaluatedAt: now.UTC().Format(time.RFC3339Nano), Topic: topic, Scope: resource.Scope, Value: "unknown", EffectiveValue: "unknown", SourceKind: "unknown", NeedsReview: true}
+		} else if err != nil {
+			return eventAccessWorksheetDTO{}, err
+		}
+		out.Entries = append(out.Entries, x)
+	}
+	return out, nil
+}
+
 func (a *App) handleGetEventAccess(w http.ResponseWriter, r *http.Request) {
-	event, ok := a.accessEventOwner(w, r)
+	resource, ok := a.accessResourceOwner(w, r)
 	if !ok {
 		return
 	}
@@ -168,25 +229,19 @@ func (a *App) handleGetEventAccess(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 500, "could not load access worksheet")
 		return
 	}
-	out := eventAccessWorksheetDTO{EventID: event.ID, EvaluatedAt: now.UTC().Format(time.RFC3339Nano), Entries: []eventAccessRevisionDTO{}}
-	for _, topic := range accessTopics {
-		x, err := scanAccessRevision(a.db.QueryRow(r.Context(), "select "+accessRevisionColumns+" from event_access_revisions where event_id=$1 and topic=$2 order by revision desc limit 1", event.ID, topic), now)
-		if errors.Is(err, pgx.ErrNoRows) {
-			x = eventAccessRevisionDTO{EvaluatedAt: now.UTC().Format(time.RFC3339Nano), Topic: topic, Scope: "event", Value: "unknown", EffectiveValue: "unknown", SourceKind: "unknown", NeedsReview: true}
-		} else if err != nil {
-			writeError(w, 500, "could not load access worksheet")
-			return
-		}
-		out.Entries = append(out.Entries, x)
+	out, err := readAccessWorksheet(r.Context(), a.db, resource, now)
+	if err != nil {
+		writeError(w, 500, "could not load access worksheet")
+		return
 	}
-	if _, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, roleOwner); !ok {
+	if _, _, ok := a.requireWorkspaceRole(r, resource.WorkspaceID, roleOwner); !ok {
 		writeError(w, 403, "forbidden")
 		return
 	}
 	writeJSON(w, 200, out)
 }
 func (a *App) handleGetEventAccessHistory(w http.ResponseWriter, r *http.Request) {
-	event, ok := a.accessEventOwner(w, r)
+	resource, ok := a.accessResourceOwner(w, r)
 	if !ok {
 		return
 	}
@@ -209,7 +264,7 @@ func (a *App) handleGetEventAccessHistory(w http.ResponseWriter, r *http.Request
 		writeError(w, 500, "could not load access history")
 		return
 	}
-	rows, err := a.db.Query(r.Context(), "select "+accessRevisionColumns+" from event_access_revisions where event_id=$1 and topic=$2 and revision::bigint<$3 order by revision desc limit 21", event.ID, topic, before)
+	rows, err := a.db.Query(r.Context(), "select "+accessRevisionColumns+" from event_access_revisions where "+resource.Column+"=$1 and topic=$2 and revision::bigint<$3 order by revision desc limit 21", resource.ID, topic, before)
 	if err != nil {
 		writeError(w, 500, "could not load access history")
 		return
@@ -235,14 +290,14 @@ func (a *App) handleGetEventAccessHistory(w http.ResponseWriter, r *http.Request
 		cursor := out.Revisions[19].Revision
 		out.NextBefore = &cursor
 	}
-	if _, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, roleOwner); !ok {
+	if _, _, ok := a.requireWorkspaceRole(r, resource.WorkspaceID, roleOwner); !ok {
 		writeError(w, 403, "forbidden")
 		return
 	}
 	writeJSON(w, 200, out)
 }
 func (a *App) handleCreateEventAccessRevision(w http.ResponseWriter, r *http.Request) {
-	event, ok := a.accessEventOwner(w, r)
+	resource, ok := a.accessResourceOwner(w, r)
 	if !ok {
 		return
 	}
@@ -252,7 +307,7 @@ func (a *App) handleCreateEventAccessRevision(w http.ResponseWriter, r *http.Req
 		writeError(w, 400, "invalid JSON")
 		return
 	}
-	reviewed, expires, err := validateAccessRequest(topic, &req)
+	reviewed, expires, err := validateAccessRequestForScope(resource.Scope, topic, &req)
 	if err != nil {
 		writeError(w, 400, err.Error())
 		return
@@ -268,11 +323,11 @@ func (a *App) handleCreateEventAccessRevision(w http.ResponseWriter, r *http.Req
 	defer tx.Rollback(r.Context())
 	ctx := context.WithValue(r.Context(), txContextKey{}, tx)
 	var locked string
-	if err = tx.QueryRow(ctx, "select id from events where id=$1 and workspace_id=$2 for update", event.ID, event.WorkspaceID).Scan(&locked); err != nil {
-		writeError(w, 409, "event changed")
+	if err = tx.QueryRow(ctx, "select id from "+resource.ParentTable+" where id=$1 and workspace_id=$2 for update", resource.ID, resource.WorkspaceID).Scan(&locked); err != nil {
+		writeError(w, 409, "access information resource changed")
 		return
 	}
-	actor, err := activeOwnerTx(ctx, tx, event.WorkspaceID, r.Context().Value(operatorPersonKey{}))
+	actor, err := activeOwnerTx(ctx, tx, resource.WorkspaceID, r.Context().Value(operatorPersonKey{}))
 	if err != nil {
 		writeError(w, 403, "forbidden")
 		return
@@ -282,10 +337,10 @@ func (a *App) handleCreateEventAccessRevision(w http.ResponseWriter, r *http.Req
 		writeError(w, 500, "could not save access revision")
 		return
 	}
-	var priorID, priorFP, priorEvent, priorActor, priorTopic string
-	err = tx.QueryRow(ctx, "select id,request_fingerprint,event_id,recorded_by_person_id,topic from event_access_revisions where request_key=$1", req.RequestKey).Scan(&priorID, &priorFP, &priorEvent, &priorActor, &priorTopic)
+	var priorID, priorFP, priorResource, priorScope, priorActor, priorTopic string
+	err = tx.QueryRow(ctx, "select id,request_fingerprint,coalesce(event_id::text,place_id::text),case when event_id is null then 'venue' else 'event' end,recorded_by_person_id,topic from event_access_revisions where request_key=$1", req.RequestKey).Scan(&priorID, &priorFP, &priorResource, &priorScope, &priorActor, &priorTopic)
 	if err == nil {
-		if priorFP != fp || priorEvent != event.ID || priorActor != actor || priorTopic != topic {
+		if priorFP != fp || priorResource != resource.ID || priorScope != resource.Scope || priorActor != actor || priorTopic != topic {
 			writeError(w, 409, "requestKey already used for a different revision")
 			return
 		}
@@ -295,7 +350,7 @@ func (a *App) handleCreateEventAccessRevision(w http.ResponseWriter, r *http.Req
 			return
 		}
 		tx.Rollback(ctx)
-		if _, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, roleOwner); !ok {
+		if _, _, ok := a.requireWorkspaceRole(r, resource.WorkspaceID, roleOwner); !ok {
 			writeError(w, 403, "forbidden")
 			return
 		}
@@ -311,7 +366,7 @@ func (a *App) handleCreateEventAccessRevision(w http.ResponseWriter, r *http.Req
 		return
 	}
 	var current int
-	if err = tx.QueryRow(ctx, "select coalesce(max(revision),0) from event_access_revisions where event_id=$1 and topic=$2", event.ID, topic).Scan(&current); err != nil {
+	if err = tx.QueryRow(ctx, "select coalesce(max(revision),0) from event_access_revisions where "+resource.Column+"=$1 and topic=$2", resource.ID, topic).Scan(&current); err != nil {
 		writeError(w, 500, "could not save access revision")
 		return
 	}
@@ -319,7 +374,7 @@ func (a *App) handleCreateEventAccessRevision(w http.ResponseWriter, r *http.Req
 		writeError(w, 409, "access information changed; reload before correcting")
 		return
 	}
-	x, err := scanAccessRevision(tx.QueryRow(ctx, "insert into event_access_revisions(event_id,topic,revision,value,details,source_kind,source_reference,reviewed_at,expires_at,correction_reason,recorded_by_person_id,request_key,request_fingerprint) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) returning "+accessRevisionColumns, event.ID, topic, current+1, req.Value, req.Details, req.SourceKind, req.SourceReference, reviewed, expires, req.CorrectionReason, actor, req.RequestKey, fp), now)
+	x, err := scanAccessRevision(tx.QueryRow(ctx, "insert into event_access_revisions("+resource.Column+",topic,revision,value,details,source_kind,source_reference,reviewed_at,expires_at,correction_reason,recorded_by_person_id,request_key,request_fingerprint) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) returning "+accessRevisionColumns, resource.ID, topic, current+1, req.Value, req.Details, req.SourceKind, req.SourceReference, reviewed, expires, req.CorrectionReason, actor, req.RequestKey, fp), now)
 	if err != nil {
 		var constraint *pgconn.PgError
 		if errors.As(err, &constraint) && constraint.Code == "23505" {
@@ -329,7 +384,7 @@ func (a *App) handleCreateEventAccessRevision(w http.ResponseWriter, r *http.Req
 		writeError(w, 500, "could not save access revision")
 		return
 	}
-	if err = a.audit(ctx, actor, "event_access.revised", "event_access_revision", x.ID, map[string]any{"eventId": event.ID, "topic": topic, "revision": x.Revision}); err != nil {
+	if err = a.audit(ctx, actor, resource.AuditPrefix+".revised", resource.AuditPrefix+"_revision", x.ID, map[string]any{resource.IDField: resource.ID, "topic": topic, "revision": x.Revision}); err != nil {
 		writeError(w, 500, "could not record audit")
 		return
 	}
@@ -337,7 +392,7 @@ func (a *App) handleCreateEventAccessRevision(w http.ResponseWriter, r *http.Req
 		writeError(w, 500, "could not save access revision")
 		return
 	}
-	if _, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, roleOwner); !ok {
+	if _, _, ok := a.requireWorkspaceRole(r, resource.WorkspaceID, roleOwner); !ok {
 		writeError(w, 403, "forbidden")
 		return
 	}

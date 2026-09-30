@@ -74,7 +74,7 @@ invite_json="$(curl -fsS -b "${owner_cookie}" -H 'Content-Type: application/json
 invite_token="$(json_get token <<<"${invite_json}")"
 
 outbox_json="$(curl -fsS -b "${owner_cookie}" "${api_url}/api/dev/email-outbox")"
-INVITE_TOKEN="${invite_token}" python -c 'import json,os,sys; data=json.load(sys.stdin); token=os.environ["INVITE_TOKEN"]; assert any(token in msg.get("body", "") for msg in data), data; print("✓ dev outbox contains invite link")' <<<"${outbox_json}"
+INVITE_TOKEN="${invite_token}" python -c 'import json,os,sys; data=json.load(sys.stdin); token=os.environ["INVITE_TOKEN"]; assert any(token in msg.get("body", "") for msg in data), "invitation missing from development outbox"; print("✓ dev outbox contains invite link")' <<<"${outbox_json}"
 
 curl -fsS -c "${member_cookie}" -H 'Content-Type: application/json' \
   -d "{\"email\":\"${member}\",\"password\":\"secret1234\",\"displayName\":\"Door\"}" \
@@ -109,8 +109,25 @@ if [[ "${second_status}" != "409" ]]; then
 fi
 echo "✓ full capacity returns conflict"
 
+baseline_door_status="$(curl -sS -o "${tmpdir}/baseline-door.json" -w '%{http_code}' -b "${member_cookie}" \
+  "${api_url}/api/events/${event_id}/door/tickets?query=${code}")"
+if [[ "${baseline_door_status}" != "403" ]]; then
+  echo "Expected baseline member door search to return 403, got ${baseline_door_status}" >&2
+  exit 1
+fi
+echo "✓ baseline membership does not grant door access"
+
+# Membership IDs belong to workspace_members, not people. Resolve the accepted
+# synthetic member through the normal workspace read before owner authorization.
+workspace_json="$(curl -fsS -b "${owner_cookie}" "${api_url}/api/workspaces/${workspace_id}")"
+member_id="$(MEMBER_EMAIL="${member}" python -c 'import json,os,sys; data=json.load(sys.stdin); matches=[row for row in data["members"] if row["email"] == os.environ["MEMBER_EMAIL"]]; assert len(matches) == 1; print(matches[0]["id"])' <<<"${workspace_json}")"
+door_grant_json="$(curl -fsS -b "${owner_cookie}" -X PATCH -H 'Content-Type: application/json' \
+  -d '{"role":"door"}' \
+  "${api_url}/api/workspaces/${workspace_id}/members/${member_id}")"
+MEMBER_ID="${member_id}" python -c 'import json,os,sys; data=json.load(sys.stdin); assert data["id"] == os.environ["MEMBER_ID"] and data["role"] == "door"; print("✓ owner grants scoped door role")' <<<"${door_grant_json}"
+
 search_json="$(curl -fsS -b "${member_cookie}" "${api_url}/api/events/${event_id}/door/tickets?query=${code}")"
-python -c 'import json,sys; data=json.load(sys.stdin); assert len(data) == 1, data; print("✓ exact-code door search returns one ticket")' <<<"${search_json}"
+python -c 'import json,sys; data=json.load(sys.stdin); assert len(data) == 1, "exact-code search did not return one ticket"; print("✓ exact-code door search returns one ticket")' <<<"${search_json}"
 
 curl -fsS -b "${member_cookie}" -H 'Content-Type: application/json' \
   -d "{\"code\":\"${code}\"}" \
@@ -121,10 +138,23 @@ curl -fsS -b "${member_cookie}" -H 'Content-Type: application/json' \
   "${api_url}/api/events/${event_id}/door/check-ins" >/dev/null
 echo "✓ duplicate check-in is idempotent"
 
+crew_role_json="$(curl -fsS -b "${owner_cookie}" -X PATCH -H 'Content-Type: application/json' \
+  -d '{"role":"crew"}' \
+  "${api_url}/api/workspaces/${workspace_id}/members/${member_id}")"
+MEMBER_ID="${member_id}" python -c 'import json,os,sys; data=json.load(sys.stdin); assert data["id"] == os.environ["MEMBER_ID"] and data["role"] == "crew"' <<<"${crew_role_json}"
+removed_door_status="$(curl -sS -o "${tmpdir}/removed-door.json" -w '%{http_code}' -b "${member_cookie}" -H 'Content-Type: application/json' \
+  -d "{\"code\":\"${code}\"}" \
+  "${api_url}/api/events/${event_id}/door/check-ins")"
+if [[ "${removed_door_status}" != "403" ]]; then
+  echo "Expected removed door access to reject check-in with 403, got ${removed_door_status}" >&2
+  exit 1
+fi
+echo "✓ crew role no longer permits door writes"
+
 report_json="$(curl -fsS -b "${owner_cookie}" -H 'Content-Type: application/json' \
   -d '{}' \
   "${api_url}/api/events/${event_id}/end-of-night")"
-python -c 'import json,sys; r=json.load(sys.stdin); assert r["ticketsReserved"] == 1 and r["ticketsCheckedIn"] == 1 and r["noShows"] == 0, r; print("✓ end-of-night report counts are correct")' <<<"${report_json}"
+python -c 'import json,sys; r=json.load(sys.stdin); assert r["ticketsReserved"] == 1 and r["ticketsCheckedIn"] == 1 and r["noShows"] == 0, "unexpected end-of-night ticket counts"; print("✓ end-of-night report counts are correct")' <<<"${report_json}"
 
 if [[ "${paid_mode}" != true ]]; then
   echo "Alpha QA passed."

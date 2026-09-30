@@ -6,6 +6,59 @@ Observed 2026-09-29 on Kvant. Source and fetched `origin/main` both point to
 update. Gitea reports 68 open issues and no open pull requests. This is a dated
 reconciliation, not a production qualification receipt.
 
+## 2026-09-30 continuation
+
+PR #169 merged at `375451dc97f7c78d74fed182c46f93375b48c67d` after its
+exact-head push and PR checks passed. PR #170 (`4fbeaafa`) now targets `main`;
+both hosted checks passed. PR #171 (`39893d69`) adds the private event access
+worksheet; both hosted checks passed (runs 11019/11020), including the full
+disposable database gate. These are separate heads and evidence receipts.
+
+The merge-commit follow-up job exhausted the temporary runner daemon's 256 MiB
+limit while downloading actions, before tests started. Its failed attempt was
+retained, owned orphaned job containers were stopped, the ephemeral registration
+credential was removed, and the daemon limit was raised to 1 GiB. Rerunning the
+same merge commit produced a passing job 19978, including the full disposable DB
+gate: 405 top-level tests (567 including nested), zero failures or skips. The repository queue assigned the older
+#171 jobs to that temporary capacity first. No workflow, commit or shared runner
+configuration changed.
+
+PR #172 (`7c7727239bfd7acc4263a8d89003c01519676044`) passed hosted push
+11037/job 19983 and PR 11038/job 19984: 273 web tests, 34 mobile tests and the
+complete DB gate with 419 top-level tests (595 including nested), zero failures
+or skips. Temporary runners exited successfully, were removed, and their local
+registration credentials were deleted. Zero repository runner registrations
+were verified. The published stack #170 → #171 → #172 → #173 → #174 remains open and linked
+to this thread.
+
+PR #173 (`66472a21e205ff0a7507d8f3713695861ebe78c0`) adds the owner-only
+occurrence/venue comparison. Both hosted checks passed: PR 11043/job 19990 and
+push 11044/job 19991, with 277 web/34 mobile tests and 421 top-level DB tests
+(599 including nested), zero failures/skips. Temporary runner cleanup and zero
+repository registrations were verified. The comparison uses one database
+snapshot, separate provenance and Unknown states. Stored occurrence-specific
+verification, public display and intended-audience evaluation remain open.
+
+PR #174 (`67fb7967fdbd1e874b624e44d4c46f6452f03e80`) fixes #58's archive
+permission/pending-write states. Push 11045/job 19992 and PR 11046/job 19993
+passed the full hosted gate: 278 web/34 mobile tests and 421 top-level DB tests
+(599 including nested), zero failures/skips. Synthetic browser checks covered
+held/duplicate submits, a committed correction with a lost response, validation
+and 401/403 clearing. Creation remains non-idempotent; uncertain saves require
+reloading and inspecting the ledger. The archive stays private and unpublished.
+
+PR #175 (`9af914d580336822336797953e4763740ca643eb`) passed both
+hosted checks (push 11049/job 19997, PR 11050/job 19998). It fixes projected
+discovery occurrence time-zone conversion and theme-aware focus/coordinate colors. Final full local gate passed: 281
+web/34 mobile tests and 421 top-level DB tests (599 including nested), zero
+failures/skips. Formatting tests passed under Honolulu/Tokyo viewer zones;
+synthetic component-browser checks covered date rollover, fallback, keyboard
+open/close/focus return and dark contrast. An observed test DB memory-cgroup OOM
+was repaired with a repository-only 1 GiB cap; final resource counters had zero
+OOM kills. Native/device, full journey and remaining accessibility gates stay
+open. Issue #54/#57 stale CI and #50/#55/#58 source evidence were reconciled
+without removing prerequisites or closing issues.
+
 ## Merged work and remaining acceptance
 
 | Issue | Verified current state | Next unfinished work |
@@ -13,10 +66,10 @@ reconciliation, not a production qualification receipt.
 | [#6 IDENT-02](https://git.subcult.tv/subculture-collective/subcult-os/issues/6) | Mobile verification/recovery app links merged in PR #168 at `89b6ea9`. Current main has passing hosted run 10687. | Run the [physical-device checklist](mobile-app-links.md), including domain association, secure storage, restart, refresh, recovery revocation and logout. |
 | [#7 MAIL-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/7) | Resend adapter, durable outbox, signed feedback and suppression exist in source. | Qualify configured provider delivery to approved test recipients. Automated qualification keeps sending disabled. |
 | [#10 AT-LIVE](https://git.subcult.tv/subculture-collective/subcult-os/issues/10) | Identity-only OAuth source and synthetic checks exist. | Qualify a consenting test identity against the configured HTTPS metadata, callback and JWKS URLs, including refresh and remote revocation. |
-| [#50 LIFE-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/50) | Occurrence safeguards and owner-only draft action worklist are merged. Worklist merge `8166559` has passing hosted run 10160. Destination-scoped dispatch, listing notice approval/queuing, per-recipient outcomes and private owner observations are in open PR #169 at `b0172c0`; both exact-head hosted runs 10947/10948 passed. Generic runtime adapters remain absent; notices use the guarded mail worker. | Qualify live notice delivery and operator reconciliation controls, then the wider coordinated lifecycle. Public/provider effects and refunds retain their own authority and qualification gates. |
+| [#50 LIFE-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/50) | Occurrence safeguards and owner-only draft action worklist are merged. Worklist merge `8166559` has passing hosted run 10160. Destination-scoped dispatch, guarded listing notices, per-recipient outcomes and private owner observations merged in #169 at `375451dc`; both head checks passed and merge follow-up job 19978 passed after runner repair. Open #170 clarifies queue state and refreshes the owner worklist; both head checks passed. Generic runtime adapters remain absent; notices use the guarded mail worker. | Qualify live notice delivery and operator reconciliation controls, then the wider coordinated lifecycle. Public/provider effects and refunds retain their own authority and qualification gates. |
 | [#51 OFFLINE-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/51) | Synthetic merge model and separate-client process harness exist. The harness passed in this reconciliation. | Physical-device partition/reconnect, persistence, duplicate scan, revocation, device-loss and manual-fallback evidence. Do not enable offline admission from synthetic results. |
-| [#54 EXPORT-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/54) | PR #167 merged at `d40221f`. Both required head runs 10168 and 10169 passed at `8317ef3`; the issue still says they are queued. | Reconcile the issue's stale CI/merge status and prerequisite #25. A selected accounting-provider format still requires an actual requirement. |
-| [#57 PORTALS-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/57) | Participant portal implementation is merged. The issue records source completion but dependency-blocked closure. Shared merge baseline `8166559` has passing hosted run 10160. | Reconcile prerequisites without deleting dependency links. Do not add vendor fees, invoices or payouts without pilot demand and permission rules. |
+| [#54 EXPORT-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/54) | PR #167 merged at `d40221f`. Both required head runs 10168 and 10169 passed at `8317ef3`; the issue now records their successful checks and merge. | Finish prerequisite #25 and accounting-user qualification. A selected accounting-provider format still requires an actual requirement. |
+| [#57 PORTALS-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/57) | Participant portal implementation is merged. The issue records source completion but dependency-blocked closure. Shared merge baseline `8166559` has passing hosted run 10160. | Complete prerequisites #25/#36; stale CI wording is corrected and dependency links remain. Do not add vendor fees, invoices or payouts without pilot demand and permission rules. |
 
 The following hosted results were read from Gitea's exact-commit status API:
 [main run 10687](https://git.subcult.tv/subculture-collective/subcult-os/actions/runs/10687),
@@ -184,3 +237,253 @@ replay, rollback, pagination, upgrade/replay and public absence. This is a sourc
 slice under the owner's expansion decision; no public accessibility claim,
 partner demand or accessibility-user evidence is inferred. Venue assertion
 history and event verification/public display remain next acceptance work.
+
+### Discovery keyboard follow-up — 2026-09-30
+
+PR #175 remains open with successful push and PR CI. The reproduced occurrence
+dialog focus escape has a bounded native-dialog follow-up. Screen-reader and
+physical-device qualification remain separate; both native device platforms are
+unavailable on this host. See `discovery-ux.md` and the execution log for the
+component fixture and final local/hosted receipts.
+
+### Qualified native dialog and next discovery controls — 2026-09-30
+
+PR #176 (`2f3c0e6adae2bcb062014b6c96dc22e52a7d663a`) is open and passed
+push 11053/job 20001 and PR 11054/job 20002: 282 web/34 mobile tests,
+421 top-level DB tests (599 including nested), no failures/skips. Owned runner
+cleanup and zero repository registrations were verified. The remaining map-point
+focus defect was reproduced and repaired in the next slice, alongside named
+grouped points, result-status markup, public browse copy and themed search focus.
+That slice passed the full local gate with 284 web/34 mobile tests and the same
+421/599 DB tests. Browser component checks and limits are recorded in
+`discovery-ux.md`. Assistive-technology and physical-device qualification remain
+open; this work does not authorize live feeds, publication or mail delivery.
+
+### Discovery controls qualified; long-content blocker repaired — 2026-09-30
+
+PR #177 (`ade02d9a1d5a84454e4dd63ca0ace1eb7bf1f143`) passed push
+11057/job 20006 and PR 11058/job 20007. Each ran 284 web/34 mobile tests
+and 421 top-level DB tests (599 including nested), no failures/skips. Owned
+runner cleanup and zero registrations verified; #26 receipt updated.
+
+The follow-up fixes unbroken text expanding a 360px discovery viewport and
+pushing the modal Close control out of reach. Browser iframe proof now shows no
+horizontal overflow for the original long occurrence fixture, long published
+fields and error text; vertical modal scrolling and native keyboard Close,
+Reserve and Escape were verified. Final local gate passed 284 web/34 mobile
+tests and 421/599 DB tests. This advances #26's long-content/reflow acceptance
+for discovery only; physical devices, screen readers and full journeys remain
+separate. See `discovery-ux.md` for exact geometry and evidence boundaries.
+
+### Discovery reflow qualified; public booking context repaired — 2026-09-30
+
+PR #178 (`702d2f8b6793632d1240866f2ac9d3d6edba9005`) passed push
+11061/job 20010 and PR 11062/job 20011 with 284 web/34 mobile tests and
+421/599 DB tests, no failures/skips. Owned runner cleanup and zero repository
+registrations were verified; #26 evidence was reconciled.
+
+The next public booking slice scopes guest state to one mounted slug and hides
+forms until a matching event read completes. It prevents stale write callbacks
+and paid redirects after that view is removed, including A → B → A. Final local
+gate passed 286 web/34 mobile tests and 421/599 DB tests, no failures/skips.
+Actual Strict Mode component fixtures verified delayed responses, duplicate
+submit guards and current success/pending states with seven simulated writes.
+See [the booking-context record](public-booking-context.md). Real backend booking
+journeys, responsive booking forms, legacy event-zone semantics, assistive
+technology, native devices and live providers remain separate gates.
+
+### Public booking context qualified; narrow reflow repaired — 2026-09-30
+
+PR #179 (`2d0dca74cc8f204f0394b451b5e244c09176715d`) passed push
+11065/job 20015 and PR 11066/job 20016 with 286 web/34 mobile tests and
+421/599 DB tests, no failures/skips. Owned runner cleanup and zero repository
+registrations were verified; PR and issue #26 receipts were read back.
+
+The next slice fixes unbroken text overflowing public booking forms at 360px.
+Actual scoped iframe proof now fits the original long fixture, normal fields,
+confirmation holder/email and long role/read failures. Native keyboard input,
+Tab and Enter reach the controls; light/dark focus screenshots inspected.
+Full local gate passed 286 web/34 mobile tests and 421/599 DB tests, no
+failures/skips. See [the updated booking report](public-booking-context.md).
+The joined backend operator journey (#25), event-clock semantics, assistive
+technology and physical/native/provider qualification remain unfinished.
+
+### Booking reflow qualified; joined operator rehearsal started — 2026-09-30
+
+PR #180 (`e25312ef23807aef861579ec916bb07965289ad6`) passed PR11069/job20019
+and push11070/job20020: 286 web/34 mobile and DB421/599, no failures/skips.
+Existing kvant runner preserved; no owned credentials/runner created, zero
+repository registrations verified. PR and issue #26 receipts read back.
+
+The separate disposable operator environment now has real browser-created
+identity, workspace and published free event state. Its first workflow blocker
+was missing owner role setup. The follow-up panel defaults to private and joins
+the existing owner API to the editor; final local gate passed 296 web/34 mobile
+and DB421/599, no failures/skips. Actual and synthetic recovery evidence is
+recorded in [role setup](participation-role-setup.md).
+Continue [the operator rehearsal](../qa/operator-journey-2026-09-30.md) through
+applications/assignment, staffing, guest/door, finance, closeout and template reuse.
+Issue #25 remains partial; paired timing, intended users, physical/native devices,
+screen readers and provider/deployment gates remain separate.
+
+
+### Role setup qualified; invitation receipt corrected — 2026-09-30
+
+PR #181 (`6ed01556ff91b51b7997f74543b77e6802b26731`) passed push11075/job20026
+and PR11076/job20027: 296 web/34 mobile and DB421/599, no failures/skips.
+Existing kvant runner preserved; no owned runner or credentials created. PR and
+issue #25 receipts were read back. Normal invitation acceptance and member
+read-only role UI passed; an unauthorized creation returned403 with roles4→4.
+An anonymous public application persisted as submitted, with staffing0.
+
+The next small correction replaces “Invite sent” with a created/queued receipt
+and unconfirmed delivery. The existing transactional API supplies creation and
+queue evidence only. The joined rehearsal and browser connection limit are
+recorded in [the operator journey](../qa/operator-journey-2026-09-30.md).
+Continue owner application review, staffing/commitments, participant views, free
+ticket/door, finance, closeout/template reuse and paired timing qualification.
+
+The invitation-copy candidate passed full pinned local verification: 296 web/34
+mobile tests, backend checks/builds and the complete disposable DB gate (exit0).
+The test database was removed. Its DB output capture was truncated by the tool
+output budget, so this receipt does not derive complete DB test counts from it.
+Changed-copy browser and screen-reader proof is pending the preview connection
+recovery; no live email was sent. Hosted qualification follows publication.
+
+
+### Invitation receipt qualified; owner controls corrected — 2026-09-30
+
+PR #182 (`7d9563c3368e04282070df953d02375bae66c02d`) passed push11077/job20028
+and PR11078/job20029: 296 web/34 mobile tests, DB421/599, no failures/skips.
+Existing kvant runner preserved; no owned credentials or runner created; qualified
+PR body and head were read back. The disposable API operations rehearsal passed
+36/36 using separate synthetic accounts/events and held mail.
+
+The next UI correction removes the owner-only invitation form and its guidance
+entry point from non-owner roles, with a matching submit guard. Focused API member
+creation was rejected403 with invitations2→2 and outbox9→9. Scope and evidence
+limits are recorded in [the ongoing operator journey](../qa/operator-journey-2026-09-30.md).
+Full local verification passed: 304 web/34 mobile, DB421/599, no failures/skips;
+test DB removed. Changed-form browser/SR proof still requires
+preview connection recovery. Continue the original browser event through owner
+application review, assignment/participant views, ticket/door, finance and reuse.
+
+
+### Owner invitation controls qualified; door rehearsal repaired — 2026-09-30
+
+PR #183 (`b4369fa5a806133961a4c3dc061b7d011928c888`) passed push11081/job20033
+and PR11082/job20034: 304 web/34 mobile, DB421/599, no failures/skips. Existing
+kvant runner preserved; qualified PR body/head read back, no owned runner needed.
+
+The free-ticket API rehearsal found a stale baseline-member door assumption.
+The current server correctly rejected it403. The repaired script proves that
+denial, grants the synthetic membership role `door` through the owner API,
+checks search/idempotent check-in, then changes the role to `crew` and proves
+write denial403. Final report is reserved1/checked-in1/no-shows0; script exit0.
+No provider or browser/device claim. See [the operator report](../qa/operator-journey-2026-09-30.md).
+The suspected invitation context leak is unconfirmed through normal navigation,
+which uses full-page workspace links. Continue joined browser qualification
+when the preview connection recovers; owner role-management UI is also not yet
+qualified by this API-only role grant. Full local verification passed304 web/34
+mobile, DB421/599, no failures/skips; disposable test DB removed. Final script
+rehearsal, Bash syntax and ShellCheck with sourced files also passed.
+
+
+### Door rehearsal qualified; membership access roster added — 2026-09-30
+
+PR #184 (`40a55c4bac0e53ce9efd06e48998342c7ef887df`) passed push11083/job20035
+and PR11084/job20036: 304 web/34 mobile, DB421/599, no failures/skips. Existing
+kvant runner preserved; qualified PR body/head read back, no owned runner needed.
+
+The next slice makes roster roles and server-derived access status truthful
+before owner role-management UI. Private current/scoped workspace reads expose
+active/expired/revoked state and timestamps, use no-store and omit removed rows.
+No migration or authority mutation change. Web labels all six roles accurately;
+inactive/unknown membership does not imply usable permissions. Shared mobile
+role types match the server. Full local gate315 web/34 mobile, DB422/606, no
+failures/skips. Normal owner expiry/revoke API proof passed in the separate
+alpha workspace, with original actor/event state preserved and all21 mail held.
+See [the operator report](../qa/operator-journey-2026-09-30.md) for scope and limits.
+Continue owner role-management controls and the joined browser work when preview
+connection recovers; finance, private closeout/reuse, paired timings, native
+devices, screen readers and provider/deployment gates remain separate.
+
+
+### Membership roster qualified; owner role controls added — 2026-09-30
+
+PR #185 passed both hosted checks at32a474ec77ca2e188332f9e5f40930921719c7b9:
+push11089/job20041, PR11090/job20042,315 web/34 mobile, DB422/606, no failures
+or skips. Existing kvant runner preserved; qualified PR body/head read back.
+
+The next slice adds a dedicated owner Member roles page using the existing
+role-only API. Capability review precedes assignment; canonical refresh follows
+a matched receipt. Nonowners and inactive/unknown memberships are read-only.
+Denied responses clear private state; unknown write outcomes require refresh
+without replay. No expiry/revocation restoration or authority-policy change.
+Transport and static-render tests keep browser interaction proof separate.
+See [the operator report](../qa/operator-journey-2026-09-30.md).
+Continue joined browser qualification when preview recovers, then finance,
+private closeout/reuse and paired timings. Native devices, screen readers,
+providers and deployment remain separate gates.
+
+
+Full pinned local verification passed337 web/34 mobile tests, backend checks and
+builds, DB422 top-level/606 including nested, no failures/skips. Disposable test
+DB removed. The initial TypeScript fixture-cast failure was corrected before the
+complete rerun. Scoped review, edited Markdown links and diffcheck passed.
+
+
+### Owner roles qualified; finance access/write handling — 2026-09-30
+
+PR #186 atdc095ffad2d7b639ed2cae5a91a5bc068bd8ec32 passed both hosted checks,
+push11093/job20046 and PR11094/job20047:337 web/34 mobile, DB422/606, no
+failures/skips. Existing kvant runner preserved; qualified body/head read back.
+Separate normal API finance/private-closeout/reuse rehearsal passed; original
+browser actors/event unchanged and all21mailheld. See [the operator report](../qa/operator-journey-2026-09-30.md).
+
+The next source slice requires a successful private ledger read before editing,
+serializes writes synchronously, matches receipts to the event and submitted
+record, clears denial/uncertainty state and requires refresh without replay.
+Known validation/conflict rejections remain editable with unchanged-key retry.
+Keyed panel/lifetime guards isolate departed responses. Session/transport and
+static-render evidence remains separate from the blocked browser gate.
+Continue the original joined browser workflow when preview connection recovers;
+paired timings, intended-user, keyboard/SR/native and provider/deployment gates
+remain open. The ad-hoc API rehearsal is already finalized; use fresh synthetic
+records for a repeat rather than rerunning its precondition-dependent script.
+
+
+Full pinned local gate passed361 web/34 mobile tests, backend checks/builds,
+DB422 top-level/606 including nested, no failures/skips; test DB removed.
+Initial key-generator typing and fixture React-import/401-refresh failures were
+corrected before the final complete rerun. All attempts retained as local logs.
+Scoped review, edited Markdown links and diffcheck passed. Browser proof remains
+pending; no live provider/deployment/retained-state action.
+
+
+### Finance session qualified; fresh API rehearsal — 2026-09-30
+
+PR #187 passed both hosted checks at1cdd075f4c7eed9344a92e55ab89317cdb07538e,
+push11097/job20050 and PR11098/job20051:361 web/34 mobile, DB422/606, no
+failures/skips. Existing kvant runner preserved; qualified body/head read back.
+
+The next slice adds `make finance-closeout-qa`, a repeatable normal API journey
+with fresh verified synthetic actors and records, guarded disposable targets,
+private temp cookies and bounded failure output. Two localhost runs passed27
+checks each; unsafe targets rejected at both entrypoints. No retained application
+or original browser-vector changes. See [the harness guide](../qa/finance-closeout-rehearsal.md)
+and [operator evidence](../qa/operator-journey-2026-09-30.md).
+
+Continue joined browser/paired-timing qualification when preview recovers. This
+harness does not satisfy physical-device, provider, browser Print/PDF or actual
+accounting-user gates, and does not justify enabling offline admission.
+
+
+A third27-check run through127.0.0.1 also passed. Read-only persisted checks show
+three distinct fresh rehearsal workspaces, each with2 members/2 events/4 finance
+history rows/1 ticket/1 private archive. Post-run aggregate18people/8workspaces/
+13events/6tickets, all35 outbox held. The original browser vector is unchanged.
+Full pinned local verification passed361 web/34 mobile, DB422 top-level/606
+including nested, no failures/skips; disposable gate DB removed. This gate is
+separate from the retained owned rehearsal DB. Edited Markdown links, syntax,
+ShellCheck and scoped review passed; no broader acceptance closure.

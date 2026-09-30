@@ -1,6 +1,9 @@
 {
   "version": 1,
   "dtos": {
+    "MemberDTO": {
+      "required": ["id", "email", "displayName", "role"]
+    },
     "CurrentUserDTO": {
       "required": ["id", "email", "displayName", "workspaces"]
     },
@@ -46,6 +49,29 @@
     "EventAccessRevisionDTO": {
       "required": ["topic", "scope", "revision", "value", "effectiveValue", "needsReview", "details", "sourceKind", "sourceReference", "correctionReason", "evaluatedAt"],
       "forbidden": ["requestKey", "requestFingerprint", "recordedByPersonId", "workspaceId"]
+    },
+    "VenueAccessRevisionDTO": {
+      "required": ["topic", "scope", "revision", "value", "effectiveValue", "needsReview", "details", "sourceKind", "sourceReference", "correctionReason", "evaluatedAt"],
+      "forbidden": ["requestKey", "requestFingerprint", "recordedByPersonId", "workspaceId"]
+    },
+    "VenueAccessWorksheetDTO": {
+      "required": ["placeId", "placeName", "evaluatedAt", "entries"],
+      "forbidden": ["streetAddress", "accessNotes", "createdByPersonId", "eventId"]
+    },
+    "VenueAccessPlaceDTO": {
+      "required": ["id", "name"],
+      "forbidden": ["streetAddress", "accessNotes", "createdByPersonId", "requestKey"]
+    },
+    "VenueAccessPlaceIndexDTO": {
+      "required": ["places"]
+    },
+    "AccessComparisonOccurrenceDTO": {
+      "required": ["id", "name", "startsAt", "status", "updatedAt"],
+      "forbidden": ["createdByPersonId", "publicCid", "publicUri", "description"]
+    },
+    "OccurrenceAccessComparisonDTO": {
+      "required": ["eventId", "workspaceId", "evaluatedAt", "occurrence", "event", "venue"],
+      "forbidden": ["requestKey", "recordedByPersonId", "accommodationRequests", "streetAddress", "accessNotes"]
     },
     "EventAccessWorksheetDTO": {
       "required": ["eventId", "evaluatedAt", "entries"]

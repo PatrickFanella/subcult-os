@@ -31,7 +31,10 @@ preview URL. `seed` creates synthetic demo data through normal signup/verificati
 `watch` restarts the backend on edits. `stop` retains the worktree's data.
 Use `bash scripts/dev-env.sh verify` to run the required verification and a
 separate disposable DB gate with pinned toolchains. Never substitute the dev
-database for the disposable test database. The standalone `compose.dev.yml`
+database for the disposable test database. The repository disposable test DB
+has a 1 GiB cap for the complete migration suite; keep it separate from the
+retained development database and from the installed shared T3 recipe.
+The standalone `compose.dev.yml`
 must not be merged with deployment Compose files or given production credentials.
 
 Run:
