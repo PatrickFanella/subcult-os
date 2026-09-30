@@ -304,7 +304,7 @@ function PublicEventPage({ slug }: { slug: string }) {
 
   return (
     <main className={publicPageShellClass}>
-      <section className={publicPageInnerClass}>
+      <section className={`${publicPageInnerClass} min-w-0 [overflow-wrap:anywhere]`}>
         <header className={publicHeroCardClass}>
           {event?.imageUrl ? <img className="h-72 w-full object-cover sm:h-96" src={event.imageUrl} alt="" /> : <div className="h-24 bg-action-disabled sm:h-36" />}
 
@@ -454,11 +454,11 @@ function PublicEventPage({ slug }: { slug: string }) {
                         }}
                       >
                         <div className="flex items-start justify-between gap-4">
-                          <div>
+                          <div className="min-w-0 flex-1">
                             <h3 className="text-base font-black text-fg-primary">{role.name}</h3>
                             <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-fg-secondary">{role.description || 'No description provided.'}</p>
                           </div>
-                          <span className={publicStatusPillClass()}>{role.capacity > 0 ? `${role.capacity} spots` : 'Open'}</span>
+                          <span className={`${publicStatusPillClass()} shrink-0`}>{role.capacity > 0 ? `${role.capacity} spots` : 'Open'}</span>
                         </div>
 
                         <div className="mt-4 grid gap-3">

@@ -110,7 +110,17 @@ export interface PaidReservationDTO {
   checkoutStatus: 'ready' | 'paid' | 'pending_reconciliation' | 'expired' | 'reconciliation_required';
 }
 
-export type WorkspaceRole = 'owner' | 'member';
+export type WorkspaceRole = 'owner' | 'organizer' | 'finance' | 'door' | 'crew' | 'member';
+
+export interface MemberDTO {
+  id: string;
+  email: string;
+  displayName: string | null;
+  role: WorkspaceRole;
+  accessState?: 'active' | 'expired' | 'revoked';
+  expiresAt?: string;
+  revokedAt?: string;
+}
 
 export interface WorkspaceSummaryDTO {
   id: string;
