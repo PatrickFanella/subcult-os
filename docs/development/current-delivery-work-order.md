@@ -431,3 +431,31 @@ Full pinned local verification passed337 web/34 mobile tests, backend checks and
 builds, DB422 top-level/606 including nested, no failures/skips. Disposable test
 DB removed. The initial TypeScript fixture-cast failure was corrected before the
 complete rerun. Scoped review, edited Markdown links and diffcheck passed.
+
+
+### Owner roles qualified; finance access/write handling — 2026-09-30
+
+PR #186 atdc095ffad2d7b639ed2cae5a91a5bc068bd8ec32 passed both hosted checks,
+push11093/job20046 and PR11094/job20047:337 web/34 mobile, DB422/606, no
+failures/skips. Existing kvant runner preserved; qualified body/head read back.
+Separate normal API finance/private-closeout/reuse rehearsal passed; original
+browser actors/event unchanged and all21mailheld. See [the operator report](../qa/operator-journey-2026-09-30.md).
+
+The next source slice requires a successful private ledger read before editing,
+serializes writes synchronously, matches receipts to the event and submitted
+record, clears denial/uncertainty state and requires refresh without replay.
+Known validation/conflict rejections remain editable with unchanged-key retry.
+Keyed panel/lifetime guards isolate departed responses. Session/transport and
+static-render evidence remains separate from the blocked browser gate.
+Continue the original joined browser workflow when preview connection recovers;
+paired timings, intended-user, keyboard/SR/native and provider/deployment gates
+remain open. The ad-hoc API rehearsal is already finalized; use fresh synthetic
+records for a repeat rather than rerunning its precondition-dependent script.
+
+
+Full pinned local gate passed361 web/34 mobile tests, backend checks/builds,
+DB422 top-level/606 including nested, no failures/skips; test DB removed.
+Initial key-generator typing and fixture React-import/401-refresh failures were
+corrected before the final complete rerun. All attempts retained as local logs.
+Scoped review, edited Markdown links and diffcheck passed. Browser proof remains
+pending; no live provider/deployment/retained-state action.

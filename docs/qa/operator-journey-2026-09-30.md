@@ -258,3 +258,66 @@ Full pinned local verification passed337 web/34 mobile tests, backend checks and
 builds, DB422 top-level/606 including nested, no failures/skips. Disposable test
 DB removed. The initial TypeScript fixture-cast failure was corrected before the
 complete rerun. Scoped review, edited Markdown links and diffcheck passed.
+
+
+## Owner role controls qualified; finance/closeout API rehearsal
+
+PR #186 (`dc095ffad2d7b639ed2cae5a91a5bc068bd8ec32`) passed push11093/job20046
+and PR11094/job20047:337 web/34 mobile, DB422 top-level/606 including nested,
+no failures/skips. Existing kvant runner preserved; no owned runner/credentials,
+repository registrations0. Qualified PR body/head and issue #25 read back.
+
+On separate disposable alpha workspace3449e469-cbde-44bf-9a32-3a3e1996bb1e,
+closed free event46d57735-6a5a-403a-9689-66056e5ab73a, normal API calls retained
+four finance rows: budget10000 cents, payable8000, actual3000 corrected to2500.
+Current categories remain separate; ticket gross stays0. Same request-key replay
+returned the same correction ID; changed payload with that key returned409.
+Crew reads403, assigned Finance reads200, restored Crew reads403. No provider.
+
+Settlement finalized with gross0; late adjustment rejected409. Private archive
+was available to owner and denied anonymous401. Private note remains in archive.
+Reuse seeded draft36a59dda-e344-4703-8624-af9e5dc91aad once; retry returned the
+same ID. Tickets/check-ins, roles, staffing, finance lines and archive were not
+copied. Private templatefc7e7cd7-16b8-4a23-b5d3-7a20843a71ae applied while
+draft; after synthetic local publication, applying again returned409. Public
+response omits private finance/archive/template sentinel text and fields.
+The first ad-hoc lookup used ended instead of source-owned end_of_night and
+stopped before mutations; corrected before proof. Do not rerun this ad-hoc script
+against the finalized event; its initial conditions are no longer present.
+
+API source remained185/Go1.26.6; frontend186. Original browser actor/event state
+stays roles4/applications1/staffing0/tickets0; aggregate10people/5workspaces/
+7events/3tickets, all21 outbox held. Retained development stack/data untouched.
+T3 status/open retry still reaches chrome-error with no application root, while
+host web/health return200. This is API proof, not joined browser, intended-user,
+paired-timing, keyboard/SR/device, provider or deployment acceptance.
+
+## Private finance read and write session
+
+The finance panel previously rendered its editor after a failed/denied ledger
+read and guarded submissions using rendered busy state. A new event-owned session
+requires a valid event-scoped private read before editing, admits one write
+synchronously, and validates receipt event/type/direction/amount/currency and
+correction/payable references before displaying it. Denial or uncertain write
+outcomes clear private lines/draft and fence further writes until a fresh read;
+refresh never replays the mutation. Known400/409 rejections remain editable and
+retain an unchanged request key. Successful writes retain existing manual-record
+and category-separation behavior. No payment execution or authority policy change.
+
+Keyed inner panels isolate event lifetimes; permission loss unmounts the private
+panel. Layout cleanup invalidates session and view lifetimes, including reactivation
+before an old response arrives. Loading does not claim the ledger is empty.
+Shared Button and a persistent atomic status region cover save/recovery controls.
+Nineteen transport/session cases cover pending read/write fences, identity,
+400/409 retry,401/403/500 denial/uncertainty, disconnects, mismatched receipts and
+departed/restarted lifetimes. Five static-render cases cover absent permission,
+loading, unavailable recovery, confirmed empty data and retained payable history.
+These fixtures do not prove actual React callback timing or browser/SR interaction.
+
+
+Full pinned local gate passed361 web/34 mobile tests, backend checks/builds,
+DB422 top-level/606 including nested, no failures/skips; test DB removed.
+Initial key-generator typing and fixture React-import/401-refresh failures were
+corrected before the final complete rerun. All attempts retained as local logs.
+Scoped review, edited Markdown links and diffcheck passed. Browser proof remains
+pending; no live provider/deployment/retained-state action.
