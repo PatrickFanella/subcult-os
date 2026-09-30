@@ -189,6 +189,37 @@ describe('DiscoveryOccurrencesSection states', () => {
 		expect(setters[3]).toHaveBeenCalledWith(null);
 	});
 
+	it('names each map control and groups interactive points instead of flattening them as an image', () => {
+		const list = [
+			occurrence({ uri: 'uri-a', name: 'Alpha Night', timezone: 'America/Chicago', location: { name: 'Alpha venue', latitude: '41', longitude: '-87' } }),
+			occurrence({ uri: 'uri-b', name: 'Beta Night', timezone: 'Asia/Tokyo', location: { name: 'Beta venue', latitude: '35', longitude: '139' } }),
+		];
+		const { element } = renderSection([list, false, null, null]);
+		const plot = findOne(element, (el) => el.type === 'svg');
+		expect(plot.props.role).toBe('group');
+		const points = findAll(plot, (el) => el.type === 'circle');
+		expect(points[0].props['aria-label']).toContain('View Alpha Night:');
+		expect(points[0].props['aria-label']).toContain('America/Chicago');
+		expect(points[1].props['aria-label']).toContain('View Beta Night:');
+		expect(points[1].props['aria-label']).toContain('Asia/Tokyo');
+	});
+
+	it('keeps a polite atomic result status present while the occurrence list loads and resolves', () => {
+		const loading = renderSection([null, true, null, null]).element;
+		const loaded = renderSection([[occurrence()], false, null, null]).element;
+		const empty = renderSection([[], false, null, null]).element;
+		const failed = renderSection([[], false, 'Network down', null]).element;
+		for (const element of [loading, loaded, empty, failed]) {
+			const status = findOne(element, (el) => el.props.role === 'status');
+			expect(status.props['aria-atomic']).toBe('true');
+		}
+		expect(renderToString(loading)).toContain('Loading discovery occurrences');
+		expect(renderToString(loaded)).toContain('1 cultural occurrence found.');
+		expect(renderToString(empty)).toContain('0 cultural occurrences found.');
+		const failedStatus = findOne(failed, (el) => el.props.role === 'status');
+		expect(failedStatus.props.children).toBe('Could not load discovery occurrences: Network down');
+	});
+
 	it('plots occurrences with public coordinates and omits ones without', () => {
 		const list = [
 			occurrence({ uri: 'uri-with-location', location: { name: 'Venue', latitude: '41.8', longitude: '-87.6' } }),

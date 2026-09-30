@@ -80,7 +80,7 @@ export function DiscoveryOccurrencesSection() {
 
 	const modalRef = useRef<HTMLDialogElement | null>(null);
 	const dialogRef = useRef<HTMLDivElement | null>(null);
-	const openerRef = useRef<HTMLElement | null>(null);
+	const openerRef = useRef<HTMLElement | SVGElement | null>(null);
 
 	useEffect(() => {
 		const modal = modalRef.current;
@@ -110,7 +110,7 @@ export function DiscoveryOccurrencesSection() {
 	}
 
 	function openDetail(uri: string) {
-		if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+		if (typeof document !== 'undefined' && (document.activeElement instanceof HTMLElement || document.activeElement instanceof SVGElement)) {
 			openerRef.current = document.activeElement;
 		}
 		setSelectedURI(uri);
@@ -133,10 +133,13 @@ export function DiscoveryOccurrencesSection() {
 				<p className="mt-3 max-w-2xl text-base leading-7 text-fg-secondary">{discoveryOccurrencesDescription}</p>
 			</header>
 
+			<p role="status" aria-atomic="true" className="sr-only">
+				{loading ? discoveryOccurrencesLoadingCopy : error ? discoveryOccurrencesErrorCopy(error) : occurrences ? `${occurrences.length} cultural ${occurrences.length === 1 ? 'occurrence' : 'occurrences'} found.` : ''}
+			</p>
 			{loading ? <div className={`${publicCardClass} ${publicMutedTextClass}`}>{discoveryOccurrencesLoadingCopy}</div> : null}
 
 			{error ? (
-				<p aria-live="polite" className="rounded-[24px] border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm font-medium text-status-danger">
+				<p className="rounded-[24px] border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm font-medium text-status-danger">
 					{discoveryOccurrencesErrorCopy(error)}
 				</p>
 			) : null}
@@ -150,9 +153,9 @@ export function DiscoveryOccurrencesSection() {
 
 			{!loading && !error && plotPoints.length > 0 ? (
 				<div className={publicCardClass}>
-					<p className={publicEyebrowClass}>Map</p>
+					<p className={publicEyebrowClass}>Public locations</p>
 					<svg
-						role="img"
+						role="group"
 						aria-label="Coordinate plot of discovery occurrences with public locations"
 						className="mt-3 w-full rounded-[20px] bg-surface-inset"
 						viewBox={`0 0 ${DISCOVERY_MAP_WIDTH} ${DISCOVERY_MAP_HEIGHT}`}
@@ -167,7 +170,7 @@ export function DiscoveryOccurrencesSection() {
 								className="cursor-pointer fill-fg-primary outline-none focus-visible:focus-ring"
 								role="button"
 								tabIndex={0}
-								aria-label="View occurrence"
+								aria-label={point.label}
 								onClick={() => openDetail(point.uri)}
 								onKeyDown={(event) => handleCardKeyDown(event, point.uri)}
 							/>
@@ -330,7 +333,7 @@ export function DiscoverView() {
 						<label className="flex-1 space-y-2">
 							<span className={publicEyebrowClass}>{discoverySearchLabel}</span>
 							<input
-								className="w-full rounded-full border border-stroke-strong bg-surface-panel px-4 py-3 text-sm text-fg-primary outline-none transition placeholder:text-fg-muted focus:border-[#171717]"
+								className="w-full rounded-full border border-stroke-strong bg-surface-panel px-4 py-3 text-sm text-fg-primary outline-none transition placeholder:text-fg-muted focus-visible:focus-ring"
 								type="search"
 								value={searchQuery}
 								onChange={(event) => setSearchQuery(event.target.value)}
@@ -348,10 +351,13 @@ export function DiscoverView() {
 					</form>
 				</header>
 
+				<p role="status" aria-atomic="true" className="sr-only">
+					{loading ? discoveryLoadingCopy : error ? discoveryErrorCopy(error) : events ? `${events.length} published ${events.length === 1 ? 'event' : 'events'} found.` : ''}
+				</p>
 				{loading ? <div className={`${publicCardClass} ${publicMutedTextClass}`}>{discoveryLoadingCopy}</div> : null}
 
 				{error ? (
-					<p aria-live="polite" className="rounded-[24px] border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm font-medium text-status-danger">
+					<p className="rounded-[24px] border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm font-medium text-status-danger">
 						{discoveryErrorCopy(error)}
 					</p>
 				) : null}

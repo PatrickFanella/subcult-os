@@ -1533,3 +1533,22 @@ themed surfaces, and unmount cleanup. Browser screenshots:
 `browser-screenshot-127-0-0-1-muntx6dy-eb493ed7.png` (light),
 `browser-screenshot-127-0-0-1-muntxsjf-18a16d64.png` (dark).
 No live provider, publication, projection, or native-device claims were added.
+
+### Qualified native dialog and named discovery controls — 2026-09-30
+
+PR #176, `2f3c0e6adae2bcb062014b6c96dc22e52a7d663a`, passed hosted
+push 11053/job 20001 and PR 11054/job 20002. Each ran 282 web/34 mobile tests
+and the full DB gate (421 top-level, 599 including nested), no failures/skips.
+Its final local gate also passed. Owned runners exited 0, were removed, and
+registration credentials were deleted; zero repository registrations verified.
+The issue #26 receipt was updated without closing acceptance or dependencies.
+
+The next discovery controls slice captures SVG openers, names each plotted
+occurrence, uses group semantics, preserves atomic result-status regions and
+uses theme-aware search focus. Public browse copy no longer exposes projection
+mechanics. Final local gate: 284 web/34 mobile tests, 421 top-level DB tests
+(599 including nested), no failures/skips. Browser evidence is in
+`discovery-ux.md`; receipts remain in `.cache/dev-env/discovery-controls-*`.
+Screenshots `browser-screenshot-127-0-0-1-munupt2m-b7ca4b53.png` (light) and
+`browser-screenshot-127-0-0-1-munupt7v-4e2bc361.png` (dark) were inspected.
+Screen-reader speech, native/device, live feed and full journey remain separate.

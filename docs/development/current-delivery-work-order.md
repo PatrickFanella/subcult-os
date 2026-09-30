@@ -47,8 +47,9 @@ held/duplicate submits, a committed correction with a lost response, validation
 and 401/403 clearing. Creation remains non-idempotent; uncertain saves require
 reloading and inspecting the ledger. The archive stays private and unpublished.
 
-Current source work fixes projected discovery occurrence time-zone conversion
-and theme-aware focus/coordinate colors. Final full local gate passed: 281
+PR #175 (`9af914d580336822336797953e4763740ca643eb`) passed both
+hosted checks (push 11049/job 19997, PR 11050/job 19998). It fixes projected
+discovery occurrence time-zone conversion and theme-aware focus/coordinate colors. Final full local gate passed: 281
 web/34 mobile tests and 421 top-level DB tests (599 including nested), zero
 failures/skips. Formatting tests passed under Honolulu/Tokyo viewer zones;
 synthetic component-browser checks covered date rollover, fallback, keyboard
@@ -244,3 +245,16 @@ dialog focus escape has a bounded native-dialog follow-up. Screen-reader and
 physical-device qualification remain separate; both native device platforms are
 unavailable on this host. See `discovery-ux.md` and the execution log for the
 component fixture and final local/hosted receipts.
+
+### Qualified native dialog and next discovery controls — 2026-09-30
+
+PR #176 (`2f3c0e6adae2bcb062014b6c96dc22e52a7d663a`) is open and passed
+push 11053/job 20001 and PR 11054/job 20002: 282 web/34 mobile tests,
+421 top-level DB tests (599 including nested), no failures/skips. Owned runner
+cleanup and zero repository registrations were verified. The remaining map-point
+focus defect was reproduced and repaired in the next slice, alongside named
+grouped points, result-status markup, public browse copy and themed search focus.
+That slice passed the full local gate with 284 web/34 mobile tests and the same
+421/599 DB tests. Browser component checks and limits are recorded in
+`discovery-ux.md`. Assistive-technology and physical-device qualification remain
+open; this work does not authorize live feeds, publication or mail delivery.

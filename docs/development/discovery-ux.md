@@ -242,3 +242,40 @@ dark screenshots were inspected. The fixture and fetch interception were removed
 unmount left no modal in the top layer. This proves the web component behavior,
 not a live projection feed, completed reservation, screen-reader journey, native
 mobile behavior, or full WCAG conformance.
+
+## Named map controls and result status — 2026-09-30
+
+Each coordinate point now has an event-and-time name and sits inside a named
+SVG group. The previous role described the interactive plot as one image; every point
+also had the same “View occurrence” name. Opening detail now captures both HTML
+and SVG focus targets. A real fixture reproduced Escape leaving focus on BODY
+when opened from a point; the repair returns focus to the exact point after
+Escape or Close. The complete card list remains an equivalent way to open each
+occurrence; the plot is a simple coordinate index, not a navigable map.
+
+The public event and cultural occurrence lists each retain an atomic status
+region through loading and result counts. On failure, the same status region carries the error; the visible error
+remains readable without a second live region. Search keyboard focus
+uses the shared theme ring. Public introduction/empty copy describes browsing
+and availability; the detail retains its source attribution.
+
+Final local pinned verification passed: 284 web tests, 34 mobile tests, backend
+checks/build, and 421 top-level disposable DB tests (599 including nested), no
+failures/skips. Initial failures were test-only: the plot's exact object assertion
+needed to allow its new label, and new fixtures needed the required location
+name. Both were corrected before the final full gate.
+
+T3 Chrome desktop component fixtures at 1402 × 876 CSS pixels verified two
+named points, Enter/Space opening, and Escape/Close returning to their respective
+points. A held public-list fixture kept the same status node through loading,
+zero results, one result, a synthetic 503 error and Reset recovery. Snapshot
+inspection exposed the group and named point controls; this is not a full
+assistive-technology tree or speech qualification. Keyboard search focus had a
+2px dark outline in light mode and a light outline in dark mode. Both screenshots
+were inspected. Review moved errors into the persistent status node; a final
+503/Reset fixture verified the same node carried error, loading and zero count,
+with no extra live region. The fixture, observer, fetch interception and helpers were
+removed; the original page URL and appearance were restored.
+
+Screen-reader speech, a narrow viewport, physical devices and full public
+journeys remain unqualified. No live projection or reservation was performed.
