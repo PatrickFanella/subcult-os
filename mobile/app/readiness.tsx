@@ -1,4 +1,5 @@
-import { tokens } from '@/theme/tokens';
+import { useThemeTokens, useThemedStyles } from '@/theme/ThemeProvider';
+import type { Tokens } from '@/theme/tokens';
 import { Link, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, CircleAlert, CircleCheck, ExternalLink, Image as ImageIcon, ListChecks, ShieldCheck, Ticket, UserPlus } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
@@ -23,6 +24,9 @@ type ChecklistItem = {
 };
 
 export default function ReadinessScreen() {
+  const tokens = useThemeTokens();
+  const styles = useThemedStyles(createStyles);
+
   const params = useLocalSearchParams<{ eventId?: string }>();
   const eventID = typeof params.eventId === 'string' ? params.eventId : '';
   const [event, setEvent] = useState<EventDTO | null>(null);
@@ -138,6 +142,9 @@ export default function ReadinessScreen() {
 }
 
 function ChecklistRow({ item }: { item: ChecklistItem }) {
+  const tokens = useThemeTokens();
+  const styles = useThemedStyles(createStyles);
+
   const Icon = item.icon;
   const indicatorStyle = item.done ? styles.itemIconDone : styles.itemIconOpen;
   const iconColor = item.done ? tokens.color.status.success : tokens.color.status.warning;
@@ -252,7 +259,7 @@ function buildChecklist(event: EventDTO | null, roles: EventRoleDTO[], staffing:
   ];
 }
 
-const styles = StyleSheet.create({
+const createStyles = (tokens: Tokens) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: tokens.color.surface.panel },
   header: { flexDirection: 'row', alignItems: 'center', gap: 16, padding: 24, paddingTop: 56, paddingBottom: 12 },
   backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: tokens.color.surface.inset, alignItems: 'center', justifyContent: 'center' },
@@ -265,10 +272,10 @@ const styles = StyleSheet.create({
   error: { color: tokens.color.status.danger, fontWeight: '800', lineHeight: 20 },
   notice: { color: tokens.color.status.success, fontWeight: '800', lineHeight: 20 },
   summaryCard: { backgroundColor: tokens.color.action.primary, borderRadius: tokens.radius.panel, padding: 22, gap: 10 },
-  summaryLabel: { color: 'rgba(255,255,255,0.65)', fontSize: tokens.type['label'], fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1.2 },
+  summaryLabel: { color: tokens.color.text.inverse, fontSize: tokens.type['label'], fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1.2 },
   summaryValue: { color: tokens.color.text.inverse, fontSize: 48, fontWeight: '900', letterSpacing: -2 },
-  summaryBody: { color: 'rgba(255,255,255,0.82)', fontWeight: '700', lineHeight: 21 },
-  summaryMeta: { color: 'rgba(255,255,255,0.6)', fontWeight: '700' },
+  summaryBody: { color: tokens.color.text.inverse, fontWeight: '700', lineHeight: 21 },
+  summaryMeta: { color: tokens.color.text.inverse, fontWeight: '700' },
   progressTrack: { height: 8, borderRadius: tokens.radius.pill, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.14)' },
   progressFill: { height: '100%', borderRadius: tokens.radius.pill, backgroundColor: tokens.color.status.success },
   quickActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },

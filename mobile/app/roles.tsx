@@ -1,4 +1,5 @@
-import { tokens } from '@/theme/tokens';
+import { useThemeTokens, useThemedStyles } from '@/theme/ThemeProvider';
+import type { Tokens } from '@/theme/tokens';
 import { useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, Plus, Users, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -17,6 +18,9 @@ const reviewActions: { label: string; status: EventRoleApplicationStatus }[] = [
 ];
 
 export default function RolesScreen() {
+  const tokens = useThemeTokens();
+  const styles = useThemedStyles(createStyles);
+
   const params = useLocalSearchParams<{ eventId?: string }>();
   const eventID = typeof params.eventId === 'string' ? params.eventId : '';
   const [roles, setRoles] = useState<EventRoleDTO[]>([]);
@@ -168,7 +172,7 @@ export default function RolesScreen() {
           ) : null}
           <TextInput value={description} onChangeText={setDescription} placeholder="What should applicants know?" placeholderTextColor="#a3a3a3" multiline style={[styles.input, styles.textArea]} />
           <Pressable disabled={creating} onPress={() => void saveRole()} style={[styles.primaryButton, creating && styles.disabled]}>
-            <Plus size={18} color={tokens.color.surface.panel} /><Text style={styles.primaryButtonText}>{creating ? 'Saving…' : editingRoleID ? 'Save role' : 'Create role'}</Text>
+            <Plus size={18} color={tokens.color.text.inverse} /><Text style={styles.primaryButtonText}>{creating ? 'Saving…' : editingRoleID ? 'Save role' : 'Create role'}</Text>
           </Pressable>
         </View>
 
@@ -219,6 +223,9 @@ export default function RolesScreen() {
 }
 
 function VisibilityButton({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+
+  const styles = useThemedStyles(createStyles);
+
   return (
     <Pressable onPress={onPress} style={[styles.visibilityButton, selected && styles.visibilityButtonActive]}>
       <Text style={[styles.visibilityButtonText, selected && styles.visibilityButtonTextActive]}>{label}</Text>
@@ -226,7 +233,7 @@ function VisibilityButton({ label, selected, onPress }: { label: string; selecte
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (tokens: Tokens) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: tokens.color.surface.panel, padding: 24, paddingTop: 56 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 24 },
   backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: tokens.color.surface.inset, alignItems: 'center', justifyContent: 'center' },

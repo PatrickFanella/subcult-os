@@ -11,6 +11,7 @@
   --color-fg-secondary: #404040;
   --color-fg-muted: #6b6b6b;
   --color-fg-inverse: #ffffff;
+  --color-fg-on-immersive: #ffffff;
   --color-stroke-subtle: #e5e5e5;
   --color-stroke-strong: #d4d4d4;
   --color-stroke-focus: #171717;
@@ -47,4 +48,70 @@
   --text-body-lg: 17px;
   --text-title: 32px;
   --text-display: 40px;
+}
+
+:root { color-scheme: light; }
+:root[data-theme="dark"] {
+  --color-surface-canvas: #101010;
+  --color-surface-default: #181818;
+  --color-surface-panel: #181818;
+  --color-surface-elevated: #242424;
+  --color-surface-inset: #242424;
+  --color-surface-immersive: #000000;
+  --color-surface-scrim: rgba(0, 0, 0, 0.62);
+  --color-fg-primary: #fafafa;
+  --color-fg-secondary: #d4d4d4;
+  --color-fg-muted: #a3a3a3;
+  --color-fg-inverse: #171717;
+  --color-fg-on-immersive: #ffffff;
+  --color-stroke-subtle: #404040;
+  --color-stroke-strong: #737373;
+  --color-stroke-focus: #fafafa;
+  --color-action-primary: #fafafa;
+  --color-action-hover: #e5e5e5;
+  --color-action-secondary: #242424;
+  --color-action-brand: #fafafa;
+  --color-action-disabled: #404040;
+  --color-status-success: #6ee7b7;
+  --color-status-warning: #fcd34d;
+  --color-status-danger: #fca5a5;
+  --color-status-info: #7dd3fc;
+  --color-status-surface-success: #052e24;
+  --color-status-surface-warning: #3b2609;
+  --color-status-surface-danger: #3b1111;
+  --color-status-surface-info: #082f49;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+  --color-surface-canvas: #101010;
+  --color-surface-default: #181818;
+  --color-surface-panel: #181818;
+  --color-surface-elevated: #242424;
+  --color-surface-inset: #242424;
+  --color-surface-immersive: #000000;
+  --color-surface-scrim: rgba(0, 0, 0, 0.62);
+  --color-fg-primary: #fafafa;
+  --color-fg-secondary: #d4d4d4;
+  --color-fg-muted: #a3a3a3;
+  --color-fg-inverse: #171717;
+  --color-fg-on-immersive: #ffffff;
+  --color-stroke-subtle: #404040;
+  --color-stroke-strong: #737373;
+  --color-stroke-focus: #fafafa;
+  --color-action-primary: #fafafa;
+  --color-action-hover: #e5e5e5;
+  --color-action-secondary: #242424;
+  --color-action-brand: #fafafa;
+  --color-action-disabled: #404040;
+  --color-status-success: #6ee7b7;
+  --color-status-warning: #fcd34d;
+  --color-status-danger: #fca5a5;
+  --color-status-info: #7dd3fc;
+  --color-status-surface-success: #052e24;
+  --color-status-surface-warning: #3b2609;
+  --color-status-surface-danger: #3b1111;
+  --color-status-surface-info: #082f49;
+    color-scheme: dark;
+  }
 }

@@ -1,4 +1,5 @@
-import { tokens } from '@/theme/tokens';
+import { useThemedStyles } from '@/theme/ThemeProvider';
+import type { Tokens } from '@/theme/tokens';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -8,6 +9,9 @@ import { useAuth } from '@/auth/AuthContext';
 type Mode = 'login' | 'signup';
 
 export default function LoginScreen() {
+
+  const styles = useThemedStyles(createStyles);
+
   const params = useLocalSearchParams<{ next?: string; mode?: Mode; notice?: string }>();
   const next = typeof params.next === 'string' && params.next.startsWith('/') ? params.next : '/staff';
   const [mode, setMode] = useState<Mode>(params.mode === 'signup' ? 'signup' : 'login');
@@ -107,7 +111,7 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (tokens: Tokens) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: tokens.color.surface.panel },
   content: { flexGrow: 1, justifyContent: 'center', padding: 24, gap: 14 },
   kicker: { alignSelf: 'flex-start', color: tokens.color.text.muted, backgroundColor: tokens.color.surface.inset, paddingHorizontal: 8, paddingVertical: 4, borderRadius: tokens.radius.pill, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: tokens.type['label'], fontWeight: '800' },

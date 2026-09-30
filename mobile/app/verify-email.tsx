@@ -1,4 +1,5 @@
-import { tokens } from '@/theme/tokens';
+import { useThemedStyles } from '@/theme/ThemeProvider';
+import type { Tokens } from '@/theme/tokens';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -6,6 +7,9 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '@/auth/AuthContext';
 
 export default function VerifyEmailScreen() {
+
+  const styles = useThemedStyles(createStyles);
+
   const params = useLocalSearchParams<{ token?: string }>();
   const token = typeof params.token === 'string' ? params.token : '';
   const { verifyEmail } = useAuth();
@@ -35,7 +39,7 @@ export default function VerifyEmailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (tokens: Tokens) => StyleSheet.create({
   screen: { flex: 1, justifyContent: 'center', backgroundColor: tokens.color.surface.panel, padding: 24, gap: 14 },
   kicker: { color: tokens.color.text.muted, textTransform: 'uppercase', letterSpacing: 1.5, fontSize: tokens.type['label'], fontWeight: '800' },
   title: { color: tokens.color.text.primary, fontSize: 34, fontWeight: '800', letterSpacing: -1 },

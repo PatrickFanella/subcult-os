@@ -14,7 +14,8 @@ export const tokens = {
       "primary": "#171717",
       "secondary": "#404040",
       "muted": "#6b6b6b",
-      "inverse": "#ffffff"
+      "inverse": "#ffffff",
+      "onImmersive": "#ffffff"
     },
     "border": {
       "subtle": "#e5e5e5",
@@ -70,4 +71,47 @@ export const tokens = {
   }
 } as const;
 
-export type Tokens = typeof tokens;
+type Palette = { [Group in keyof typeof tokens.color]: { [Role in keyof (typeof tokens.color)[Group]]: string } };
+export type Tokens = Omit<typeof tokens, 'color'> & { color: Palette };
+export const darkTokens: Tokens = { ...tokens, color: {
+  "surface": {
+    "canvas": "#101010",
+    "default": "#181818",
+    "panel": "#181818",
+    "elevated": "#242424",
+    "inset": "#242424",
+    "immersive": "#000000",
+    "scrim": "rgba(0, 0, 0, 0.62)"
+  },
+  "text": {
+    "primary": "#fafafa",
+    "secondary": "#d4d4d4",
+    "muted": "#a3a3a3",
+    "inverse": "#171717",
+    "onImmersive": "#ffffff"
+  },
+  "border": {
+    "subtle": "#404040",
+    "strong": "#737373",
+    "focus": "#fafafa"
+  },
+  "action": {
+    "primary": "#fafafa",
+    "hover": "#e5e5e5",
+    "secondary": "#242424",
+    "brand": "#fafafa",
+    "disabled": "#404040"
+  },
+  "status": {
+    "success": "#6ee7b7",
+    "warning": "#fcd34d",
+    "danger": "#fca5a5",
+    "info": "#7dd3fc"
+  },
+  "statusSurface": {
+    "success": "#052e24",
+    "warning": "#3b2609",
+    "danger": "#3b1111",
+    "info": "#082f49"
+  }
+} };

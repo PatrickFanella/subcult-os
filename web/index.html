@@ -1,6 +1,12 @@
 <!doctype html>
 <html lang="en">
   <head>
+<script>
+  try {
+    const appearance = localStorage.getItem('subcult.appearance');
+    document.documentElement.dataset.theme = appearance === 'light' || appearance === 'dark' ? appearance : 'system';
+  } catch { document.documentElement.dataset.theme = 'system'; }
+</script>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>subcult-os</title>

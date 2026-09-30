@@ -23,7 +23,9 @@ Web and mobile share the [Subcult design system](docs/design-system.md), based
 on the current mobile discovery and event screens. Edit
 `contracts/design/tokens.json` and run `node scripts/design-tokens.mjs` to update
 both clients. The isolated web preview provides a `/design-system` gallery in
-development; `make verify` checks generated-token drift and text contrast.
+development; `make verify` checks generated-token drift and text contrast in both
+light and dark palettes. Choose Light, Dark, or System from the web Appearance
+selector or mobile Settings → Appearance.
 
 See the [Subcult.tv platform development handoff](docs/development/README.md), [AT Protocol kernel](docs/development/atproto-kernel.md), [Subcults cutover runbook](docs/runbooks/subcults-cutover.md), [ADR 0005](docs/adr/0005-subcult-os-platform-core.md), and [ADR 0006](docs/adr/0006-no-prototype-compatibility-contract.md). Subcult OS is the accepted receiving repository; selected Subcults capabilities are being rewritten behind OS-native boundaries rather than merged wholesale. Prototype API/schema compatibility is not required by default. Canonical identity, the minimal AT syntax kernel, encrypted identity-only OAuth persistence, confidential-client documents, authenticated start/one-time callback routes, and a link/list/local-unlink UI are implemented. Remote revocation, the minimal Lexicon contract and read-only projection are implemented. Live provider interoperability and repository publication remain unqualified or unimplemented.
 

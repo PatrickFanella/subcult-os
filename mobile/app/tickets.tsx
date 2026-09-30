@@ -1,4 +1,5 @@
-import { tokens } from '@/theme/tokens';
+import { useThemeTokens, useThemedStyles } from '@/theme/ThemeProvider';
+import type { Tokens } from '@/theme/tokens';
 import { router } from 'expo-router';
 import { Search, Ticket } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -9,6 +10,9 @@ import { AppChrome } from '@/ui/AppChrome';
 import { ticketJourneySavedTicketStatus, ticketWalletEmptyCopy } from '@/modules/tickets/ticketJourney';
 
 export default function TicketsScreen() {
+  const tokens = useThemeTokens();
+  const styles = useThemedStyles(createStyles);
+
   const [code, setCode] = useState('');
   const [savedTickets, setSavedTickets] = useState<SavedTicket[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -58,7 +62,7 @@ export default function TicketsScreen() {
             />
           </View>
           <Pressable disabled={!normalizedCode} onPress={openTicket} style={[styles.primaryButton, !normalizedCode && styles.primaryButtonDisabled]}>
-            <Ticket size={20} color={tokens.color.surface.panel} />
+            <Ticket size={20} color={tokens.color.text.inverse} />
             <Text style={styles.primaryButtonText}>Open ticket</Text>
           </Pressable>
         </View>
@@ -89,7 +93,7 @@ export default function TicketsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (tokens: Tokens) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: tokens.color.surface.inset },
   content: { padding: 24, paddingTop: 64, paddingBottom: 32, gap: 18 },
   pageTitle: { fontSize: tokens.type['title'], fontWeight: '800', letterSpacing: -1, color: tokens.color.text.primary },

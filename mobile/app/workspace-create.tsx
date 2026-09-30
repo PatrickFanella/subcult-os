@@ -1,4 +1,5 @@
-import { tokens } from '@/theme/tokens';
+import { useThemeTokens, useThemedStyles } from '@/theme/ThemeProvider';
+import type { Tokens } from '@/theme/tokens';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { useState } from 'react';
@@ -10,6 +11,9 @@ import { safeBack } from '@/navigation/safeBack';
 import { storeSelectedWorkspaceID } from '@/staff/selectionStore';
 
 export default function WorkspaceCreateScreen() {
+  const tokens = useThemeTokens();
+  const styles = useThemedStyles(createStyles);
+
   const params = useLocalSearchParams<{ next?: string }>();
   const next = typeof params.next === 'string' && params.next.startsWith('/') ? params.next : '/staff';
   const { user, loading: authLoading, refresh } = useAuth();
@@ -82,6 +86,9 @@ export default function WorkspaceCreateScreen() {
 }
 
 function CenteredState({ title, body }: { title: string; body?: string }) {
+
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.centered}>
       <Text style={styles.centeredTitle}>{title}</Text>
@@ -90,7 +97,7 @@ function CenteredState({ title, body }: { title: string; body?: string }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (tokens: Tokens) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: tokens.color.surface.panel },
   header: { flexDirection: 'row', alignItems: 'center', gap: 16, padding: 24, paddingTop: 56, paddingBottom: 12 },
   backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: tokens.color.surface.inset, alignItems: 'center', justifyContent: 'center' },

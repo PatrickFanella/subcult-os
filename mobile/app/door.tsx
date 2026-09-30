@@ -1,4 +1,5 @@
-import { tokens } from '@/theme/tokens';
+import { useThemeTokens, useThemedStyles } from '@/theme/ThemeProvider';
+import type { Tokens } from '@/theme/tokens';
 import { Link, useLocalSearchParams } from 'expo-router';
 import { CheckCircle2, ChevronLeft, Search, Ticket, UserCheck } from 'lucide-react-native';
 import { useState } from 'react';
@@ -15,6 +16,9 @@ import {
 } from '@/modules/tickets/ticketJourney';
 
 export default function DoorScreen() {
+  const tokens = useThemeTokens();
+  const styles = useThemedStyles(createStyles);
+
   const params = useLocalSearchParams<{ eventId?: string }>();
   const eventID = typeof params.eventId === 'string' ? params.eventId : '';
   const { user, loading: authLoading } = useAuth();
@@ -109,7 +113,7 @@ export default function DoorScreen() {
           />
         </View>
         <Pressable disabled={loading} onPress={search} style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}>
-          <Search size={20} color={tokens.color.surface.panel} />
+          <Search size={20} color={tokens.color.text.inverse} />
           <Text style={styles.primaryButtonText}>{loading ? 'Searching…' : 'Search'}</Text>
         </Pressable>
 
@@ -126,7 +130,7 @@ export default function DoorScreen() {
             <Text style={styles.guestMeta}>{ticket.code} · {ticket.admissionEligible ? 'Ready for entry' : 'Not eligible'}</Text>
             <View style={styles.divider} />
             <Pressable disabled={checkingIn === ticket.code || !ticket.admissionEligible} onPress={() => void checkIn(ticket)} style={styles.primaryButton}>
-              <UserCheck size={20} color={tokens.color.surface.panel} />
+              <UserCheck size={20} color={tokens.color.text.inverse} />
               <Text style={styles.primaryButtonText}>{doorCheckInButtonLabel(checkingIn === ticket.code, ticket.status === 'checked_in')}</Text>
             </Pressable>
           </View>
@@ -137,10 +141,13 @@ export default function DoorScreen() {
 }
 
 function CenteredDoorState({ title }: { title: string }) {
+
+  const styles = useThemedStyles(createStyles);
+
   return <View style={styles.authGate}><Text style={styles.emptyTitle}>{title}</Text></View>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (tokens: Tokens) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: tokens.color.surface.panel, padding: 24, paddingTop: 56 },
   authGate: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: tokens.color.surface.panel },
   authButton: { marginTop: 8, backgroundColor: tokens.color.action.primary, color: tokens.color.text.inverse, paddingHorizontal: 22, paddingVertical: 14, borderRadius: tokens.radius.control, overflow: 'hidden', fontWeight: '800' },

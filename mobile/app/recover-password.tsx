@@ -1,4 +1,5 @@
-import { tokens } from '@/theme/tokens';
+import { useThemedStyles } from '@/theme/ThemeProvider';
+import type { Tokens } from '@/theme/tokens';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -10,6 +11,9 @@ import { newPasswordProblem, recoveryRequestNotice } from '@/modules/auth/recove
 // Opened from a recovery email link (https://<web host>/recover-password?token=…)
 // or from sign in without a token, where it requests a new link instead.
 export default function RecoverPasswordScreen() {
+
+  const styles = useThemedStyles(createStyles);
+
   const params = useLocalSearchParams<{ token?: string }>();
   const token = typeof params.token === 'string' ? params.token : '';
   const { completeRecovery } = useAuth();
@@ -120,7 +124,7 @@ export default function RecoverPasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (tokens: Tokens) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: tokens.color.surface.panel },
   content: { flexGrow: 1, justifyContent: 'center', padding: 24, gap: 14 },
   kicker: { alignSelf: 'flex-start', color: tokens.color.text.muted, backgroundColor: tokens.color.surface.inset, paddingHorizontal: 8, paddingVertical: 4, borderRadius: tokens.radius.pill, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: tokens.type['label'], fontWeight: '800' },

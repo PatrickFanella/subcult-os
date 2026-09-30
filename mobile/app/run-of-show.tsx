@@ -1,4 +1,5 @@
-import { tokens } from '@/theme/tokens';
+import { useThemeTokens, useThemedStyles } from '@/theme/ThemeProvider';
+import type { Tokens } from '@/theme/tokens';
 import { useLocalSearchParams } from 'expo-router';
 import { CheckCircle2, ChevronLeft, Circle, Clock, Plus, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -20,6 +21,9 @@ import {
 } from '@/modules/runOfShow/runOfShowModel';
 
 export default function RunOfShowScreen() {
+  const tokens = useThemeTokens();
+  const styles = useThemedStyles(createStyles);
+
   const params = useLocalSearchParams<{ eventId?: string }>();
   const eventID = typeof params.eventId === 'string' ? params.eventId : '';
   const [items, setItems] = useState<EventStaffingItemDTO[]>([]);
@@ -183,7 +187,7 @@ export default function RunOfShowScreen() {
             style={[styles.input, styles.notesInput]}
           />
           <Pressable disabled={creating} onPress={() => void saveForm()} style={[styles.createButton, creating && styles.createButtonDisabled]}>
-            <Plus size={18} color={tokens.color.surface.panel} />
+            <Plus size={18} color={tokens.color.text.inverse} />
             <Text style={styles.createButtonText}>{creating ? 'Saving…' : editingID ? 'Save changes' : 'Add item'}</Text>
           </Pressable>
           <Text style={styles.helpText}>{editingID ? 'Kind cannot be changed after creation yet. Times are optional.' : 'Times are optional. Use local format like 2026-06-19 21:00.'}</Text>
@@ -194,7 +198,7 @@ export default function RunOfShowScreen() {
         {items.map((task) => (
           <View key={task.id} style={styles.taskRow}>
             <Text style={styles.time}>{task.startsAt ? formatTime(task.startsAt) : '—'}</Text>
-            <View style={styles.iconWrap}>{statusIcon(task.status)}</View>
+            <View style={styles.iconWrap}>{statusIcon(task.status, tokens)}</View>
             <View style={[styles.taskBody, task.status === 'completed' && styles.completed]}>
               <Text style={styles.taskTitle}>{task.title}</Text>
               <Text style={styles.assignee}>{task.assigneeName ?? task.kind}</Text>
@@ -227,6 +231,9 @@ export default function RunOfShowScreen() {
 }
 
 function KindButton({ label, selected, disabled, onPress }: { label: string; selected: boolean; disabled?: boolean; onPress: () => void }) {
+
+  const styles = useThemedStyles(createStyles);
+
   return (
     <Pressable disabled={disabled} onPress={onPress} style={[styles.kindButton, selected && styles.kindButtonActive, disabled && styles.kindButtonDisabled]}>
       <Text style={[styles.kindButtonText, selected && styles.kindButtonTextActive]}>{label}</Text>
@@ -234,13 +241,13 @@ function KindButton({ label, selected, disabled, onPress }: { label: string; sel
   );
 }
 
-function statusIcon(status: string) {
+function statusIcon(status: string, tokens: Tokens) {
   if (status === 'completed') return <CheckCircle2 size={24} color={tokens.color.status.success} fill={tokens.color.surface.panel} />;
   if (status === 'assigned') return <Clock size={24} color="#3b82f6" fill={tokens.color.surface.panel} />;
   return <Circle size={24} color="#d4d4d4" fill={tokens.color.surface.panel} />;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (tokens: Tokens) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: tokens.color.surface.panel, padding: 24, paddingTop: 64 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 32 },
   backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: tokens.color.surface.inset, alignItems: 'center', justifyContent: 'center' },

@@ -1,4 +1,5 @@
-import { tokens } from '@/theme/tokens';
+import { useThemeTokens, useThemedStyles } from '@/theme/ThemeProvider';
+import type { Tokens } from '@/theme/tokens';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Calendar, ChevronLeft, MapPin, Share2, Ticket as TicketIcon } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -24,6 +25,9 @@ import { safeBack } from '@/navigation/safeBack';
 import { savePendingPaidTicket, saveTicketToWallet } from '@/tickets/walletStore';
 
 export default function EventDetailScreen() {
+  const tokens = useThemeTokens();
+  const styles = useThemedStyles(createStyles);
+
   const params = useLocalSearchParams<{ slug?: string }>();
   const slug = typeof params.slug === 'string' ? params.slug : '';
   const [event, setEvent] = useState<PublicEventDTO | null>(null);
@@ -223,16 +227,16 @@ export default function EventDetailScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView style={styles.scroller} contentContainerStyle={[styles.scrollContent, { paddingBottom: 172 + insets.bottom }]}> 
+      <ScrollView style={styles.scroller} contentContainerStyle={[styles.scrollContent, { paddingBottom: 172 + insets.bottom }]}>
         <View style={styles.hero}>
           <Image source={{ uri: event.imageUrl || eventArtwork(event.publicSlug ?? event.id) }} style={styles.heroImage} resizeMode="cover" />
           <View style={styles.heroOverlay} />
           <View style={styles.topBar}>
             <Pressable onPress={() => safeBack('/')} style={styles.roundButton}>
-              <ChevronLeft size={24} color={tokens.color.surface.panel} />
+              <ChevronLeft size={24} color={tokens.color.text.onImmersive} />
             </Pressable>
             <Pressable onPress={() => void shareEvent()} style={styles.roundButton}>
-              <Share2 size={20} color={tokens.color.surface.panel} />
+              <Share2 size={20} color={tokens.color.text.onImmersive} />
             </Pressable>
           </View>
         </View>
@@ -343,7 +347,7 @@ export default function EventDetailScreen() {
           </View>
         </View>
       </ScrollView>
-      <View style={[styles.stickyBar, { paddingBottom: Math.max(insets.bottom, 14) }]}> 
+      <View style={[styles.stickyBar, { paddingBottom: Math.max(insets.bottom, 14) }]}>
         <View>
           <Text style={styles.priceLabel}>{event.isFull ? 'Status' : 'Starting from'}</Text>
           <Text style={styles.price}>{event.isFull ? 'Sold out' : price}</Text>
@@ -352,7 +356,7 @@ export default function EventDetailScreen() {
         <View style={styles.stickyAction}>
           {event.isFull ? <Text style={styles.stickyWarning}>No tickets remain.</Text> : null}
           <Pressable disabled={stickyCtaDisabled} onPress={handleReserve} style={[styles.ticketButton, stickyCtaDisabled && styles.ticketButtonDisabled]}>
-            <TicketIcon size={20} color={tokens.color.surface.panel} />
+            <TicketIcon size={20} color={tokens.color.text.inverse} />
             <Text style={styles.ticketButtonText}>{stickyCtaLabel}</Text>
           </Pressable>
         </View>
@@ -362,6 +366,9 @@ export default function EventDetailScreen() {
 }
 
 function CenteredState({ title, body }: { title: string; body?: string }) {
+
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.centerState}>
       <Text style={styles.centerTitle}>{title}</Text>
@@ -371,6 +378,9 @@ function CenteredState({ title, body }: { title: string; body?: string }) {
 }
 
 function InfoRow({ icon, title, detail }: { icon: React.ReactNode; title: string; detail: string }) {
+
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.infoRow}>
       <View style={styles.infoIcon}>{icon}</View>
@@ -382,7 +392,7 @@ function InfoRow({ icon, title, detail }: { icon: React.ReactNode; title: string
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (tokens: Tokens) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: tokens.color.surface.panel },
   scroller: { flex: 1 },
   scrollContent: {},
@@ -392,7 +402,7 @@ const styles = StyleSheet.create({
   topBar: { position: 'absolute', top: 48, left: 0, right: 0, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', zIndex: 10 },
   roundButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.20)', alignItems: 'center', justifyContent: 'center' },
   content: { flex: 1, paddingHorizontal: 20, marginTop: -72, zIndex: 10, paddingBottom: 32 },
-  titleCard: { backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: tokens.radius.panel, padding: 20, marginBottom: 22, boxShadow: '0 2px 12px rgba(0,0,0,0.12)', elevation: 2 },
+  titleCard: { backgroundColor: tokens.color.surface.panel, borderRadius: tokens.radius.panel, padding: 20, marginBottom: 22, boxShadow: '0 2px 12px rgba(0,0,0,0.12)', elevation: 2 },
   organizer: { fontSize: 14, fontWeight: '700', letterSpacing: 1.1, color: tokens.color.text.muted, textTransform: 'uppercase' },
   title: { fontSize: tokens.type['title'], fontWeight: '800', letterSpacing: -1, color: tokens.color.text.primary, marginTop: 4, marginBottom: 8 },
   subtitle: { fontSize: 18, color: tokens.color.text.muted, marginBottom: 24 },
@@ -425,7 +435,7 @@ const styles = StyleSheet.create({
   signedInEmail: { color: tokens.color.text.muted, fontWeight: '700' },
   errorText: { color: tokens.color.status.danger, fontWeight: '600', lineHeight: 20 },
   successText: { color: tokens.color.status.success, fontWeight: '700', lineHeight: 20 },
-  stickyBar: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.97)', borderTopWidth: 1, borderTopColor: tokens.color.surface.inset, paddingTop: 14, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 -2px 10px rgba(0,0,0,0.08)', elevation: 8 },
+  stickyBar: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: tokens.color.surface.panel, borderTopWidth: 1, borderTopColor: tokens.color.surface.inset, paddingTop: 14, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 -2px 10px rgba(0,0,0,0.08)', elevation: 8 },
   priceLabel: { color: tokens.color.text.muted, fontSize: 14, fontWeight: '600' },
   price: { color: tokens.color.text.primary, fontSize: 24, fontWeight: '800' },
   remaining: { color: tokens.color.text.muted, fontSize: tokens.type['label'], fontWeight: '600' },

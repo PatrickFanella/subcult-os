@@ -1,4 +1,5 @@
-import { tokens } from '@/theme/tokens';
+import { useThemeTokens, useThemedStyles } from '@/theme/ThemeProvider';
+import type { Tokens } from '@/theme/tokens';
 import { Link, usePathname } from 'expo-router';
 import { Briefcase, Compass, Ticket, UserCircle } from 'lucide-react-native';
 import type { PropsWithChildren } from 'react';
@@ -13,6 +14,9 @@ const navItems = [
 ];
 
 export function AppChrome({ children }: PropsWithChildren) {
+
+  const styles = useThemedStyles(createStyles);
+
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const isScanner = pathname.includes('/scanner');
@@ -22,7 +26,7 @@ export function AppChrome({ children }: PropsWithChildren) {
       <View style={styles.phone}>
         <View style={styles.content}>{children}</View>
         {!isScanner ? (
-          <View style={[styles.navWrap, { paddingBottom: insets.bottom }]}> 
+          <View style={[styles.navWrap, { paddingBottom: insets.bottom }]}>
             <View style={styles.nav}>
               {navItems.map((item) => (
                 <BottomNavItem key={item.href} pathname={pathname} {...item} />
@@ -36,6 +40,9 @@ export function AppChrome({ children }: PropsWithChildren) {
 }
 
 function BottomNavItem({ href, icon: Icon, label, pathname }: (typeof navItems)[number] & { pathname: string }) {
+  const tokens = useThemeTokens();
+  const styles = useThemedStyles(createStyles);
+
   const active = href === '/' ? pathname === '/' : pathname.startsWith(href) || (href === '/profile' && pathname.startsWith('/settings'));
 
   return (
@@ -49,12 +56,12 @@ function BottomNavItem({ href, icon: Icon, label, pathname }: (typeof navItems)[
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (tokens: Tokens) => StyleSheet.create({
   shell: { flex: 1, backgroundColor: tokens.color.surface.inset },
   phone: { flex: 1, backgroundColor: tokens.color.surface.panel, overflow: 'hidden' },
   content: { flex: 1, backgroundColor: tokens.color.surface.immersive },
   navWrap: {
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: tokens.color.surface.panel,
     borderTopWidth: 1,
     borderTopColor: tokens.color.surface.inset,
     zIndex: 40,

@@ -1,4 +1,5 @@
-import { tokens } from '@/theme/tokens';
+import { useThemeTokens, useThemedStyles } from '@/theme/ThemeProvider';
+import type { Tokens } from '@/theme/tokens';
 import { Link, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, ClipboardCheck, ExternalLink, Pencil, ShieldCheck, Ticket, Users } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -11,6 +12,9 @@ import { safeBack } from '@/navigation/safeBack';
 import { mobileCloseoutHandoffCopy, mobileCloseoutStatusLabel } from '@/modules/settlement/settlementModel';
 
 export default function EventDashboardScreen() {
+  const tokens = useThemeTokens();
+  const styles = useThemedStyles(createStyles);
+
   const params = useLocalSearchParams<{ eventId?: string }>();
   const eventID = typeof params.eventId === 'string' ? params.eventId : '';
   const [event, setEvent] = useState<EventDTO | null>(null);
@@ -67,7 +71,7 @@ export default function EventDashboardScreen() {
           {event ? (
             <View style={styles.actionRow}>
               <Link href={{ pathname: '/event-edit', params: { eventId: event.id, workspaceId: event.workspaceId } }} style={styles.editButton}>
-                <View style={styles.editButtonInner}><Pencil size={16} color={tokens.color.surface.panel} /><Text style={styles.editButtonText}>Edit event</Text></View>
+                <View style={styles.editButtonInner}><Pencil size={16} color={tokens.color.text.inverse} /><Text style={styles.editButtonText}>Edit event</Text></View>
               </Link>
               <Link href={{ pathname: '/readiness', params: { eventId: event.id } }} style={styles.lightButton}>
                 <View style={styles.lightButtonInner}><ClipboardCheck size={16} color={tokens.color.status.info} /><Text style={styles.lightButtonText}>Readiness</Text></View>
@@ -103,7 +107,7 @@ export default function EventDashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (tokens: Tokens) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: tokens.color.surface.panel, padding: 24, paddingTop: 56 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 24 },
   backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: tokens.color.surface.inset, alignItems: 'center', justifyContent: 'center' },

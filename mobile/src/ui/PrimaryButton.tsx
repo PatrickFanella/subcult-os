@@ -1,5 +1,5 @@
 import { ActivityIndicator, Pressable, Text } from 'react-native';
-import { tokens } from '@/theme/tokens';
+import { useThemeTokens } from '@/theme/ThemeProvider';
 
 type PrimaryButtonProps = {
   label: string;
@@ -9,6 +9,8 @@ type PrimaryButtonProps = {
 };
 
 export function PrimaryButton({ label, onPress, disabled = false, busy = false }: PrimaryButtonProps) {
+  const tokens = useThemeTokens();
+
   return (
     <Pressable onPress={onPress} disabled={disabled || busy} accessibilityRole="button"
       accessibilityState={{ disabled: disabled || busy, busy }}

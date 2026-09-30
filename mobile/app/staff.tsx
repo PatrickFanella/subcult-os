@@ -1,4 +1,5 @@
-import { tokens } from '@/theme/tokens';
+import { useThemeTokens, useThemedStyles } from '@/theme/ThemeProvider';
+import type { Tokens } from '@/theme/tokens';
 import { Link, router, type Href } from 'expo-router';
 import { Building2, CalendarPlus, ClipboardCheck, ListChecks, Mic2, Pencil, QrCode, ShieldCheck, UserPlus, Users } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -14,6 +15,9 @@ import { nextSelectedEvent, selectedEventLabel, selectedWorkspaceLabel, staffSel
 import { AppChrome } from '@/ui/AppChrome';
 
 export default function StaffScreen() {
+  const tokens = useThemeTokens();
+  const styles = useThemedStyles(createStyles);
+
   const { user, loading: authLoading, signOut } = useAuth();
   const [selectedWorkspaceID, setSelectedWorkspaceID] = useState<string | null>(null);
   const [events, setEvents] = useState<EventDTO[]>([]);
@@ -200,10 +204,10 @@ export default function StaffScreen() {
         </View>
 
         <View style={styles.grid}>
-          <DashboardCard to={{ pathname: '/event-edit', params: { workspaceId: workspace.id } }} icon={<CalendarPlus size={24} color={tokens.color.surface.panel} />} title="Create Event" subtitle="Draft & publish" primary />
+          <DashboardCard to={{ pathname: '/event-edit', params: { workspaceId: workspace.id } }} icon={<CalendarPlus size={24} color={tokens.color.text.inverse} />} title="Create Event" subtitle="Draft & publish" primary />
           <DashboardCard to={activeEvent ? { pathname: '/event-edit', params: { eventId: activeEvent.id, workspaceId: workspace.id } } : { pathname: '/event-edit', params: { workspaceId: workspace.id } }} icon={<Pencil size={24} color={tokens.color.text.primary} />} title="Edit Event" subtitle="Basics & tickets" />
-          <DashboardCard disabled={!selectionReady} to={activeEvent ? { pathname: '/readiness', params: { eventId: activeEvent.id } } : '/staff'} icon={<ClipboardCheck size={24} color={tokens.color.surface.panel} />} title="Readiness" subtitle="Setup checklist" primary />
-          <DashboardCard disabled={!selectionReady} to={activeEvent ? { pathname: '/scanner', params: { eventId: activeEvent.id } } : '/staff'} icon={<QrCode size={24} color={tokens.color.surface.panel} />} title="Scan Tickets" subtitle="Run the door" primary />
+          <DashboardCard disabled={!selectionReady} to={activeEvent ? { pathname: '/readiness', params: { eventId: activeEvent.id } } : '/staff'} icon={<ClipboardCheck size={24} color={tokens.color.text.inverse} />} title="Readiness" subtitle="Setup checklist" primary />
+          <DashboardCard disabled={!selectionReady} to={activeEvent ? { pathname: '/scanner', params: { eventId: activeEvent.id } } : '/staff'} icon={<QrCode size={24} color={tokens.color.text.inverse} />} title="Scan Tickets" subtitle="Run the door" primary />
           <DashboardCard disabled={!selectionReady} to={activeEvent ? { pathname: '/run-of-show', params: { eventId: activeEvent.id } } : '/staff'} icon={<ListChecks size={24} color={tokens.color.text.primary} />} title="Run of Show" subtitle="Event timeline" />
           <DashboardCard disabled={!selectionReady} to={activeEvent ? { pathname: '/roles', params: { eventId: activeEvent.id } } : '/staff'} icon={<UserPlus size={24} color={tokens.color.text.primary} />} title="Roles" subtitle="Applicants" />
           <DashboardCard disabled={!selectionReady} to={activeEvent ? { pathname: '/door', params: { eventId: activeEvent.id } } : '/staff'} icon={<Users size={24} color={tokens.color.text.primary} />} title="Guest List" subtitle="VIP & Comp" />
@@ -228,6 +232,9 @@ export default function StaffScreen() {
 }
 
 function WorkspaceChip({ workspace, selected, onPress }: { workspace: WorkspaceSummaryDTO; selected: boolean; onPress: () => void }) {
+
+  const styles = useThemedStyles(createStyles);
+
   return (
     <Pressable onPress={onPress} style={[styles.workspaceChip, selected && styles.workspaceChipActive]}>
       <Text style={[styles.workspaceChipTitle, selected && styles.workspaceChipTitleActive]}>{workspace.name}</Text>
@@ -237,6 +244,9 @@ function WorkspaceChip({ workspace, selected, onPress }: { workspace: WorkspaceS
 }
 
 function CenteredStaffState({ title }: { title: string }) {
+
+  const styles = useThemedStyles(createStyles);
+
   return (
     <AppChrome>
       <View style={styles.authGate}><Text style={styles.emptyTitle}>{title}</Text></View>
@@ -245,6 +255,9 @@ function CenteredStaffState({ title }: { title: string }) {
 }
 
 function DashboardCard({ to, icon, title, subtitle, primary, disabled }: { to: Href; icon: React.ReactNode; title: string; subtitle: string; primary?: boolean; disabled?: boolean }) {
+
+  const styles = useThemedStyles(createStyles);
+
   return (
     <Pressable disabled={disabled} onPress={() => router.push(to)} style={[styles.dashboardCard, primary ? styles.dashboardCardPrimary : styles.dashboardCardNeutral, disabled && styles.dashboardCardDisabled]}>
       <View style={[styles.cardIcon, primary && styles.cardIconPrimary]}>{icon}</View>
@@ -256,7 +269,7 @@ function DashboardCard({ to, icon, title, subtitle, primary, disabled }: { to: H
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (tokens: Tokens) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: tokens.color.surface.panel },
   content: { padding: 24, paddingTop: 64, paddingBottom: 32 },
   authGate: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: tokens.color.surface.panel },
@@ -282,7 +295,7 @@ const styles = StyleSheet.create({
   workspaceChipTitle: { color: tokens.color.text.primary, fontWeight: '800' },
   workspaceChipTitleActive: { color: tokens.color.text.inverse },
   workspaceChipMeta: { color: tokens.color.text.muted, fontSize: tokens.type['label'], fontWeight: '700', marginTop: 6, textTransform: 'uppercase', letterSpacing: 1 },
-  workspaceChipMetaActive: { color: 'rgba(255,255,255,0.65)' },
+  workspaceChipMetaActive: { color: tokens.color.text.inverse },
   createWorkspaceChip: { minWidth: 180, borderRadius: 20, borderWidth: 1, borderColor: tokens.color.border.strong, backgroundColor: tokens.color.statusSurface.info, padding: 14, overflow: 'hidden' },
   createWorkspaceInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   createWorkspaceText: { color: tokens.color.text.primary, fontWeight: '900' },
@@ -291,7 +304,7 @@ const styles = StyleSheet.create({
   eventChipTitle: { color: tokens.color.text.primary, fontWeight: '800' },
   eventChipTitleActive: { color: tokens.color.text.inverse },
   eventChipMeta: { color: tokens.color.text.muted, fontSize: tokens.type['label'], fontWeight: '600', marginTop: 6 },
-  eventChipMetaActive: { color: 'rgba(255,255,255,0.65)' },
+  eventChipMetaActive: { color: tokens.color.text.inverse },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginBottom: 32 },
   dashboardCard: { width: '47.5%', height: 160, borderRadius: tokens.radius.card, padding: 20, justifyContent: 'space-between', overflow: 'hidden', borderWidth: 1, borderColor: 'transparent' },
   dashboardCardDisabled: { opacity: 1, backgroundColor: tokens.color.surface.inset, borderColor: tokens.color.border.subtle },

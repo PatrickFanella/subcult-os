@@ -1,4 +1,5 @@
-import { tokens } from '@/theme/tokens';
+import { useThemeTokens, useThemedStyles } from '@/theme/ThemeProvider';
+import type { Tokens } from '@/theme/tokens';
 import { Link } from 'expo-router';
 import { LogOut, Settings, UserCircle } from 'lucide-react-native';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -7,6 +8,9 @@ import { useAuth } from '@/auth/AuthContext';
 import { AppChrome } from '@/ui/AppChrome';
 
 export default function ProfileScreen() {
+  const tokens = useThemeTokens();
+  const styles = useThemedStyles(createStyles);
+
   const { user, loading, signOut } = useAuth();
   const initials = (user?.displayName || user?.email || 'ME').slice(0, 2).toUpperCase();
 
@@ -55,7 +59,7 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (tokens: Tokens) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: tokens.color.surface.inset },
   content: { padding: 24, paddingTop: 64, paddingBottom: 32, gap: 18 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: tokens.color.surface.panel },

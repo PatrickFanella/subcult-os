@@ -1,4 +1,5 @@
-import { tokens } from '@/theme/tokens';
+import { useThemeTokens, useThemedStyles } from '@/theme/ThemeProvider';
+import type { Tokens } from '@/theme/tokens';
 import { Link } from 'expo-router';
 import { Calendar, MapPin } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -22,6 +23,9 @@ import {
 } from '@/modules/discovery/discoveryModel';
 
 export default function DiscoveryFeedScreen() {
+  const tokens = useThemeTokens();
+  const styles = useThemedStyles(createStyles);
+
 	const [events, setEvents] = useState<PublicEventSummaryDTO[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -148,7 +152,7 @@ export default function DiscoveryFeedScreen() {
 	);
 }
 
-const styles = StyleSheet.create({
+const createStyles = (tokens: Tokens) => StyleSheet.create({
 	scroll: { flex: 1, backgroundColor: tokens.color.surface.immersive },
 	searchWrap: {
 		position: 'absolute',
@@ -157,7 +161,7 @@ const styles = StyleSheet.create({
 		right: 16,
 		zIndex: 10,
 		borderRadius: 18,
-		backgroundColor: 'rgba(255,255,255,0.94)',
+		backgroundColor: tokens.color.surface.panel,
 		padding: 6,
 		shadowColor: tokens.color.surface.immersive,
 		shadowOpacity: 0.14,
@@ -176,14 +180,14 @@ const styles = StyleSheet.create({
 		paddingVertical: 6,
 		backgroundColor: 'rgba(255,255,255,0.20)',
 		borderRadius: tokens.radius.pill,
-		color: tokens.color.text.inverse,
+		color: tokens.color.text.onImmersive,
 		fontSize: tokens.type['label'],
 		fontWeight: '600',
 		textTransform: 'uppercase',
 		letterSpacing: 1.2,
 		overflow: 'hidden',
 	},
-	title: { color: tokens.color.text.inverse, fontSize: tokens.type['display'], fontWeight: '800', letterSpacing: -1.2, lineHeight: 42, marginBottom: 4 },
+	title: { color: tokens.color.text.onImmersive, fontSize: tokens.type['display'], fontWeight: '800', letterSpacing: -1.2, lineHeight: 42, marginBottom: 4 },
 	subtitle: { color: 'rgba(255,255,255,0.82)', fontSize: 18, fontWeight: '300', marginBottom: 16 },
 	metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginBottom: 24 },
 	metaItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -191,7 +195,7 @@ const styles = StyleSheet.create({
 	button: {
 		width: '100%',
 		backgroundColor: tokens.color.surface.panel,
-		color: tokens.color.surface.immersive,
+		color: tokens.color.text.primary,
 		paddingVertical: 16,
 		borderRadius: tokens.radius.control,
 		textAlign: 'center',

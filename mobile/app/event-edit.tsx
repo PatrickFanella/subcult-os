@@ -1,4 +1,5 @@
-import { tokens } from '@/theme/tokens';
+import { useThemeTokens, useThemedStyles } from '@/theme/ThemeProvider';
+import type { Tokens } from '@/theme/tokens';
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { ChevronLeft, ClipboardCheck, ExternalLink } from 'lucide-react-native';
@@ -29,6 +30,9 @@ import {
 } from '@/modules/events/eventEditModel';
 
 export default function EventEditScreen() {
+  const tokens = useThemeTokens();
+  const styles = useThemedStyles(createStyles);
+
 	const router = useRouter();
 	const params = useLocalSearchParams<{ workspaceId?: string; eventId?: string }>();
 	const workspaceID = typeof params.workspaceId === 'string' ? params.workspaceId : '';
@@ -220,6 +224,9 @@ export default function EventEditScreen() {
 }
 
 function LabeledInput({ label, multiline, style, ...props }: { label: string } & ComponentProps<typeof TextInput>) {
+
+  const styles = useThemedStyles(createStyles);
+
 	return (
 		<View style={styles.fieldBlock}>
 			<Text style={styles.label}>{label}</Text>
@@ -234,6 +241,9 @@ function LabeledInput({ label, multiline, style, ...props }: { label: string } &
 }
 
 function SegmentButton({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+
+  const styles = useThemedStyles(createStyles);
+
 	return (
 		<Pressable onPress={onPress} style={[styles.segmentButton, selected && styles.segmentButtonActive]}>
 			<Text style={[styles.segmentButtonText, selected && styles.segmentButtonTextActive]}>{label}</Text>
@@ -242,6 +252,9 @@ function SegmentButton({ label, selected, onPress }: { label: string; selected: 
 }
 
 function CenteredState({ title, body }: { title: string; body?: string }) {
+
+  const styles = useThemedStyles(createStyles);
+
 	return (
 		<View style={styles.centered}>
 			<Text style={styles.centeredTitle}>{title}</Text>
@@ -250,7 +263,7 @@ function CenteredState({ title, body }: { title: string; body?: string }) {
 	);
 }
 
-const styles = StyleSheet.create({
+const createStyles = (tokens: Tokens) => StyleSheet.create({
 	screen: { flex: 1, backgroundColor: tokens.color.surface.panel },
 	header: { flexDirection: 'row', alignItems: 'center', gap: 16, padding: 24, paddingTop: 56, paddingBottom: 12 },
 	backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: tokens.color.surface.inset, alignItems: 'center', justifyContent: 'center' },

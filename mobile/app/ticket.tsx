@@ -1,4 +1,5 @@
-import { tokens } from '@/theme/tokens';
+import { useThemeTokens, useThemedStyles } from '@/theme/ThemeProvider';
+import type { Tokens } from '@/theme/tokens';
 import { useLocalSearchParams } from 'expo-router';
 import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
@@ -19,6 +20,9 @@ import {
 } from '@/modules/tickets/ticketJourney';
 
 export default function TicketScreen() {
+  const tokens = useThemeTokens();
+  const styles = useThemedStyles(createStyles);
+
   const params = useLocalSearchParams<{ code?: string; checkout?: string }>();
   const code = typeof params.code === 'string' ? ticketLookupInput(params.code) : '';
   const checkoutState = typeof params.checkout === 'string' ? params.checkout : '';
@@ -213,7 +217,7 @@ export default function TicketScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (tokens: Tokens) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: tokens.color.surface.inset, padding: 24, paddingTop: 56 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 24 },
   backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: tokens.color.surface.panel, alignItems: 'center', justifyContent: 'center' },

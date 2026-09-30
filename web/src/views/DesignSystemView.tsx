@@ -14,16 +14,16 @@ export function DesignSystemView() {
         </header>
         <section className="grid items-end gap-6 py-6 md:grid-cols-[2fr_1fr]">
           <div><p className={publicEyebrowClass}>Built around the room</p><h1 className="heading-1 mt-4 max-w-3xl">The artwork speaks.<br />The interface works.</h1></div>
-          <p className="body-copy max-w-sm">White surfaces. Black actions. Bold type. A shared foundation for finding an event, joining the crew, and running the door.</p>
+          <p className="body-copy max-w-sm">Monochrome surfaces. Clear actions. Bold type. A shared foundation for finding an event, joining the crew, and running the door.</p>
         </section>
         <section className="grid gap-6 md:grid-cols-2" aria-label="Event and controls">
-          <article className="overflow-hidden rounded-hero bg-surface-immersive text-fg-inverse">
+          <article className="overflow-hidden rounded-hero bg-surface-immersive text-fg-on-immersive">
             <img className="h-64 w-full object-cover" src="https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1080&q=80" alt="Stage lights above a crowd at a concert" />
-            <div className="space-y-4 p-6"><p className="text-xs font-bold uppercase tracking-widest">Friday · Doors at 8 PM</p><h2 className="text-4xl font-extrabold tracking-tight">A night together</h2><p className="text-sm">Example event · Main room</p><a href="/discover" className="inline-flex min-h-touch items-center rounded-control bg-surface-panel px-5 font-bold text-fg-primary">Find your next event</a></div>
+            <div className="space-y-4 p-6"><p className="text-xs font-bold uppercase tracking-widest">Friday · Doors at 8 PM</p><h2 className="text-4xl font-extrabold tracking-tight">A night together</h2><p className="text-sm">Example event · Main room</p><a href="/discover" className="inline-flex min-h-touch items-center rounded-control border border-stroke-strong bg-surface-panel px-5 font-bold text-fg-primary">Find your next event</a></div>
           </article>
           <section className={publicCardClass} aria-labelledby="controls-title">
             <p className={publicEyebrowClass}>Controls</p><h2 id="controls-title" className="heading-2 mt-3">Clear next steps</h2>
-            <div className="mt-6 flex flex-wrap gap-3"><Button onClick={() => setSaved(!saved)}>{saved ? 'Saved' : 'Save event'}</Button><Button variant="secondary" onClick={() => setSaved(false)}>Reset</Button><Button variant="ghost" onClick={() => { window.location.href = '/discover'; }}>Discover</Button></div>
+            <div className="mt-6 flex flex-wrap gap-3"><Button onClick={() => setSaved(!saved)}>{saved ? 'Saved' : 'Save event'}</Button><Button variant="secondary" onClick={() => setSaved(false)}>Reset</Button><Button variant="secondary" onClick={() => { window.location.href = '/discover'; }}>Discover</Button></div>
             <div className="mt-3 flex flex-wrap gap-3"><Button disabled>Unavailable</Button><Button busy>Saving…</Button></div>
             <label className="mt-6 block space-y-2 text-sm font-bold" htmlFor="sample-name"><span>Display name</span><input id="sample-name" className="field" placeholder="How should we credit you?" autoComplete="off" /></label>
             <label className="mt-4 block space-y-2 text-sm font-bold" htmlFor="sample-disabled"><span>Read-only example</span><input id="sample-disabled" className="field" value="Main room" disabled /></label>

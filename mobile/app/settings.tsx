@@ -1,4 +1,5 @@
-import { tokens } from '@/theme/tokens';
+import { useAppearance, useThemeTokens, useThemedStyles } from '@/theme/ThemeProvider';
+import type { Tokens } from '@/theme/tokens';
 import { Link } from 'expo-router';
 import { ChevronLeft, RefreshCcw, Settings } from 'lucide-react-native';
 import { useState } from 'react';
@@ -13,6 +14,10 @@ import { loadStoredSessionCookie } from '@/auth/sessionCookieStore';
 import { safeBack } from '@/navigation/safeBack';
 
 export default function SettingsScreen() {
+  const { preference, setPreference } = useAppearance();
+  const tokens = useThemeTokens();
+  const styles = useThemedStyles(createStyles);
+
   const { user, refresh } = useAuth();
   const [debugOutput, setDebugOutput] = useState<string>('');
   const [debugging, setDebugging] = useState(false);
@@ -78,6 +83,13 @@ export default function SettingsScreen() {
       </View>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.panel}>
+          <Text style={styles.panelTitle}>Appearance</Text>
+          <Text style={styles.body}>Use your device setting or choose a theme.</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {(['system', 'light', 'dark'] as const).map((value) => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ checked: preference === value }} onPress={() => setPreference(value)} style={{ minHeight: tokens.size.tap, justifyContent: 'center', borderRadius: tokens.radius.control, paddingHorizontal: 16, borderWidth: 1, borderColor: tokens.color.border.strong, backgroundColor: preference === value ? tokens.color.action.primary : tokens.color.surface.panel }}><Text style={{ fontWeight: '800', color: preference === value ? tokens.color.text.inverse : tokens.color.text.primary }}>{value === 'system' ? 'System' : value === 'light' ? 'Light' : 'Dark'}</Text></Pressable>)}
+          </View>
+        </View>
+        <View style={styles.panel}>
           <View style={styles.panelHeader}><Settings size={22} color={tokens.color.text.primary} /><Text style={styles.panelTitle}>Connection</Text></View>
           <Text style={styles.label}>API URL</Text>
           <Text style={styles.mono}>{apiConfig.baseUrl}</Text>
@@ -87,13 +99,13 @@ export default function SettingsScreen() {
         <View style={styles.panel}>
           <Text style={styles.panelTitle}>Session</Text>
           <Text style={styles.body}>{user ? `Signed in as ${user.email}` : 'Not signed in.'}</Text>
-          <Pressable onPress={() => void refresh()} style={styles.actionButton}><RefreshCcw size={18} color={tokens.color.surface.panel} /><Text style={styles.actionButtonText}>Refresh session</Text></Pressable>
+          <Pressable onPress={() => void refresh()} style={styles.actionButton}><RefreshCcw size={18} color={tokens.color.text.inverse} /><Text style={styles.actionButtonText}>Refresh session</Text></Pressable>
         </View>
 
         <View style={styles.panel}>
           <Text style={styles.panelTitle}>Auth debug</Text>
           <Text style={styles.body}>Checks `/api/me` and event access for each workspace using the same mobile session as Staff.</Text>
-          <Pressable onPress={() => void runAuthDebug()} style={styles.actionButton}><RefreshCcw size={18} color={tokens.color.surface.panel} /><Text style={styles.actionButtonText}>{debugging ? 'Checking…' : 'Run auth check'}</Text></Pressable>
+          <Pressable onPress={() => void runAuthDebug()} style={styles.actionButton}><RefreshCcw size={18} color={tokens.color.text.inverse} /><Text style={styles.actionButtonText}>{debugging ? 'Checking…' : 'Run auth check'}</Text></Pressable>
           {debugOutput ? <Text style={styles.debugBox}>{debugOutput}</Text> : null}
         </View>
 
@@ -107,7 +119,7 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (tokens: Tokens) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: tokens.color.surface.panel },
   header: { flexDirection: 'row', alignItems: 'center', gap: 16, padding: 24, paddingTop: 56, paddingBottom: 12 },
   backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: tokens.color.surface.inset, alignItems: 'center', justifyContent: 'center' },
