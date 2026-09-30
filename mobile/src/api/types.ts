@@ -296,3 +296,32 @@ export interface ParticipantAssignmentDTO {
   status: 'open' | 'assigned' | 'completed';
   participantRequirements: string;
 }
+
+export type EventAccessTopic = 'entry' | 'bathrooms' | 'seating' | 'sensory' | 'transit' | 'contact';
+export interface EventAccessRevisionDTO {
+  evaluatedAt: string;
+  id?: string;
+  topic: EventAccessTopic;
+  scope: 'event';
+  revision: number;
+  value: 'unknown' | 'yes' | 'no' | 'available' | 'limited' | 'not_available' | 'known';
+  effectiveValue: EventAccessRevisionDTO['value'];
+  needsReview: boolean;
+  details: string;
+  sourceKind: 'unknown' | 'organizer_assertion' | 'event_observation' | 'external_reference';
+  sourceReference: string;
+  reviewedAt?: string;
+  expiresAt?: string;
+  correctionReason: string;
+  recordedAt?: string;
+}
+export interface EventAccessWorksheetDTO {
+  eventId: string;
+  evaluatedAt: string;
+  entries: EventAccessRevisionDTO[];
+}
+export interface EventAccessHistoryDTO {
+  topic: EventAccessTopic;
+  revisions: EventAccessRevisionDTO[];
+  nextBefore?: number;
+}

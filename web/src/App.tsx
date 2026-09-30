@@ -1,6 +1,7 @@
 import { AuthView } from './views/AuthView';
 import { DiscoverView } from './views/DiscoverView';
 import { DoorView } from './views/DoorView';
+import { EventAccessView } from './views/EventAccessView';
 import { EventEditorView } from './views/EventEditorView';
 import { InviteView } from './views/InviteView';
 import { IdentityActionView } from './views/IdentityActionView';
@@ -68,6 +69,7 @@ export default function App() {
   }
 
   if (pathname.startsWith('/events/')) {
+    if (pathname.endsWith('/access-info')) return <EventAccessView eventId={getSegment(pathname, 2)} />;
     if (pathname.endsWith('/public-archive')) return <PublicArchiveItemsPanel eventId={getSegment(pathname, 2)} />;
     return <EventEditorView eventId={getSegment(pathname, 2)} />;
   }

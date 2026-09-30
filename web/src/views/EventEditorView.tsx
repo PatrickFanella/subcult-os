@@ -1086,6 +1086,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
 
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <span className={`rounded-full border px-4 py-2 text-xs uppercase tracking-[0.25em] ${lifecycleTone}`}>{lifecycleLabel}</span>
+              {effective && currentWorkspace?.id === effective.workspaceId && currentWorkspace.role === 'owner' && <a className="btn-secondary px-4 py-2" href={`/events/${effective.id}/access-info`}>Access worksheet</a>}
               {effective?.publicUrl ? (
                 <a className="rounded-full border border-stroke-subtle bg-surface-inset px-4 py-2 text-fg-primary transition hover:bg-surface-inset" href={effective.publicUrl}>
                   Public page

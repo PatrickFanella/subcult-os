@@ -198,7 +198,7 @@ func TestLifecycleNoticeApprovalRollsBackEveryQueueRow(t *testing.T) {
 func TestLifecycleNoticeMigrationPreservesLegacyMailAndDrafts(t *testing.T) {
 	fx, eventID, _, _ := noticePreviewFixture(t)
 	// Reconstruct v25 in this disposable schema. No notice has been approved.
-	if _, err := fx.app.db.Exec(t.Context(), `drop table lifecycle_notice_reviews; drop table lifecycle_notice_recipients; drop table lifecycle_notices; alter table email_outbox drop constraint email_outbox_delivery_status_check; alter table email_outbox add constraint email_outbox_delivery_status_check check(delivery_status in ('held','pending','leased','accepted','failed','quarantined','suppressed','withheld_consent')); delete from schema_migrations where version>=26`); err != nil {
+	if _, err := fx.app.db.Exec(t.Context(), `drop table event_access_revisions; drop table lifecycle_notice_reviews; drop table lifecycle_notice_recipients; drop table lifecycle_notices; alter table email_outbox drop constraint email_outbox_delivery_status_check; alter table email_outbox add constraint email_outbox_delivery_status_check check(delivery_status in ('held','pending','leased','accepted','failed','quarantined','suppressed','withheld_consent')); delete from schema_migrations where version>=26`); err != nil {
 		t.Fatal(err)
 	}
 	var before int

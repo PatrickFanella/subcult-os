@@ -1,5 +1,59 @@
 # Development execution log
 
+## 2026-09-30 — ACCESS-INFO private event worksheet
+
+Added a six-topic, owner-only event worksheet with explicit Unknown states,
+source kinds/references, review time and optional expiry. Organizer assertions,
+event observations and external references remain distinct. Expired assertions
+project to Unknown while preserving the original record. Corrections append
+revisions with exact preconditions, bounded history and atomic audit; replay
+binds event, topic, actor and normalized payload. Private identities/request
+keys stay excluded from response DTOs and anonymous event/AT records.
+
+The source slice follows the owner's expansion-development decision. It does
+not infer demand or user evaluation. Venue assertion history, public event
+verification/display, personal accommodation-request controls and meaningful
+accessibility-user evaluation remain unfinished #55 acceptance work.
+
+The first full `bash scripts/dev-env.sh verify` exited 0 with 272 web and 34
+mobile tests, 412 top-level database passes (588 including subtests), zero
+failures/skips. Focused database tests passed owner/member/outsider/revocation,
+unknown/expiry, replay, stale/concurrent correction, audit rollback, pagination,
+upgrade/replay preservation and public absence. A final full run follows the
+last replay/pagination and error-state refinements; its result is recorded below.
+
+Verified the preview API mounts this worktree and that mail, OAuth and
+projection flags remain false. A private schema-27 dump and archive catalog
+were saved before restarting only this worktree's API. Schema 28 applied and
+health returned healthy. Counts remained two events, one ticket, two notices,
+one review and four held outbox rows with zero attempts before browser edits.
+
+In the real local desktop browser, a synthetic expired organizer assertion
+became Unknown with review-expired guidance; a No/event-observation correction
+then replaced it, followed by an Unknown withdrawal. All three revisions
+persisted through reload with their original provenance. A simulated 403 cleared
+the event title, worksheet, draft and history; the backend gate separately tests
+actual owner revocation during an event-lock wait. Date automation initially
+typed into the wrong focused input; corrected by setting the observed native
+date controls and dispatching their normal input events before the real submit.
+Light and dark screenshots were inspected and labeled controls checked. Full
+viewport resizing still timed out; native/mobile and intended-user evaluation
+remain unqualified. No live provider or production change occurred.
+
+Final full verification exited 0: 272 web and 34 mobile tests, 412 top-level
+DB passes (588 including subtests), zero failures/skips, disposable DB removed.
+A separate race-enabled access gate passed all seven top-level tests (21 with
+subtests), with no race warning; its disposable DB was also removed.
+
+A lost-response browser check committed revision four but withheld its response.
+A later synthetic correction created revision five. Refresh loaded that newer
+record, and retry recovered revision four without replacing the current card or
+creating a sixth revision. The editor showed the newer-revision warning.
+Temporary fetch interception was removed. A 388 CSS-pixel same-origin iframe
+showed all six cards and no horizontal overflow (document width 373); its
+screenshot was inspected and the frame removed. This is narrow layout evidence,
+not full viewport/device or intended-user validation.
+
 ## 2026-09-30 — LIFE-01 worklist clarity and refresh
 
 The action list now separates an unapproved operational notice draft from a

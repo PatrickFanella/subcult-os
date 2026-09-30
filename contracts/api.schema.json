@@ -40,7 +40,18 @@
         "status",
         "publicSlug",
         "publicUrl"
-      ]
+      ],
+      "forbidden": ["accessInfo", "accessRevisions", "accommodationRequests"]
+    },
+    "EventAccessRevisionDTO": {
+      "required": ["topic", "scope", "revision", "value", "effectiveValue", "needsReview", "details", "sourceKind", "sourceReference", "correctionReason", "evaluatedAt"],
+      "forbidden": ["requestKey", "requestFingerprint", "recordedByPersonId", "workspaceId"]
+    },
+    "EventAccessWorksheetDTO": {
+      "required": ["eventId", "evaluatedAt", "entries"]
+    },
+    "EventAccessHistoryDTO": {
+      "required": ["topic", "revisions"]
     },
     "LifecycleIntentActionDTO": {
       "required": ["id", "actionKind", "destination", "status", "attemptCount", "createdAt", "updatedAt"],
@@ -71,7 +82,10 @@
         "staffingOpenCount",
         "staffingAssignedCount",
         "staffingCompletedCount",
-        "staffingCancelledCount"
+        "staffingCancelledCount",
+        "accessInfo",
+        "accessRevisions",
+        "accommodationRequests"
       ],
       "required": [
         "id",

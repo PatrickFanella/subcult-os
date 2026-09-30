@@ -170,3 +170,17 @@ history. Venue inheritance, public display and accessibility-user evaluation
 remain separate unfinished acceptance work. Personal accommodation requests
 are excluded; no demand, venue verification or user-study evidence is inferred.
 Provider and deployment gates remain unchanged.
+
+### ACCESS-INFO private event worksheet source
+
+The owner-only event worksheet now implements six explicit topics, unknown
+states, source/review times, conservative expiry, immutable corrections and
+bounded history. See [its contract](event-access-information.md). Full local verification passed: 272 web/34 mobile tests and 412 top-level
+database passes (588 with subtests), zero failures/skips. A focused race gate
+also passed. Real desktop edit, expiry, correction, withdrawal, reload, access
+denial and uncertain-response recovery checks passed with synthetic data. Database
+checks cover permission loss, stale/concurrent correction, exact/conflicting
+replay, rollback, pagination, upgrade/replay and public absence. This is a source
+slice under the owner's expansion decision; no public accessibility claim,
+partner demand or accessibility-user evidence is inferred. Venue assertion
+history and event verification/public display remain next acceptance work.
