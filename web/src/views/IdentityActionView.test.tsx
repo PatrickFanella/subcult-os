@@ -5,15 +5,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { postJSON } from '../api';
 import { IdentityActionView } from './IdentityActionView';
 
+const stateUpdates = vi.hoisted(() => [] as unknown[]);
+
 vi.mock('../api', () => ({ postJSON: vi.fn() }));
 // Handler-level tests; actual Strict Mode/browser behavior is qualified separately.
 vi.mock('react', async () => ({
   ...await vi.importActual<typeof import('react')>('react'),
-  useState: (initial: unknown) => [initial, vi.fn()],
+  useState: (initial: unknown) => [initial, vi.fn((value: unknown) => stateUpdates.push(value))],
   useRef: (initial: unknown) => ({ current: initial }),
 }));
 
-afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
+afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); stateUpdates.length = 0; });
 
 function formSubmit(node: ReactNode): (event: FormEvent<HTMLFormElement>) => Promise<void> {
   for (const child of Children.toArray(node)) {
@@ -57,5 +59,22 @@ describe('identity challenge interaction', () => {
   it('labels recovery fields', () => {
     expect(renderToString(<IdentityActionView action="request-recovery" />)).toContain('aria-label="Email address"');
     expect(renderToString(<IdentityActionView action="complete-recovery" />)).toContain('aria-label="New password"');
+  });
+});
+
+
+describe('recovery request receipt', () => {
+  it('keeps account existence conditional and does not claim delivery after request acceptance', async () => {
+    vi.mocked(postJSON).mockResolvedValueOnce({ ok: true });
+    await formSubmit(IdentityActionView({ action: 'request-recovery' }))({ preventDefault: vi.fn() } as unknown as FormEvent<HTMLFormElement>);
+    expect(postJSON).toHaveBeenCalledExactlyOnceWith('/api/auth/recovery/request', { email: '' });
+    expect(stateUpdates).toContain('If that address belongs to a verified account, check its email for a recovery link. Email delivery is not confirmed.');
+    expect(stateUpdates.filter(value => typeof value === 'string').join(' ')).not.toMatch(/has been sent|on its way/);
+  });
+  it('shows a rejected request without a success receipt', async () => {
+    vi.mocked(postJSON).mockRejectedValueOnce(new Error('Unable to request recovery'));
+    await formSubmit(IdentityActionView({ action: 'request-recovery' }))({ preventDefault: vi.fn() } as unknown as FormEvent<HTMLFormElement>);
+    expect(stateUpdates).toContain('Unable to request recovery');
+    expect(stateUpdates.filter(value => typeof value === 'string').join(' ')).not.toContain('check its email');
   });
 });

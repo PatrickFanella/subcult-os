@@ -69,7 +69,7 @@ export default function RecoverPasswordScreen() {
       <Text style={styles.body}>
         {token
           ? 'Saving a new password signs this account out everywhere, including this device.'
-          : 'Enter the email address for your account and we will send a recovery link.'}
+          : 'Enter your account email to request a recovery link.'}
       </Text>
 
       <View style={styles.card}>
@@ -113,7 +113,7 @@ export default function RecoverPasswordScreen() {
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {notice ? <Text style={styles.notice}>{notice}</Text> : null}
         <Pressable disabled={working} onPress={token ? resetPassword : requestLink} style={[styles.button, working && styles.buttonDisabled]}>
-          <Text style={styles.buttonText}>{working ? 'Working…' : token ? 'Save new password' : 'Send recovery link'}</Text>
+          <Text style={styles.buttonText}>{working ? 'Working…' : token ? 'Save new password' : 'Request recovery link'}</Text>
         </Pressable>
       </View>
 

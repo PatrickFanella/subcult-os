@@ -10,5 +10,5 @@ export function newPasswordProblem(password: string, confirmation: string): stri
 // The API answers every recovery request the same way so the form cannot be
 // used to discover which addresses have accounts.
 export function recoveryRequestNotice(email: string) {
-	return `If ${email} belongs to a verified account, a recovery link is on its way. The link expires, so use it soon.`;
+	return `If ${email} belongs to a verified account, check its email for a recovery link. Email delivery is not confirmed.`;
 }

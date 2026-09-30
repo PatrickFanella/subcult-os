@@ -18,6 +18,9 @@ describe('newPasswordProblem', () => {
 
 describe('recoveryRequestNotice', () => {
 	it('does not claim the address has an account', () => {
-		expect(recoveryRequestNotice('person@example.test')).toMatch(/^If person@example\.test belongs to a verified account/);
+		const notice = recoveryRequestNotice('person@example.test');
+		expect(notice).toMatch(/^If person@example\.test belongs to a verified account/);
+		expect(notice).toContain('Email delivery is not confirmed.');
+		expect(notice).not.toMatch(/sent|on its way/);
 	});
 });

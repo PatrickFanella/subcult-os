@@ -35,7 +35,7 @@ export function IdentityActionView({ action }: { action: IdentityAction }) {
         window.location.replace('/');
       } else if (action === 'request-recovery') {
         await postJSON<{ ok: boolean }>('/api/auth/recovery/request', { email: email.trim() });
-        setNotice('If that verified account exists, a recovery link has been sent.');
+        setNotice('If that address belongs to a verified account, check its email for a recovery link. Email delivery is not confirmed.');
       } else {
         const token = tokenFromLocation();
         if (!token) throw new Error('This recovery link is missing its token.');
