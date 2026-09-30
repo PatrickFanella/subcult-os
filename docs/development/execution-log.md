@@ -1,5 +1,57 @@
 # Development execution log
 
+## 2026-09-29 — LIFE-01 listing notice approval and mail guards
+
+Added owner-only approval and outcome endpoints for saved listing-change notices.
+Approval recomputes the reviewed digest under event/decision/owner/occurrence
+locks and atomically inserts the notice, recipient ledger, outbox rows and a
+succeeded local queue action. Exact request-key replay returns the same notice,
+even after later listing edits. A new request or decision cannot create another
+notice for the same occurrence revision. Suppressed recipients receive ledger
+rows without outbox rows. Original decision-key replay remains compatible with
+its initial draft action set.
+
+The mail worker checks both owners, decision status, exact listing revision/CID,
+approved content binding and the selected ticket/crew relationship immediately
+before each provider call. First-attempt authority denial is withheld; denial
+after a prior uncertain attempt is quarantined. Database errors preserve the
+lease/body. Existing suppression, announcement consent and stable provider
+idempotency/retry limits remain enforced. Queue success, provider acceptance and
+delivery feedback have separate states.
+
+The private UI provides explicit queue approval and per-recipient outcomes,
+preserves request identity across a lost reply, requires re-preview after 409,
+and allows outcome inspection after supersession. Shared contracts exclude
+provider identifiers, leases, private reasons and request keys.
+
+Final `bash scripts/dev-env.sh verify` passed: full `make verify`, including
+254 web tests and 34 mobile tests, then the complete disposable DB gate with
+402 top-level passing tests, 564 including subtests, zero failures/skips.
+`GOFLAGS="-race -run=^(TestLifecycleNotice|TestEmail)" bash scripts/dev-env.sh test-db`
+also passed: 21 top-level tests, 48 including subtests, no race reports or skips.
+Regressions cover stale digest, duplicate approval, concurrent requests, complete
+rollback after audit failure, upgrade/replay preservation, ticket/crew authority
+loss, frozen retry identity/content, suppression and separate delivery feedback.
+
+The T3 collaborative browser opened to a connection-error page and could not
+navigate to the healthy preview server. The new approval journey is not browser
+qualified; rendered UI regressions and real backend DB tests are separate proof.
+
+Verified the existing API mounts this exact worktree with mail/OAuth/projection
+disabled. Took a private custom-format PostgreSQL backup of its retained schema-24
+development database and verified the archive catalog, then restarted only this
+worktree's API. Startup applied migrations 25/26 and health returned 200. The
+retained counts stayed one event, zero tickets and one held outbox message;
+no notice was queued in that database. Postgres/web containers and other
+worktrees were preserved. The backup catalog is an archive check, not a restore
+drill or production rollback qualification.
+
+Migration 26 adds notice/recipient ledgers and `withheld_authority`; older binaries
+reject it. Logs and the private development backup are retained under
+`.cache/dev-env/lifecycle-notice-approval/`. No live mail, hosted CI, remote push
+or production deployment occurred. Live provider qualification, operator
+reconciliation controls and coordinated operator-event changes remain open.
+
 ## 2026-09-29 — LIFE-01 listing notice previews
 
 Added owner-only notice previews for an already saved listing cancellation or

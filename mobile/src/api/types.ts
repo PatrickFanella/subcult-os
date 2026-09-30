@@ -166,6 +166,15 @@ export interface LifecycleIntentActionDTO {
   updatedAt: string;
 }
 
+export interface LifecycleNoticeDTO {
+  id: string;
+  changeId: string;
+  subject: string;
+  body: string;
+  queuedAt: string;
+  recipients: Array<{ email: string; status: string; attempts: number; feedback: string }>;
+}
+
 export interface LifecycleNoticePreviewDTO {
   changeId: string;
   occurrenceId: string;

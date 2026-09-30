@@ -46,6 +46,10 @@
       "required": ["id", "actionKind", "destination", "status", "attemptCount", "createdAt", "updatedAt"],
       "forbidden": ["payload", "idempotencyKey", "leaseToken", "providerReference"]
     },
+    "LifecycleNoticeDTO": {
+      "required": ["id", "changeId", "subject", "body", "queuedAt", "recipients"],
+      "forbidden": ["providerReference", "providerCredentials", "requestKey", "leaseToken", "idempotencyKey", "ticketCode", "reason", "refundAmount"]
+    },
     "LifecycleNoticePreviewDTO": {
       "required": ["changeId", "occurrenceId", "revision", "publicCid", "audiences", "subject", "body", "recipients", "previewHash"],
       "forbidden": ["decisionSnapshot", "reason", "providerReference", "providerCredentials", "requestKey", "ticketCode", "refundAmount"]

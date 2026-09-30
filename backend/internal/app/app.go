@@ -234,6 +234,8 @@ func (a *App) routes() {
 	a.mux.HandleFunc("POST /api/events/{eventID}/lifecycle-intents", a.handleCreateLifecycleIntent)
 	a.mux.HandleFunc("POST /api/events/{eventID}/lifecycle-intents/{changeID}/supersede", a.handleSupersedeLifecycleIntent)
 	a.mux.HandleFunc("POST /api/events/{eventID}/lifecycle-intents/{changeID}/notice-preview", a.handlePreviewLifecycleNotice)
+	a.mux.HandleFunc("POST /api/events/{eventID}/lifecycle-intents/{changeID}/notice", a.handleApproveLifecycleNotice)
+	a.mux.HandleFunc("GET /api/events/{eventID}/lifecycle-intents/{changeID}/notice", a.handleGetLifecycleNotice)
 	a.mux.HandleFunc("GET /api/events/{eventID}/report", a.handleGetReport)
 	a.mux.HandleFunc("GET /api/events/{eventID}/exports/settlement.csv", a.handleGetSettlementCSV)
 	a.mux.HandleFunc("GET /api/events/{eventID}/exports/settlement.md", a.handleSettlementMarkdown)

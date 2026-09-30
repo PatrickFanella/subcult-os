@@ -74,7 +74,7 @@ function renderWithState(pathname: string, element: React.ReactElement, stateVal
 }
 
 describe('listing notice preview', () => {
-  it('shows message, deduplicated recipients and withholding without offering a send action', () => {
+  it('shows the exact review and queue approval separately from sending', () => {
     const rendered = renderWithState('/workspace/one/lifecycle-intents', <LifecycleNoticePreview eventId="one" changeId="change" onAuthorizationLoss={() => undefined} />, [true, true, {
       changeId: 'change', occurrenceId: 'listing', revision: 'revision', publicCid: '', audiences: ['assigned_crew', 'ticket_holders'],
       subject: 'Listing cancelled: <script>unsafe</script>', body: 'The listing was cancelled. This does not change your ticket.', previewHash: 'hash',
@@ -84,10 +84,23 @@ describe('listing notice preview', () => {
     expect(rendered).toContain('crew@example.test');
     expect(rendered).toContain('suppressed; would be withheld');
     expect(rendered).toContain('This does not change your ticket.');
-    expect(rendered).toContain('approval and queuing are not yet available');
+    expect(rendered).toContain('Messages remain held while sending is disabled');
+    expect(rendered).toContain('Approve and queue this notice');
     expect(rendered).toContain('&lt;script&gt;unsafe&lt;/script&gt;');
     expect(rendered).not.toContain('<script>');
     expect(rendered).not.toContain('Approve and send');
+  });
+  it('keeps queued outcomes visible after supersession without offering another approval', () => {
+    const rendered = renderWithState('/workspace/one/lifecycle-intents', <LifecycleNoticePreview eventId="one" changeId="change" canApprove={false} onAuthorizationLoss={() => undefined} />, [true, true, null, false, null, {
+      id: 'notice', changeId: 'change', subject: 'Listing cancelled', body: 'Approved message', queuedAt: '2026-09-29T18:00:00Z',
+      recipients: [{ email: 'guest@example.test', status: 'accepted', attempts: 1, feedback: 'unknown' }, { email: 'crew@example.test', status: 'quarantined', attempts: 2, feedback: 'unknown' }],
+    }, null]);
+    expect(rendered).toContain('decision was superseded');
+    expect(rendered).toContain('Refresh delivery outcomes');
+    expect(rendered).toContain('Provider acceptance and delivery feedback are separate');
+    expect(rendered).toContain('quarantined');
+    expect(rendered).not.toContain('Approve and queue');
+    expect(rendered).not.toContain('Preview listing notice');
   });
 });
 

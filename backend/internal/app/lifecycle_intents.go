@@ -249,7 +249,7 @@ func activeOwnerTx(ctx context.Context, tx pgx.Tx, workspaceID string, person an
 }
 
 func verifyLifecycleIntentActions(ctx context.Context, tx pgx.Tx, changeID string, requested []string) error {
-	rows, err := tx.Query(ctx, `select action_kind from event_lifecycle_actions where change_id=$1`, changeID)
+	rows, err := tx.Query(ctx, `select action_kind from event_lifecycle_actions where change_id=$1 and not dispatch_approved`, changeID)
 	if err != nil {
 		return err
 	}

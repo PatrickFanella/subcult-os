@@ -4,13 +4,14 @@ Implement owner review and approval for an already saved occurrence cancellation
 or reschedule. This does not cancel the operator event, change admission, transfer
 tickets, publish records or refund money.
 
-Current slice: an owner-only preview endpoint and private worklist controls.
+Implemented locally: an owner-only preview endpoint, atomic notice approval and
+recipient/outbox ledger, send-time guards, and private worklist outcome controls.
 It checks exact saved listing status/revision/CID, renders a server template,
 selects up to 500 deduplicated operational recipients and reports suppression.
 The digest includes content, sorted audiences, recipient relationships and
 suppression. Previewing does not change schema, enqueue mail or dispatch actions.
 
-Remaining implementation:
+Implemented workflow:
 
 1. Add an immutable notice approval and recipient ledger. A server-generated
    preview binds exact occurrence revision/CID, templated public listing content,
@@ -34,7 +35,11 @@ provider failures and migration preservation; frontend rendering/contract checks
 synthetic browser review/approval with sending disabled; full repository verify
 and DB gates, plus focused lifecycle/mail-worker race tests.
 
-The approval slice will require an additive migration that preserves old held
-messages. Qualify its compatibility and rollback before adopting it. The
-preview slice retains schema 25.
+Migration 26 adds notice/recipient ledgers and the authority withholding status;
+prior held messages and drafts are preserved. Older binaries reject schema 26.
+A deployment candidate needs a qualified pre-migration backup/recovery path.
+
+Remaining: real provider delivery to approved test recipients, operator
+reconciliation controls for uncertain outcomes, browser qualification of the
+approval journey, and the wider coordinated operator-event lifecycle.
 No live messages or deployment are part of automated qualification.

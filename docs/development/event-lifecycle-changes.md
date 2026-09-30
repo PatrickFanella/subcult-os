@@ -164,7 +164,8 @@ reason, owner, and action kinds are identical; a changed binding is 409. A
 newer decision can supersede only `pending` and `retryable` drafts. `running`,
 `unknown`, succeeded, and failed actions retain their existing state; unknown
 work still requires destination reconciliation. The worklist UI labels every
-entry as draft/unexecuted and provides no dispatch control.
+decision as recorded and keeps provider/publication/refund drafts separate from
+explicit notice queue approval.
 
 A coordinated change needs one private change record with actor, workspace,
 reason, scope, old/new values, revision and approval digest. Persist the local
@@ -216,9 +217,55 @@ one repeatable-read snapshot. It is a review fingerprint, not a sending grant.
 Future approval must recompute it under its own locks. The worklist clears its
 preview when audiences/event change and clears private state on access denial.
 
-This endpoint writes no ledger or outbox rows and dispatches no actions. Notice
-approval, atomic queuing, send-time authority/relationship checks, per-recipient
-outcomes and reconciliation remain unimplemented. It retains schema 25.
+The preview endpoint writes no ledger or outbox rows and dispatches no actions.
+
+## Listing notice approval and outcomes
+
+Owner-only `POST /api/events/{eventID}/lifecycle-intents/{changeID}/notice`
+accepts a UUID `requestKey`, the exact `previewHash` and the reviewed audiences.
+It accepts no caller-supplied recipients or message. The transaction locks the
+event, decision, active owners and occurrence, rebuilds the preview, and rejects
+changed content, relationships or suppression with 409. Approval atomically
+writes the notice, per-recipient ledger, outbox rows and a succeeded local queue
+action. The queue action's success means enqueueing completed; provider delivery
+has separate state. Superseding a decision leaves that receipt intact and blocks
+further sending through the worker's authority recheck.
+
+Exact request-key replay returns the same notice before checking later listing
+changes. A changed request binding conflicts. One notice per decision and per
+workspace/occurrence revision prevents a new identity from blindly resending an
+uncertain earlier message. Original decision-key replay still compares only its
+original draft action set. Zero recipients block approval; a suppressed recipient
+gets a withheld ledger row without an outbox row.
+
+Eligible messages use transactional purpose and the existing mail worker.
+Sending-disabled approvals create held rows. Enabling mail delivery does not
+release existing held rows. Enabled sending retains the configured Resend,
+sender and webhook-secret requirements; automated qualification uses fake
+provider functions and no live credentials. Announcement consent is unchanged.
+
+Immediately before each provider call, the worker rechecks both owners, decision
+status, exact occurrence revision/CID/status, approved message/outbox binding,
+and the chosen ticket or crew relationship/email. Existing suppression applies
+independently. First-attempt authority denial clears the body and records
+`withheld_authority`. Denial after an earlier attempt records `quarantined`;
+acceptance may already be uncertain, so it never asserts that the notice stayed
+unsent. Database errors retain the lease/body for recovery. Retries preserve the
+same outbox identity and the existing eight-attempt/23-hour bounds.
+
+Owner-only `GET` on the notice route returns its approved content and recipient
+statuses, attempt counts and feedback. It excludes provider identifiers, leases
+and idempotency keys. Provider `accepted` and feedback `delivered` remain separate
+facts; `pending` or `quarantined` can retain unknown earlier acceptance. The UI
+preserves request identity across a lost approval reply, requires a new preview
+after 409, clears private state on access denial, and can inspect existing
+outcomes after supersession.
+
+Migration 000026 adds the immutable notice/recipient ledgers and the authority
+withholding state. Prior held messages and draft actions remain unchanged.
+Older binaries reject schema 26; rollback needs a qualified pre-migration
+recovery path. No live provider delivery or operator reconciliation control is
+qualified by these local tests.
 
 ## Refund gate
 
@@ -245,7 +292,9 @@ or assume a timeout means failure.
 | Destination selection, stable retry identity, uncertain outcomes and dispatch-time authority/revision guards | `TestLifecycleDispatchSelectsApprovedDestinationAndKeepsDraftsUnexecuted`; `TestLifecycleDispatchRetryKeepsIdentityAndUnknownNeverReplays`; `TestLifecycleDispatchStopsAfterAdapterRetryBudget`; `TestLifecycleDispatchRechecksAuthorityRevisionCIDAndPayload`; `TestLifecycleDispatchInvalidOutcomeAndExpiredLeaseRequireReconciliation` | Disposable DB with synthetic adapters; no real email, provider or publication calls |
 | Draft approval boundary and migration | `TestLifecycleDispatchApprovalCannotPromoteReplayedDraft`; `TestLifecycleDispatchMigrationKeepsExistingActionsDraftOnly` | Existing drafts stay unexecuted after upgrade; changed approval cannot reuse an action identity |
 | Listing notice content, audience, digest, access and revision checks | `TestLifecycleNoticePreviewRecipientsPrivacyAndDigest`; `TestLifecycleNoticePreviewAuthorityRevisionAndLimits`; `TestLifecycleNoticePreviewAssignedCrewAndSavedStatus` | Real handlers against disposable DB; preview does not enqueue or dispatch |
-| Actual operational notice delivery/reconciliation | Future destination-specific notice workflow tests | Approval, queuing, send-time checks, per-recipient outcomes and real provider qualification remain unimplemented |
+| Notice approval, replay, concurrent requests, rollback and upgrade | `TestLifecycleNoticeApprovalReplaySuppressionAndStaleDigest`; `TestLifecycleNoticeConcurrentApprovalHasOneBatch`; `TestLifecycleNoticeApprovalRollsBackEveryQueueRow`; `TestLifecycleNoticeMigrationPreservesLegacyMailAndDrafts` | Atomic local queue; exact replay; one batch per revision; retained legacy rows |
+| Notice worker authority, ticket/crew relationship checks, stable retries and feedback | `TestLifecycleNoticeDeliveryWithholdsChangedAuthority`; `TestLifecycleNoticeDeliveryRechecksCrewRelationships`; `TestLifecycleNoticeDeliveryRetryAndFeedbackStaySeparate` | Synthetic provider calls only; no live delivery proof |
+| Actual operational notice delivery/reconciliation | Future approved-recipient provider journey and reconciliation workflow | Live provider qualification and operator reconciliation controls remain open |
 | Payment/refund ambiguity | Future #53 provider test-mode journey | Not qualified |
 
 Focused commands, inside the installed disposable database test environment:
@@ -260,6 +309,7 @@ Run `make verify` and the full disposable `make test-db` gate before delivery.
 Migrations 000016, 000023 and 000025 are required for the private action ledger,
 stable decision-key retries and explicit dispatch approval boundary. This owner
 worklist records draft, unexecuted
-intents only. It does not dispatch a provider request, change a public record,
-send a notice, issue a refund, or establish a coordinated cancellation. #50
-remains open for provider/notice failure and reconciliation proof.
+intents; approved listing notices have their separate local queue and mail
+worker route. It does not change a public record, issue a refund or establish a
+coordinated operator-event cancellation. #50 remains open for live provider
+qualification, reconciliation controls and the wider coordinated workflow.

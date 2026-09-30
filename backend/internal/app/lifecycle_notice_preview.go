@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -71,112 +72,11 @@ func (a *App) handlePreviewLifecycleNotice(w http.ResponseWriter, r *http.Reques
 	}
 	defer tx.Rollback(r.Context())
 	ctx := r.Context()
-	var kind, status, revision string
-	var snapshot json.RawMessage
-	var owner, noticeAction bool
-	err = tx.QueryRow(ctx, `select c.kind,c.status,c.target_revision,c.decision_snapshot,
-	  exists(select 1 from workspace_members wm where wm.workspace_id=c.workspace_id
-	    and wm.person_id=c.approved_by_person_id and wm.role='owner'
-	    and wm.removed_at is null and wm.revoked_at is null
-	    and (wm.expires_at is null or wm.expires_at>clock_timestamp())),
-	  exists(select 1 from event_lifecycle_actions la where la.change_id=c.id and la.action_kind='operational_notice')
-	  from event_lifecycle_changes c where c.id=$1 and c.event_id=$2 and c.workspace_id=$3`,
-		r.PathValue("changeID"), event.ID, event.WorkspaceID).Scan(&kind, &status, &revision, &snapshot, &owner, &noticeAction)
-	if errors.Is(err, pgx.ErrNoRows) {
-		writeError(w, 404, "lifecycle intent not found")
-		return
-	}
+	preview, _, err := buildLifecycleNoticePreview(ctx, tx, event.ID, event.WorkspaceID, r.PathValue("changeID"), req.Audiences, false)
 	if err != nil {
-		writeError(w, 500, "could not preview notice")
+		writeNoticeError(w, err)
 		return
 	}
-	if status != "approved" || !owner || !noticeAction {
-		writeError(w, 409, "notice requires an active owner decision with an operational notice action")
-		return
-	}
-	decision, err := lifecycleSnapshotStrings(snapshot)
-	if err != nil || decision["occurrenceId"] == "" || decision["expectedUpdatedAt"] != revision {
-		writeError(w, 409, "intent has no exact listing revision")
-		return
-	}
-	if _, err := uuid.Parse(decision["occurrenceId"]); err != nil {
-		writeError(w, 409, "intent has no exact listing revision")
-		return
-	}
-	// Missing CID must not silently become an explicit empty CID condition.
-	var cidCondition struct {
-		CID *string `json:"expectedPublicCid"`
-	}
-	if json.Unmarshal(snapshot, &cidCondition) != nil || cidCondition.CID == nil {
-		writeError(w, 409, "intent has no exact public revision")
-		return
-	}
-	occurrence, err := scanOccurrenceRow(tx.QueryRow(ctx, `select `+occurrenceSelectColumns+` from event_occurrences where id=$1 and event_id=$2 and workspace_id=$3`, decision["occurrenceId"], event.ID, event.WorkspaceID))
-	if errors.Is(err, pgx.ErrNoRows) {
-		writeError(w, 409, "listing is no longer available")
-		return
-	}
-	if err != nil {
-		writeError(w, 500, "could not preview notice")
-		return
-	}
-	expected, err := time.Parse(time.RFC3339Nano, revision)
-	if err != nil || !expected.Equal(occurrence.UpdatedAt) || decision["expectedPublicCid"] != occurrence.PublicCID.String {
-		writeError(w, 409, "listing changed; record a decision against its current revision")
-		return
-	}
-	if (kind != "cancellation" || occurrence.Status != "cancelled") && (kind != "reschedule" || occurrence.Status != "rescheduled") {
-		writeError(w, 409, "save the listing cancellation or reschedule before previewing its notice")
-		return
-	}
-	sort.Strings(req.Audiences)
-	preview := lifecycleNoticePreviewDTO{ChangeID: r.PathValue("changeID"), OccurrenceID: occurrence.ID, Revision: revision, PublicCID: occurrence.PublicCID.String, Audiences: req.Audiences, Recipients: []lifecycleNoticeRecipientDTO{}}
-	preview.Subject, preview.Body = lifecycleNoticeContent(occurrence)
-	if len(preview.Subject) > 1000 || len(preview.Body) > 16384 {
-		writeError(w, 409, "listing content is too long for a notice")
-		return
-	}
-	rows, err := tx.Query(ctx, lifecycleNoticeRecipientsSQL, event.ID, event.WorkspaceID, req.Audiences, lifecycleNoticeRecipientLimit+1)
-	if err != nil {
-		writeError(w, 500, "could not preview recipients")
-		return
-	}
-	defer rows.Close()
-	bindings := []string{}
-	for rows.Next() {
-		var recipient lifecycleNoticeRecipientDTO
-		var sourceID string
-		if err := rows.Scan(&recipient.Email, &recipient.SourceType, &sourceID, &recipient.Suppressed); err != nil {
-			writeError(w, 500, "could not preview recipients")
-			return
-		}
-		address, err := mail.ParseAddress(recipient.Email)
-		if err != nil || address.Address != recipient.Email || len(recipient.Email) > 320 {
-			writeError(w, 409, "an operational recipient has an invalid email address; correct it before review")
-			return
-		}
-		preview.Recipients = append(preview.Recipients, recipient)
-		bindings = append(bindings, sourceID)
-	}
-	if rows.Err() != nil {
-		writeError(w, 500, "could not preview recipients")
-		return
-	}
-	rows.Close()
-	if len(preview.Recipients) > lifecycleNoticeRecipientLimit {
-		writeError(w, 409, "notice exceeds the 500-recipient review limit")
-		return
-	}
-	canonical, err := json.Marshal(struct {
-		Preview  lifecycleNoticePreviewDTO
-		Bindings []string
-	}{preview, bindings})
-	if err != nil {
-		writeError(w, 500, "could not preview notice")
-		return
-	}
-	digest := sha256.Sum256(canonical)
-	preview.PreviewHash = hex.EncodeToString(digest[:])
 	if err := tx.Commit(ctx); err != nil {
 		writeError(w, 500, "could not preview notice")
 		return
@@ -186,6 +86,117 @@ func (a *App) handlePreviewLifecycleNotice(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	writeJSON(w, 200, preview)
+}
+
+type noticeHTTPError struct {
+	Status  int
+	Message string
+}
+
+func (e *noticeHTTPError) Error() string { return e.Message }
+func writeNoticeError(w http.ResponseWriter, err error) {
+	var detail *noticeHTTPError
+	if errors.As(err, &detail) {
+		writeError(w, detail.Status, detail.Message)
+	} else {
+		writeError(w, 500, "could not process listing notice")
+	}
+}
+func buildLifecycleNoticePreview(ctx context.Context, tx pgx.Tx, eventID, workspaceID, changeID string, audiences []string, lockOccurrence bool) (lifecycleNoticePreviewDTO, []string, error) {
+	var kind, status, revision string
+	var snapshot json.RawMessage
+	var owner, noticeAction bool
+	err := tx.QueryRow(ctx, `select c.kind,c.status,c.target_revision,c.decision_snapshot,
+	  exists(select 1 from workspace_members wm where wm.workspace_id=c.workspace_id
+	    and wm.person_id=c.approved_by_person_id and wm.role='owner'
+	    and wm.removed_at is null and wm.revoked_at is null
+	    and (wm.expires_at is null or wm.expires_at>clock_timestamp())),
+	  exists(select 1 from event_lifecycle_actions la where la.change_id=c.id and la.action_kind='operational_notice')
+	  from event_lifecycle_changes c where c.id=$1 and c.event_id=$2 and c.workspace_id=$3`,
+		changeID, eventID, workspaceID).Scan(&kind, &status, &revision, &snapshot, &owner, &noticeAction)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return lifecycleNoticePreviewDTO{}, nil, &noticeHTTPError{404, "lifecycle intent not found"}
+	}
+	if err != nil {
+		return lifecycleNoticePreviewDTO{}, nil, &noticeHTTPError{500, "could not preview notice"}
+	}
+	if status != "approved" || !owner || !noticeAction {
+		return lifecycleNoticePreviewDTO{}, nil, &noticeHTTPError{409, "notice requires an active owner decision with an operational notice action"}
+	}
+	decision, err := lifecycleSnapshotStrings(snapshot)
+	if err != nil || decision["occurrenceId"] == "" || decision["expectedUpdatedAt"] != revision {
+		return lifecycleNoticePreviewDTO{}, nil, &noticeHTTPError{409, "intent has no exact listing revision"}
+	}
+	if _, err := uuid.Parse(decision["occurrenceId"]); err != nil {
+		return lifecycleNoticePreviewDTO{}, nil, &noticeHTTPError{409, "intent has no exact listing revision"}
+	}
+	// Missing CID must not silently become an explicit empty CID condition.
+	var cidCondition struct {
+		CID *string `json:"expectedPublicCid"`
+	}
+	if json.Unmarshal(snapshot, &cidCondition) != nil || cidCondition.CID == nil {
+		return lifecycleNoticePreviewDTO{}, nil, &noticeHTTPError{409, "intent has no exact public revision"}
+	}
+	lockClause := ""
+	if lockOccurrence {
+		lockClause = " for update"
+	}
+	occurrence, err := scanOccurrenceRow(tx.QueryRow(ctx, `select `+occurrenceSelectColumns+` from event_occurrences where id=$1 and event_id=$2 and workspace_id=$3`+lockClause, decision["occurrenceId"], eventID, workspaceID))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return lifecycleNoticePreviewDTO{}, nil, &noticeHTTPError{409, "listing is no longer available"}
+	}
+	if err != nil {
+		return lifecycleNoticePreviewDTO{}, nil, &noticeHTTPError{500, "could not preview notice"}
+	}
+	expected, err := time.Parse(time.RFC3339Nano, revision)
+	if err != nil || !expected.Equal(occurrence.UpdatedAt) || decision["expectedPublicCid"] != occurrence.PublicCID.String {
+		return lifecycleNoticePreviewDTO{}, nil, &noticeHTTPError{409, "listing changed; record a decision against its current revision"}
+	}
+	if (kind != "cancellation" || occurrence.Status != "cancelled") && (kind != "reschedule" || occurrence.Status != "rescheduled") {
+		return lifecycleNoticePreviewDTO{}, nil, &noticeHTTPError{409, "save the listing cancellation or reschedule before previewing its notice"}
+	}
+	sort.Strings(audiences)
+	preview := lifecycleNoticePreviewDTO{ChangeID: changeID, OccurrenceID: occurrence.ID, Revision: revision, PublicCID: occurrence.PublicCID.String, Audiences: audiences, Recipients: []lifecycleNoticeRecipientDTO{}}
+	preview.Subject, preview.Body = lifecycleNoticeContent(occurrence)
+	if len(preview.Subject) > 1000 || len(preview.Body) > 16384 {
+		return lifecycleNoticePreviewDTO{}, nil, &noticeHTTPError{409, "listing content is too long for a notice"}
+	}
+	rows, err := tx.Query(ctx, lifecycleNoticeRecipientsSQL, eventID, workspaceID, audiences, lifecycleNoticeRecipientLimit+1)
+	if err != nil {
+		return lifecycleNoticePreviewDTO{}, nil, &noticeHTTPError{500, "could not preview recipients"}
+	}
+	defer rows.Close()
+	bindings := []string{}
+	for rows.Next() {
+		var recipient lifecycleNoticeRecipientDTO
+		var sourceID string
+		if err := rows.Scan(&recipient.Email, &recipient.SourceType, &sourceID, &recipient.Suppressed); err != nil {
+			return lifecycleNoticePreviewDTO{}, nil, &noticeHTTPError{500, "could not preview recipients"}
+		}
+		address, err := mail.ParseAddress(recipient.Email)
+		if err != nil || address.Address != recipient.Email || len(recipient.Email) > 320 {
+			return lifecycleNoticePreviewDTO{}, nil, &noticeHTTPError{409, "an operational recipient has an invalid email address; correct it before review"}
+		}
+		preview.Recipients = append(preview.Recipients, recipient)
+		bindings = append(bindings, sourceID)
+	}
+	if rows.Err() != nil {
+		return lifecycleNoticePreviewDTO{}, nil, &noticeHTTPError{500, "could not preview recipients"}
+	}
+	rows.Close()
+	if len(preview.Recipients) > lifecycleNoticeRecipientLimit {
+		return lifecycleNoticePreviewDTO{}, nil, &noticeHTTPError{409, "notice exceeds the 500-recipient review limit"}
+	}
+	canonical, err := json.Marshal(struct {
+		Preview  lifecycleNoticePreviewDTO
+		Bindings []string
+	}{preview, bindings})
+	if err != nil {
+		return lifecycleNoticePreviewDTO{}, nil, &noticeHTTPError{500, "could not preview notice"}
+	}
+	digest := sha256.Sum256(canonical)
+	preview.PreviewHash = hex.EncodeToString(digest[:])
+	return preview, bindings, nil
 }
 
 func validLifecycleNoticeAudiences(audiences []string) bool {

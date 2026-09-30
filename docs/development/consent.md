@@ -108,6 +108,13 @@ Decision order:
    further: an unverified or withdrawn grant authorizes nothing, exactly
    like no grant at all.
 
+Listing-change notices use transactional purpose with a separate, owner-approved
+operational audience derived from tickets and assigned crew. They do not infer
+announcement grants. The mail worker additionally checks the approved listing,
+message and recipient relationship before sending; see
+[listing notice approval](event-lifecycle-changes.md#listing-notice-approval-and-outcomes).
+Suppression still applies to every purpose.
+
 ## Send-time recheck
 
 Consent can be withdrawn, or an address suppressed, after a message is
