@@ -78,29 +78,39 @@ export function DiscoveryOccurrencesSection() {
 		};
 	}, []);
 
+	const modalRef = useRef<HTMLDialogElement | null>(null);
 	const dialogRef = useRef<HTMLDivElement | null>(null);
-	const openerRef = useRef<HTMLElement | null>(null);
+	const openerRef = useRef<HTMLElement | SVGElement | null>(null);
 
 	useEffect(() => {
-		if (!selectedURI) return;
-		function onKeyDown(event: KeyboardEvent) {
-			if (event.key === 'Escape') {
-				setSelectedURI(null);
-			}
-		}
-		document.addEventListener('keydown', onKeyDown);
-		// Move focus into the dialog on open and give it back to the card
-		// that opened it on close, so keyboard users are not left behind
-		// the overlay.
+		const modal = modalRef.current;
+		if (!selectedURI || !modal) return;
+		const opener = openerRef.current;
+		if (!modal.open) modal.showModal();
 		dialogRef.current?.focus();
 		return () => {
-			document.removeEventListener('keydown', onKeyDown);
-			openerRef.current?.focus();
+			if (modal.open) modal.close();
+			if (opener?.isConnected) opener.focus();
 		};
 	}, [selectedURI]);
 
+	function handleDialogKeyDown(event: ReactKeyboardEvent<HTMLDialogElement>) {
+		if (event.key !== 'Tab') return;
+		const controls = event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), a[href]');
+		const first = controls[0];
+		const last = controls[controls.length - 1];
+		if (!first || !last) return;
+		if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) {
+			event.preventDefault();
+			last.focus();
+		} else if (!event.shiftKey && document.activeElement === last) {
+			event.preventDefault();
+			first.focus();
+		}
+	}
+
 	function openDetail(uri: string) {
-		if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+		if (typeof document !== 'undefined' && (document.activeElement instanceof HTMLElement || document.activeElement instanceof SVGElement)) {
 			openerRef.current = document.activeElement;
 		}
 		setSelectedURI(uri);
@@ -117,16 +127,19 @@ export function DiscoveryOccurrencesSection() {
 	const plotPoints = occurrences ? projectOccurrencesToPlot(occurrences, DISCOVERY_MAP_WIDTH, DISCOVERY_MAP_HEIGHT) : [];
 
 	return (
-		<section aria-label={discoveryOccurrencesTitle} className="flex flex-col gap-4">
+		<section aria-label={discoveryOccurrencesTitle} className="flex min-w-0 flex-col gap-4 [overflow-wrap:anywhere]">
 			<header className="rounded-hero border border-stroke-subtle bg-surface-panel p-6 shadow-sm sm:p-8">
 				<p className={publicEyebrowClass}>{discoveryOccurrencesTitle}</p>
 				<p className="mt-3 max-w-2xl text-base leading-7 text-fg-secondary">{discoveryOccurrencesDescription}</p>
 			</header>
 
+			<p role="status" aria-atomic="true" className="sr-only">
+				{loading ? discoveryOccurrencesLoadingCopy : error ? discoveryOccurrencesErrorCopy(error) : occurrences ? `${occurrences.length} cultural ${occurrences.length === 1 ? 'occurrence' : 'occurrences'} found.` : ''}
+			</p>
 			{loading ? <div className={`${publicCardClass} ${publicMutedTextClass}`}>{discoveryOccurrencesLoadingCopy}</div> : null}
 
 			{error ? (
-				<p aria-live="polite" className="rounded-[24px] border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm font-medium text-status-danger">
+				<p className="rounded-[24px] border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm font-medium text-status-danger">
 					{discoveryOccurrencesErrorCopy(error)}
 				</p>
 			) : null}
@@ -140,9 +153,9 @@ export function DiscoveryOccurrencesSection() {
 
 			{!loading && !error && plotPoints.length > 0 ? (
 				<div className={publicCardClass}>
-					<p className={publicEyebrowClass}>Map</p>
+					<p className={publicEyebrowClass}>Public locations</p>
 					<svg
-						role="img"
+						role="group"
 						aria-label="Coordinate plot of discovery occurrences with public locations"
 						className="mt-3 w-full rounded-[20px] bg-surface-inset"
 						viewBox={`0 0 ${DISCOVERY_MAP_WIDTH} ${DISCOVERY_MAP_HEIGHT}`}
@@ -157,7 +170,7 @@ export function DiscoveryOccurrencesSection() {
 								className="cursor-pointer fill-fg-primary outline-none focus-visible:focus-ring"
 								role="button"
 								tabIndex={0}
-								aria-label="View occurrence"
+								aria-label={point.label}
 								onClick={() => openDetail(point.uri)}
 								onKeyDown={(event) => handleCardKeyDown(event, point.uri)}
 							/>
@@ -189,22 +202,26 @@ export function DiscoveryOccurrencesSection() {
 			) : null}
 
 			{selected ? (
-				<div
-					role="dialog"
-					aria-modal="true"
+				<dialog
+					ref={modalRef}
+					onKeyDown={handleDialogKeyDown}
 					aria-label={selected.name}
-					className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
+					className="fixed inset-0 m-0 hidden h-full max-h-none w-full max-w-none items-end justify-center border-0 bg-transparent p-4 backdrop:bg-black/40 open:flex sm:items-center"
+					onCancel={(event) => {
+						event.preventDefault();
+						setSelectedURI(null);
+					}}
 					onClick={() => setSelectedURI(null)}
 				>
 					<div
 						ref={dialogRef}
 						tabIndex={-1}
-						className={`${publicCardClass} w-full max-w-lg outline-none`}
+						className={`${publicCardClass} max-h-full w-full max-w-lg overflow-y-auto outline-none`}
 						onClick={(event) => event.stopPropagation()}
 					>
 						<div className="flex items-start justify-between gap-3">
-							<h2 className="text-2xl font-black text-fg-primary">{selected.name}</h2>
-							<button type="button" className={publicSecondaryButtonClass} onClick={() => setSelectedURI(null)}>
+							<h2 className="min-w-0 flex-1 text-2xl font-black text-fg-primary">{selected.name}</h2>
+							<button type="button" className={`${publicSecondaryButtonClass} shrink-0`} onClick={() => setSelectedURI(null)}>
 								{discoveryOccurrenceDetailCloseLabel}
 							</button>
 						</div>
@@ -238,7 +255,7 @@ export function DiscoveryOccurrencesSection() {
 							<p className="mt-4 rounded-[20px] border border-stroke-subtle bg-surface-inset p-4 text-sm font-medium text-fg-secondary">{handoffUnavailableReasonCopy(selected.handoff)}</p>
 						)}
 					</div>
-				</div>
+				</dialog>
 			) : null}
 		</section>
 	);
@@ -301,7 +318,7 @@ export function DiscoverView() {
 
 	return (
 		<main className={publicPageShellClass}>
-			<section className={`${publicPageInnerClass} max-w-6xl`}>
+			<section className={`${publicPageInnerClass} min-w-0 max-w-6xl [overflow-wrap:anywhere]`}>
 				<header className="rounded-hero border border-stroke-subtle bg-surface-panel p-6 shadow-sm sm:p-8">
 					<p className={publicEyebrowClass}>{discoveryBrowseLabel}</p>
 					<div className="mt-3 flex flex-wrap items-center gap-2">
@@ -316,7 +333,7 @@ export function DiscoverView() {
 						<label className="flex-1 space-y-2">
 							<span className={publicEyebrowClass}>{discoverySearchLabel}</span>
 							<input
-								className="w-full rounded-full border border-stroke-strong bg-surface-panel px-4 py-3 text-sm text-fg-primary outline-none transition placeholder:text-fg-muted focus:border-[#171717]"
+								className="w-full rounded-full border border-stroke-strong bg-surface-panel px-4 py-3 text-sm text-fg-primary outline-none transition placeholder:text-fg-muted focus-visible:focus-ring"
 								type="search"
 								value={searchQuery}
 								onChange={(event) => setSearchQuery(event.target.value)}
@@ -334,10 +351,13 @@ export function DiscoverView() {
 					</form>
 				</header>
 
+				<p role="status" aria-atomic="true" className="sr-only">
+					{loading ? discoveryLoadingCopy : error ? discoveryErrorCopy(error) : events ? `${events.length} published ${events.length === 1 ? 'event' : 'events'} found.` : ''}
+				</p>
 				{loading ? <div className={`${publicCardClass} ${publicMutedTextClass}`}>{discoveryLoadingCopy}</div> : null}
 
 				{error ? (
-					<p aria-live="polite" className="rounded-[24px] border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm font-medium text-status-danger">
+					<p className="rounded-[24px] border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm font-medium text-status-danger">
 						{discoveryErrorCopy(error)}
 					</p>
 				) : null}
@@ -357,11 +377,11 @@ export function DiscoverView() {
 
 								<div className="flex h-full flex-col p-5">
 									<div className="flex items-start justify-between gap-3">
-										<div>
+										<div className="min-w-0 flex-1">
 											<p className={publicEyebrowClass}>{formatDiscoveryDateTime(event.startsAt)}</p>
 											<h2 className="mt-2 text-2xl font-black leading-tight text-fg-primary">{event.title}</h2>
 										</div>
-										<span className={publicStatusPillClass(event.isFull ? 'danger' : 'neutral')}>{discoveryRemainingLabel(event)}</span>
+										<span className={`${publicStatusPillClass(event.isFull ? 'danger' : 'neutral')} shrink-0`}>{discoveryRemainingLabel(event)}</span>
 									</div>
 
 									<div className="mt-4 grid gap-3 text-sm text-fg-secondary">
