@@ -1,5 +1,43 @@
 # Development execution log
 
+## 2026-09-29 — LIFE-01 listing notice previews
+
+Added owner-only notice previews for an already saved listing cancellation or
+reschedule. The server checks the active original decision owner, exact listing
+revision/CID and matching status, renders listing-only content, and derives up
+to 500 deduplicated ticket/assigned-crew recipients. Suppression is visible;
+invalid mailboxes block review. Private decision reasons, staffing notes and
+application messages never enter the notice. A review digest binds content,
+audiences, recipient relationships and suppression from a consistent snapshot.
+
+The private worklist exposes audience selection, message/recipient review and
+stale-response errors. It clears a preview when its audiences change and clears
+private state on access denial. No approval, queuing or sending control was
+added. Schema remains 25; previews create no outbox rows or action attempts.
+
+`bash scripts/dev-env.sh verify` passed against the final code: full
+`make verify` (253 web tests, 34 mobile tests, configured Go checks, contracts,
+build and Compose checks) and the full disposable database gate (395 top-level
+passing tests, 544 including subtests; zero failures/skips). Three focused
+notice-preview DB tests also passed under the race detector. The first web
+rendering check failed because React SSR inserts text-separator comments; the
+assertion now checks the rendered text after removing those comments.
+
+The T3 browser checked desktop preview rendering, suppression labels, audience
+change clearing and stale-listing errors against controlled synthetic responses.
+A later narrow-screen check lost the browser connection with
+`net::ERR_CONNECTION_REFUSED`, while host HTTP and the existing preview services
+remained healthy. Responsive layout and browser access-denial behavior were not
+qualified in this run. The real backend handlers were exercised by the DB gate.
+Logs and the disposable browser fixture are retained locally under
+`.cache/dev-env/lifecycle-notice-preview/`; the temporary served HTML was removed.
+Existing preview containers and all other worktrees were preserved.
+
+Approval/atomic queuing, send-time checks, per-recipient outcomes and
+reconciliation remain the next LIFE-01 slice, described in
+[the notice plan](../superpowers/plans/2026-09-29-lifecycle-notices.md).
+No live messages, hosted CI, push or deployment were performed.
+
 ## 2026-09-29 — LIFE-01 destination-scoped dispatch infrastructure
 
 Added an internal dispatcher with explicit dispatch approval, exact destination

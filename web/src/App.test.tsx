@@ -9,6 +9,7 @@ import { TicketView } from './views/TicketView';
 import { ParticipantPortalView } from './views/ParticipantPortalView';
 import { WorkspaceView } from './views/WorkspaceView';
 import { LifecycleIntentsView } from './views/LifecycleIntentsView';
+import { LifecycleNoticePreview } from './views/LifecycleNoticePreview';
 import { normalizeCurrentWorkspace } from './modules/workspace/workspaceModel';
 import { formFromEvent } from './modules/eventEditor/eventEditorModel';
 import type { EventDTO } from './domain';
@@ -71,6 +72,24 @@ function renderWithState(pathname: string, element: React.ReactElement, stateVal
 
   return renderToString(element);
 }
+
+describe('listing notice preview', () => {
+  it('shows message, deduplicated recipients and withholding without offering a send action', () => {
+    const rendered = renderWithState('/workspace/one/lifecycle-intents', <LifecycleNoticePreview eventId="one" changeId="change" onAuthorizationLoss={() => undefined} />, [true, true, {
+      changeId: 'change', occurrenceId: 'listing', revision: 'revision', publicCid: '', audiences: ['assigned_crew', 'ticket_holders'],
+      subject: 'Listing cancelled: <script>unsafe</script>', body: 'The listing was cancelled. This does not change your ticket.', previewHash: 'hash',
+      recipients: [{ email: 'guest@example.test', sourceType: 'ticket', suppressed: false }, { email: 'crew@example.test', sourceType: 'crew_person', suppressed: true }],
+    }, false, null]);
+    expect(rendered.replace(/<!--.*?-->/g, '')).toContain('1 eligible · 1 suppressed');
+    expect(rendered).toContain('crew@example.test');
+    expect(rendered).toContain('suppressed; would be withheld');
+    expect(rendered).toContain('This does not change your ticket.');
+    expect(rendered).toContain('approval and queuing are not yet available');
+    expect(rendered).toContain('&lt;script&gt;unsafe&lt;/script&gt;');
+    expect(rendered).not.toContain('<script>');
+    expect(rendered).not.toContain('Approve and send');
+  });
+});
 
 describe('participant portal', () => {
   it('renders person-linked assignments and commitments without private operator fields', () => {

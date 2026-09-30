@@ -26,7 +26,8 @@ The relevant implementations are `backend/internal/app/cultural_occurrences.go`,
 ## State matrix
 
 The coordinated actions below are a specification for later implementation.
-Only the occurrence-edit behavior in the next section ships in this slice.
+Occurrence safeguards, the private worklist and notice previews are implemented
+as described below.
 
 | Requested change | Public listing | Operator plan and admission | Provider tickets and money | Crew/participant notices | Private archive |
 | --- | --- | --- | --- | --- | --- |
@@ -187,6 +188,38 @@ announcement audience or an inferred marketing grant. Keep announcement consent
 and suppression enforcement intact; operational notice policy and recipient
 selection need their own reviewed implementation.
 
+## Listing-change notice preview
+
+Owner-only `POST /api/events/{eventID}/lifecycle-intents/{changeID}/notice-preview`
+accepts `audiences` containing `ticket_holders`, `assigned_crew`, or both. It
+requires an approved decision with an operational-notice action, a still-active
+original owner, and the exact saved listing revision and recorded CID. The
+listing must already be cancelled or rescheduled to match the decision. A
+superseded decision, stale revision/CID or missing CID condition returns 409.
+The response is private and must not be cached.
+
+The server renders the listing name and, for rescheduling, its start/end/zone.
+The message explains that it concerns the listing only; tickets, payments,
+refunds, crew assignments and the operator plan remain separate. Private
+reasons, application messages and staffing notes do not enter its template.
+
+Ticket recipients have a reserved/checked-in ticket with free, pending or paid
+payment status. Crew recipients have an assigned staffing item and either active
+workspace membership or an accepted/confirmed application for this event.
+Addresses are normalized and deduplicated. Suppressed addresses remain visible
+as withheld candidates. Invalid addresses or more than 500 distinct recipients
+block review. Contacts and announcement-consent audiences are not consulted.
+
+A SHA-256 digest binds the content, revision/CID, sorted audience selection,
+normalized recipient addresses, source identities and suppression state from
+one repeatable-read snapshot. It is a review fingerprint, not a sending grant.
+Future approval must recompute it under its own locks. The worklist clears its
+preview when audiences/event change and clears private state on access denial.
+
+This endpoint writes no ledger or outbox rows and dispatches no actions. Notice
+approval, atomic queuing, send-time authority/relationship checks, per-recipient
+outcomes and reconciliation remain unimplemented. It retains schema 25.
+
 ## Refund gate
 
 Automatic refunds stay unavailable until #53 supplies provider test-mode
@@ -211,7 +244,8 @@ or assume a timeout means failure.
 | Owner worklist revision/CID, idempotency, authorization and unsent supersession | `TestLifecycleIntentHTTPIsOwnerOnlyFencedAndDraftOnly`; `TestLifecycleIntentSupersedeOnlyStopsUnsentActions` | Owner-only draft visibility; stale revision/CID and changed/replayed decision keys are rejected, while `running` work stays visible for reconciliation |
 | Destination selection, stable retry identity, uncertain outcomes and dispatch-time authority/revision guards | `TestLifecycleDispatchSelectsApprovedDestinationAndKeepsDraftsUnexecuted`; `TestLifecycleDispatchRetryKeepsIdentityAndUnknownNeverReplays`; `TestLifecycleDispatchStopsAfterAdapterRetryBudget`; `TestLifecycleDispatchRechecksAuthorityRevisionCIDAndPayload`; `TestLifecycleDispatchInvalidOutcomeAndExpiredLeaseRequireReconciliation` | Disposable DB with synthetic adapters; no real email, provider or publication calls |
 | Draft approval boundary and migration | `TestLifecycleDispatchApprovalCannotPromoteReplayedDraft`; `TestLifecycleDispatchMigrationKeepsExistingActionsDraftOnly` | Existing drafts stay unexecuted after upgrade; changed approval cannot reuse an action identity |
-| Actual operational notice delivery/reconciliation | Future destination-specific notice workflow tests | Recipient/content approval, per-recipient outcomes and real provider qualification remain unimplemented |
+| Listing notice content, audience, digest, access and revision checks | `TestLifecycleNoticePreviewRecipientsPrivacyAndDigest`; `TestLifecycleNoticePreviewAuthorityRevisionAndLimits`; `TestLifecycleNoticePreviewAssignedCrewAndSavedStatus` | Real handlers against disposable DB; preview does not enqueue or dispatch |
+| Actual operational notice delivery/reconciliation | Future destination-specific notice workflow tests | Approval, queuing, send-time checks, per-recipient outcomes and real provider qualification remain unimplemented |
 | Payment/refund ambiguity | Future #53 provider test-mode journey | Not qualified |
 
 Focused commands, inside the installed disposable database test environment:
