@@ -28,22 +28,24 @@ PR #172 (`7c7727239bfd7acc4263a8d89003c01519676044`) passed hosted push
 complete DB gate with 419 top-level tests (595 including nested), zero failures
 or skips. Temporary runners exited successfully, were removed, and their local
 registration credentials were deleted. Zero repository runner registrations
-were verified. The published stack #170 → #171 → #172 remains open and linked
+were verified. The published stack #170 → #171 → #172 → #173 remains open and linked
 to this thread.
 
-The next source slice implements an owner-only comparison of the selected
-occurrence's linked venue worksheet and event information. It reads from one
-database snapshot with distinct source/review/expiry labels and Unknown states.
-Full local verification passed: 277 web/34 mobile tests, 421 top-level DB tests
-(599 including nested), zero failures or skips. A separate race run and synthetic
-desktop selection/refresh/access-loss checks passed. A stored occurrence-specific
-review, public display and intended-audience evaluation remain separate work.
+PR #173 (`66472a21e205ff0a7507d8f3713695861ebe78c0`) adds the owner-only
+occurrence/venue comparison. Both hosted checks passed: PR 11043/job 19990 and
+push 11044/job 19991, with 277 web/34 mobile tests and 421 top-level DB tests
+(599 including nested), zero failures/skips. Temporary runner cleanup and zero
+repository registrations were verified. The comparison uses one database
+snapshot, separate provenance and Unknown states. Stored occurrence-specific
+verification, public display and intended-audience evaluation remain open.
 
-Current source work extends #55 with private venue observations, an owner-only
-venue-reference index and separate event/venue provenance. It preserves the
-existing event ledger and does not inherit venue assertions into an event.
-Explicit occurrence-scoped verification, public wording/display and meaningful
-accessibility-user evaluation remain open acceptance work.
+Current source work fixes #58's archive approval UI after permission loss and
+pending/uncertain writes. Full local verification passed: 278 web/34 mobile
+tests and 421 top-level DB tests (599 including nested), zero failures/skips.
+Synthetic browser checks covered duplicate submission, a held response, an
+actual committed correction with a lost response, and denied reads/writes.
+The ledger stays private and unpublished. Creation is not idempotent; uncertain
+saves require reloading and checking the ledger before another change.
 
 ## Merged work and remaining acceptance
 

@@ -104,6 +104,7 @@ func (a *App) handleListPublicArchiveItems(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, 200, out)
 }
 func (a *App) authorizeEndedArchiveEvent(w http.ResponseWriter, r *http.Request) (eventRow, bool) {
+	w.Header().Set("Cache-Control", "private, no-store")
 	event, err := a.loadEventDetails(r.Context(), r.PathValue("eventID"))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

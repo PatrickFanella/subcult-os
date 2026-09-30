@@ -390,13 +390,13 @@ describe('App routes', () => {
     expect(rendered).toContain('Events start inside a workspace');
   });
 
-  it('renders the private future-public-archive route with approval controls', () => {
+  it('renders the private future-public-archive route pending owner authority', () => {
     const rendered = renderAt('/events/event-1/public-archive');
     expect(rendered).toContain('Approved for a future public archive');
     expect(rendered).toContain('private owner ledger');
-    expect(rendered).toContain('Approve for future archive');
-    expect(rendered).toContain('Intended public use');
-    expect(rendered).toContain('Rights assertion');
+    expect(rendered).toContain('Loading approvals');
+    expect(rendered).not.toContain('<form');
+    expect(rendered).not.toContain('Approval ledger');
     expect(rendered).toContain('Back to event archive and editor');
     expect(rendered).not.toContain('Private archive note');
     expect(rendered).not.toContain('Settlement summary');

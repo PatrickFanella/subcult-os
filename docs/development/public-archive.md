@@ -17,6 +17,19 @@ unavailable retains it with a bounded public-safe reason. These operations do
 not alter private archive notes, tickets, finance, staffing or consent. No public
 read endpoint or publication worker exists for this ledger.
 
+The browser shows the ledger and mutation controls only after an owner read
+succeeds. A 401/403 during a read or write clears the ledger, approval/correction
+draft and unavailable reason. Pending writes disable every editing action and
+reject a second submit. Changing events or unmounting invalidates older responses.
+Private archive responses use `Cache-Control: private, no-store`.
+
+A validation rejection keeps the draft for repair. An unconfirmed save or stale
+item blocks further changes until **Reload approvals** reads the ledger again;
+reloading clears the draft and never resubmits the write. Approval writes have
+no idempotency key, so a lost response can follow a committed change. Check the
+reloaded ledger before creating another approval. This flow prevents automatic
+replay; it does not make approval creation idempotent.
+
 Migration 18 adds `event_public_archive_items` and enforces event/workspace scope
 for both the owning event and correction references. Apply migrations before
 starting the new binary. Preserve the ledger when rolling back application

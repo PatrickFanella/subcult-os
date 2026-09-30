@@ -1,6 +1,48 @@
 # Development execution log
 
+## 2026-09-30 — private archive permission and pending-write states
+
+Fixed the private archive approval page's retained-content behavior after a
+permission rejection. Owner reads now gate all ledger and mutation controls;
+401/403 responses clear rows, draft fields, correction selection and unavailable
+reason. One pending write disables every editing action and a synchronous guard
+rejects duplicate submits. Event changes/unmounts invalidate old responses.
+Shared themed buttons replace this page's custom buttons. Successful private
+archive responses are noncacheable; no schema or publication contract changes.
+
+Full pinned `bash scripts/dev-env.sh verify` passed: 278 web tests, 34 mobile
+tests, backend checks/build and the complete disposable database gate: 421
+top-level tests (599 including nested), zero failures/skips. The earlier run
+caught an obsolete route test that expected controls before the owner read;
+that expectation was corrected. The disposable database was removed.
+
+Real synthetic desktop browser checks held an actual correction's 201 response:
+all draft fields and edit actions stayed disabled, and a second submit caused no
+second request. A simulated lost response after another actual committed
+correction blocked further changes; reload showed exactly one replacement and
+cleared the draft, with no automatic replay. A simulated unavailable-write 403
+removed all rows, draft inputs and reason. A denied reload kept them hidden;
+restoring the transport and reloading recovered the three-entry correction
+chain. All interception helpers were removed. Light/dark screenshots were
+inspected. The server's private/no-store header was read from the live dev API.
+These checks do not prove media rights or public publication readiness.
+
+Restarted only this checkout's development API. Schema 29 and retained counts
+were unchanged across restart: three events, five occurrences, seven access
+revisions, two venues, three synthetic archive approval rows and four held
+outbox rows. Sending, OAuth linking and projection remained disabled. The new
+synthetic ended archive event was created through ordinary APIs; existing
+lifecycle and development events were preserved. No production/provider action
+occurred. Approval creation remains non-idempotent; uncertain responses require
+ledger reconciliation before another change.
+
 ## 2026-09-30 — ACCESS-INFO occurrence venue comparison
+
+PR #173 exact head `66472a21e205ff0a7507d8f3713695861ebe78c0` passed
+both hosted checks: PR 11043/job 19990 and push 11044/job 19991, including the
+full disposable database gate (421 top-level tests, 599 including nested).
+Owned temporary runners exited 0 and were removed with credentials deleted;
+the repository runner list returned to zero.
 
 Added an owner-only, read-only comparison inside the event worksheet. It shows
 the selected occurrence's linked venue beside the event's six recorded topics,
