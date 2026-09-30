@@ -1,5 +1,63 @@
 # Development execution log
 
+## 2026-09-30 — LIFE-01 worklist clarity and refresh
+
+The action list now separates an unapproved operational notice draft from a
+completed local email queue. It displays destination, dispatch approval,
+attempts, retry/completion timing and unknown-outcome reconciliation guidance.
+A successful queue action says “Queued locally”; recipient delivery remains a
+separate outcome. Known destinations use plain user-facing labels.
+
+Notice approval triggers a parent worklist refresh without replacing the keyed
+notice outcome/review widget. Owners also have a shared outlined refresh button.
+Request guards reject stale reads and mutation responses after event/workspace
+changes; access denial clears private state and invalidates pending requests.
+
+In the real local desktop browser, a second synthetic cancelled occurrence
+completed preview and queue approval. Its new queue action appeared immediately
+alongside the original unapproved draft, while the recipient remained held with
+zero attempts. A deliberately delayed worklist response was released after
+switching to Development Night: no stale synthetic intent reappeared. The fetch
+interception was removed after the check. No live provider call occurred.
+
+Final `bash scripts/dev-env.sh verify` exited 0: full `make verify` with 264 web
+and 34 mobile tests, followed by the complete disposable database gate with
+405 top-level passes, 567 including subtests, zero failures/skips. The owned
+disposable test database was removed. The dark desktop screenshot was inspected;
+full viewport/mobile and live-provider qualification remain unfinished. Hosted
+CI for this follow-up remains a separate gate.
+
+## 2026-09-30 — PR #169 hosted qualification and browser recovery
+
+PR #169 retains qualified head `b0172c053a789c19b5e1141168492108076ae9d0`.
+Both hosted runs passed: push 10947/job 19785 and PR 10948/job 19786.
+Each ran the complete baseline and disposable database gate: 261 web tests,
+34 mobile tests, 405 top-level database passes (567 including subtests),
+zero database failures/skips. The exact-head combined status is success.
+
+The shared runner queue stalled behind unrelated jobs. A repository-scoped,
+one-job ephemeral runner using pinned runner/job images completed the original
+push job without changing the workflow, source or shared runner configuration.
+The original PR job subsequently ran on the shared runner. A second temporary
+runner was briefly started after that job had already been assigned; verified
+idle, it was removed. Both temporary containers, repository runner registrations
+and expired local credentials were cleaned up. Unrelated jobs were preserved.
+
+T3 browser automation recovered. A separate synthetic local event completed
+notice preview, explicit queue approval, owner review-note save and persistence
+through reload in the real desktop UI. The inspected dark-mode screen was
+readable. A temporary 388 CSS-pixel iframe had no horizontal overflow and was
+removed after inspection; full viewport resizing still timed out. Native device
+and full responsive journeys remain unqualified. Retained development data now
+contains two events, one synthetic ticket, one notice, one review and three held
+outbox rows with zero attempts. Mail, OAuth and projection remain disabled.
+
+The browser check exposed stale parent worklist state after notice approval and
+ambiguous identical labels for its original draft and completed local queue.
+Follow-up source work begins on `t3code/lifecycle-outcomes-worklist`, preserving
+PR #169's qualified head. Queue creation, provider feedback and owner notes
+remain separate evidence. No provider activation or deployment occurred.
+
 ## 2026-09-29 — LIFE-01 private notice review log
 
 Added an owner-only review endpoint and append-only review log for queued

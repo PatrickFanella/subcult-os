@@ -4,7 +4,7 @@ import type { LifecycleNoticeDTO, LifecycleNoticePreviewDTO } from '../domain';
 import { nextLifecycleIntentRetry, type LifecycleIntentRetry } from '../modules/lifecycleIntents/lifecycleIntentModel';
 import { LifecycleNoticeOutcomes } from './LifecycleNoticeOutcomes';
 
-export function LifecycleNoticePreview({ eventId, changeId, canApprove = true, onAuthorizationLoss }: { eventId: string; changeId: string; canApprove?: boolean; onAuthorizationLoss: () => void }) {
+export function LifecycleNoticePreview({ eventId, changeId, canApprove = true, onQueued, onAuthorizationLoss }: { eventId: string; changeId: string; canApprove?: boolean; onQueued?: () => void; onAuthorizationLoss: () => void }) {
   const generation = useRef(0);
   const [ticketHolders, setTicketHolders] = useState(true);
   const [assignedCrew, setAssignedCrew] = useState(false);
@@ -29,7 +29,7 @@ export function LifecycleNoticePreview({ eventId, changeId, canApprove = true, o
     const identity = nextLifecycleIntentRetry(retry, JSON.stringify({ eventId, changeId, hash: preview.previewHash, audiences: preview.audiences }), () => crypto.randomUUID()); setRetry(identity);
     try {
       const notice = await postJSON<LifecycleNoticeDTO>(`/api/events/${eventId}/lifecycle-intents/${changeId}/notice`, { requestKey: identity.key, previewHash: preview.previewHash, audiences: preview.audiences });
-      if (generation.current === current) { setQueued(notice); setPreview(null); setRetry(null); }
+      if (generation.current === current) { setQueued(notice); setPreview(null); setRetry(null); onQueued?.(); }
     } catch (cause) { if (generation.current === current) fail(cause); }
     finally { if (generation.current === current) setBusy(false); }
   }

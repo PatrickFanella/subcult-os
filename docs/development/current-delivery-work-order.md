@@ -13,7 +13,7 @@ reconciliation, not a production qualification receipt.
 | [#6 IDENT-02](https://git.subcult.tv/subculture-collective/subcult-os/issues/6) | Mobile verification/recovery app links merged in PR #168 at `89b6ea9`. Current main has passing hosted run 10687. | Run the [physical-device checklist](mobile-app-links.md), including domain association, secure storage, restart, refresh, recovery revocation and logout. |
 | [#7 MAIL-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/7) | Resend adapter, durable outbox, signed feedback and suppression exist in source. | Qualify configured provider delivery to approved test recipients. Automated qualification keeps sending disabled. |
 | [#10 AT-LIVE](https://git.subcult.tv/subculture-collective/subcult-os/issues/10) | Identity-only OAuth source and synthetic checks exist. | Qualify a consenting test identity against the configured HTTPS metadata, callback and JWKS URLs, including refresh and remote revocation. |
-| [#50 LIFE-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/50) | Occurrence safeguards and owner-only draft action worklist are merged. Worklist merge `8166559` has passing hosted run 10160. Destination-scoped dispatch, listing notice approval/queuing and per-recipient outcomes are implemented locally. Generic runtime adapters remain absent; notices use the guarded mail worker. | Qualify live notice delivery and operator reconciliation controls, then the wider coordinated lifecycle. Public/provider effects and refunds retain their own authority and qualification gates. |
+| [#50 LIFE-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/50) | Occurrence safeguards and owner-only draft action worklist are merged. Worklist merge `8166559` has passing hosted run 10160. Destination-scoped dispatch, listing notice approval/queuing, per-recipient outcomes and private owner observations are in open PR #169 at `b0172c0`; both exact-head hosted runs 10947/10948 passed. Generic runtime adapters remain absent; notices use the guarded mail worker. | Qualify live notice delivery and operator reconciliation controls, then the wider coordinated lifecycle. Public/provider effects and refunds retain their own authority and qualification gates. |
 | [#51 OFFLINE-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/51) | Synthetic merge model and separate-client process harness exist. The harness passed in this reconciliation. | Physical-device partition/reconnect, persistence, duplicate scan, revocation, device-loss and manual-fallback evidence. Do not enable offline admission from synthetic results. |
 | [#54 EXPORT-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/54) | PR #167 merged at `d40221f`. Both required head runs 10168 and 10169 passed at `8317ef3`; the issue still says they are queued. | Reconcile the issue's stale CI/merge status and prerequisite #25. A selected accounting-provider format still requires an actual requirement. |
 | [#57 PORTALS-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/57) | Participant portal implementation is merged. The issue records source completion but dependency-blocked closure. Shared merge baseline `8166559` has passing hosted run 10160. | Reconcile prerequisites without deleting dependency links. Do not add vendor fees, invoices or payouts without pilot demand and permission rules. |
@@ -52,7 +52,7 @@ tests. No runtime adapter is installed. The local continuation adds private list
 notice previews with exact saved
 revision/CID checks, templated content, deduplicated operational recipients and
 suppression visibility. Atomic approval/queuing, send-time authority and
-relationship guards, and per-recipient outcomes now exist locally. Next, qualify
+relationship guards, and per-recipient outcomes now exist locally. Desktop synthetic notice approval and persistent owner-review journeys passed after browser automation recovered. Next, qualify
 live delivery. A private owner review log now records notes with server-observed
 recipient outcomes and explains held, retrying, accepted, quarantined and
 withheld states. It does not retry messages or resolve uncertain provider
@@ -153,3 +153,20 @@ device and record its actual build and observed outcomes.
 
 No issue state, dependency, provider setting or deployed runtime was changed
 by this reconciliation.
+
+## 2026-09-30 overnight continuation
+
+PR [#169](https://git.subcult.tv/subculture-collective/subcult-os/pulls/169)
+remains open at qualified head `b0172c0`. Hosted push run 10947 and PR run
+10948 passed the full baseline and disposable database gate. The follow-up
+branch `t3code/lifecycle-outcomes-worklist` preserves that head and distinguishes
+unapproved drafts from completed local notice queues. It refreshes the worklist
+after approval and guards against stale responses following event changes.
+
+The next source slice is #55's access-information model under the owner's
+expansion development decision. Start with an owner-only event worksheet with
+explicit unknown states, source/review dates, conservative expiry and correction
+history. Venue inheritance, public display and accessibility-user evaluation
+remain separate unfinished acceptance work. Personal accommodation requests
+are excluded; no demand, venue verification or user-study evidence is inferred.
+Provider and deployment gates remain unchanged.
