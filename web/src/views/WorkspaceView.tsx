@@ -3,6 +3,8 @@ import type { FormEvent } from 'react';
 import { api, deleteJSON, patchJSON, postJSON } from '../api';
 import { ATProtoIdentityPanel } from '../components/ATProtoIdentityPanel';
 import { WorkspaceInviteForm } from '../components/WorkspaceInviteForm';
+import { MembershipAccess } from '../components/MembershipAccess';
+import { roleLabel } from '../modules/workspace/memberAuthority';
 import { isClosedEvent, isDraftEvent, isPublishedEvent } from '../modules/eventLifecycle/eventLifecycle';
 import {
 	archiveLearningLoopCopy,
@@ -70,14 +72,6 @@ function signOut() {
   void postJSON('/api/auth/logout', {}).finally(() => {
     window.location.href = '/login';
   });
-}
-
-function roleLabel(role: string) {
-  return role === 'owner' ? 'Owner' : 'Member';
-}
-
-function roleHint(role: string) {
-  return role === 'owner' ? 'Can invite members and publish events' : 'Can help run the room';
 }
 
 function formatDateTime(value: string) {
@@ -1022,7 +1016,7 @@ export function WorkspaceView() {
                         </div>
                         <div className="text-right">
                           <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1 text-[11px] uppercase tracking-[0.25em] text-fg-secondary">{roleLabel(member.role)}</span>
-                          <p className="mt-2 text-xs leading-5 text-fg-muted">{roleHint(member.role)}</p>
+                          <MembershipAccess member={member} />
                         </div>
                       </div>
                     ))}

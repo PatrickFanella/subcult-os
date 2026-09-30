@@ -9,8 +9,9 @@ existing-versus-joined time measurement and intended-user evaluation remain open
 ## Runtime identity
 
 - Source baseline: qualified PR #180, `e25312ef23807aef861579ec916bb07965289ad6`.
-  Backend source remains that baseline; Vite serves the role-setup candidate from
-  the same source-mounted checkout. Published candidate revision belongs to its PR.
+  The backend initially served that baseline. The membership-roster stage below
+  loads its candidate into the owned rehearsal API; Vite uses the same mounted
+  checkout. Published candidate revisions belong to their PR/runtime receipts.
 - Compose project: `subcult-qa-operator-e25312e`, using only standalone
   `compose.dev.yml` and an ignored disposable-only override.
 - Web/API preview: `http://localhost:33027`; PostgreSQL loopback binding33028.
@@ -162,3 +163,50 @@ cleanup. `bash -n` and `shellcheck -x` passed. Full pinned local verification
 passed304 web/34 mobile tests, backend checks/builds and DB421 top-level/599
 including nested, no failures/skips; disposable verification DB removed.
 No broader acceptance gate is closed by the repaired script.
+
+
+## Membership role and access-state roster
+
+PR #184 (`40a55c4bac0e53ce9efd06e48998342c7ef887df`) passed push11083/job20035
+and PR11084/job20036: 304 web/34 mobile, DB421/599, no failures/skips. Existing
+kvant runner preserved; no owned runner or credentials created, repository
+registrations0. Qualified PR body and head were read back.
+
+The next source slice fixes roster information needed before owner role
+management. Previously every non-owner role appeared as Member, and the private
+workspace read omitted membership expiry/revocation state. The roster now labels
+Owner, Organizer, Finance, Door and Crew accurately; the historical `member`
+role uses the Crew label, matching its capability bundle. Unknown roles remain
+unqualified. The private API derives active/expired/revoked state using database
+time, with revocation taking precedence. It includes applicable expiry/revocation
+instants, excludes soft-removed memberships, and marks current/scoped workspace
+reads `Cache-Control: no-store`, including denied responses. No migration.
+
+The client describes configured capabilities only for active state, shows no
+workspace access for expired/revoked memberships, and treats an older response
+without status as unavailable. Times are displayed in the viewer's zone with
+semantic datetime values. Status is a snapshot from the last workspace read,
+not an authorization grant or continuing proof. Shared DTOs keep new metadata
+optional for compatibility; mobile role types now match the existing six roles.
+Native rendering and owner role-change controls remain unqualified/unimplemented.
+
+Full pinned local verification passed315 web/34 mobile, DB422 top-level/606
+including nested, no failures/skips; disposable test DB removed. Eleven web
+cases cover role labels, unknown/legacy data, active versus unusable authority.
+The new persisted DB case covers active, future expiry, expiration at database
+time, revoked, revoked-and-expired precedence, removed absence, serialization,
+member denial and private cache headers on both workspace read routes.
+
+Only the owned rehearsal API was restarted to load this source candidate. Its
+Go runtime is1.26.6; PostgreSQL/tmpfs data and the retained development stack
+were preserved. Normal owner API expiry/revoke actions targeted membership
+`f6d4738e-aa45-498e-8f08-bf098039d887` in the separate alpha workspace
+`5c36f247-6010-4669-bcd5-06bddc0ee34a`. Owner roster reads matched active,
+future expiry, expired, restored active, then revoked state. Member reads were
+200,200,403,200,403 respectively; expiry/revocation instants and no-store headers
+matched. The original crew role remains member with no expiry/revocation.
+Outbox21 stays held; original browser-event tickets0/applications1. No provider
+was contacted. Recursive public-event reads omit all new membership fields.
+
+Changed-roster visual/keyboard/SR proof remains pending the same preview
+connection error. The API and fixture receipts do not replace that browser gate.

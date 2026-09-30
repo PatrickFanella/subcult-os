@@ -387,3 +387,23 @@ when the preview connection recovers; owner role-management UI is also not yet
 qualified by this API-only role grant. Full local verification passed304 web/34
 mobile, DB421/599, no failures/skips; disposable test DB removed. Final script
 rehearsal, Bash syntax and ShellCheck with sourced files also passed.
+
+
+### Door rehearsal qualified; membership access roster added — 2026-09-30
+
+PR #184 (`40a55c4bac0e53ce9efd06e48998342c7ef887df`) passed push11083/job20035
+and PR11084/job20036: 304 web/34 mobile, DB421/599, no failures/skips. Existing
+kvant runner preserved; qualified PR body/head read back, no owned runner needed.
+
+The next slice makes roster roles and server-derived access status truthful
+before owner role-management UI. Private current/scoped workspace reads expose
+active/expired/revoked state and timestamps, use no-store and omit removed rows.
+No migration or authority mutation change. Web labels all six roles accurately;
+inactive/unknown membership does not imply usable permissions. Shared mobile
+role types match the server. Full local gate315 web/34 mobile, DB422/606, no
+failures/skips. Normal owner expiry/revoke API proof passed in the separate
+alpha workspace, with original actor/event state preserved and all21 mail held.
+See [the operator report](../qa/operator-journey-2026-09-30.md) for scope and limits.
+Continue owner role-management controls and the joined browser work when preview
+connection recovers; finance, private closeout/reuse, paired timings, native
+devices, screen readers and provider/deployment gates remain separate.
