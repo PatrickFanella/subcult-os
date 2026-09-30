@@ -23,7 +23,7 @@ import {
 } from '../modules/publicUi/publicUi';
 
 const publicInputClass =
-  'w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-[#171717] outline-none transition placeholder:text-neutral-400 focus:border-neutral-500 focus:ring-2 focus:ring-neutral-200 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500';
+  'w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition placeholder:text-fg-muted focus:border-stroke-strong focus:ring-2 focus:ring-stroke-subtle disabled:cursor-not-allowed disabled:bg-surface-inset disabled:text-fg-muted';
 
 function formatDateTime(value: string) {
   const date = new Date(value);
@@ -282,7 +282,7 @@ export function PublicEventView({ slug }: { slug: string }) {
     <main className={publicPageShellClass}>
       <section className={publicPageInnerClass}>
         <header className={publicHeroCardClass}>
-          {event?.imageUrl ? <img className="h-72 w-full object-cover sm:h-96" src={event.imageUrl} alt="" /> : <div className="h-24 bg-neutral-200 sm:h-36" />}
+          {event?.imageUrl ? <img className="h-72 w-full object-cover sm:h-96" src={event.imageUrl} alt="" /> : <div className="h-24 bg-action-disabled sm:h-36" />}
 
           <div className="p-5 sm:p-7">
             <div className="flex flex-wrap items-center gap-2">
@@ -298,26 +298,26 @@ export function PublicEventView({ slug }: { slug: string }) {
             <div className="mt-5 grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
               <div>
                 <p className={publicEyebrowClass}>{event ? pricingLabel(event) : 'Free guest reservation'}</p>
-                <h1 className="mt-3 text-4xl font-black tracking-tight text-[#171717] sm:text-5xl">{event?.title ?? 'Reserve your free ticket'}</h1>
-                <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">{availabilityKnown ? publicEventConversionSummary(event, pricingLabel(event)) : 'Your ticket is reserved. Current availability could not be refreshed.'}</p>
+                <h1 className="mt-3 text-4xl font-black tracking-tight text-fg-primary sm:text-5xl">{event?.title ?? 'Reserve your free ticket'}</h1>
+                <p className="mt-3 max-w-2xl text-base leading-7 text-fg-secondary">{availabilityKnown ? publicEventConversionSummary(event, pricingLabel(event)) : 'Your ticket is reserved. Current availability could not be refreshed.'}</p>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-3xl bg-[#f5f5f5] p-4">
+                <div className="rounded-3xl bg-surface-inset p-4">
                   <p className={publicEyebrowClass}>Date & time</p>
-                  <p className="mt-2 text-sm font-bold text-[#171717]">{event ? formatDateTime(event.startsAt) : 'Loading event…'}</p>
+                  <p className="mt-2 text-sm font-bold text-fg-primary">{event ? formatDateTime(event.startsAt) : 'Loading event…'}</p>
                 </div>
-                <div className="rounded-3xl bg-[#f5f5f5] p-4">
+                <div className="rounded-3xl bg-surface-inset p-4">
                   <p className={publicEyebrowClass}>Location</p>
-                  <p className="mt-2 text-sm font-bold text-[#171717]">{event?.locationDisplay ?? 'Loading location…'}</p>
+                  <p className="mt-2 text-sm font-bold text-fg-primary">{event?.locationDisplay ?? 'Loading location…'}</p>
                 </div>
-                <div className="rounded-3xl bg-[#f5f5f5] p-4">
+                <div className="rounded-3xl bg-surface-inset p-4">
                   <p className={publicEyebrowClass}>Tickets</p>
-                  <p className={`mt-2 text-sm font-bold ${event?.isFull ? 'text-rose-700' : 'text-[#171717]'}`}>{!availabilityKnown ? 'Availability unavailable' : event ? (event.isFull ? 'Sold out' : `${event.remainingTickets} left`) : 'Loading availability…'}</p>
+                  <p className={`mt-2 text-sm font-bold ${event?.isFull ? 'text-status-danger' : 'text-fg-primary'}`}>{!availabilityKnown ? 'Availability unavailable' : event ? (event.isFull ? 'Sold out' : `${event.remainingTickets} left`) : 'Loading availability…'}</p>
                 </div>
-                <div className="rounded-3xl bg-[#f5f5f5] p-4">
+                <div className="rounded-3xl bg-surface-inset p-4">
                   <p className={publicEyebrowClass}>Pricing</p>
-                  <p className="mt-2 text-sm font-bold text-[#171717]">{event ? pricingLabel(event) : 'Loading pricing…'}</p>
+                  <p className="mt-2 text-sm font-bold text-fg-primary">{event ? pricingLabel(event) : 'Loading pricing…'}</p>
                 </div>
               </div>
             </div>
@@ -326,7 +326,7 @@ export function PublicEventView({ slug }: { slug: string }) {
 
         {loading ? <div className={publicCardClass}>Loading event…</div> : null}
         {error ? (
-          <p aria-live="polite" className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+          <p aria-live="polite" className="rounded-3xl border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm font-semibold text-status-danger">
             {error}
 			{pendingTicketURL ? <> <a className="underline" href={pendingTicketURL}>Open ticket status</a>.</> : null}
           </p>
@@ -339,26 +339,26 @@ export function PublicEventView({ slug }: { slug: string }) {
             <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
               <section className={publicCardClass}>
                 <p className={publicEyebrowClass}>About</p>
-                <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-neutral-700">{event.publicDescription}</p>
+                <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-fg-secondary">{event.publicDescription}</p>
               </section>
 
               {reservation ? (
-                <section className="rounded-[28px] border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+                <section className="rounded-panel border border-status-success/20 bg-status-surface-success p-5 shadow-sm">
                   <p className={publicEyebrowClass}>Reservation confirmed</p>
-                  <h2 className="mt-3 text-2xl font-black text-[#171717]">Your ticket is ready</h2>
+                  <h2 className="mt-3 text-2xl font-black text-fg-primary">Your ticket is ready</h2>
 
-                  <div className="mt-5 grid gap-3 text-sm text-neutral-700">
-                    <div className="rounded-3xl bg-white p-4">
+                  <div className="mt-5 grid gap-3 text-sm text-fg-secondary">
+                    <div className="rounded-3xl bg-surface-panel p-4">
                       <p className={publicEyebrowClass}>Ticket holder</p>
-                      <p className="mt-2 font-bold text-[#171717]">{reservation.displayName ?? '—'}</p>
-                      <p className="mt-1 text-neutral-600">{reservation.email}</p>
+                      <p className="mt-2 font-bold text-fg-primary">{reservation.displayName ?? '—'}</p>
+                      <p className="mt-1 text-fg-secondary">{reservation.email}</p>
                     </div>
 
-                    <div className="rounded-3xl bg-white p-4">
+                    <div className="rounded-3xl bg-surface-panel p-4">
                       <p className={publicEyebrowClass}>Access code</p>
-                      <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold tracking-[0.35em] text-[#171717]">
+                      <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold tracking-[0.35em] text-fg-primary">
                         {chunkCode(reservation.code).map((part, index) => (
-                          <span key={`${part}-${index}`} className="rounded-2xl border border-neutral-200 bg-[#f5f5f5] px-3 py-2 font-mono">
+                          <span key={`${part}-${index}`} className="rounded-2xl border border-stroke-subtle bg-surface-inset px-3 py-2 font-mono">
                             {part}
                           </span>
                         ))}
@@ -370,7 +370,7 @@ export function PublicEventView({ slug }: { slug: string }) {
                     Open ticket
                   </a>
 
-                  <p className="mt-3 text-sm text-emerald-800">{publicEventReservationSuccessCopy(reservation)}</p>
+                  <p className="mt-3 text-sm text-status-success">{publicEventReservationSuccessCopy(reservation)}</p>
                 </section>
               ) : (
                 <form className={publicCardClass} onSubmit={handleSubmit}>
@@ -381,16 +381,16 @@ export function PublicEventView({ slug }: { slug: string }) {
                       : 'Email is required so we can send the ticket. Display name is optional.'}
                   </p>
 
-                  <label className="mt-4 block space-y-2 text-sm font-semibold text-[#171717]">
+                  <label className="mt-4 block space-y-2 text-sm font-semibold text-fg-primary">
                     <span>
-                      Email <span className="text-rose-600">required</span>
+                      Email <span className="text-status-danger">required</span>
                     </span>
                     <input className={publicInputClass} type="email" autoComplete="email" required value={email} onChange={(event) => { paidIntent.current = null; setEmail(event.target.value); }} disabled={event.isFull || reserving || Boolean(pendingTicketURL)} />
                   </label>
 
-                  <label className="mt-4 block space-y-2 text-sm font-semibold text-[#171717]">
+                  <label className="mt-4 block space-y-2 text-sm font-semibold text-fg-primary">
                     <span>
-                      Display name <span className="text-neutral-500">optional</span>
+                      Display name <span className="text-fg-muted">optional</span>
                     </span>
                     <input className={publicInputClass} type="text" autoComplete="name" value={displayName} onChange={(event) => { paidIntent.current = null; setDisplayName(event.target.value); }} placeholder="Optional" disabled={event.isFull || reserving || Boolean(pendingTicketURL)} />
                   </label>
@@ -400,9 +400,9 @@ export function PublicEventView({ slug }: { slug: string }) {
                   </button>
 
                   {event.isFull ? (
-                    <p className="mt-3 text-sm text-rose-700">This event is sold out. {event?.pricingMode === 'fixed' ? 'Paid checkout is closed.' : 'Reservations are closed.'}</p>
+                    <p className="mt-3 text-sm text-status-danger">This event is sold out. {event?.pricingMode === 'fixed' ? 'Paid checkout is closed.' : 'Reservations are closed.'}</p>
                   ) : (
-                    <p className="mt-3 text-sm text-neutral-600">No account needed — just your email.</p>
+                    <p className="mt-3 text-sm text-fg-secondary">No account needed — just your email.</p>
                   )}
                 </form>
               )}
@@ -413,9 +413,9 @@ export function PublicEventView({ slug }: { slug: string }) {
 				<p className={`mt-2 leading-6 ${publicMutedTextClass}`}>{publicEventRoleSectionIntro(roles === null ? null : roles.length)}</p>
 
               {roles === null ? (
-                <p className="mt-4 rounded-3xl bg-[#f5f5f5] px-4 py-3 text-sm text-neutral-600">Loading participation roles…</p>
+                <p className="mt-4 rounded-3xl bg-surface-inset px-4 py-3 text-sm text-fg-secondary">Loading participation roles…</p>
               ) : roles.length === 0 ? (
-                <p className="mt-4 rounded-3xl bg-[#f5f5f5] px-4 py-3 text-sm text-neutral-600">No public roles available right now.</p>
+                <p className="mt-4 rounded-3xl bg-surface-inset px-4 py-3 text-sm text-fg-secondary">No public roles available right now.</p>
               ) : (
                 <div className="mt-4 grid gap-4 lg:grid-cols-2">
                   {roles.map((role) => {
@@ -424,23 +424,23 @@ export function PublicEventView({ slug }: { slug: string }) {
                     return (
                       <form
                         key={role.id}
-                        className="rounded-3xl border border-neutral-200 bg-[#f5f5f5] p-4"
+                        className="rounded-3xl border border-stroke-subtle bg-surface-inset p-4"
                         onSubmit={(formEvent) => {
                           void handleRoleSubmit(role, formEvent);
                         }}
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div>
-                            <h3 className="text-base font-black text-[#171717]">{role.name}</h3>
-                            <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-neutral-600">{role.description || 'No description provided.'}</p>
+                            <h3 className="text-base font-black text-fg-primary">{role.name}</h3>
+                            <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-fg-secondary">{role.description || 'No description provided.'}</p>
                           </div>
                           <span className={publicStatusPillClass()}>{role.capacity > 0 ? `${role.capacity} spots` : 'Open'}</span>
                         </div>
 
                         <div className="mt-4 grid gap-3">
-                          <label className="block space-y-2 text-sm font-semibold text-[#171717]">
+                          <label className="block space-y-2 text-sm font-semibold text-fg-primary">
                             <span>
-                              Applicant name <span className="text-rose-600">required</span>
+                              Applicant name <span className="text-status-danger">required</span>
                             </span>
                             <input
                               className={publicInputClass}
@@ -456,9 +456,9 @@ export function PublicEventView({ slug }: { slug: string }) {
                             />
                           </label>
 
-                          <label className="block space-y-2 text-sm font-semibold text-[#171717]">
+                          <label className="block space-y-2 text-sm font-semibold text-fg-primary">
                             <span>
-                              Applicant email <span className="text-rose-600">required</span>
+                              Applicant email <span className="text-status-danger">required</span>
                             </span>
                             <input
                               className={publicInputClass}
@@ -474,9 +474,9 @@ export function PublicEventView({ slug }: { slug: string }) {
                             />
                           </label>
 
-                          <label className="block space-y-2 text-sm font-semibold text-[#171717]">
+                          <label className="block space-y-2 text-sm font-semibold text-fg-primary">
                             <span>
-                              Message <span className="text-neutral-500">optional</span>
+                              Message <span className="text-fg-muted">optional</span>
                             </span>
                             <textarea
                               className={`${publicInputClass} min-h-28`}
@@ -492,15 +492,15 @@ export function PublicEventView({ slug }: { slug: string }) {
                         </div>
 
                         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                          <p className="text-xs font-bold uppercase tracking-[0.25em] text-neutral-500">Max 2000 runes</p>
+                          <p className="text-xs font-bold uppercase tracking-[0.25em] text-fg-muted">Max 2000 runes</p>
                           <button className={publicSecondaryButtonClass} type="submit" disabled={draft.submitting || draft.submitted}>
                             {draft.submitted ? 'Submitted' : draft.submitting ? 'Submitting…' : 'Submit application'}
                           </button>
                         </div>
 
-                        {draft.error ? <p className="mt-3 rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{draft.error}</p> : null}
+                        {draft.error ? <p className="mt-3 rounded-3xl border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm text-status-danger">{draft.error}</p> : null}
                         {draft.submitted ? (
-                          <p className="mt-3 rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">Application submitted for {role.name}. We received your interest and will follow up privately.</p>
+                          <p className="mt-3 rounded-3xl border border-status-success/20 bg-status-surface-success px-4 py-3 text-sm text-status-success">Application submitted for {role.name}. We received your interest and will follow up privately.</p>
                         ) : null}
                       </form>
                     );

@@ -12,6 +12,7 @@ import { WorkspaceView } from './views/WorkspaceView';
 import { PublicArchiveItemsPanel } from './components/PublicArchiveItemsPanel';
 import { ImportView } from './views/ImportView';
 import { LifecycleIntentsView } from './views/LifecycleIntentsView';
+import { DesignSystemView } from './views/DesignSystemView';
 
 function getPathname() {
   if (typeof window === 'undefined') {
@@ -27,6 +28,8 @@ function getSegment(pathname: string, index: number) {
 
 export default function App() {
   const pathname = getPathname();
+
+  if (import.meta.env.DEV && pathname === '/design-system') return <DesignSystemView />;
 
   if (pathname === '/login' || pathname === '/signup' || pathname === '/auth') {
     return <AuthView />;

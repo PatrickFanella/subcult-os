@@ -1,3 +1,4 @@
+import { tokens } from '@/theme/tokens';
 import { useLocalSearchParams } from 'expo-router';
 import { CheckCircle2, ChevronLeft, Circle, Clock, Plus, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -124,7 +125,7 @@ export default function RunOfShowScreen() {
     <View style={styles.screen}>
       <View style={styles.header}>
         <Pressable onPress={() => safeBack('/staff')} style={styles.backButton}>
-          <ChevronLeft size={24} color="#171717" />
+          <ChevronLeft size={24} color={tokens.color.text.primary} />
         </Pressable>
         <Text style={styles.title}>Run of Show</Text>
       </View>
@@ -134,7 +135,7 @@ export default function RunOfShowScreen() {
             <Text style={styles.panelTitle}>{editingID ? 'Edit run-of-show item' : 'Add run-of-show item'}</Text>
             {editingID ? (
               <Pressable onPress={stopEditing} style={styles.cancelEditButton}>
-                <X size={16} color="#737373" />
+                <X size={16} color={tokens.color.text.muted} />
               </Pressable>
             ) : null}
           </View>
@@ -182,7 +183,7 @@ export default function RunOfShowScreen() {
             style={[styles.input, styles.notesInput]}
           />
           <Pressable disabled={creating} onPress={() => void saveForm()} style={[styles.createButton, creating && styles.createButtonDisabled]}>
-            <Plus size={18} color="#ffffff" />
+            <Plus size={18} color={tokens.color.surface.panel} />
             <Text style={styles.createButtonText}>{creating ? 'Saving…' : editingID ? 'Save changes' : 'Add item'}</Text>
           </Pressable>
           <Text style={styles.helpText}>{editingID ? 'Kind cannot be changed after creation yet. Times are optional.' : 'Times are optional. Use local format like 2026-06-19 21:00.'}</Text>
@@ -234,49 +235,49 @@ function KindButton({ label, selected, disabled, onPress }: { label: string; sel
 }
 
 function statusIcon(status: string) {
-  if (status === 'completed') return <CheckCircle2 size={24} color="#22c55e" fill="#ffffff" />;
-  if (status === 'assigned') return <Clock size={24} color="#3b82f6" fill="#ffffff" />;
-  return <Circle size={24} color="#d4d4d4" fill="#ffffff" />;
+  if (status === 'completed') return <CheckCircle2 size={24} color={tokens.color.status.success} fill={tokens.color.surface.panel} />;
+  if (status === 'assigned') return <Clock size={24} color="#3b82f6" fill={tokens.color.surface.panel} />;
+  return <Circle size={24} color="#d4d4d4" fill={tokens.color.surface.panel} />;
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#ffffff', padding: 24, paddingTop: 64 },
+  screen: { flex: 1, backgroundColor: tokens.color.surface.panel, padding: 24, paddingTop: 64 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 32 },
-  backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 24, fontWeight: '800', letterSpacing: -0.8, color: '#171717' },
+  backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: tokens.color.surface.inset, alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 24, fontWeight: '800', letterSpacing: -0.8, color: tokens.color.text.primary },
   scroller: { flex: 1 },
   timeline: { gap: 28, paddingBottom: 96 },
-  createPanel: { backgroundColor: '#f5f5f5', borderRadius: 28, padding: 18, gap: 12 },
+  createPanel: { backgroundColor: tokens.color.surface.inset, borderRadius: tokens.radius.panel, padding: 18, gap: 12 },
   panelHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  panelTitle: { color: '#171717', fontSize: 20, fontWeight: '900', letterSpacing: -0.3 },
-  cancelEditButton: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
-  input: { minHeight: 52, borderRadius: 16, backgroundColor: '#ffffff', color: '#171717', paddingHorizontal: 14, paddingVertical: 12, fontWeight: '700' },
+  panelTitle: { color: tokens.color.text.primary, fontSize: 20, fontWeight: '900', letterSpacing: -0.3 },
+  cancelEditButton: { width: 32, height: 32, borderRadius: tokens.radius.control, backgroundColor: tokens.color.surface.panel, alignItems: 'center', justifyContent: 'center' },
+  input: { minHeight: 52, borderRadius: tokens.radius.control, backgroundColor: tokens.color.surface.panel, color: tokens.color.text.primary, paddingHorizontal: 14, paddingVertical: 12, fontWeight: '700' },
   notesInput: { minHeight: 96, textAlignVertical: 'top', lineHeight: 20 },
   kindRow: { flexDirection: 'row', gap: 10 },
-  kindButton: { flex: 1, borderRadius: 16, borderWidth: 1, borderColor: '#e5e5e5', backgroundColor: '#ffffff', paddingVertical: 13, alignItems: 'center' },
-  kindButtonActive: { backgroundColor: '#171717', borderColor: '#171717' },
+  kindButton: { flex: 1, borderRadius: tokens.radius.control, borderWidth: 1, borderColor: tokens.color.border.subtle, backgroundColor: tokens.color.surface.panel, paddingVertical: 13, alignItems: 'center' },
+  kindButtonActive: { backgroundColor: tokens.color.action.primary, borderColor: tokens.color.text.primary },
   kindButtonDisabled: { opacity: 0.55 },
-  kindButtonText: { color: '#171717', fontWeight: '900' },
-  kindButtonTextActive: { color: '#ffffff' },
+  kindButtonText: { color: tokens.color.text.primary, fontWeight: '900' },
+  kindButtonTextActive: { color: tokens.color.text.inverse },
   timeInputsRow: { flexDirection: 'row', gap: 10 },
   timeInput: { flex: 1 },
-  createButton: { minHeight: 52, borderRadius: 16, backgroundColor: '#171717', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+  createButton: { minHeight: 52, borderRadius: tokens.radius.control, backgroundColor: tokens.color.action.primary, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
   createButtonDisabled: { opacity: 0.45 },
-  createButtonText: { color: '#ffffff', fontWeight: '900' },
-  helpText: { color: '#737373', fontSize: 12, lineHeight: 18 },
-  message: { color: '#737373', fontWeight: '700' },
-  error: { color: '#dc2626', fontWeight: '700', lineHeight: 20 },
+  createButtonText: { color: tokens.color.text.inverse, fontWeight: '900' },
+  helpText: { color: tokens.color.text.muted, fontSize: tokens.type['label'], lineHeight: 18 },
+  message: { color: tokens.color.text.muted, fontWeight: '700' },
+  error: { color: tokens.color.status.danger, fontWeight: '700', lineHeight: 20 },
   taskRow: { flexDirection: 'row', gap: 20, position: 'relative' },
-  time: { width: 48, textAlign: 'right', color: '#a3a3a3', fontSize: 12, fontWeight: '800' },
-  iconWrap: { marginTop: 2, backgroundColor: '#ffffff', zIndex: 2 },
+  time: { width: 48, textAlign: 'right', color: tokens.color.text.muted, fontSize: tokens.type['label'], fontWeight: '800' },
+  iconWrap: { marginTop: 2, backgroundColor: tokens.color.surface.panel, zIndex: 2 },
   taskBody: { flex: 1, paddingBottom: 8 },
   completed: { opacity: 0.5 },
-  taskTitle: { fontSize: 18, fontWeight: '800', color: '#171717', marginBottom: 6 },
-  assignee: { alignSelf: 'flex-start', backgroundColor: '#f5f5f5', color: '#525252', fontSize: 12, fontWeight: '600', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, overflow: 'hidden' },
-  notes: { color: '#737373', lineHeight: 20, marginTop: 8 },
+  taskTitle: { fontSize: 18, fontWeight: '800', color: tokens.color.text.primary, marginBottom: 6 },
+  assignee: { alignSelf: 'flex-start', backgroundColor: tokens.color.surface.inset, color: tokens.color.text.secondary, fontSize: tokens.type['label'], fontWeight: '600', paddingHorizontal: 10, paddingVertical: 5, borderRadius: tokens.radius.pill, overflow: 'hidden' },
+  notes: { color: tokens.color.text.muted, lineHeight: 20, marginTop: 8 },
   actionsRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  actionButton: { backgroundColor: '#171717', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
-  actionButtonText: { color: '#ffffff', fontSize: 12, fontWeight: '800' },
-  actionButtonMuted: { backgroundColor: '#f5f5f5', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
-  actionButtonMutedText: { color: '#525252', fontSize: 12, fontWeight: '800' },
+  actionButton: { backgroundColor: tokens.color.action.primary, borderRadius: tokens.radius.pill, paddingHorizontal: 14, paddingVertical: 8 },
+  actionButtonText: { color: tokens.color.text.inverse, fontSize: tokens.type['label'], fontWeight: '800' },
+  actionButtonMuted: { backgroundColor: tokens.color.surface.inset, borderRadius: tokens.radius.pill, paddingHorizontal: 14, paddingVertical: 8 },
+  actionButtonMutedText: { color: tokens.color.text.secondary, fontSize: tokens.type['label'], fontWeight: '800' },
 });

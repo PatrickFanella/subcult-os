@@ -1,3 +1,4 @@
+import { tokens } from '@/theme/tokens';
 import { Link, usePathname } from 'expo-router';
 import { Briefcase, Compass, Ticket, UserCircle } from 'lucide-react-native';
 import type { PropsWithChildren } from 'react';
@@ -39,8 +40,8 @@ function BottomNavItem({ href, icon: Icon, label, pathname }: (typeof navItems)[
 
   return (
     <Link href={href} asChild>
-      <Pressable style={styles.navItem}>
-        <Icon size={23} color={active ? '#171717' : '#a3a3a3'} strokeWidth={2} />
+      <Pressable style={styles.navItem} accessibilityRole="tab" accessibilityLabel={label} accessibilityState={{ selected: active }}>
+        <Icon size={23} color={active ? tokens.color.text.primary : tokens.color.text.muted} strokeWidth={2} />
         <Text style={[styles.navLabel, active && styles.navLabelActive]}>{label}</Text>
         <View style={[styles.navDot, active && styles.navDotActive]} />
       </Pressable>
@@ -49,19 +50,19 @@ function BottomNavItem({ href, icon: Icon, label, pathname }: (typeof navItems)[
 }
 
 const styles = StyleSheet.create({
-  shell: { flex: 1, backgroundColor: '#f5f5f5' },
-  phone: { flex: 1, backgroundColor: '#ffffff', overflow: 'hidden' },
-  content: { flex: 1, backgroundColor: '#000000' },
+  shell: { flex: 1, backgroundColor: tokens.color.surface.inset },
+  phone: { flex: 1, backgroundColor: tokens.color.surface.panel, overflow: 'hidden' },
+  content: { flex: 1, backgroundColor: tokens.color.surface.immersive },
   navWrap: {
     backgroundColor: 'rgba(255,255,255,0.9)',
     borderTopWidth: 1,
-    borderTopColor: '#f5f5f5',
+    borderTopColor: tokens.color.surface.inset,
     zIndex: 40,
   },
   nav: { height: 68, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
   navItem: { width: 72, height: 58, alignItems: 'center', justifyContent: 'center', gap: 3 },
-  navLabel: { fontSize: 10, fontWeight: '500', letterSpacing: 0.2, color: '#a3a3a3' },
-  navLabelActive: { color: '#171717' },
+  navLabel: { fontSize: 10, fontWeight: '500', letterSpacing: 0.2, color: tokens.color.text.muted },
+  navLabelActive: { color: tokens.color.text.primary },
   navDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: 'transparent', marginTop: 2 },
-  navDotActive: { backgroundColor: '#171717' },
+  navDotActive: { backgroundColor: tokens.color.action.primary },
 });

@@ -1,3 +1,4 @@
+import { tokens } from '@/theme/tokens';
 import { useLocalSearchParams } from 'expo-router';
 import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
@@ -163,7 +164,7 @@ export default function TicketScreen() {
     <View style={styles.screen}>
       <View style={styles.header}>
         <Pressable onPress={() => safeBack('/tickets')} style={styles.backButton}>
-          <ChevronLeft size={24} color="#171717" />
+          <ChevronLeft size={24} color={tokens.color.text.primary} />
         </Pressable>
         <Text style={styles.title}>Ticket</Text>
       </View>
@@ -178,7 +179,7 @@ export default function TicketScreen() {
         <View ref={passRef} collapsable={false} style={styles.ticketCard}>
           <View style={styles.cardHeader}>
             <Text style={styles.statusPill}>{ticket ? ticketJourneyTicketBadge(ticket.status) : 'Admit one'}</Text>
-            <Pressable disabled={!ticket} onPress={openShareMenu} style={styles.circleBadge}><Share2 size={22} color="#171717" /></Pressable>
+            <Pressable disabled={!ticket} onPress={openShareMenu} style={styles.circleBadge}><Share2 size={22} color={tokens.color.text.primary} /></Pressable>
           </View>
           <Text style={styles.eventTitle}>{ticket ? `Ticket ${ticket.code}` : 'Ticket lookup'}</Text>
           <Text style={styles.subtitle}>{ticket?.displayName || ticket?.email || 'Load a ticket by code'}</Text>
@@ -192,7 +193,7 @@ export default function TicketScreen() {
 
           <View style={styles.qrBlock}>
             <View style={styles.qrBox}>
-              {ticket ? <QRCode value={ticket.code} size={168} color="#171717" backgroundColor="#ffffff" /> : <Text style={styles.qrPlaceholder}>QR</Text>}
+              {ticket ? <QRCode value={ticket.code} size={168} color={tokens.color.text.primary} backgroundColor="#ffffff" /> : <Text style={styles.qrPlaceholder}>QR</Text>}
             </View>
             <Text style={styles.ticketCode}>{ticket ? ticket.code : 'NO-CODE'}</Text>
           </View>
@@ -213,32 +214,32 @@ export default function TicketScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#f5f5f5', padding: 24, paddingTop: 56 },
+  screen: { flex: 1, backgroundColor: tokens.color.surface.inset, padding: 24, paddingTop: 56 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 24 },
-  backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 28, fontWeight: '800', letterSpacing: -0.8, color: '#171717' },
+  backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: tokens.color.surface.panel, alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 28, fontWeight: '800', letterSpacing: -0.8, color: tokens.color.text.primary },
   content: { gap: 20, paddingBottom: 32 },
-  stateText: { color: '#737373', fontWeight: '700' },
-  errorText: { color: '#dc2626', fontWeight: '700', lineHeight: 20 },
-  successText: { color: '#16a34a', fontWeight: '800', lineHeight: 20 },
-  ticketCard: { backgroundColor: '#ffffff', borderRadius: 32, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.08)', elevation: 2 },
+  stateText: { color: tokens.color.text.muted, fontWeight: '700' },
+  errorText: { color: tokens.color.status.danger, fontWeight: '700', lineHeight: 20 },
+  successText: { color: tokens.color.status.success, fontWeight: '800', lineHeight: 20 },
+  ticketCard: { backgroundColor: tokens.color.surface.panel, borderRadius: tokens.radius.hero, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.08)', elevation: 2 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
-  statusPill: { alignSelf: 'flex-start', backgroundColor: '#f5f5f5', color: '#171717', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, overflow: 'hidden', fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1 },
-  circleBadge: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', elevation: 1 },
-  eventTitle: { fontSize: 26, fontWeight: '800', letterSpacing: -0.7, color: '#171717', marginBottom: 4 },
-  subtitle: { color: '#737373', marginBottom: 24, fontSize: 14 },
+  statusPill: { alignSelf: 'flex-start', backgroundColor: tokens.color.surface.inset, color: tokens.color.text.primary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: tokens.radius.pill, overflow: 'hidden', fontSize: tokens.type['label'], fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1 },
+  circleBadge: { width: 48, height: 48, borderRadius: tokens.radius.card, backgroundColor: tokens.color.surface.panel, alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', elevation: 1 },
+  eventTitle: { fontSize: 26, fontWeight: '800', letterSpacing: -0.7, color: tokens.color.text.primary, marginBottom: 4 },
+  subtitle: { color: tokens.color.text.muted, marginBottom: 24, fontSize: 14 },
   metaList: { gap: 12, marginBottom: 24 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  metaText: { color: '#404040', fontWeight: '600', fontSize: 14 },
-  dashedRule: { borderTopWidth: 2, borderStyle: 'dashed', borderColor: '#e5e5e5', marginVertical: 20 },
+  metaText: { color: tokens.color.text.secondary, fontWeight: '600', fontSize: 14 },
+  dashedRule: { borderTopWidth: 2, borderStyle: 'dashed', borderColor: tokens.color.border.subtle, marginVertical: 20 },
   qrBlock: { alignItems: 'center', justifyContent: 'center', paddingVertical: 10 },
-  qrBox: { width: 208, height: 208, borderRadius: 20, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e5e5e5', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  qrPlaceholder: { color: '#737373', fontWeight: '900', letterSpacing: 4 },
-  ticketCode: { fontFamily: 'monospace', color: '#737373', letterSpacing: 3, fontSize: 14 },
-  notesCard: { backgroundColor: '#ffffff', borderRadius: 22, padding: 20 },
-  notesTitle: { color: '#171717', fontSize: 20, fontWeight: '800', marginBottom: 8 },
-  notesText: { color: '#525252', lineHeight: 22 },
+  qrBox: { width: 208, height: 208, borderRadius: 20, backgroundColor: tokens.color.surface.panel, borderWidth: 1, borderColor: tokens.color.border.subtle, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  qrPlaceholder: { color: tokens.color.text.muted, fontWeight: '900', letterSpacing: 4 },
+  ticketCode: { fontFamily: 'monospace', color: tokens.color.text.muted, letterSpacing: 3, fontSize: 14 },
+  notesCard: { backgroundColor: tokens.color.surface.panel, borderRadius: 22, padding: 20 },
+  notesTitle: { color: tokens.color.text.primary, fontSize: 20, fontWeight: '800', marginBottom: 8 },
+  notesText: { color: tokens.color.text.secondary, lineHeight: 22 },
   ticketActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 },
-  refreshButton: { alignSelf: 'flex-start', backgroundColor: '#171717', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12 },
-  refreshButtonText: { color: '#ffffff', fontWeight: '900' },
+  refreshButton: { alignSelf: 'flex-start', backgroundColor: tokens.color.action.primary, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12 },
+  refreshButtonText: { color: tokens.color.text.inverse, fontWeight: '900' },
 });

@@ -35,14 +35,14 @@ function formatHumanTime(value: string | null) {
 
 function noticeClassName(kind: 'neutral' | 'success' | 'error') {
   if (kind === 'success') {
-    return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+    return 'border-status-success/20 bg-status-surface-success text-status-success';
   }
 
   if (kind === 'error') {
-    return 'border-rose-200 bg-rose-50 text-rose-700';
+    return 'border-status-danger/20 bg-status-surface-danger text-status-danger';
   }
 
-  return 'border-neutral-200 bg-white text-neutral-600';
+  return 'border-stroke-subtle bg-surface-panel text-fg-secondary';
 }
 
 function doorStatusPillTone(status: DoorTicketDTO['status']) {
@@ -51,8 +51,8 @@ function doorStatusPillTone(status: DoorTicketDTO['status']) {
 
 function doorStatusCardClass(status: DoorTicketDTO['status']) {
   return status === 'checked_in'
-    ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
-    : 'border-neutral-200 bg-neutral-50 text-[#171717]';
+    ? 'border-status-success/20 bg-status-surface-success text-status-success'
+    : 'border-stroke-subtle bg-surface-inset text-fg-primary';
 }
 
 export function DoorView({ eventId }: { eventId: string }) {
@@ -136,19 +136,19 @@ export function DoorView({ eventId }: { eventId: string }) {
   return (
     <main className={publicPageShellClass}>
       <section className={`${publicPageInnerClass} max-w-3xl`}>
-        <header className="rounded-[32px] border border-neutral-200 bg-white p-6 shadow-sm">
+        <header className="rounded-hero border border-stroke-subtle bg-surface-panel p-6 shadow-sm">
           <p className={`${publicEyebrowClass} text-blue-600`}>Door Mode</p>
-          <h1 className="mt-2 text-4xl font-black tracking-[-0.04em] text-[#171717]">Guest List</h1>
+          <h1 className="mt-2 text-4xl font-black tracking-[-0.04em] text-fg-primary">Guest List</h1>
           <p className={`mt-2 ${publicMutedTextClass}`}>Search by name, email, or exact ticket code. Paste a full code and press Search to jump straight to check-in.</p>
 
-          <div className="mt-4 rounded-2xl bg-neutral-100 px-4 py-3 text-sm font-medium text-neutral-700">Event ID: {eventId || 'Missing'}</div>
+          <div className="mt-4 rounded-2xl bg-surface-inset px-4 py-3 text-sm font-medium text-fg-secondary">Event ID: {eventId || 'Missing'}</div>
         </header>
 
         <form className={publicCardClass} onSubmit={handleSearch}>
           <label className="block space-y-2 text-sm">
-            <span className="font-bold text-[#171717]">Lookup or exact code</span>
+            <span className="font-bold text-fg-primary">Lookup or exact code</span>
             <input
-              className="door-input w-full rounded-[18px] border border-neutral-200 bg-neutral-100 px-4 py-4 text-base font-medium text-[#171717] outline-none transition placeholder:text-neutral-400 focus:border-neutral-400 focus:bg-white"
+              className="door-input w-full rounded-[18px] border border-stroke-subtle bg-surface-inset px-4 py-4 text-base font-medium text-fg-primary outline-none transition placeholder:text-fg-muted focus:border-stroke-strong focus:bg-surface-panel"
               type="search"
               autoComplete="off"
               value={query}
@@ -174,10 +174,10 @@ export function DoorView({ eventId }: { eventId: string }) {
             </button>
           </div>
 
-          <p className="mt-3 text-xs leading-5 text-neutral-500">Exact code works. Search by email, name, or the full ticket code to pull up a single result.</p>
+          <p className="mt-3 text-xs leading-5 text-fg-muted">Exact code works. Search by email, name, or the full ticket code to pull up a single result.</p>
         </form>
 
-        {error ? <p className="rounded-[18px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">{error}</p> : null}
+        {error ? <p className="rounded-[18px] border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm font-bold text-status-danger">{error}</p> : null}
         {notice ? (
           <p className={`rounded-[18px] border px-4 py-3 text-sm ${noticeClassName(notice.kind)}`} aria-live="polite">
             {notice.text}
@@ -198,27 +198,27 @@ export function DoorView({ eventId }: { eventId: string }) {
                   <span className={publicStatusPillClass(doorStatusPillTone(ticket.status))}>{ticketJourneyDoorStatusBadge(ticket.status)}</span>
                 </div>
 
-                <p className="mt-3 text-sm text-neutral-700">{ticketJourneyDoorStatusCopy(ticket.status, formatHumanTime(ticket.checkedInAt))}</p>
+                <p className="mt-3 text-sm text-fg-secondary">{ticketJourneyDoorStatusCopy(ticket.status, formatHumanTime(ticket.checkedInAt))}</p>
               </div>
 
               <div className="mt-4 space-y-3">
                 <div>
-                  <p className="text-2xl font-black tracking-[-0.03em] text-[#171717]">{ticket.displayName ?? 'Guest'}</p>
+                  <p className="text-2xl font-black tracking-[-0.03em] text-fg-primary">{ticket.displayName ?? 'Guest'}</p>
                 </div>
 
-                <div className="rounded-2xl bg-neutral-100 px-4 py-4">
+                <div className="rounded-2xl bg-surface-inset px-4 py-4">
                   <p className={publicEyebrowClass}>Code</p>
-                  <p className="mt-2 break-words font-mono text-lg font-bold tracking-[0.08em] text-[#171717] sm:text-xl">{ticket.code}</p>
+                  <p className="mt-2 break-words font-mono text-lg font-bold tracking-[0.08em] text-fg-primary sm:text-xl">{ticket.code}</p>
                 </div>
 
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <div className="rounded-2xl bg-neutral-100 px-4 py-3 text-sm text-neutral-600">
+                  <div className="rounded-2xl bg-surface-inset px-4 py-3 text-sm text-fg-secondary">
                     <p className={publicEyebrowClass}>Checked in</p>
-                    <p className="mt-2 font-medium text-[#171717]">{formatHumanTime(ticket.checkedInAt)}</p>
+                    <p className="mt-2 font-medium text-fg-primary">{formatHumanTime(ticket.checkedInAt)}</p>
                   </div>
-                  <div className="rounded-2xl bg-neutral-100 px-4 py-3 text-sm text-neutral-600">
+                  <div className="rounded-2xl bg-surface-inset px-4 py-3 text-sm text-fg-secondary">
                     <p className={publicEyebrowClass}>Admission</p>
-                    <p className="mt-2 font-medium text-[#171717]">{ticket.admissionEligible ? 'Eligible' : 'Not eligible'}</p>
+                    <p className="mt-2 font-medium text-fg-primary">{ticket.admissionEligible ? 'Eligible' : 'Not eligible'}</p>
                   </div>
                 </div>
               </div>

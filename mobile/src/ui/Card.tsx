@@ -11,7 +11,7 @@ export function Card({ children, className, contentClassName, pressable = false,
 
   if (pressable || pressableProps.onPress) {
     return (
-      <Pressable {...pressableProps} className={['panel active:opacity-80', className].filter(Boolean).join(' ')}>
+      <Pressable accessibilityRole="button" {...pressableProps} className={['panel active:opacity-80', className].filter(Boolean).join(' ')}>
         {content}
       </Pressable>
     );

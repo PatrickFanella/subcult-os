@@ -1,3 +1,4 @@
+import { tokens } from '@/theme/tokens';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -120,17 +121,17 @@ export default function RecoverPasswordScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#ffffff' },
+  screen: { flex: 1, backgroundColor: tokens.color.surface.panel },
   content: { flexGrow: 1, justifyContent: 'center', padding: 24, gap: 14 },
-  kicker: { alignSelf: 'flex-start', color: '#2563eb', backgroundColor: '#eff6ff', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: 12, fontWeight: '800' },
-  title: { color: '#171717', fontSize: 36, fontWeight: '800', letterSpacing: -1.2 },
-  body: { color: '#737373', fontSize: 16, lineHeight: 23, marginBottom: 12 },
-  card: { marginTop: 8, gap: 12, backgroundColor: '#f5f5f5', borderRadius: 28, padding: 20 },
-  input: { minHeight: 54, borderRadius: 16, backgroundColor: '#ffffff', color: '#171717', paddingHorizontal: 14, fontSize: 15, fontWeight: '600' },
-  error: { color: '#dc2626', fontWeight: '700', lineHeight: 20 },
-  notice: { color: '#166534', fontWeight: '700', lineHeight: 20 },
-  button: { minHeight: 56, borderRadius: 18, backgroundColor: '#171717', alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  kicker: { alignSelf: 'flex-start', color: tokens.color.text.muted, backgroundColor: tokens.color.surface.inset, paddingHorizontal: 8, paddingVertical: 4, borderRadius: tokens.radius.pill, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: tokens.type['label'], fontWeight: '800' },
+  title: { color: tokens.color.text.primary, fontSize: 36, fontWeight: '800', letterSpacing: -1.2 },
+  body: { color: tokens.color.text.muted, fontSize: 16, lineHeight: 23, marginBottom: 12 },
+  card: { marginTop: 8, gap: 12, backgroundColor: tokens.color.surface.inset, borderRadius: tokens.radius.panel, padding: 20 },
+  input: { minHeight: 54, borderRadius: tokens.radius.control, backgroundColor: tokens.color.surface.panel, color: tokens.color.text.primary, paddingHorizontal: 14, fontSize: tokens.type['body'], fontWeight: '600' },
+  error: { color: tokens.color.status.danger, fontWeight: '700', lineHeight: 20 },
+  notice: { color: tokens.color.status.success, fontWeight: '700', lineHeight: 20 },
+  button: { minHeight: tokens.size.field, borderRadius: 18, backgroundColor: tokens.color.action.primary, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
   buttonDisabled: { opacity: 0.55 },
-  buttonText: { color: '#ffffff', fontWeight: '800', fontSize: 16 },
-  link: { color: '#2563eb', fontWeight: '800', fontSize: 15 },
+  buttonText: { color: tokens.color.text.inverse, fontWeight: '800', fontSize: 16 },
+  link: { color: tokens.color.text.primary, fontWeight: '800', fontSize: tokens.type['body'] },
 });

@@ -61,6 +61,7 @@ test-mobile: ## Run mobile module tests
 
 check-contracts: ## Check shared API contracts
 	node scripts/check-contracts.mjs
+	node scripts/design-tokens.mjs --check
 
 build: build-backend build-web ## Build backend binary and frontend assets
 

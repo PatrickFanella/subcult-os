@@ -9,6 +9,11 @@ This repository is `subcult-os`, a Go full-stack project with Vite React TypeScr
 3. Keep generated caches, secrets, and local data out of git.
 4. Update this file and `README.md` when stack conventions change.
 
+Use the mobile-derived monochrome design system in `docs/design-system.md`.
+Edit `contracts/design/tokens.json`, then run `node scripts/design-tokens.mjs`;
+do not edit generated client tokens independently. Prefer semantic colors and
+shared controls. Keep event artwork and scanner surfaces immersive.
+
 The optional `atproto-workers` Compose profile runs the revocation command from the same API image against the shared database. Keep it opt-in, run migrations before processing, and preserve secret-free status/error output. It may drain existing revocations even when new OAuth links are disabled.
 
 The optional `mail-workers` profile runs `email-deliver -send -watch`. Sending additionally requires `MAIL_DELIVERY_ENABLED=true`, configured Resend credentials and approved sender settings. Old/development outbox rows remain held. The default `email-deliver` command prints aggregate status only; never send live messages during automated qualification.

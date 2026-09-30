@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { postJSON } from '../api';
+import { Button } from '../ui/Button';
+import { Notice } from '../ui/Notice';
 import type { CurrentUserDTO, SignupResultDTO } from '../domain';
 import { safeReturnPath } from '../modules/auth/returnPath';
 
@@ -91,29 +93,29 @@ export function AuthView() {
   }
 
   return (
-    <main className="min-h-screen px-4 py-6 text-zinc-100 sm:px-6 lg:px-8">
+    <main className="min-h-screen px-4 py-6 text-fg-primary sm:px-6 lg:px-8">
       <section className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-md flex-col justify-center">
-        <div className="mb-4 flex items-center justify-between text-xs uppercase tracking-[0.3em] text-zinc-400">
+        <div className="mb-4 flex items-center justify-between text-xs uppercase tracking-[0.3em] text-fg-secondary">
           <span>subcult-os</span>
-          <a className="text-amber-300 transition hover:text-amber-200" href="/">
+          <a className="text-fg-primary transition hover:text-fg-primary" href="/">
             Workspace
           </a>
         </div>
 
-        <div className="rounded-[1.75rem] border border-white/10 bg-zinc-950/85 p-6 shadow-2xl shadow-black/40 backdrop-blur">
-          <p className="text-xs uppercase tracking-[0.3em] text-fuchsia-300">{eyebrow}</p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white">{title}</h1>
-          <p className="mt-2 text-sm leading-6 text-zinc-400">{description}</p>
+        <div className="rounded-panel border border-stroke-subtle bg-surface-panel p-6 shadow-panel">
+          <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">{eyebrow}</p>
+          <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-fg-primary">{title}</h1>
+          <p className="mt-2 text-sm leading-6 text-fg-secondary">{description}</p>
 
           {invitePrompt ? (
-            <div className="mt-5 rounded-2xl border border-amber-400/20 bg-amber-400/[0.08] px-4 py-3 text-sm leading-6 text-amber-100">
+            <div className="mt-5 rounded-2xl border border-status-warning/20 bg-status-surface-warning px-4 py-3 text-sm leading-6 text-status-warning">
               {invitePrompt}
             </div>
           ) : null}
 
           <div className="mt-6 flex gap-2 text-sm">
             <a
-              className={`rounded-full px-3 py-2 transition ${mode === 'login' ? 'bg-white text-zinc-950' : 'bg-white/5 text-zinc-300 hover:bg-white/10'}`}
+              className={`rounded-full px-3 py-2 transition ${mode === 'login' ? 'bg-action-primary text-fg-inverse' : 'bg-surface-inset text-fg-secondary hover:bg-surface-inset'}`}
               href={authHref('login')}
               onClick={(event) => {
                 event.preventDefault();
@@ -123,7 +125,7 @@ export function AuthView() {
               Sign in
             </a>
             <a
-              className={`rounded-full px-3 py-2 transition ${mode === 'signup' ? 'bg-white text-zinc-950' : 'bg-white/5 text-zinc-300 hover:bg-white/10'}`}
+              className={`rounded-full px-3 py-2 transition ${mode === 'signup' ? 'bg-action-primary text-fg-inverse' : 'bg-surface-inset text-fg-secondary hover:bg-surface-inset'}`}
               href={authHref('signup')}
               onClick={(event) => {
                 event.preventDefault();
@@ -136,9 +138,9 @@ export function AuthView() {
 
           <form className="mt-6 space-y-4" noValidate onSubmit={handleSubmit}>
             <label className="block space-y-2 text-sm">
-              <span className="text-zinc-300">Email</span>
+              <span className="text-fg-secondary">Email</span>
               <input
-                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition placeholder:text-zinc-500 focus:border-amber-300/60 focus:bg-white/8"
+                className="w-full rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-fg-primary outline-none transition placeholder:text-fg-muted focus:border-stroke-focus focus:bg-surface-inset"
                 type="email"
                 autoComplete="email"
                 required
@@ -149,9 +151,9 @@ export function AuthView() {
 
             {mode === 'signup' ? (
               <label className="block space-y-2 text-sm">
-                <span className="text-zinc-300">Display name</span>
+                <span className="text-fg-secondary">Display name</span>
                 <input
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition placeholder:text-zinc-500 focus:border-amber-300/60 focus:bg-white/8"
+                  className="w-full rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-fg-primary outline-none transition placeholder:text-fg-muted focus:border-stroke-focus focus:bg-surface-inset"
                   type="text"
                   autoComplete="name"
                   value={displayName}
@@ -162,9 +164,9 @@ export function AuthView() {
             ) : null}
 
             <label className="block space-y-2 text-sm">
-              <span className="text-zinc-300">Password</span>
+              <span className="text-fg-secondary">Password</span>
               <input
-                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition placeholder:text-zinc-500 focus:border-amber-300/60 focus:bg-white/8"
+                className="w-full rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-fg-primary outline-none transition placeholder:text-fg-muted focus:border-stroke-focus focus:bg-surface-inset"
                 type="password"
                 autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                 minLength={8}
@@ -173,22 +175,22 @@ export function AuthView() {
                 onChange={(event) => setPassword(event.target.value)}
                 aria-describedby="password-rules"
               />
-              <span id="password-rules" className="block text-xs text-zinc-500">
+              <span id="password-rules" className="block text-xs text-fg-muted">
                 8+ characters
               </span>
             </label>
 
-            {error ? <p className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error}</p> : null}
-            {notice ? <p className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">{notice}</p> : null}
+            {error ? <Notice tone="danger">{error}</Notice> : null}
+            {notice ? <Notice tone="success">{notice}</Notice> : null}
 
-            <button
-              className="w-full rounded-2xl bg-amber-300 px-4 py-3 font-medium text-zinc-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-amber-300/60"
+            <Button
+              className="w-full"
               type="submit"
-              disabled={loading}
+              busy={loading}
             >
               {loading ? 'Working…' : title}
-            </button>
-            {mode === 'login' ? <a className="block text-center text-sm text-amber-300" href="/recover">Forgot your password?</a> : null}
+            </Button>
+            {mode === 'login' ? <a className="block text-center text-sm text-fg-primary" href="/recover">Forgot your password?</a> : null}
           </form>
         </div>
       </section>

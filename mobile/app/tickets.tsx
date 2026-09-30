@@ -1,3 +1,4 @@
+import { tokens } from '@/theme/tokens';
 import { router } from 'expo-router';
 import { Search, Ticket } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -57,7 +58,7 @@ export default function TicketsScreen() {
             />
           </View>
           <Pressable disabled={!normalizedCode} onPress={openTicket} style={[styles.primaryButton, !normalizedCode && styles.primaryButtonDisabled]}>
-            <Ticket size={20} color="#ffffff" />
+            <Ticket size={20} color={tokens.color.surface.panel} />
             <Text style={styles.primaryButtonText}>Open ticket</Text>
           </Pressable>
         </View>
@@ -66,7 +67,7 @@ export default function TicketsScreen() {
           <Text style={styles.sectionTitle}>Saved tickets</Text>
           {savedTickets.length === 0 ? (
             <View style={styles.emptyCard}>
-              <View style={styles.emptyIcon}><Ticket size={30} color="#171717" /></View>
+              <View style={styles.emptyIcon}><Ticket size={30} color={tokens.color.text.primary} /></View>
               <Text style={styles.emptyTitle}>{ticketWalletEmptyCopy(loaded)}</Text>
               <Text style={styles.emptyBody}>{loaded ? 'Reserve or look up a ticket and it will stay here for fast access.' : 'Loading saved tickets…'}</Text>
             </View>
@@ -89,28 +90,28 @@ export default function TicketsScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#f5f5f5' },
+  screen: { flex: 1, backgroundColor: tokens.color.surface.inset },
   content: { padding: 24, paddingTop: 64, paddingBottom: 32, gap: 18 },
-  pageTitle: { fontSize: 32, fontWeight: '800', letterSpacing: -1, color: '#171717' },
-  pageBody: { color: '#737373', lineHeight: 22, marginBottom: 10 },
-  lookupCard: { backgroundColor: '#ffffff', borderRadius: 28, padding: 20, gap: 14, boxShadow: '0 2px 8px rgba(0,0,0,0.08)', elevation: 2 },
-  inputRow: { minHeight: 56, borderRadius: 18, backgroundColor: '#f5f5f5', paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  input: { flex: 1, color: '#171717', fontSize: 16, fontWeight: '700', letterSpacing: 1 },
-  primaryButton: { minHeight: 56, borderRadius: 18, backgroundColor: '#171717', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+  pageTitle: { fontSize: tokens.type['title'], fontWeight: '800', letterSpacing: -1, color: tokens.color.text.primary },
+  pageBody: { color: tokens.color.text.muted, lineHeight: 22, marginBottom: 10 },
+  lookupCard: { backgroundColor: tokens.color.surface.panel, borderRadius: tokens.radius.panel, padding: 20, gap: 14, boxShadow: '0 2px 8px rgba(0,0,0,0.08)', elevation: 2 },
+  inputRow: { minHeight: tokens.size.field, borderRadius: 18, backgroundColor: tokens.color.surface.inset, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  input: { flex: 1, color: tokens.color.text.primary, fontSize: 16, fontWeight: '700', letterSpacing: 1 },
+  primaryButton: { minHeight: tokens.size.field, borderRadius: 18, backgroundColor: tokens.color.action.primary, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
   primaryButtonDisabled: { opacity: 0.45 },
-  primaryButtonText: { color: '#ffffff', fontWeight: '800', fontSize: 16 },
+  primaryButtonText: { color: tokens.color.text.inverse, fontWeight: '800', fontSize: 16 },
   walletSection: { gap: 12 },
-  sectionTitle: { color: '#171717', fontSize: 20, fontWeight: '800', marginTop: 6 },
-  savedTicketCard: { backgroundColor: '#ffffff', borderRadius: 22, padding: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, overflow: 'hidden' },
+  sectionTitle: { color: tokens.color.text.primary, fontSize: 20, fontWeight: '800', marginTop: 6 },
+  savedTicketCard: { backgroundColor: tokens.color.surface.panel, borderRadius: 22, padding: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, overflow: 'hidden' },
   savedTicketCopy: { flex: 1, minWidth: 0 },
-  savedTicketName: { color: '#171717', fontSize: 17, fontWeight: '800', marginBottom: 4 },
-  savedTicketCode: { color: '#737373', fontFamily: 'monospace', letterSpacing: 1.5 },
+  savedTicketName: { color: tokens.color.text.primary, fontSize: tokens.type['body-lg'], fontWeight: '800', marginBottom: 4 },
+  savedTicketCode: { color: tokens.color.text.muted, fontFamily: 'monospace', letterSpacing: 1.5 },
   savedTicketMetaBlock: { alignItems: 'flex-end', gap: 4, flexShrink: 0, maxWidth: 132 },
-  savedTicketStatus: { color: '#22c55e', backgroundColor: '#ecfdf5', paddingHorizontal: 9, paddingVertical: 6, borderRadius: 999, overflow: 'hidden', fontSize: 11, fontWeight: '800', textTransform: 'uppercase', textAlign: 'center' },
-  savedTicketStatusPending: { color: '#d97706', backgroundColor: '#fffbeb' },
-  pendingHint: { color: '#a3a3a3', fontSize: 11, fontWeight: '700' },
-  emptyCard: { backgroundColor: '#ffffff', borderRadius: 28, padding: 24, alignItems: 'center', gap: 10 },
-  emptyIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  emptyTitle: { color: '#171717', fontSize: 20, fontWeight: '800' },
-  emptyBody: { color: '#737373', textAlign: 'center', lineHeight: 21 },
+  savedTicketStatus: { color: tokens.color.status.success, backgroundColor: tokens.color.statusSurface.success, paddingHorizontal: 9, paddingVertical: 6, borderRadius: tokens.radius.pill, overflow: 'hidden', fontSize: 11, fontWeight: '800', textTransform: 'uppercase', textAlign: 'center' },
+  savedTicketStatusPending: { color: tokens.color.status.warning, backgroundColor: tokens.color.statusSurface.warning },
+  pendingHint: { color: tokens.color.text.muted, fontSize: 11, fontWeight: '700' },
+  emptyCard: { backgroundColor: tokens.color.surface.panel, borderRadius: tokens.radius.panel, padding: 24, alignItems: 'center', gap: 10 },
+  emptyIcon: { width: 64, height: 64, borderRadius: tokens.radius.hero, backgroundColor: tokens.color.surface.inset, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  emptyTitle: { color: tokens.color.text.primary, fontSize: 20, fontWeight: '800' },
+  emptyBody: { color: tokens.color.text.muted, textAlign: 'center', lineHeight: 21 },
 });
