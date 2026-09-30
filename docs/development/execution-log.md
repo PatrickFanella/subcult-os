@@ -1603,3 +1603,22 @@ were intercepted synthetic responses, and all helpers/interception/iframe were
 removed. Full local gate passed 286 web/34 mobile tests and 421/599 DB tests,
 no failures/skips. See [booking context and reflow](public-booking-context.md)
 for exact geometry and remaining journey/device/provider limits.
+
+### Booking reflow qualified; owner role setup added — 2026-09-30
+
+PR #180 (`e25312ef23807aef861579ec916bb07965289ad6`) passed PR11069/job20019
+and push11070/job20020: 286 web/34 mobile tests and 421/599 DB tests, no
+failures/skips. The existing kvant instance runner handled both jobs; no owned
+runner or credentials were created. Shared runner preserved; zero repository
+registrations verified. PR/issue #26 receipts were reconciled and read back.
+
+A new disposable operator rehearsal completed browser signup/verification,
+workspace and event creation, then found no owner role-creation control. The new
+panel uses the existing endpoint, defaults explicitly to private, preserves
+application/assignment separation and fences pending/uncertain writes. Real
+private/public creation, committed-response loss and reload proof passed;
+synthetic validation/denial and stale-context fixtures passed. Final full local
+gate: 296 web/34 mobile, DB421/599, no failures/skips. Narrow light/dark layout
+screenshots inspected; inactive-preview keyboard-focus proof remains open.
+See [role setup](participation-role-setup.md) and the
+[ongoing operator rehearsal](../qa/operator-journey-2026-09-30.md).

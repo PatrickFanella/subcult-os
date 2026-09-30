@@ -307,3 +307,21 @@ Full local gate passed 286 web/34 mobile tests and 421/599 DB tests, no
 failures/skips. See [the updated booking report](public-booking-context.md).
 The joined backend operator journey (#25), event-clock semantics, assistive
 technology and physical/native/provider qualification remain unfinished.
+
+### Booking reflow qualified; joined operator rehearsal started — 2026-09-30
+
+PR #180 (`e25312ef23807aef861579ec916bb07965289ad6`) passed PR11069/job20019
+and push11070/job20020: 286 web/34 mobile and DB421/599, no failures/skips.
+Existing kvant runner preserved; no owned credentials/runner created, zero
+repository registrations verified. PR and issue #26 receipts read back.
+
+The separate disposable operator environment now has real browser-created
+identity, workspace and published free event state. Its first workflow blocker
+was missing owner role setup. The follow-up panel defaults to private and joins
+the existing owner API to the editor; final local gate passed 296 web/34 mobile
+and DB421/599, no failures/skips. Actual and synthetic recovery evidence is
+recorded in [role setup](participation-role-setup.md).
+Continue [the operator rehearsal](../qa/operator-journey-2026-09-30.md) through
+applications/assignment, staffing, guest/door, finance, closeout and template reuse.
+Issue #25 remains partial; paired timing, intended users, physical/native devices,
+screen readers and provider/deployment gates remain separate.
