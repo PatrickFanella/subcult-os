@@ -42,8 +42,20 @@ export function formatOccurrenceDateTime(startsAt: string, timezone?: string) {
 	if (Number.isNaN(date.getTime())) {
 		return startsAt;
 	}
-	const formatted = new Intl.DateTimeFormat([], { dateStyle: 'medium', timeStyle: 'short' }).format(date);
-	return timezone ? `${formatted} (${timezone})` : formatted;
+	if (timezone) {
+		try {
+			const formatted = new Intl.DateTimeFormat([], { dateStyle: 'medium', timeStyle: 'short', timeZone: timezone }).format(date);
+			const offset = new Intl.DateTimeFormat([], { timeZone: timezone, timeZoneName: 'shortOffset' })
+				.formatToParts(date).find((part) => part.type === 'timeZoneName')?.value;
+			return `${formatted} (${timezone}${offset ? `, ${offset}` : ''})`;
+		} catch (error) {
+			if (!(error instanceof RangeError)) throw error;
+			// Projected zone strings are untrusted. Never relabel the viewer's
+			// local clock with an invalid or unsupported event zone.
+		}
+	}
+	const formatted = new Intl.DateTimeFormat([], { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' }).format(date);
+	return `${formatted} (UTC; event time zone unavailable)`;
 }
 
 export function occurrenceLocationSummary(location?: PublicDiscoveryLocationDTO | null) {

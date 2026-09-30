@@ -28,7 +28,7 @@ PR #172 (`7c7727239bfd7acc4263a8d89003c01519676044`) passed hosted push
 complete DB gate with 419 top-level tests (595 including nested), zero failures
 or skips. Temporary runners exited successfully, were removed, and their local
 registration credentials were deleted. Zero repository runner registrations
-were verified. The published stack #170 → #171 → #172 → #173 remains open and linked
+were verified. The published stack #170 → #171 → #172 → #173 → #174 remains open and linked
 to this thread.
 
 PR #173 (`66472a21e205ff0a7507d8f3713695861ebe78c0`) adds the owner-only
@@ -39,13 +39,24 @@ repository registrations were verified. The comparison uses one database
 snapshot, separate provenance and Unknown states. Stored occurrence-specific
 verification, public display and intended-audience evaluation remain open.
 
-Current source work fixes #58's archive approval UI after permission loss and
-pending/uncertain writes. Full local verification passed: 278 web/34 mobile
-tests and 421 top-level DB tests (599 including nested), zero failures/skips.
-Synthetic browser checks covered duplicate submission, a held response, an
-actual committed correction with a lost response, and denied reads/writes.
-The ledger stays private and unpublished. Creation is not idempotent; uncertain
-saves require reloading and checking the ledger before another change.
+PR #174 (`67fb7967fdbd1e874b624e44d4c46f6452f03e80`) fixes #58's archive
+permission/pending-write states. Push 11045/job 19992 and PR 11046/job 19993
+passed the full hosted gate: 278 web/34 mobile tests and 421 top-level DB tests
+(599 including nested), zero failures/skips. Synthetic browser checks covered
+held/duplicate submits, a committed correction with a lost response, validation
+and 401/403 clearing. Creation remains non-idempotent; uncertain saves require
+reloading and inspecting the ledger. The archive stays private and unpublished.
+
+Current source work fixes projected discovery occurrence time-zone conversion
+and theme-aware focus/coordinate colors. Final full local gate passed: 281
+web/34 mobile tests and 421 top-level DB tests (599 including nested), zero
+failures/skips. Formatting tests passed under Honolulu/Tokyo viewer zones;
+synthetic component-browser checks covered date rollover, fallback, keyboard
+open/close/focus return and dark contrast. An observed test DB memory-cgroup OOM
+was repaired with a repository-only 1 GiB cap; final resource counters had zero
+OOM kills. Native/device, full journey and remaining accessibility gates stay
+open. Issue #54/#57 stale CI and #50/#55/#58 source evidence were reconciled
+without removing prerequisites or closing issues.
 
 ## Merged work and remaining acceptance
 
@@ -54,10 +65,10 @@ saves require reloading and checking the ledger before another change.
 | [#6 IDENT-02](https://git.subcult.tv/subculture-collective/subcult-os/issues/6) | Mobile verification/recovery app links merged in PR #168 at `89b6ea9`. Current main has passing hosted run 10687. | Run the [physical-device checklist](mobile-app-links.md), including domain association, secure storage, restart, refresh, recovery revocation and logout. |
 | [#7 MAIL-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/7) | Resend adapter, durable outbox, signed feedback and suppression exist in source. | Qualify configured provider delivery to approved test recipients. Automated qualification keeps sending disabled. |
 | [#10 AT-LIVE](https://git.subcult.tv/subculture-collective/subcult-os/issues/10) | Identity-only OAuth source and synthetic checks exist. | Qualify a consenting test identity against the configured HTTPS metadata, callback and JWKS URLs, including refresh and remote revocation. |
-| [#50 LIFE-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/50) | Occurrence safeguards and owner-only draft action worklist are merged. Worklist merge `8166559` has passing hosted run 10160. Destination-scoped dispatch, listing notice approval/queuing, per-recipient outcomes and private owner observations are in open PR #169 at `b0172c0`; both exact-head hosted runs 10947/10948 passed. Generic runtime adapters remain absent; notices use the guarded mail worker. | Qualify live notice delivery and operator reconciliation controls, then the wider coordinated lifecycle. Public/provider effects and refunds retain their own authority and qualification gates. |
+| [#50 LIFE-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/50) | Occurrence safeguards and owner-only draft action worklist are merged. Worklist merge `8166559` has passing hosted run 10160. Destination-scoped dispatch, guarded listing notices, per-recipient outcomes and private owner observations merged in #169 at `375451dc`; both head checks passed and merge follow-up job 19978 passed after runner repair. Open #170 clarifies queue state and refreshes the owner worklist; both head checks passed. Generic runtime adapters remain absent; notices use the guarded mail worker. | Qualify live notice delivery and operator reconciliation controls, then the wider coordinated lifecycle. Public/provider effects and refunds retain their own authority and qualification gates. |
 | [#51 OFFLINE-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/51) | Synthetic merge model and separate-client process harness exist. The harness passed in this reconciliation. | Physical-device partition/reconnect, persistence, duplicate scan, revocation, device-loss and manual-fallback evidence. Do not enable offline admission from synthetic results. |
-| [#54 EXPORT-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/54) | PR #167 merged at `d40221f`. Both required head runs 10168 and 10169 passed at `8317ef3`; the issue still says they are queued. | Reconcile the issue's stale CI/merge status and prerequisite #25. A selected accounting-provider format still requires an actual requirement. |
-| [#57 PORTALS-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/57) | Participant portal implementation is merged. The issue records source completion but dependency-blocked closure. Shared merge baseline `8166559` has passing hosted run 10160. | Reconcile prerequisites without deleting dependency links. Do not add vendor fees, invoices or payouts without pilot demand and permission rules. |
+| [#54 EXPORT-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/54) | PR #167 merged at `d40221f`. Both required head runs 10168 and 10169 passed at `8317ef3`; the issue now records their successful checks and merge. | Finish prerequisite #25 and accounting-user qualification. A selected accounting-provider format still requires an actual requirement. |
+| [#57 PORTALS-01](https://git.subcult.tv/subculture-collective/subcult-os/issues/57) | Participant portal implementation is merged. The issue records source completion but dependency-blocked closure. Shared merge baseline `8166559` has passing hosted run 10160. | Complete prerequisites #25/#36; stale CI wording is corrected and dependency links remain. Do not add vendor fees, invoices or payouts without pilot demand and permission rules. |
 
 The following hosted results were read from Gitea's exact-commit status API:
 [main run 10687](https://git.subcult.tv/subculture-collective/subcult-os/actions/runs/10687),

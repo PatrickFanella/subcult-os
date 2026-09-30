@@ -154,7 +154,7 @@ export function DiscoveryOccurrencesSection() {
 								cx={point.x}
 								cy={point.y}
 								r={4}
-								className="cursor-pointer fill-[#171717]"
+								className="cursor-pointer fill-fg-primary outline-none focus-visible:focus-ring"
 								role="button"
 								tabIndex={0}
 								aria-label="View occurrence"
@@ -174,7 +174,7 @@ export function DiscoveryOccurrencesSection() {
 								role="button"
 								tabIndex={0}
 								aria-label={occurrence.name}
-								className="flex h-full cursor-pointer flex-col gap-3 rounded-[24px] border border-stroke-subtle bg-surface-panel p-5 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-[#171717]"
+								className="flex h-full cursor-pointer flex-col gap-3 rounded-[24px] border border-stroke-subtle bg-surface-panel p-5 shadow-sm outline-none focus-visible:focus-ring"
 								onClick={() => openDetail(occurrence.uri)}
 								onKeyDown={(event) => handleCardKeyDown(event, occurrence.uri)}
 							>

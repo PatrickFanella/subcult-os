@@ -133,6 +133,34 @@ the existing published-events grid:
   `sm:grid-cols-2`/`xl:grid-cols-3` only at wider breakpoints, so the
   360px-narrow case never depends on a multi-column layout existing.
 
+### Occurrence time and themed interaction — 2026-09-30
+
+Cards and detail dialogs convert `startsAt` into the recorded event `timezone`;
+they do not attach the event-zone label to the viewer's local clock. The visible
+label includes the event zone and offset at that instant, so the repeated 1:30
+AM at a daylight-saving fall-back has distinct offsets. A missing or unsupported
+zone displays the UTC instant with **event time zone unavailable**. Invalid
+start timestamps retain their original text. This applies to projected occurrence
+cards/detail, not the legacy local-event time display or all-day semantics.
+
+Formatting uses the browser's locale and its supported time-zone data through
+[`Intl.DateTimeFormat`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat/DateTimeFormat).
+The card focus outline and coordinate-point fill use semantic theme tokens;
+dark mode displays a light outline and points against dark surfaces.
+
+Regression checks cover event-zone date rollover, daylight-saving gaps/repeated
+hours and unknown-zone fallback. The same 13 formatting/model tests passed under
+Honolulu and Tokyo viewer zones. T3 Code on Linux (Chrome 152.0.7977.130,
+Electron 44.4.2; 1402 × 876 CSS pixels) mounted the actual
+`DiscoveryOccurrencesSection` with intercepted synthetic public-list responses:
+Chicago and Tokyo cards/detail showed different event-local dates/times, an
+invalid zone showed the UTC fallback, Enter opened detail, Escape closed it and
+returned focus, and the dark keyboard focus outline/coordinate fill were read
+from computed styles. The fixture root and fetch interception were removed and
+the original page restored. This is component-fixture browser evidence; it does
+not qualify an external projection feed, the complete discovery journey, native
+mobile, all-day records or the remaining dialog accessibility behavior.
+
 ### Contracts
 
 `PublicDiscoveryOccurrenceDTO` (and its nested `PublicDiscoverySourceDTO`/

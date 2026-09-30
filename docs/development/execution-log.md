@@ -1,6 +1,58 @@
 # Development execution log
 
+## 2026-09-30 — discovery event-zone clocks and theme focus
+
+Fixed projected occurrence cards/detail that formatted the viewer's local clock
+then appended the event's zone. The same instant now displays Chicago 3:00 PM
+and Tokyo 5:00 AM the following day. The instant's offset distinguishes repeated
+fall-back wall times; missing or unusable zones show an explicit UTC fallback.
+Fixed hardcoded black card focus rings and coordinate points to use semantic
+theme tokens. No API contract, schema, projection or publication changes.
+
+Full pinned `bash scripts/dev-env.sh verify` passed on the final source: 281 web
+tests, 34 mobile tests, backend checks/build and all 421 top-level disposable DB
+tests (599 including nested), zero failures/skips. The model's 13 tests also
+passed under `TZ=Pacific/Honolulu` and `TZ=Asia/Tokyo`.
+
+One earlier full gate lost its PostgreSQL checkpointer. Retained DB and kernel
+logs prove a memory-cgroup OOM at the repository test DB's 768 MiB limit. A
+subsequent unchanged DB suite passed at that cap, but the repository-only test
+limit was raised to 1 GiB. README/AGENTS document the difference from the
+installed shared T3 recipe; neither the retained dev DB nor the shared recipe
+changed. The final full gate used the actual 1 GiB container cap; sampled cgroup
+peak was about 1 GiB with zero `oom`/`oom_kill` events. Memory-limit reclaim was
+observed. The disposable container was removed. Failed evidence is retained in
+ignored `.cache/dev-env/discovery-zone-infra-db.log` and
+`discovery-zone-oom-kernel.log`; final resource receipt is
+`discovery-zone-db-resource-receipt.json`.
+
+The desktop browser was T3 Code on Linux, Chrome 152.0.7977.130/Electron
+44.4.2, with a 1402 × 876 CSS-pixel viewport.
+
+Real desktop component-fixture checks rendered the actual discovery section
+with synthetic intercepted public-list responses. Cards and the Tokyo detail
+showed the event-local date rollover; unknown zone displayed UTC. Keyboard Tab
+showed a 2px light outline on a dark card; Enter opened detail, Escape closed it
+and returned focus. Coordinate fill was light on dark and dark on light.
+Screenshots were inspected. The fixture root, interception and all helpers were
+removed and the original private archive page restored. No external feed or
+native/mobile/all-day behavior is claimed. Retained app data and disabled mail,
+OAuth/projection settings were preserved; no backend restart or external action
+was needed for these frontend/resource changes.
+
+Issues #54/#57 had stale queued-CI wording reconciled against exact successful
+jobs/merge records. Issues #50/#55/#58 now include qualified source receipts,
+merged versus open status and remaining gates. Bodies were read back exactly;
+no prerequisite link was removed, checkbox invented or issue closure attempted.
+
 ## 2026-09-30 — private archive permission and pending-write states
+
+PR #174 exact head `67fb7967fdbd1e874b624e44d4c46f6452f03e80` passed
+push 11045/job 19992 and PR 11046/job 19993, including the full disposable DB
+gate (421 top-level tests, 599 including nested). Temporary runners exited 0,
+were removed with credentials deleted, and zero repository registrations were
+verified. Additional browser checks retained an editable draft on 400 and
+cleared all inputs/rows on 401 plus failed refresh; helpers were removed.
 
 Fixed the private archive approval page's retained-content behavior after a
 permission rejection. Owner reads now gate all ledger and mutation controls;

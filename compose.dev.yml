@@ -31,9 +31,9 @@ services:
       interval: 2s
       timeout: 3s
       retries: 30
-    # Matches the qualified shared T3 test recipe. The full migration suite's
-    # tmpfs/WAL and shared buffers exceed 512 MiB and can kill DB backends.
-    mem_limit: 768m
+    # Migration-suite tmpfs/WAL and shared buffers can exceed 768 MiB.
+    # Give the full suite room while keeping the test database bounded.
+    mem_limit: 1g
     cpus: 1
 
   api:
