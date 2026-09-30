@@ -349,3 +349,21 @@ The test database was removed. Its DB output capture was truncated by the tool
 output budget, so this receipt does not derive complete DB test counts from it.
 Changed-copy browser and screen-reader proof is pending the preview connection
 recovery; no live email was sent. Hosted qualification follows publication.
+
+
+### Invitation receipt qualified; owner controls corrected — 2026-09-30
+
+PR #182 (`7d9563c3368e04282070df953d02375bae66c02d`) passed push11077/job20028
+and PR11078/job20029: 296 web/34 mobile tests, DB421/599, no failures/skips.
+Existing kvant runner preserved; no owned credentials or runner created; qualified
+PR body and head were read back. The disposable API operations rehearsal passed
+36/36 using separate synthetic accounts/events and held mail.
+
+The next UI correction removes the owner-only invitation form and its guidance
+entry point from non-owner roles, with a matching submit guard. Focused API member
+creation was rejected403 with invitations2→2 and outbox9→9. Scope and evidence
+limits are recorded in [the ongoing operator journey](../qa/operator-journey-2026-09-30.md).
+Full local verification passed: 304 web/34 mobile, DB421/599, no failures/skips;
+test DB removed. Changed-form browser/SR proof still requires
+preview connection recovery. Continue the original browser event through owner
+application review, assignment/participant views, ticket/door, finance and reuse.

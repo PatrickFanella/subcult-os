@@ -83,3 +83,43 @@ changes that receipt to invitation creation with queued, unconfirmed delivery,
 and names the action Create invite. The existing API commits the invitation and
 outbox row together; it does not return a provider delivery result. No delivery
 flag, provider configuration, API or database behavior changes.
+
+
+## API-only operations qualification and owner invitation controls
+
+PR #182 (`7d9563c3368e04282070df953d02375bae66c02d`) passed both hosted
+checks: push11077/job20028 and PR11078/job20029, each with 296 web/34 mobile
+tests and DB421/599, no failures/skips. Existing kvant runner preserved; no
+owned runner or credentials created. Qualified PR body and head were read back.
+
+With the preview connection still unavailable, `scripts/qa-operations.sh` ran
+against the live disposable API/database after actual destination, tmpfs storage
+and disabled provider flags were checked. All 36 steps passed: verified accounts,
+workspace membership, contacts, commitment transitions, staffing creation and
+assignment permissions, template creation/application, role application review,
+and reminder owner/idempotency boundaries. It created separate synthetic
+accounts, workspace and events; it did not advance the original browser event.
+The DB now contains four people, two workspaces, three events and nine held
+outbox rows. Original browser-event state remains roles4, applications1,
+staffing0 and tickets0. This is API/runtime qualification, not browser evidence.
+
+The earlier member workspace browser page exposed an invitation form even though
+only owners may use its API. The follow-up isolates that form, renders it only
+for owners, removes its non-owner guidance link and guards the submit handler.
+It uses the shared Button and keeps a stable status region before submission.
+SSR tests cover member, organizer, finance, door, crew and unresolved roles,
+owner entry points, and pending controls. No server permission changes.
+
+A focused normal-API login as the original verified crew member returned403 for
+invitation creation. Invitation rows stayed2→2 and held outbox rows9→9. Cookies
+were held only in the private process; the browser session was not changed.
+The same preview connection problem prevents changed-form visual, keyboard and
+screen-reader proof. Read-only invitation listings and legitimate member event
+creation remain governed by their existing server contracts.
+
+
+The owner-control candidate passed the full pinned local gate: 304 web/34 mobile
+tests, backend checks/builds and DB421 top-level/599 including nested, with no
+failures/skips. Complete output was retained and the disposable test DB removed.
+Cross-workspace pending invitation callback recovery is not covered by this
+control-visibility slice; existing server authorization remains authoritative.
