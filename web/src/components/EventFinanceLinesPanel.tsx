@@ -1,16 +1,17 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { ApiError, api, postJSON } from '../api';
+import { FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { ApiError } from '../api';
 import type { EventFinanceLineDTO } from '../domain';
 import {
   centsFromDecimal,
   currentFinanceLines,
   decimalFromCents,
   financeTotals,
-  nextFinanceLineRetry,
   preserveHydratedUTC,
   toLocalDateTime,
-  type FinanceLineRetry,
 } from '../modules/financeLines/financeLineModel';
+
+import { createFinanceLineSession } from '../modules/financeLines/financeLineSession';
+import { Button } from '../ui/Button';
 
 type EntryType = EventFinanceLineDTO['entryType'];
 type Direction = EventFinanceLineDTO['direction'];
@@ -41,10 +42,16 @@ function labelForType(value: EntryType) {
 }
 
 export function EventFinanceLinesPanel({ eventId, allowed }: { eventId: string; allowed: boolean }) {
-  const generation = useRef(0);
+  return allowed ? <FinanceLedger key={eventId} eventId={eventId} /> : null;
+}
+
+function FinanceLedger({ eventId }: { eventId: string }) {
+  const session = useMemo(() => createFinanceLineSession(eventId), [eventId]);
+  const active = useRef(true);
+  const lifetime = useRef(0);
+  const [access, setAccess] = useState<'loading' | 'ready' | 'unavailable'>('loading');
   const [lines, setLines] = useState<EventFinanceLineDTO[]>([]);
   const [draft, setDraft] = useState<Draft>(empty);
-  const [request, setRequest] = useState<FinanceLineRetry | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -60,7 +67,6 @@ export function EventFinanceLinesPanel({ eventId, allowed }: { eventId: string; 
   function clearPrivateState() {
     setLines([]);
     setDraft(empty());
-    setRequest(null);
     setBusy(false);
     setNotice(null);
   }
@@ -77,14 +83,12 @@ export function EventFinanceLinesPanel({ eventId, allowed }: { eventId: string; 
       payableLineId: '',
       correctsLineId: '',
     }));
-    setRequest(null);
   }
 
   function selectCorrection(id: string) {
     const line = leaves.find((item) => item.id === id);
     if (!line) {
       setDraft(empty());
-      setRequest(null);
       return;
     }
     setDraft({
@@ -101,43 +105,37 @@ export function EventFinanceLinesPanel({ eventId, allowed }: { eventId: string; 
       payableLineId: line.payableLineId ?? '',
       correctsLineId: line.id,
     });
-    setRequest(null);
   }
 
-  useEffect(() => {
-    let active = true;
-    const run = ++generation.current;
+  useLayoutEffect(() => {
+    active.current = true;
+    lifetime.current += 1;
+    session.activate();
+    return () => { active.current = false; lifetime.current += 1; session.dispose(); };
+  }, [session]);
+
+  async function refresh() {
+    const run = lifetime.current;
     clearPrivateState();
-    if (!allowed) {
-      return () => {
-        active = false;
-        generation.current += 1;
-        clearPrivateState();
-      };
-    }
-
-    void api<EventFinanceLineDTO[]>(`/api/events/${eventId}/finance-lines`)
-      .then((value) => {
-        if (active && run === generation.current) setLines(value);
-      })
-      .catch((error) => {
-        if (!active || run !== generation.current) return;
-        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
-          clearPrivateState();
-        }
-        setNotice(errorText(error));
-      });
-
-    return () => {
-      active = false;
-      generation.current += 1;
+    setAccess('loading');
+    try {
+      const value = await session.read();
+      if (!active.current || run !== lifetime.current || value === null) return;
+      setLines(value);
+      setAccess('ready');
+    } catch (error) {
+      if (!active.current || run !== lifetime.current) return;
       clearPrivateState();
-    };
-  }, [eventId, allowed]);
+      setAccess('unavailable');
+      setNotice(errorText(error));
+    }
+  }
+
+  useEffect(() => { void refresh(); }, [session]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (busy || !allowed) return;
+    if (!active.current || busy || access !== 'ready' || !session.canSave()) return;
 
     const amountCents = centsFromDecimal(draft.amount);
     const dueAt = preserveHydratedUTC(draft.dueAt, draft.dueAtSource);
@@ -166,35 +164,31 @@ export function EventFinanceLinesPanel({ eventId, allowed }: { eventId: string; 
       payableLineId: draft.payableLineId || undefined,
       correctsLineId: draft.correctsLineId || undefined,
     };
-    const fingerprint = JSON.stringify(body);
-    const retry = nextFinanceLineRetry(request, fingerprint, () => crypto.randomUUID());
-    setRequest(retry);
+    const run = lifetime.current;
     setBusy(true);
     setNotice(null);
-    const run = generation.current;
-
     try {
-      const created = await postJSON<EventFinanceLineDTO>(`/api/events/${eventId}/finance-lines`, {
-        ...body,
-        requestKey: retry.key,
-      });
-      if (run !== generation.current) return;
-      setLines((value) => value.some((line) => line.id === created.id) ? value : [created, ...value]);
+      const created = await session.save(body);
+      if (!active.current || run !== lifetime.current || created === null) return;
+      setLines(value => value.some(line => line.id === created.id) ? value : [created, ...value]);
       setDraft(empty());
-      setRequest(null);
       setNotice('Recorded manually. This does not execute or confirm a provider payment.');
     } catch (error) {
-      if (run !== generation.current) return;
-      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+      if (!active.current || run !== lifetime.current) return;
+      if (error instanceof ApiError && (error.status === 400 || error.status === 409)) {
+        setNotice(errorText(error));
+      } else {
         clearPrivateState();
+        setAccess('unavailable');
+        setNotice(error instanceof ApiError && (error.status === 401 || error.status === 403)
+          ? 'Finance access is unavailable. Refresh to check current access.'
+          : 'The record-save outcome is uncertain. Refresh and inspect the ledger before another record.');
       }
-      setNotice(errorText(error));
     } finally {
-      if (run === generation.current) setBusy(false);
+      if (active.current && run === lifetime.current) setBusy(false);
     }
   }
 
-  if (!allowed) return null;
   return (
     <section className="mt-6 rounded-2xl border border-status-info/20 bg-action-disabled p-5">
       <p className="text-xs uppercase tracking-[0.25em] text-fg-muted">Finance ledger</p>
@@ -203,9 +197,11 @@ export function EventFinanceLinesPanel({ eventId, allowed }: { eventId: string; 
         Manual actual payments are records only. They do not send, execute, or confirm a provider payment, and they do not alter ticket settlement totals.
       </p>
 
-      {notice && <p role="status" className="mt-3 rounded border border-stroke-subtle p-3 text-sm">{notice}</p>}
+      <p role="status" aria-atomic="true" className={notice ? 'mt-3 rounded border border-stroke-subtle p-3 text-sm' : 'sr-only'}>{notice ?? ''}</p>
+      {access === 'loading' ? <p className="mt-3 text-sm">Loading private ledger…</p> : null}
+      {access === 'unavailable' ? <Button variant="secondary" className="mt-3" onClick={() => { void refresh(); }}>Refresh ledger</Button> : null}
 
-      <form className="mt-4 space-y-4" onSubmit={submit}>
+      {access === 'ready' ? <form className="mt-4 space-y-4" onSubmit={submit}>
         <fieldset disabled={busy} className="grid gap-3 md:grid-cols-2">
           <label>
             Type
@@ -279,10 +275,10 @@ export function EventFinanceLinesPanel({ eventId, allowed }: { eventId: string; 
             </select>
           </label>
         </fieldset>
-        <button disabled={busy} className="rounded bg-action-primary px-4 py-2 font-medium text-fg-inverse disabled:opacity-60">
+        <Button type="submit" busy={busy} disabled={busy}>
           {busy ? 'Saving…' : draft.correctsLineId ? 'Record correction' : 'Record line'}
-        </button>
-      </form>
+        </Button>
+      </form> : null}
 
       <section className="mt-6" aria-labelledby="finance-current-totals">
         <h4 id="finance-current-totals" className="text-sm font-semibold uppercase tracking-[0.18em] text-status-info">Current ledger totals</h4>
@@ -294,7 +290,7 @@ export function EventFinanceLinesPanel({ eventId, allowed }: { eventId: string; 
               <dd className="mt-1 font-semibold text-fg-primary">{money(total.amountCents, total.currency)}</dd>
             </div>
           ))}
-          {totals.length === 0 && <p className="text-sm text-fg-secondary">No current finance lines recorded.</p>}
+          {access === 'ready' && totals.length === 0 && <p className="text-sm text-fg-secondary">No current finance lines recorded.</p>}
         </dl>
       </section>
 
@@ -313,7 +309,7 @@ export function EventFinanceLinesPanel({ eventId, allowed }: { eventId: string; 
               {line.payableLineId && <p className="break-all text-xs text-fg-muted">Stable payable obligation {line.payableLineId}</p>}
             </li>
           ))}
-          {lines.length === 0 && <li className="text-sm text-fg-secondary">No finance history recorded.</li>}
+          {access === 'ready' && lines.length === 0 && <li className="text-sm text-fg-secondary">No finance history recorded.</li>}
         </ol>
       </section>
     </section>
