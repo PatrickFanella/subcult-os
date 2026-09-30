@@ -52,16 +52,30 @@ func RunEmailDeliveries(ctx context.Context, config Config, db *pgxpool.Pool, li
 	if err := config.Validate(); err != nil {
 		return nil, errors.New("invalid email worker configuration")
 	}
-	provider, err := mailprovider.NewResend(config.ResendAPIKey)
-	if err != nil {
-		return nil, err
+	var send func(context.Context, mailprovider.Message) (string, error)
+	if config.mailProvider() == "brevo" {
+		provider, err := mailprovider.NewBrevo(config.BrevoAPIKey)
+		if err != nil {
+			return nil, err
+		}
+		send = provider.Send
+	} else {
+		provider, err := mailprovider.NewResend(config.ResendAPIKey)
+		if err != nil {
+			return nil, err
+		}
+		send = provider.Send
 	}
 	a := &App{db: db, config: config}
-	return a.processEmailDeliveries(ctx, provider.Send, limit)
+	return a.processEmailDeliveries(ctx, send, limit)
 }
 
 func (a *App) processEmailDeliveries(ctx context.Context, send func(context.Context, mailprovider.Message) (string, error), limit int) (EmailDeliveryReport, error) {
 	report := EmailDeliveryReport{}
+	retryWindowSeconds := int((23 * time.Hour).Seconds())
+	if a.config.mailProvider() == "brevo" {
+		retryWindowSeconds = int((29 * time.Minute).Seconds())
+	}
 	if send == nil || limit < 1 || limit > 100 {
 		return report, errors.New("email batch limit must be 1..100")
 	}
@@ -78,15 +92,15 @@ func (a *App) processEmailDeliveries(ctx context.Context, send func(context.Cont
 		return report, errors.New("email suppression unavailable")
 	}
 	report.Suppressed = int(suppressed.RowsAffected())
-	// Never retry after the provider's 24-hour idempotency retention. The
-	// 23-hour local limit leaves margin and also bounds late crash recovery.
+	// Retry only inside the selected provider's idempotency window: 23 hours
+	// for Resend, 29 minutes for Brevo. Late or uncertain attempts are held.
 	expired, err := a.db.Exec(ctx, `with expired as (
-	 select id from email_outbox where delivery_status in ('pending','leased') and
-	 (expires_at<=now() or first_attempt_at<=now()-interval '23 hours' or (attempts>=8 and lease_until<=now()) or
+	 select id from email_outbox where provider=$2 and delivery_status in ('pending','leased') and
+	 (expires_at<=now() or first_attempt_at<=now()-$1*interval '1 second' or (attempts>=8 and lease_until<=now()) or
 	 exists(select 1 from identity_challenges c where c.id=email_outbox.related_id and c.consumed_at is not null))
 	 order by expires_at limit 100 for update skip locked)
 	 update email_outbox e set delivery_status='quarantined',body='',lease_token=null,lease_until=null,last_error_code='retry_window_closed'
-	 from expired where e.id=expired.id`)
+	 from expired where e.id=expired.id`, retryWindowSeconds, a.config.mailProvider())
 	if err != nil {
 		return report, errors.New("email expiration failed")
 	}
@@ -97,19 +111,19 @@ func (a *App) processEmailDeliveries(ctx context.Context, send func(context.Cont
 		var attempts int
 		var workspaceID sql.NullString
 		err := a.db.QueryRow(ctx, `with candidate as (
-		 select id from email_outbox where expires_at>now() and attempts<8 and
+		 select id from email_outbox where provider=$2 and expires_at>now() and attempts<8 and
 		 not exists(select 1 from email_suppressions s where s.recipient_email=lower(trim(email_outbox.recipient_email))) and
 		 not exists(select 1 from email_provider_events p join email_outbox prior on prior.provider_message_id=p.provider_message_id
 		 where p.processed_at is null and p.event_type in ('email.bounced','email.complained','email.suppressed')
 		 and lower(trim(prior.recipient_email))=lower(trim(email_outbox.recipient_email))) and
 		 not exists(select 1 from identity_challenges c where c.id=email_outbox.related_id and c.consumed_at is not null) and
-		 (first_attempt_at is null or first_attempt_at>now()-interval '23 hours') and
+		 (first_attempt_at is null or first_attempt_at>now()-$1*interval '1 second') and
 		 ((delivery_status='pending' and next_attempt_at<=now()) or (delivery_status='leased' and lease_until<=now()))
 		 order by next_attempt_at,id limit 1 for update skip locked)
 		 update email_outbox e set delivery_status='leased',attempts=e.attempts+1,
 		 first_attempt_at=coalesce(e.first_attempt_at,now()),lease_token=gen_random_uuid(),lease_until=now()+interval '2 minutes'
 		 from candidate where e.id=candidate.id
-		 returning e.id::text,e.sender_address,e.reply_to_address,e.recipient_email,e.subject,e.body,e.lease_token::text,e.attempts,e.purpose,e.workspace_id::text,e.related_type`).Scan(
+		 returning e.id::text,e.sender_address,e.reply_to_address,e.recipient_email,e.subject,e.body,e.lease_token::text,e.attempts,e.purpose,e.workspace_id::text,e.related_type`, retryWindowSeconds, a.config.mailProvider()).Scan(
 			&message.ID, &message.From, &message.ReplyTo, &message.To, &message.Subject, &message.Text, &lease, &attempts, &purpose, &workspaceID, &relatedType)
 		if errors.Is(err, pgx.ErrNoRows) {
 			break
@@ -189,7 +203,9 @@ func (a *App) processEmailDeliveries(ctx context.Context, send func(context.Cont
 			status, code = "pending", "provider_failed"
 			var failure *mailprovider.Failure
 			if errors.As(callErr, &failure) {
-				if !failure.Temporary {
+				if failure.Code == "acceptance_unconfirmed" {
+					status, code = "quarantined", "acceptance_unconfirmed"
+				} else if !failure.Temporary {
 					status, code = "failed", "provider_rejected"
 				}
 				if failure.RetryAfter > delay {
@@ -208,7 +224,7 @@ func (a *App) processEmailDeliveries(ctx context.Context, send func(context.Cont
 		}
 		ack, err := a.db.Exec(ctx, `update email_outbox set delivery_status=$3,last_error_code=nullif($4,''),
 		 next_attempt_at=now()+$5*interval '1 second',lease_token=null,lease_until=null,
-		 provider_message_id=nullif($6,'')::uuid,accepted_at=case when $3='accepted' then now() else accepted_at end,
+		 provider_message_id=nullif($6,''),accepted_at=case when $3='accepted' then now() else accepted_at end,
 		 body=case when $3='pending' then body else '' end
 		 where id=$1 and lease_token=$2 and delivery_status='leased'`, message.ID, lease, status, code, int(delay.Seconds()), providerID)
 		if err != nil {

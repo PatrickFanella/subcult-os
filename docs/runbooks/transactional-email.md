@@ -1,6 +1,6 @@
 # Transactional email
 
-Decision: Resend sends application messages; Proton remains the human inbox and optional reply destination. A sending subdomain such as `notify.subcult.tv` is proposed, not configured. Account creation, sender/domain approval, credentials, DNS and approved-recipient live testing are separate setup gates. Never use account passwords as API credentials or place secrets in issues.
+Decision: Brevo is the selected free sending service; Resend remains supported through explicit provider selection. Proton remains the human inbox and optional reply destination. A sending subdomain such as `notify.subcult.tv` is proposed, not configured. Account creation, sender/domain approval, credentials, DNS and approved-recipient live testing are separate setup gates. Never use account passwords as API credentials or place secrets in issues.
 
 ## Provider boundary (#103)
 
@@ -43,3 +43,43 @@ Rollback: stop the mail worker and set delivery disabled; retain the additive mi
 - [Event types](https://resend.com/docs/webhooks/event-types) and [bounce payload](https://resend.com/docs/webhooks/emails/bounced): outcome meanings and provider-message correlation.
 
 No transactional message confers marketing consent. Announcement consent/suppression design remains separately scoped.
+
+## Brevo setup and cutover
+
+Select `MAIL_PROVIDER=brevo`, provide `BREVO_API_KEY` and a random
+`BREVO_WEBHOOK_TOKEN` of 32–256 characters through the runtime secret store.
+Set `MAIL_FROM=SUBCULT.TV OS <subcult-os@subcult.tv>` and optional
+`MAIL_REPLY_TO=info@subcult.tv`. Keep delivery disabled during setup.
+
+Apply migration 30 before running this revision. It preserves existing Resend
+UUIDs as text and binds every existing outbox row to Resend. New rows record the
+selected provider. A Brevo worker cannot claim historical Resend rows, and
+historical held rows stay held. Never change provider bindings to release mail.
+
+Register a **non-batched** transactional webhook at `POST /api/brevo/webhook`
+using bearer authentication with the configured token. Subscribe to delivered,
+hard_bounce, spam, blocked, invalid, and unsubscribed events. Sending requires
+this token, but provider-side webhook registration must also be verified before
+activation. The webhook stores minimal receipts and uses the matched outbox
+recipient for suppression; it ignores payload-supplied recipient addresses.
+Early receipts are reconciled after the matching acceptance is recorded.
+
+The Brevo adapter uses the fixed HTTPS API, no proxy or redirects, a ten-second
+timeout, and bounded responses. A singleton `messageVersions` request carries
+its outbox UUID as `headers.idempotencyKey`. The worker retries only inside 29
+minutes from its first attempt, within Brevo's
+[30-minute retention window](https://developers.brevo.com/docs/heterogenous-versions-batch-emails).
+A duplicate-key rejection without a known provider ID is quarantined as
+acceptance unconfirmed; it is never labelled delivered or sent with a fresh key.
+
+Review the default aggregate worker status, verify the webhook, then approve a
+single controlled recipient before enabling `MAIL_DELIVERY_ENABLED=true` and the
+`mail-workers` profile. Local qualification uses mocked provider responses and
+a disposable database; it must never send live messages.
+
+Rollback starts by stopping the worker and disabling delivery. Preserve migration
+30, provider IDs, receipts, and all queue rows. An older Resend-only worker must
+stay disabled because it cannot enforce provider bindings or handle Brevo IDs.
+
+Brevo feedback storage or processing failures return 429 for provider retry;
+[Brevo discards other 4xx and 5xx responses](https://developers.brevo.com/docs/retry-mechanism).

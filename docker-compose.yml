@@ -23,6 +23,9 @@ services:
     environment: &api_environment
       APP_ENV: ${APP_ENV:-development}
       MAIL_DELIVERY_ENABLED: ${MAIL_DELIVERY_ENABLED:-false}
+      MAIL_PROVIDER: ${MAIL_PROVIDER:-resend}
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
+      BREVO_WEBHOOK_TOKEN: ${BREVO_WEBHOOK_TOKEN:-}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       RESEND_WEBHOOK_SECRET: ${RESEND_WEBHOOK_SECRET:-}
       MAIL_FROM: ${MAIL_FROM:-}

@@ -22,10 +22,10 @@ func (a *App) enqueueEmail(ctx context.Context, recipient, subject, body, relate
 		status = "pending"
 	}
 	const insert = `insert into email_outbox
-		(recipient_email, subject, body, related_type, related_id, delivery_status, sender_address, reply_to_address, expires_at)
-		values ($1,$2,$3,$4,$5,$6,$7,$8,
+		(recipient_email, subject, body, related_type, related_id, delivery_status, sender_address, reply_to_address, provider, expires_at)
+		values ($1,$2,$3,$4,$5,$6,$7,$8,$9,
 		 least(now()+interval '23 hours', coalesce((select expires_at from identity_challenges where id=$5),now()+interval '23 hours')))`
-	args := []any{recipient, subject, body, relatedType, related, status, a.config.MailFrom, a.config.MailReplyTo}
+	args := []any{recipient, subject, body, relatedType, related, status, a.config.MailFrom, a.config.MailReplyTo, a.config.mailProvider()}
 	if tx, ok := ctx.Value(txContextKey{}).(pgx.Tx); ok && tx != nil {
 		_, err := tx.Exec(ctx, insert, args...)
 		return err

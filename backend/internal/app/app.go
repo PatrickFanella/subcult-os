@@ -275,6 +275,7 @@ func (a *App) routes() {
 	a.mux.HandleFunc("POST /api/public/consent/{token}/withdraw", a.handleWithdrawConsentGrant)
 	a.mux.HandleFunc("POST /api/stripe/webhook", a.handleStripeWebhook)
 	a.mux.HandleFunc("POST /api/resend/webhook", a.handleResendWebhook)
+	a.mux.HandleFunc("POST /api/brevo/webhook", a.handleBrevoWebhook)
 	a.mux.HandleFunc("GET /api/tickets/{code}", a.handleGetTicket)
 	a.mux.HandleFunc("GET /api/events/{eventID}/door/tickets", a.handleDoorTicketSearch)
 	a.mux.HandleFunc("POST /api/events/{eventID}/door/check-ins", a.handleDoorCheckIn)

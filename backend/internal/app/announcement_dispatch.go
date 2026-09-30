@@ -211,9 +211,9 @@ func (a *App) enqueueAnnouncementEmail(ctx context.Context, tx pgx.Tx, workspace
 	err := tx.QueryRow(ctx, `
 		insert into email_outbox
 			(recipient_email, subject, body, related_type, related_id, delivery_status,
-			 sender_address, reply_to_address, purpose, workspace_id, expires_at)
-		values ($1, $2, $3, 'announcement', $4, $5, $6, $7, $8, $9, now() + interval '23 hours')
+			 sender_address, reply_to_address, purpose, workspace_id, provider, expires_at)
+		values ($1, $2, $3, 'announcement', $4, $5, $6, $7, $8, $9, $10, now() + interval '23 hours')
 		returning id::text
-	`, recipient, subject, body, announcementID, status, a.config.MailFrom, a.config.MailReplyTo, consentPurposeAnnouncement, workspaceID).Scan(&outboxID)
+	`, recipient, subject, body, announcementID, status, a.config.MailFrom, a.config.MailReplyTo, consentPurposeAnnouncement, workspaceID, a.config.mailProvider()).Scan(&outboxID)
 	return outboxID, err
 }

@@ -166,7 +166,7 @@ func (a *App) handleApproveLifecycleNotice(w http.ResponseWriter, r *http.Reques
 				status = "pending"
 			}
 			var id string
-			err = tx.QueryRow(ctx, `insert into email_outbox(recipient_email,subject,body,related_type,related_id,delivery_status,sender_address,reply_to_address,purpose,workspace_id,expires_at) values($1,$2,$3,'lifecycle_notice',$4,$5,$6,$7,'transactional',$8,now()+interval '23 hours') returning id::text`, recipient.Email, preview.Subject, preview.Body, recipientID, status, a.config.MailFrom, a.config.MailReplyTo, event.WorkspaceID).Scan(&id)
+			err = tx.QueryRow(ctx, `insert into email_outbox(recipient_email,subject,body,related_type,related_id,delivery_status,sender_address,reply_to_address,purpose,workspace_id,provider,expires_at) values($1,$2,$3,'lifecycle_notice',$4,$5,$6,$7,'transactional',$8,$9,now()+interval '23 hours') returning id::text`, recipient.Email, preview.Subject, preview.Body, recipientID, status, a.config.MailFrom, a.config.MailReplyTo, event.WorkspaceID, a.config.mailProvider()).Scan(&id)
 			if err != nil {
 				writeNoticeError(w, err)
 				return

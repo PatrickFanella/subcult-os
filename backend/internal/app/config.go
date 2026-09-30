@@ -39,6 +39,9 @@ type Config struct {
 	MediaPublicBaseURL            string
 	MailDeliveryEnabled           bool
 	mailDeliveryEnabledRaw        string
+	MailProvider                  string
+	BrevoAPIKey                   string
+	BrevoWebhookToken             string
 	ResendAPIKey                  string
 	ResendWebhookSecret           string
 	MailFrom                      string
@@ -84,6 +87,7 @@ func LoadConfig() Config {
 		externalTicketAllowedHostsRaw: externalTicketAllowedHostsRaw,
 		MailDeliveryEnabled:           parseEnvBool(mailDeliveryEnabledRaw),
 		mailDeliveryEnabledRaw:        mailDeliveryEnabledRaw,
+		MailProvider:                  env("MAIL_PROVIDER", "resend"), BrevoAPIKey: env("BREVO_API_KEY", ""), BrevoWebhookToken: env("BREVO_WEBHOOK_TOKEN", ""),
 		ResendAPIKey:                  env("RESEND_API_KEY", ""),
 		ResendWebhookSecret:           env("RESEND_WEBHOOK_SECRET", ""),
 		MailFrom:                      env("MAIL_FROM", ""),
@@ -153,13 +157,29 @@ func (c Config) Validate() error {
 			problems = append(problems, "MAIL_DELIVERY_ENABLED must be a boolean")
 		}
 	}
+	if c.MailProvider != "" && c.MailProvider != "resend" && c.MailProvider != "brevo" {
+		problems = append(problems, "MAIL_PROVIDER must be resend or brevo")
+	}
+	if c.BrevoWebhookToken != "" && !mailprovider.ValidBrevoWebhookToken(c.BrevoWebhookToken) {
+		problems = append(problems, "BREVO_WEBHOOK_TOKEN must be a 32..256 character token")
+	}
 	if c.MailDeliveryEnabled {
-		if !mailprovider.ValidWebhookSecret(c.ResendWebhookSecret) {
-			problems = append(problems, "RESEND_WEBHOOK_SECRET is required for mail delivery")
+		if c.mailProvider() == "brevo" {
+			if !mailprovider.ValidBrevoWebhookToken(c.BrevoWebhookToken) {
+				problems = append(problems, "BREVO_WEBHOOK_TOKEN is required for mail delivery")
+			}
+			if _, err := mailprovider.NewBrevo(c.BrevoAPIKey); err != nil {
+				problems = append(problems, "BREVO_API_KEY is required for mail delivery")
+			}
+		} else {
+			if !mailprovider.ValidWebhookSecret(c.ResendWebhookSecret) {
+				problems = append(problems, "RESEND_WEBHOOK_SECRET is required for mail delivery")
+			}
+			if _, err := mailprovider.NewResend(c.ResendAPIKey); err != nil {
+				problems = append(problems, "RESEND_API_KEY is required for mail delivery")
+			}
 		}
-		if _, err := mailprovider.NewResend(c.ResendAPIKey); err != nil {
-			problems = append(problems, "RESEND_API_KEY is required for mail delivery")
-		}
+
 		if !mailprovider.ValidAddress(c.MailFrom) {
 			problems = append(problems, "MAIL_FROM must be a valid sender address")
 		}
@@ -258,4 +278,11 @@ func parseEnvBool(value string) bool {
 		return false
 	}
 	return parsed
+}
+
+func (c Config) mailProvider() string {
+	if c.MailProvider == "brevo" {
+		return "brevo"
+	}
+	return "resend"
 }
