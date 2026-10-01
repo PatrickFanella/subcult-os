@@ -61,16 +61,16 @@ export function LifecycleNoticePreview({ eventId, changeId, canApprove = true, o
       <label><input type="checkbox" checked={ticketHolders} onChange={(e) => setTicketHolders(e.target.checked)} /> Ticket holders</label>
       <label><input type="checkbox" checked={assignedCrew} onChange={(e) => setAssignedCrew(e.target.checked)} /> Assigned crew</label>
     </fieldset>}
-    {!queued && canApprove && <button disabled={busy || (!ticketHolders && !assignedCrew)} onClick={() => void review()} className="rounded border border-stroke-subtle px-3 py-2 text-sm">Preview listing notice</button>}
+    {!queued && canApprove && <button disabled={busy || (!ticketHolders && !assignedCrew)} onClick={() => void review()} className="btn-secondary px-3 text-sm">Preview listing notice</button>}
     <button disabled={busy} onClick={() => void refresh()} className="ml-3 text-sm underline">{queued ? 'Refresh delivery outcomes' : 'Check queued notice'}</button>
     {busy && <p role="status" className="text-sm text-fg-secondary">Updating notice…</p>}
     {error && <p role="alert" className="text-sm text-status-warning">{error}</p>}
-    {preview && canApprove && <div className="space-y-3 rounded bg-surface-inset p-3">
+    {preview && canApprove && <div className="space-y-3 bg-surface-inset p-3">
       <p className="font-medium">{preview.subject}</p><pre className="whitespace-pre-wrap font-sans text-sm">{preview.body}</pre>
       <p className="text-sm">{preview.recipients.filter((recipient) => !recipient.suppressed).length} eligible · {preview.recipients.filter((recipient) => recipient.suppressed).length} suppressed</p>
       {preview.recipients.length === 0 ? <p className="text-sm text-fg-secondary">No recipients match the selected operational relationships.</p> : <ul className="max-h-64 space-y-1 overflow-auto text-sm">{preview.recipients.map((recipient) => <li key={recipient.email} className="break-all">{recipient.email} · {recipient.sourceType === 'ticket' ? 'ticket holder' : 'assigned crew'}{recipient.suppressed ? ' · suppressed; would be withheld' : ''}</li>)}</ul>}
       <p className="text-xs text-fg-muted">Recipients reflect current relationships. Any later approval must recheck the listing, recipients and suppression.</p>
-      <button disabled={busy || preview.recipients.length === 0} onClick={() => void approve()} className="rounded bg-action-primary px-3 py-2 text-sm text-fg-inverse">Approve and queue this notice</button>
+      <button disabled={busy || preview.recipients.length === 0} onClick={() => void approve()} className="btn-primary px-3 text-sm">Approve and queue this notice</button>
     </div>}
     {queued && <LifecycleNoticeOutcomes eventId={eventId} changeId={changeId} notice={queued} onUpdate={setQueued} onAuthorizationLoss={() => { setQueued(null); setPreview(null); setRetry(null); onAuthorizationLoss(); }} />}
   </section>;

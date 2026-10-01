@@ -11,6 +11,7 @@ import type { EventDTO, EventRoleDTO, EventStaffingItemDTO } from '@/api/types';
 import { safeBack } from '@/navigation/safeBack';
 import { isPublishedEvent } from '@/events/eventLifecycle';
 import { saveTicketToWallet } from '@/tickets/walletStore';
+import { PrimaryButton } from '@/ui/PrimaryButton';
 
 type ChecklistItem = {
   key: string;
@@ -118,9 +119,7 @@ export default function ReadinessScreen() {
           {event ? (
             <>
               <Link href={{ pathname: '/event-edit', params: { eventId: event.id, workspaceId: event.workspaceId } }} style={styles.quickAction}>Edit event</Link>
-              <Pressable disabled={creatingTicket} onPress={() => void reserveTestTicket()} style={[styles.quickActionButton, creatingTicket && styles.disabledButton]}>
-                <Text style={styles.quickActionButtonText}>{creatingTicket ? 'Creating…' : 'Create test ticket'}</Text>
-              </Pressable>
+              <PrimaryButton busy={creatingTicket} onPress={() => void reserveTestTicket()} label={creatingTicket ? 'Creating…' : 'Create test ticket'} />
               {event.publicSlug ? <Link href={{ pathname: '/event-detail', params: { slug: event.publicSlug } }} style={styles.quickAction}>Mobile preview</Link> : null}
               {event.publicUrl ? <Text onPress={() => void Linking.openURL(event.publicUrl!)} style={styles.quickAction}>Web preview</Text> : null}
             </>
@@ -264,36 +263,33 @@ const createStyles = (tokens: Tokens) => StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 16, padding: 24, paddingTop: 56, paddingBottom: 12 },
   backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: tokens.color.surface.inset, alignItems: 'center', justifyContent: 'center' },
   headerCopy: { flex: 1 },
-  kicker: { alignSelf: 'flex-start', color: tokens.color.text.muted, backgroundColor: tokens.color.surface.inset, paddingHorizontal: 8, paddingVertical: 4, borderRadius: tokens.radius.pill, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: tokens.type['label'], fontWeight: '800' },
-  title: { fontSize: tokens.type['title'], fontWeight: '800', letterSpacing: -1, color: tokens.color.text.primary, marginTop: 6 },
+  kicker: { alignSelf: 'flex-start', color: tokens.color.text.muted, backgroundColor: tokens.color.surface.inset, paddingHorizontal: 8, paddingVertical: 4, borderRadius: tokens.radius.pill, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: tokens.type['label'], fontWeight: '700' },
+  title: { fontSize: tokens.type['title'], fontWeight: '700', letterSpacing: -1, color: tokens.color.text.primary, marginTop: 6 },
   subtitle: { color: tokens.color.text.muted, fontWeight: '700', marginTop: 4 },
   content: { gap: 18, padding: 24, paddingTop: 8, paddingBottom: 40 },
   message: { color: tokens.color.text.muted, fontWeight: '700' },
-  error: { color: tokens.color.status.danger, fontWeight: '800', lineHeight: 20 },
-  notice: { color: tokens.color.status.success, fontWeight: '800', lineHeight: 20 },
+  error: { color: tokens.color.status.danger, fontWeight: '700', lineHeight: 20 },
+  notice: { color: tokens.color.status.success, fontWeight: '700', lineHeight: 20 },
   summaryCard: { backgroundColor: tokens.color.action.primary, borderRadius: tokens.radius.panel, padding: 22, gap: 10 },
-  summaryLabel: { color: tokens.color.text.inverse, fontSize: tokens.type['label'], fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1.2 },
-  summaryValue: { color: tokens.color.text.inverse, fontSize: 48, fontWeight: '900', letterSpacing: -2 },
+  summaryLabel: { color: tokens.color.text.inverse, fontSize: tokens.type['label'], fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.2 },
+  summaryValue: { color: tokens.color.text.inverse, fontSize: 48, fontWeight: '700', letterSpacing: -2 },
   summaryBody: { color: tokens.color.text.inverse, fontWeight: '700', lineHeight: 21 },
   summaryMeta: { color: tokens.color.text.inverse, fontWeight: '700' },
   progressTrack: { height: 8, borderRadius: tokens.radius.pill, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.14)' },
   progressFill: { height: '100%', borderRadius: tokens.radius.pill, backgroundColor: tokens.color.status.success },
   quickActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  quickAction: { backgroundColor: tokens.color.statusSurface.info, color: tokens.color.status.info, borderRadius: tokens.radius.pill, overflow: 'hidden', paddingHorizontal: 14, paddingVertical: 10, fontWeight: '900' },
-  quickActionButton: { backgroundColor: tokens.color.action.primary, borderRadius: tokens.radius.pill, overflow: 'hidden', paddingHorizontal: 14, paddingVertical: 10 },
-  quickActionButtonText: { color: tokens.color.text.inverse, fontWeight: '900' },
-  disabledButton: { opacity: 0.45 },
+  quickAction: { backgroundColor: tokens.color.statusSurface.info, color: tokens.color.status.info, borderRadius: tokens.radius.pill, overflow: 'hidden', paddingHorizontal: 14, paddingVertical: 10, fontWeight: '700' },
   panel: { backgroundColor: tokens.color.surface.inset, borderRadius: tokens.radius.panel, padding: 20, gap: 16 },
-  sectionTitle: { color: tokens.color.text.primary, fontSize: 20, fontWeight: '800' },
+  sectionTitle: { color: tokens.color.text.primary, fontSize: 20, fontWeight: '700' },
   bodyText: { color: tokens.color.text.secondary, lineHeight: 22, fontWeight: '600' },
   itemRow: { flexDirection: 'row', gap: 14, paddingVertical: 4 },
   itemIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
   itemIconDone: { backgroundColor: tokens.color.statusSurface.success },
   itemIconOpen: { backgroundColor: tokens.color.statusSurface.warning },
   itemCopy: { flex: 1, gap: 5 },
-  itemLabel: { color: tokens.color.text.primary, fontWeight: '900', fontSize: 16 },
+  itemLabel: { color: tokens.color.text.primary, fontWeight: '700', fontSize: 16 },
   itemDetail: { color: tokens.color.text.muted, fontWeight: '600', lineHeight: 20 },
   itemAction: { alignSelf: 'flex-start', marginTop: 4, backgroundColor: tokens.color.surface.panel, borderColor: tokens.color.border.subtle, borderWidth: 1, borderRadius: tokens.radius.pill, overflow: 'hidden', paddingHorizontal: 12, paddingVertical: 8 },
   itemActionInner: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  itemActionText: { color: tokens.color.text.primary, fontWeight: '900' },
+  itemActionText: { color: tokens.color.text.primary, fontWeight: '700' },
 });

@@ -18,8 +18,8 @@ export function ticketJourneyStatusLabel(status: TicketDTO['status']) {
 
 export function ticketJourneyStatusTone(status: TicketDTO['status']) {
 	return status === 'checked_in'
-		? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-50'
-		: 'border-amber-300/30 bg-amber-300/10 text-amber-50';
+		? 'border-status-success/30 bg-status-surface-success text-status-success'
+		: 'border-status-warning/30 bg-status-surface-warning text-status-warning';
 }
 
 type AdmissionTicket = Pick<TicketDTO, 'status' | 'paymentStatus'>;
@@ -82,13 +82,13 @@ export function ticketJourneyPaymentTone(paymentStatus: TicketDTO['paymentStatus
 	switch (paymentStatus) {
 		case 'free':
 		case 'paid':
-			return 'border-emerald-400/30 bg-emerald-500/10 text-emerald-50';
+			return 'border-status-success/30 bg-status-surface-success text-status-success';
 		case 'pending':
-			return 'border-amber-300/30 bg-amber-300/10 text-amber-50';
+			return 'border-status-warning/30 bg-status-surface-warning text-status-warning';
 		case 'cancelled':
-			return 'border-rose-400/30 bg-rose-500/10 text-rose-50';
+			return 'border-status-danger/30 bg-status-surface-danger text-status-danger';
 		default:
-			return 'border-amber-300/30 bg-amber-300/10 text-amber-50';
+			return 'border-status-warning/30 bg-status-surface-warning text-status-warning';
 	}
 }
 

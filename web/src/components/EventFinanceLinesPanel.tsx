@@ -190,14 +190,14 @@ function FinanceLedger({ eventId }: { eventId: string }) {
   }
 
   return (
-    <section className="mt-6 rounded-2xl border border-status-info/20 bg-action-disabled p-5">
+    <section className="mt-6 rounded-2xl border border-stroke-subtle bg-surface-inset p-5">
       <p className="text-xs uppercase tracking-[0.25em] text-fg-muted">Finance ledger</p>
       <h3 className="mt-2 text-xl font-semibold text-fg-primary">Budgets, payables, and manual actuals</h3>
       <p className="mt-2 text-sm text-fg-secondary">
         Manual actual payments are records only. They do not send, execute, or confirm a provider payment, and they do not alter ticket settlement totals.
       </p>
 
-      <p role="status" aria-atomic="true" className={notice ? 'mt-3 rounded border border-stroke-subtle p-3 text-sm' : 'sr-only'}>{notice ?? ''}</p>
+      <p role="status" aria-atomic="true" className={notice ? 'mt-3 border border-stroke-subtle p-3 text-sm' : 'sr-only'}>{notice ?? ''}</p>
       {access === 'loading' ? <p className="mt-3 text-sm">Loading private ledger…</p> : null}
       {access === 'unavailable' ? <Button variant="secondary" className="mt-3" onClick={() => { void refresh(); }}>Refresh ledger</Button> : null}
 
@@ -209,7 +209,7 @@ function FinanceLedger({ eventId }: { eventId: string }) {
               value={draft.entryType}
               disabled={draft.correctsLineId !== ''}
               onChange={(event) => changeEntryType(event.target.value as EntryType)}
-              className="mt-1 w-full rounded bg-surface-inset p-2 disabled:opacity-60"
+              className="field mt-1 py-3"
             >
               <option value="budget">Budget</option>
               <option value="payable">Payable</option>
@@ -222,7 +222,7 @@ function FinanceLedger({ eventId }: { eventId: string }) {
               value={draft.direction}
               disabled={draft.entryType === 'payable' || draft.correctsLineId !== ''}
               onChange={(event) => setDraft((current) => ({ ...current, direction: event.target.value as Direction, payableLineId: '' }))}
-              className="mt-1 w-full rounded bg-surface-inset p-2 disabled:opacity-60"
+              className="field mt-1 py-3"
             >
               <option value="expense">Expense</option>
               <option value="income">Income</option>
@@ -230,36 +230,36 @@ function FinanceLedger({ eventId }: { eventId: string }) {
           </label>
           <label>
             Amount
-            <input required inputMode="decimal" value={draft.amount} onChange={(event) => setDraft((current) => ({ ...current, amount: event.target.value }))} className="mt-1 w-full rounded bg-surface-inset p-2" />
+            <input required inputMode="decimal" value={draft.amount} onChange={(event) => setDraft((current) => ({ ...current, amount: event.target.value }))} className="field mt-1 py-3" />
           </label>
           <label>
             Currency
-            <input required maxLength={3} disabled={draft.correctsLineId !== ''} value={draft.currency} onChange={(event) => setDraft((current) => ({ ...current, currency: event.target.value.toLowerCase(), payableLineId: '' }))} className="mt-1 w-full rounded bg-surface-inset p-2 disabled:opacity-60" />
+            <input required maxLength={3} disabled={draft.correctsLineId !== ''} value={draft.currency} onChange={(event) => setDraft((current) => ({ ...current, currency: event.target.value.toLowerCase(), payableLineId: '' }))} className="field mt-1 py-3" />
           </label>
           <label>
             Label
-            <input required maxLength={200} value={draft.label} onChange={(event) => setDraft((current) => ({ ...current, label: event.target.value }))} className="mt-1 w-full rounded bg-surface-inset p-2" />
+            <input required maxLength={200} value={draft.label} onChange={(event) => setDraft((current) => ({ ...current, label: event.target.value }))} className="field mt-1 py-3" />
           </label>
           <label>
             Reason
-            <input required maxLength={1000} value={draft.reason} onChange={(event) => setDraft((current) => ({ ...current, reason: event.target.value }))} className="mt-1 w-full rounded bg-surface-inset p-2" />
+            <input required maxLength={1000} value={draft.reason} onChange={(event) => setDraft((current) => ({ ...current, reason: event.target.value }))} className="field mt-1 py-3" />
           </label>
           {draft.entryType === 'payable' && (
             <label>
               Due at (optional, your local time)
-              <input type="datetime-local" value={draft.dueAt} onChange={(event) => setDraft((current) => ({ ...current, dueAt: event.target.value }))} className="mt-1 w-full rounded bg-surface-inset p-2" />
+              <input type="datetime-local" value={draft.dueAt} onChange={(event) => setDraft((current) => ({ ...current, dueAt: event.target.value }))} className="field mt-1 py-3" />
             </label>
           )}
           {draft.entryType === 'actual_payment' && (
             <label>
               Occurred at (your local time)
-              <input required type="datetime-local" value={draft.occurredAt} onChange={(event) => setDraft((current) => ({ ...current, occurredAt: event.target.value }))} className="mt-1 w-full rounded bg-surface-inset p-2" />
+              <input required type="datetime-local" value={draft.occurredAt} onChange={(event) => setDraft((current) => ({ ...current, occurredAt: event.target.value }))} className="field mt-1 py-3" />
             </label>
           )}
           {draft.entryType === 'actual_payment' && draft.direction === 'expense' && (
             <label>
               Stable payable obligation
-              <select disabled={draft.correctsLineId !== ''} value={draft.payableLineId} onChange={(event) => setDraft((current) => ({ ...current, payableLineId: event.target.value }))} className="mt-1 w-full rounded bg-surface-inset p-2 disabled:opacity-60">
+              <select disabled={draft.correctsLineId !== ''} value={draft.payableLineId} onChange={(event) => setDraft((current) => ({ ...current, payableLineId: event.target.value }))} className="field mt-1 py-3">
                 <option value="">Not linked to a payable</option>
                 {payableRoots.filter((line) => line.currency === draft.currency).map((line) => (
                   <option key={line.id} value={line.id}>{line.label} · {money(line.amountCents, line.currency)}</option>
@@ -269,7 +269,7 @@ function FinanceLedger({ eventId }: { eventId: string }) {
           )}
           <label>
             Correct current line
-            <select value={draft.correctsLineId} onChange={(event) => selectCorrection(event.target.value)} className="mt-1 w-full rounded bg-surface-inset p-2">
+            <select value={draft.correctsLineId} onChange={(event) => selectCorrection(event.target.value)} className="field mt-1 py-3">
               <option value="">New line</option>
               {leaves.map((line) => <option key={line.id} value={line.id}>{labelForType(line.entryType)} · {line.direction} · {line.label} · {money(line.amountCents, line.currency)}</option>)}
             </select>
@@ -285,7 +285,7 @@ function FinanceLedger({ eventId }: { eventId: string }) {
         <p className="mt-1 text-sm text-fg-secondary">Each category remains separate from ticket settlement receipts.</p>
         <dl className="mt-3 grid gap-2 sm:grid-cols-2">
           {totals.map((total) => (
-            <div key={total.key} className="rounded border border-stroke-subtle bg-surface-inset p-3 text-sm">
+            <div key={total.key} className="border border-stroke-subtle bg-surface-inset p-3 text-sm">
               <dt className="text-fg-secondary">{labelForType(total.entryType as EntryType)} · {total.direction}</dt>
               <dd className="mt-1 font-semibold text-fg-primary">{money(total.amountCents, total.currency)}</dd>
             </div>
@@ -298,7 +298,7 @@ function FinanceLedger({ eventId }: { eventId: string }) {
         <h4 id="finance-history" className="text-sm font-semibold uppercase tracking-[0.18em] text-status-info">Retained history</h4>
         <ol className="mt-3 space-y-2">
           {lines.map((line) => (
-            <li key={line.id} className="rounded border border-stroke-subtle bg-surface-inset p-3 text-sm">
+            <li key={line.id} className="border border-stroke-subtle bg-surface-inset p-3 text-sm">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <span>{labelForType(line.entryType)} · {line.direction} · {line.label}</span>
                 <strong>{money(line.amountCents, line.currency)}</strong>

@@ -3,12 +3,15 @@ import type { Tokens } from '@/theme/tokens';
 import { Link, useLocalSearchParams } from 'expo-router';
 import { CheckCircle2, ChevronLeft, Search, Ticket, UserCheck } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { checkInTicket, searchDoorTickets } from '@/api/door';
 import type { DoorTicketDTO } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { safeBack } from '@/navigation/safeBack';
+import { Field } from '@/ui/Field';
+import { Pill } from '@/ui/Pill';
+import { PrimaryButton } from '@/ui/PrimaryButton';
 import {
   ticketJourneyDoorBadge,
   ticketJourneyDoorResultLabel,
@@ -99,23 +102,16 @@ export default function DoorScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={styles.searchBox}>
-          <Search size={20} color="#a3a3a3" />
-          <TextInput
-            placeholder="Name, email, or ticket code"
-            placeholderTextColor="#a3a3a3"
-            style={styles.input}
-            autoCapitalize="none"
-            autoCorrect={false}
-            value={query}
-            onChangeText={setQuery}
-            onSubmitEditing={search}
-          />
-        </View>
-        <Pressable disabled={loading} onPress={search} style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}>
-          <Search size={20} color={tokens.color.text.inverse} />
-          <Text style={styles.primaryButtonText}>{loading ? 'Searching…' : 'Search'}</Text>
-        </Pressable>
+        <Field
+          icon={<Search size={20} color={tokens.color.text.muted} />}
+          placeholder="Name, email, or ticket code"
+          autoCapitalize="none"
+          autoCorrect={false}
+          value={query}
+          onChangeText={setQuery}
+          onSubmitEditing={search}
+        />
+        <PrimaryButton busy={loading} onPress={search} style={styles.doorButton} icon={<Search size={20} color={tokens.color.text.inverse} />} label={loading ? 'Searching…' : 'Search'} />
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
         {notice ? <View style={styles.notice}><CheckCircle2 size={20} color={tokens.color.status.success} /><Text style={styles.noticeText}>{notice}</Text></View> : null}
@@ -123,16 +119,20 @@ export default function DoorScreen() {
         {results.map((ticket) => (
           <View key={ticket.id} style={styles.resultCard}>
             <View style={styles.resultHeader}>
-              <Text style={[styles.statusPill, ticket.status === 'checked_in' && styles.statusPillChecked]}>{ticketJourneyDoorBadge(ticket.status)}</Text>
+              <Pill tone={ticket.status === 'checked_in' ? 'success' : 'neutral'}>{ticketJourneyDoorBadge(ticket.status)}</Pill>
               <Ticket size={20} color={tokens.color.text.muted} />
             </View>
             <Text style={styles.guestName}>{ticket.displayName ?? 'Guest'}</Text>
             <Text style={styles.guestMeta}>{ticket.code} · {ticket.admissionEligible ? 'Ready for entry' : 'Not eligible'}</Text>
             <View style={styles.divider} />
-            <Pressable disabled={checkingIn === ticket.code || !ticket.admissionEligible} onPress={() => void checkIn(ticket)} style={styles.primaryButton}>
-              <UserCheck size={20} color={tokens.color.text.inverse} />
-              <Text style={styles.primaryButtonText}>{doorCheckInButtonLabel(checkingIn === ticket.code, ticket.status === 'checked_in')}</Text>
-            </Pressable>
+            <PrimaryButton
+              disabled={!ticket.admissionEligible}
+              busy={checkingIn === ticket.code}
+              onPress={() => void checkIn(ticket)}
+              style={styles.doorButton}
+              icon={<UserCheck size={20} color={tokens.color.text.inverse} />}
+              label={doorCheckInButtonLabel(checkingIn === ticket.code, ticket.status === 'checked_in')}
+            />
           </View>
         ))}
       </ScrollView>
@@ -150,26 +150,21 @@ function CenteredDoorState({ title }: { title: string }) {
 const createStyles = (tokens: Tokens) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: tokens.color.surface.panel, padding: 24, paddingTop: 56 },
   authGate: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: tokens.color.surface.panel },
-  authButton: { marginTop: 8, backgroundColor: tokens.color.action.primary, color: tokens.color.text.inverse, paddingHorizontal: 22, paddingVertical: 14, borderRadius: tokens.radius.control, overflow: 'hidden', fontWeight: '800' },
-  emptyTitle: { color: tokens.color.text.primary, fontSize: 24, fontWeight: '800', textAlign: 'center', marginBottom: 8 },
+  authButton: { marginTop: 8, backgroundColor: tokens.color.action.primary, color: tokens.color.text.inverse, paddingHorizontal: 22, paddingVertical: 14, borderRadius: tokens.radius.control, overflow: 'hidden', fontWeight: '700' },
+  emptyTitle: { color: tokens.color.text.primary, fontSize: 24, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
   emptyBody: { color: tokens.color.text.muted, textAlign: 'center', lineHeight: 21, marginBottom: 8 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 24 },
   backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: tokens.color.surface.inset, alignItems: 'center', justifyContent: 'center' },
-  kicker: { alignSelf: 'flex-start', color: tokens.color.text.muted, backgroundColor: tokens.color.surface.inset, paddingHorizontal: 8, paddingVertical: 4, borderRadius: tokens.radius.pill, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: tokens.type['label'], fontWeight: '800' },
-  title: { fontSize: tokens.type['title'], fontWeight: '800', letterSpacing: -1, color: tokens.color.text.primary, marginTop: 6 },
+  kicker: { alignSelf: 'flex-start', color: tokens.color.text.muted, backgroundColor: tokens.color.surface.inset, paddingHorizontal: 8, paddingVertical: 4, borderRadius: tokens.radius.pill, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: tokens.type['label'], fontWeight: '700' },
+  title: { fontSize: tokens.type['title'], fontWeight: '700', letterSpacing: -1, color: tokens.color.text.primary, marginTop: 6 },
   content: { gap: 16, paddingBottom: 32 },
-  searchBox: { minHeight: tokens.size.field, borderRadius: 18, backgroundColor: tokens.color.surface.inset, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  input: { flex: 1, color: tokens.color.text.primary, fontSize: 16, fontWeight: '500' },
   resultCard: { backgroundColor: tokens.color.surface.panel, borderRadius: tokens.radius.panel, borderWidth: 1, borderColor: tokens.color.surface.inset, padding: 22, boxShadow: '0 3px 10px rgba(0,0,0,0.06)', elevation: 2 },
   resultHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  statusPill: { alignSelf: 'flex-start', color: tokens.color.text.primary, backgroundColor: tokens.color.surface.inset, paddingHorizontal: 10, paddingVertical: 5, borderRadius: tokens.radius.pill, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1, fontSize: tokens.type['label'], fontWeight: '800' },
-  statusPillChecked: { color: tokens.color.status.success, backgroundColor: tokens.color.statusSurface.success },
-  guestName: { fontSize: 26, fontWeight: '800', color: tokens.color.text.primary, letterSpacing: -0.7 },
+  guestName: { fontSize: 26, fontWeight: '700', color: tokens.color.text.primary, letterSpacing: -0.7 },
   guestMeta: { color: tokens.color.text.muted, fontSize: tokens.type['body'], marginTop: 4 },
   divider: { borderTopWidth: 1, borderTopColor: tokens.color.surface.inset, marginVertical: 20 },
-  primaryButton: { minHeight: tokens.size.field, borderRadius: 18, backgroundColor: tokens.color.action.primary, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
-  primaryButtonDisabled: { opacity: 0.55 },
-  primaryButtonText: { color: tokens.color.text.inverse, fontWeight: '800', fontSize: 16 },
+  // Door controls keep the 56 px field height from the design system.
+  doorButton: { minHeight: tokens.size.field },
   notice: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: tokens.color.surface.inset, borderRadius: 18, padding: 16 },
   noticeText: { flex: 1, color: tokens.color.text.secondary, lineHeight: 20 },
   errorText: { color: tokens.color.status.danger, fontWeight: '700', lineHeight: 20 },

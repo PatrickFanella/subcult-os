@@ -9,7 +9,7 @@ export function DesignSystemView() {
     <main className={publicPageShellClass}>
       <div className={`${publicPageInnerClass} max-w-6xl`}>
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-stroke-subtle pb-5">
-          <a href="/discover" className="text-lg font-black tracking-tight">subcult</a>
+          <a href="/discover" className="text-lg font-bold tracking-tight">subcult</a>
           <span className={publicEyebrowClass}>Design system · Terminal</span>
         </header>
         <section className="grid items-end gap-6 py-6 md:grid-cols-[2fr_1fr]">
@@ -17,9 +17,9 @@ export function DesignSystemView() {
           <p className="body-copy max-w-sm">Sharp frames. Purple actions. Monospace type. A shared foundation for finding an event, joining the crew, and running the door.</p>
         </section>
         <section className="grid gap-6 md:grid-cols-2" aria-label="Event and controls">
-          <article className="overflow-hidden rounded-hero bg-surface-immersive text-fg-on-immersive">
+          <article className="overflow-hidden rounded-hero border border-stroke-subtle bg-surface-immersive text-fg-on-immersive">
             <img className="h-64 w-full object-cover" src="https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1080&q=80" alt="Stage lights above a crowd at a concert" />
-            <div className="space-y-4 p-6"><p className="text-xs font-bold uppercase tracking-widest">Friday · Doors at 8 PM</p><h2 className="text-4xl font-extrabold tracking-tight">A night together</h2><p className="text-sm">Example event · Main room</p><a href="/discover" className="inline-flex min-h-touch items-center rounded-control border border-stroke-strong bg-surface-panel px-5 font-bold text-fg-primary">Find your next event</a></div>
+            <div className="space-y-4 p-6"><p className="text-xs font-bold uppercase tracking-widest">Friday · Doors at 8 PM</p><h2 className="text-4xl font-bold tracking-tight">A night together</h2><p className="text-sm">Example event · Main room</p><a href="/discover" className="inline-flex min-h-touch items-center rounded-control border border-stroke-strong bg-surface-panel px-5 text-sm font-bold uppercase tracking-[0.05em] text-fg-primary">Find your next event</a></div>
           </article>
           <section className={publicCardClass} aria-labelledby="controls-title">
             <p className={publicEyebrowClass}>Controls</p><h2 id="controls-title" className="heading-2 mt-3">Clear next steps</h2>

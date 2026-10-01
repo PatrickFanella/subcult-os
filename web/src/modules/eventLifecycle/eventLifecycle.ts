@@ -30,22 +30,22 @@ export function eventLifecycleLabel(status: EventStatus) {
 export function eventLifecycleTone(status: EventStatus) {
 	switch (status) {
 		case EVENT_STATUS_DRAFT:
-			return 'border-amber-400/30 bg-amber-400/10 text-amber-200';
+			return 'border-status-warning/30 bg-status-surface-warning text-status-warning';
 		case EVENT_STATUS_PUBLISHED:
-			return 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200';
+			return 'border-status-success/30 bg-status-surface-success text-status-success';
 		case EVENT_STATUS_END_OF_NIGHT:
-			return 'border-fuchsia-400/30 bg-fuchsia-400/10 text-fuchsia-200';
+			return 'border-status-info/30 bg-status-surface-info text-status-info';
 	}
 }
 
 export function eventLifecycleSurface(status: EventStatus) {
 	switch (status) {
 		case EVENT_STATUS_DRAFT:
-			return 'border-amber-400/20 bg-amber-400/[0.06]';
+			return 'border-status-warning/20 bg-status-surface-warning';
 		case EVENT_STATUS_PUBLISHED:
-			return 'border-emerald-400/20 bg-emerald-400/[0.06]';
+			return 'border-status-success/20 bg-status-surface-success';
 		case EVENT_STATUS_END_OF_NIGHT:
-			return 'border-fuchsia-400/20 bg-fuchsia-400/[0.06]';
+			return 'border-status-info/20 bg-status-surface-info';
 	}
 }
 

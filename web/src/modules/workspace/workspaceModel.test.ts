@@ -55,13 +55,13 @@ describe('workspace model helpers', () => {
 		expect(eventStatusSummary('draft')).toBe('Keep shaping the page, then publish when it is ready.');
 		expect(eventStatusSummary('published')).toBe('Live now. Keep the Door open and wrap when the room closes.');
 		expect(eventStatusSummary('end_of_night')).toBe('Closed out. Review the report and prep the next one.');
-		expect(eventStatusTone('published')).toBe('border-emerald-400/25 bg-emerald-400/10 text-emerald-200');
-		expect(eventStatusSurface('end_of_night')).toBe('border-fuchsia-400/20 bg-fuchsia-400/[0.06]');
+		expect(eventStatusTone('published')).toBe('border-status-success/25 bg-status-surface-success text-status-success');
+		expect(eventStatusSurface('end_of_night')).toBe('border-status-info/20 bg-status-surface-info');
 		expect(staffingStatusCopy({ staffingOpenCount: 0, staffingAssignedCount: 0, staffingCompletedCount: 0, staffingCancelledCount: 0 } as never)).toBe('No staffing items yet.');
 		expect(staffingStatusCopy({ staffingOpenCount: 1, staffingAssignedCount: 0, staffingCompletedCount: 0, staffingCancelledCount: 0 } as never)).toBe('Unresolved staffing remains before closeout.');
 		expect(staffingStatusCopy({ staffingOpenCount: 0, staffingAssignedCount: 0, staffingCompletedCount: 2, staffingCancelledCount: 1 } as never)).toBe('All staffing complete.');
 		expect(commitmentStatusLabel('open')).toBe('Open');
-		expect(commitmentStatusTone('done')).toContain('emerald');
+		expect(commitmentStatusTone('done')).toContain('status-success');
 		expect(archiveLearningLoopCopy([])).toBe('Closed events will become private workspace memory here.');
 	});
 

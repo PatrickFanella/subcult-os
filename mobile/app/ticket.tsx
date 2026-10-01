@@ -13,6 +13,8 @@ import { getTicket } from '@/api/tickets';
 import type { TicketDTO } from '@/api/types';
 import { safeBack } from '@/navigation/safeBack';
 import { saveTicketToWallet } from '@/tickets/walletStore';
+import { Pill } from '@/ui/Pill';
+import { PrimaryButton } from '@/ui/PrimaryButton';
 import {
   ticketJourneyArrivalNotes,
   ticketJourneyTicketBadge,
@@ -182,15 +184,15 @@ export default function TicketScreen() {
 
         <View ref={passRef} collapsable={false} style={styles.ticketCard}>
           <View style={styles.cardHeader}>
-            <Text style={styles.statusPill}>{ticket ? ticketJourneyTicketBadge(ticket.status) : 'Admit one'}</Text>
+            <Pill>{ticket ? ticketJourneyTicketBadge(ticket.status) : 'Admit one'}</Pill>
             <Pressable disabled={!ticket} onPress={openShareMenu} style={styles.circleBadge}><Share2 size={22} color={tokens.color.text.primary} /></Pressable>
           </View>
           <Text style={styles.eventTitle}>{ticket ? `Ticket ${ticket.code}` : 'Ticket lookup'}</Text>
           <Text style={styles.subtitle}>{ticket?.displayName || ticket?.email || 'Load a ticket by code'}</Text>
 
           <View style={styles.metaList}>
-            <View style={styles.metaRow}><Calendar size={18} color="#a3a3a3" /><Text style={styles.metaText}>Payment: {ticket?.paymentStatus ?? '—'}</Text></View>
-            <View style={styles.metaRow}><MapPin size={18} color="#a3a3a3" /><Text style={styles.metaText}>Status: {ticket?.status ?? '—'}</Text></View>
+            <View style={styles.metaRow}><Calendar size={18} color={tokens.color.text.muted} /><Text style={styles.metaText}>Payment: {ticket?.paymentStatus ?? '—'}</Text></View>
+            <View style={styles.metaRow}><MapPin size={18} color={tokens.color.text.muted} /><Text style={styles.metaText}>Status: {ticket?.status ?? '—'}</Text></View>
           </View>
 
           <View style={styles.dashedRule} />
@@ -208,7 +210,7 @@ export default function TicketScreen() {
           <Text style={styles.notesText}>{ticket ? ticketJourneyArrivalNotes(ticket.paymentStatus) : 'Show this QR code or ticket code at the door. Staff scanners read the ticket code embedded in the QR pass.'}</Text>
           {ticket ? (
             <View style={styles.ticketActions}>
-              <Pressable onPress={() => void loadTicket()} style={styles.refreshButton}><Text style={styles.refreshButtonText}>Refresh ticket</Text></Pressable>
+              <PrimaryButton onPress={() => void loadTicket()} style={styles.refreshButton} label="Refresh ticket" />
             </View>
           ) : null}
         </View>
@@ -221,16 +223,15 @@ const createStyles = (tokens: Tokens) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: tokens.color.surface.inset, padding: 24, paddingTop: 56 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 24 },
   backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: tokens.color.surface.panel, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 28, fontWeight: '800', letterSpacing: -0.8, color: tokens.color.text.primary },
+  title: { fontSize: 28, fontWeight: '700', letterSpacing: -0.8, color: tokens.color.text.primary },
   content: { gap: 20, paddingBottom: 32 },
   stateText: { color: tokens.color.text.muted, fontWeight: '700' },
   errorText: { color: tokens.color.status.danger, fontWeight: '700', lineHeight: 20 },
-  successText: { color: tokens.color.status.success, fontWeight: '800', lineHeight: 20 },
+  successText: { color: tokens.color.status.success, fontWeight: '700', lineHeight: 20 },
   ticketCard: { backgroundColor: tokens.color.surface.panel, borderRadius: tokens.radius.hero, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.08)', elevation: 2 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
-  statusPill: { alignSelf: 'flex-start', backgroundColor: tokens.color.surface.inset, color: tokens.color.text.primary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: tokens.radius.pill, overflow: 'hidden', fontSize: tokens.type['label'], fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1 },
   circleBadge: { width: 48, height: 48, borderRadius: tokens.radius.card, backgroundColor: tokens.color.surface.panel, alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', elevation: 1 },
-  eventTitle: { fontSize: 26, fontWeight: '800', letterSpacing: -0.7, color: tokens.color.text.primary, marginBottom: 4 },
+  eventTitle: { fontSize: 26, fontWeight: '700', letterSpacing: -0.7, color: tokens.color.text.primary, marginBottom: 4 },
   subtitle: { color: tokens.color.text.muted, marginBottom: 24, fontSize: 14 },
   metaList: { gap: 12, marginBottom: 24 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -238,12 +239,11 @@ const createStyles = (tokens: Tokens) => StyleSheet.create({
   dashedRule: { borderTopWidth: 2, borderStyle: 'dashed', borderColor: tokens.color.border.subtle, marginVertical: 20 },
   qrBlock: { alignItems: 'center', justifyContent: 'center', paddingVertical: 10 },
   qrBox: { width: 208, height: 208, borderRadius: 20, backgroundColor: tokens.color.surface.panel, borderWidth: 1, borderColor: tokens.color.border.subtle, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  qrPlaceholder: { color: tokens.color.text.muted, fontWeight: '900', letterSpacing: 4 },
+  qrPlaceholder: { color: tokens.color.text.muted, fontWeight: '700', letterSpacing: 4 },
   ticketCode: { fontFamily: 'monospace', color: tokens.color.text.muted, letterSpacing: 3, fontSize: 14 },
   notesCard: { backgroundColor: tokens.color.surface.panel, borderRadius: 22, padding: 20 },
-  notesTitle: { color: tokens.color.text.primary, fontSize: 20, fontWeight: '800', marginBottom: 8 },
+  notesTitle: { color: tokens.color.text.primary, fontSize: 20, fontWeight: '700', marginBottom: 8 },
   notesText: { color: tokens.color.text.secondary, lineHeight: 22 },
   ticketActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 },
-  refreshButton: { alignSelf: 'flex-start', backgroundColor: tokens.color.action.primary, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12 },
-  refreshButtonText: { color: tokens.color.text.inverse, fontWeight: '900' },
+  refreshButton: { alignSelf: 'flex-start' },
 });

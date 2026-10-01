@@ -187,7 +187,7 @@ const createStyles = (tokens: Tokens) => StyleSheet.create({
 		letterSpacing: 1.2,
 		overflow: 'hidden',
 	},
-	title: { color: tokens.color.text.onImmersive, fontSize: tokens.type['display'], fontWeight: '800', letterSpacing: -1.2, lineHeight: 42, marginBottom: 4 },
+	title: { color: tokens.color.text.onImmersive, fontSize: tokens.type['display'], fontWeight: '700', letterSpacing: -1.2, lineHeight: 42, marginBottom: 4 },
 	subtitle: { color: 'rgba(255,255,255,0.82)', fontSize: 18, fontWeight: '300', marginBottom: 16 },
 	metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginBottom: 24 },
 	metaItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -204,6 +204,6 @@ const createStyles = (tokens: Tokens) => StyleSheet.create({
 		overflow: 'hidden',
 	},
 	centerState: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 28, backgroundColor: tokens.color.surface.panel },
-	centerTitle: { color: tokens.color.text.primary, fontSize: 24, fontWeight: '800', textAlign: 'center', marginBottom: 8 },
+	centerTitle: { color: tokens.color.text.primary, fontSize: 24, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
 	centerBody: { color: tokens.color.text.muted, fontSize: tokens.type['body'], lineHeight: 22, textAlign: 'center' },
 });

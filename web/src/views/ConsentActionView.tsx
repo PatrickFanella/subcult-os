@@ -44,12 +44,12 @@ export function ConsentActionView({ action }: { action: ConsentAction }) {
   return (
     <main className="min-h-screen px-4 py-6 text-fg-primary">
       <section className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-md flex-col justify-center">
-        <div className="rounded-panel border border-stroke-subtle bg-surface-panel p-6 shadow-2xl shadow-black/5">
+        <div className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
           <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Email preferences</p>
-          <h1 className="mt-3 text-3xl font-extrabold text-fg-primary">{title}</h1>
+          <h1 className="mt-3 text-3xl font-bold text-fg-primary">{title}</h1>
           <p className="mt-3 text-sm text-fg-secondary">{explanation}</p>
           {!notice ? (
-            <button className="mt-6 w-full rounded-2xl bg-action-primary px-4 py-3 font-medium text-fg-inverse disabled:opacity-60" disabled={loading} type="button" onClick={() => void submit()}>
+            <button className="btn-primary mt-6 w-full px-4" disabled={loading} type="button" onClick={() => void submit()}>
               {loading ? 'Working…' : action === 'confirm' ? 'Confirm consent' : 'Unsubscribe'}
             </button>
           ) : null}

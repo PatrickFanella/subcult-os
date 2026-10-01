@@ -3,7 +3,8 @@ import type { Tokens } from '@/theme/tokens';
 import { Link } from 'expo-router';
 import { ChevronLeft, RefreshCcw, Settings } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { terminalFontFamily } from '@/theme/terminal';
 
 import { getMe, getMobileAuthDebug } from '@/api/auth';
 import { getSessionDebugState } from '@/api/client';
@@ -12,6 +13,7 @@ import { apiConfig } from '@/config/api';
 import { useAuth } from '@/auth/AuthContext';
 import { loadStoredSessionCookie } from '@/auth/sessionCookieStore';
 import { safeBack } from '@/navigation/safeBack';
+import { PrimaryButton } from '@/ui/PrimaryButton';
 
 export default function SettingsScreen() {
   const { preference, setPreference } = useAppearance();
@@ -86,7 +88,7 @@ export default function SettingsScreen() {
           <Text style={styles.panelTitle}>Appearance</Text>
           <Text style={styles.body}>Use your device setting or choose a theme.</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {(['system', 'light', 'dark'] as const).map((value) => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ checked: preference === value }} onPress={() => setPreference(value)} style={{ minHeight: tokens.size.tap, justifyContent: 'center', borderRadius: tokens.radius.control, paddingHorizontal: 16, borderWidth: 1, borderColor: tokens.color.border.strong, backgroundColor: preference === value ? tokens.color.action.primary : tokens.color.surface.panel }}><Text style={{ fontWeight: '800', color: preference === value ? tokens.color.text.inverse : tokens.color.text.primary }}>{value === 'system' ? 'System' : value === 'light' ? 'Light' : 'Dark'}</Text></Pressable>)}
+            {(['system', 'light', 'dark'] as const).map((value) => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ checked: preference === value }} onPress={() => setPreference(value)} style={{ minHeight: tokens.size.tap, justifyContent: 'center', borderRadius: tokens.radius.control, paddingHorizontal: 16, borderWidth: 1, borderColor: tokens.color.border.strong, backgroundColor: preference === value ? tokens.color.action.primary : tokens.color.surface.panel }}><Text style={{ fontFamily: terminalFontFamily(Platform.OS), fontWeight: '700', textTransform: 'uppercase', color: preference === value ? tokens.color.text.inverse : tokens.color.text.primary }}>{value === 'system' ? 'System' : value === 'light' ? 'Light' : 'Dark'}</Text></Pressable>)}
           </View>
         </View>
         <View style={styles.panel}>
@@ -99,13 +101,13 @@ export default function SettingsScreen() {
         <View style={styles.panel}>
           <Text style={styles.panelTitle}>Session</Text>
           <Text style={styles.body}>{user ? `Signed in as ${user.email}` : 'Not signed in.'}</Text>
-          <Pressable onPress={() => void refresh()} style={styles.actionButton}><RefreshCcw size={18} color={tokens.color.text.inverse} /><Text style={styles.actionButtonText}>Refresh session</Text></Pressable>
+          <PrimaryButton onPress={() => void refresh()} style={styles.actionButton} icon={<RefreshCcw size={18} color={tokens.color.text.inverse} />} label="Refresh session" />
         </View>
 
         <View style={styles.panel}>
           <Text style={styles.panelTitle}>Auth debug</Text>
           <Text style={styles.body}>Checks `/api/me` and event access for each workspace using the same mobile session as Staff.</Text>
-          <Pressable onPress={() => void runAuthDebug()} style={styles.actionButton}><RefreshCcw size={18} color={tokens.color.text.inverse} /><Text style={styles.actionButtonText}>{debugging ? 'Checking…' : 'Run auth check'}</Text></Pressable>
+          <PrimaryButton onPress={() => void runAuthDebug()} style={styles.actionButton} icon={<RefreshCcw size={18} color={tokens.color.text.inverse} />} label={debugging ? 'Checking…' : 'Run auth check'} />
           {debugOutput ? <Text style={styles.debugBox}>{debugOutput}</Text> : null}
         </View>
 
@@ -123,17 +125,16 @@ const createStyles = (tokens: Tokens) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: tokens.color.surface.panel },
   header: { flexDirection: 'row', alignItems: 'center', gap: 16, padding: 24, paddingTop: 56, paddingBottom: 12 },
   backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: tokens.color.surface.inset, alignItems: 'center', justifyContent: 'center' },
-  kicker: { alignSelf: 'flex-start', color: tokens.color.text.muted, backgroundColor: tokens.color.surface.inset, paddingHorizontal: 8, paddingVertical: 4, borderRadius: tokens.radius.pill, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: tokens.type['label'], fontWeight: '800' },
-  title: { fontSize: tokens.type['title'], fontWeight: '900', letterSpacing: -1, color: tokens.color.text.primary, marginTop: 6 },
+  kicker: { alignSelf: 'flex-start', color: tokens.color.text.muted, backgroundColor: tokens.color.surface.inset, paddingHorizontal: 8, paddingVertical: 4, borderRadius: tokens.radius.pill, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: tokens.type['label'], fontWeight: '700' },
+  title: { fontSize: tokens.type['title'], fontWeight: '700', letterSpacing: -1, color: tokens.color.text.primary, marginTop: 6 },
   content: { padding: 24, paddingTop: 8, paddingBottom: 40, gap: 18 },
   panel: { backgroundColor: tokens.color.surface.inset, borderRadius: tokens.radius.card, padding: 18, gap: 10 },
   panelHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  panelTitle: { color: tokens.color.text.primary, fontSize: 20, fontWeight: '900' },
-  label: { color: tokens.color.text.muted, fontSize: tokens.type['label'], textTransform: 'uppercase', letterSpacing: 1.1, fontWeight: '900' },
-  mono: { color: tokens.color.text.primary, fontFamily: 'monospace', fontWeight: '800' },
+  panelTitle: { color: tokens.color.text.primary, fontSize: 20, fontWeight: '700' },
+  label: { color: tokens.color.text.muted, fontSize: tokens.type['label'], textTransform: 'uppercase', letterSpacing: 1.1, fontWeight: '700' },
+  mono: { color: tokens.color.text.primary, fontFamily: 'monospace', fontWeight: '700' },
   body: { color: tokens.color.text.secondary, lineHeight: 21, fontWeight: '600' },
-  actionButton: { alignSelf: 'flex-start', backgroundColor: tokens.color.action.primary, borderRadius: tokens.radius.control, paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  actionButtonText: { color: tokens.color.text.inverse, fontWeight: '900' },
+  actionButton: { alignSelf: 'flex-start' },
   debugBox: { backgroundColor: tokens.color.surface.panel, borderRadius: 14, padding: 12, color: tokens.color.text.primary, fontFamily: 'monospace', lineHeight: 20 },
-  linkText: { color: tokens.color.text.primary, fontWeight: '900' },
+  linkText: { color: tokens.color.text.primary, fontWeight: '700' },
 });

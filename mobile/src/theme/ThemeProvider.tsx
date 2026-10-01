@@ -1,7 +1,8 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type PropsWithChildren } from 'react';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { Uniwind, useUniwind } from 'uniwind';
+import { terminalStyles } from './terminal';
 import { darkTokens, tokens, type Tokens } from './tokens';
 
 type Appearance = 'system' | 'light' | 'dark';
@@ -35,25 +36,18 @@ export function ThemeProvider({ children }: PropsWithChildren) {
   return <ThemeContext.Provider value={{ preference, setPreference }}>{children}</ThemeContext.Provider>;
 }
 export function useAppearance() { return useContext(ThemeContext); }
+// Static web pages are prerendered with light tokens, and React keeps prerendered
+// style attributes during hydration. The server snapshot keeps the hydration render
+// light; the client snapshot switches to the selected theme immediately afterwards.
+const noSubscription = () => () => {};
+const useHydrated = () => useSyncExternalStore(noSubscription, () => true, () => false);
+
 export function useThemeTokens(): Tokens {
   const { theme } = useUniwind();
-  return theme === 'dark' ? darkTokens : tokens;
+  const hydrated = useHydrated();
+  return hydrated && theme === 'dark' ? darkTokens : tokens;
 }
 export function useThemedStyles<T>(factory: (tokens: Tokens) => T): T {
   const selected = useThemeTokens();
-  return useMemo(() => {
-    const styles = factory(selected);
-    if (!styles || typeof styles !== 'object') return styles;
-    const terminal = Object.fromEntries(Object.entries(styles).map(([name, value]) => {
-      if (!value || typeof value !== 'object') return [name, value];
-      const style = { ...value } as Record<string, unknown>;
-      if ('borderRadius' in style && !name.toLowerCase().includes('avatar')) style.borderRadius = 0;
-      if ('fontSize' in style || 'fontWeight' in style || 'fontFamily' in style) {
-        style.fontFamily = Platform.OS === 'ios' ? 'Courier' : 'monospace';
-        if (style.fontWeight && Number(style.fontWeight) > 700) style.fontWeight = '700';
-      }
-      return [name, style];
-    }));
-    return terminal as T;
-  }, [factory, selected]);
+  return useMemo(() => terminalStyles(factory(selected), Platform.OS), [factory, selected]);
 }

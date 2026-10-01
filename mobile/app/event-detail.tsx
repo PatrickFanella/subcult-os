@@ -3,10 +3,10 @@ import type { Tokens } from '@/theme/tokens';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Calendar, ChevronLeft, MapPin, Share2, Ticket as TicketIcon } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { Image, Linking, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, Linking, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { formatCurrency, formatDate, formatTime, pricingLabel } from '@/api/format';
+import { formatDate, formatTime, pricingLabel } from '@/api/format';
 import { createPaidReservation, getPublicEvent, listPublicEventRoles, reserveFreeTicket, submitPublicRoleApplication } from '@/api/events';
 import type { EventRoleDTO, PublicEventDTO } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
@@ -23,6 +23,9 @@ import {
 } from '@/modules/discovery/publicEventRolesModel';
 import { safeBack } from '@/navigation/safeBack';
 import { savePendingPaidTicket, saveTicketToWallet } from '@/tickets/walletStore';
+import { Field } from '@/ui/Field';
+import { Pill } from '@/ui/Pill';
+import { PrimaryButton } from '@/ui/PrimaryButton';
 
 export default function EventDetailScreen() {
   const tokens = useThemeTokens();
@@ -275,38 +278,31 @@ export default function EventDetailScreen() {
                           <Text style={styles.roleName}>{role.name}</Text>
                           <Text style={styles.roleDescription}>{role.description || 'No description provided.'}</Text>
                         </View>
-						<Text style={styles.rolePill}>{publicRoleAvailabilityLabel(role.capacity)}</Text>
+                        <Pill>{publicRoleAvailabilityLabel(role.capacity)}</Pill>
                       </View>
-                      <TextInput
+                      <Field
                         value={draft.applicantName}
                         onChangeText={(value) => updateRoleDraft(role.id, (current) => ({ ...current, applicantName: value, submitted: false, error: null }))}
                         placeholder="Applicant name"
-                        placeholderTextColor="#a3a3a3"
-                        style={styles.input}
                         editable={!draft.submitting && !draft.submitted}
                       />
-                      <TextInput
+                      <Field
                         value={draft.applicantEmail}
                         onChangeText={(value) => updateRoleDraft(role.id, (current) => ({ ...current, applicantEmail: value, submitted: false, error: null }))}
                         autoCapitalize="none"
                         keyboardType="email-address"
                         placeholder="Applicant email"
-                        placeholderTextColor="#a3a3a3"
-                        style={styles.input}
                         editable={!draft.submitting && !draft.submitted}
                       />
-                      <TextInput
+                      <Field
                         value={draft.message}
                         onChangeText={(value) => updateRoleDraft(role.id, (current) => ({ ...current, message: value, submitted: false, error: null }))}
                         multiline
                         placeholder="Message (optional)"
-                        placeholderTextColor="#a3a3a3"
-                        style={[styles.input, styles.messageInput]}
+                        style={styles.messageInput}
                         editable={!draft.submitting && !draft.submitted}
                       />
-                      <Pressable disabled={!canSubmit} onPress={() => void handleRoleSubmit(role)} style={[styles.roleButton, !canSubmit && styles.roleButtonDisabled]}>
-                        <Text style={styles.roleButtonText}>{publicRoleApplicationButtonLabel(draft.submitting, draft.submitted)}</Text>
-                      </Pressable>
+                      <PrimaryButton variant="secondary" disabled={!canSubmit} busy={draft.submitting} onPress={() => void handleRoleSubmit(role)} label={publicRoleApplicationButtonLabel(draft.submitting, draft.submitted)} />
                       <Text style={draft.error ? styles.errorText : draft.submitted ? styles.successText : styles.formHelp}>{statusCopy}</Text>
                     </View>
                   );
@@ -325,21 +321,17 @@ export default function EventDetailScreen() {
             ) : (
               <>
                 <Text style={styles.formHelp}>Enter the email where your ticket should be sent.</Text>
-                <TextInput
+                <Field
                   value={email}
                   onChangeText={setEmail}
                   autoCapitalize="none"
                   keyboardType="email-address"
                   placeholder="Email address"
-                  placeholderTextColor="#a3a3a3"
-                  style={styles.input}
                 />
-                <TextInput
+                <Field
                   value={displayName}
                   onChangeText={setDisplayName}
                   placeholder="Display name (optional)"
-                  placeholderTextColor="#a3a3a3"
-                  style={styles.input}
                 />
               </>
             )}
@@ -355,10 +347,7 @@ export default function EventDetailScreen() {
         </View>
         <View style={styles.stickyAction}>
           {event.isFull ? <Text style={styles.stickyWarning}>No tickets remain.</Text> : null}
-          <Pressable disabled={stickyCtaDisabled} onPress={handleReserve} style={[styles.ticketButton, stickyCtaDisabled && styles.ticketButtonDisabled]}>
-            <TicketIcon size={20} color={tokens.color.text.inverse} />
-            <Text style={styles.ticketButtonText}>{stickyCtaLabel}</Text>
-          </Pressable>
+          <PrimaryButton disabled={stickyCtaDisabled} onPress={handleReserve} icon={<TicketIcon size={20} color={tokens.color.text.inverse} />} label={stickyCtaLabel} />
         </View>
       </View>
     </View>
@@ -404,7 +393,7 @@ const createStyles = (tokens: Tokens) => StyleSheet.create({
   content: { flex: 1, paddingHorizontal: 20, marginTop: -72, zIndex: 10, paddingBottom: 32 },
   titleCard: { backgroundColor: tokens.color.surface.panel, borderRadius: tokens.radius.panel, padding: 20, marginBottom: 22, boxShadow: '0 2px 12px rgba(0,0,0,0.12)', elevation: 2 },
   organizer: { fontSize: 14, fontWeight: '700', letterSpacing: 1.1, color: tokens.color.text.muted, textTransform: 'uppercase' },
-  title: { fontSize: tokens.type['title'], fontWeight: '800', letterSpacing: -1, color: tokens.color.text.primary, marginTop: 4, marginBottom: 8 },
+  title: { fontSize: tokens.type['title'], fontWeight: '700', letterSpacing: -1, color: tokens.color.text.primary, marginTop: 4, marginBottom: 8 },
   subtitle: { fontSize: 18, color: tokens.color.text.muted, marginBottom: 24 },
   infoList: { gap: 16, marginBottom: 32 },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
@@ -412,39 +401,31 @@ const createStyles = (tokens: Tokens) => StyleSheet.create({
   infoTitle: { fontWeight: '700', color: tokens.color.text.secondary },
   infoDetail: { fontSize: 14, color: tokens.color.text.muted },
   aboutBlock: { marginBottom: 24 },
-  aboutTitle: { fontSize: 18, fontWeight: '800', marginBottom: 8, color: tokens.color.text.primary },
+  aboutTitle: { fontSize: 18, fontWeight: '700', marginBottom: 8, color: tokens.color.text.primary },
   aboutText: { color: tokens.color.text.secondary, lineHeight: 22 },
   participationCard: { gap: 12, backgroundColor: tokens.color.surface.inset, borderRadius: tokens.radius.card, padding: 18, marginBottom: 24 },
   roleList: { gap: 14 },
   roleCard: { gap: 12, backgroundColor: tokens.color.surface.panel, borderRadius: 20, padding: 14 },
   roleHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
   roleTitleWrap: { flex: 1 },
-  roleName: { color: tokens.color.text.primary, fontSize: 16, fontWeight: '900' },
+  roleName: { color: tokens.color.text.primary, fontSize: 16, fontWeight: '700' },
   roleDescription: { color: tokens.color.text.muted, lineHeight: 20, marginTop: 4 },
-  rolePill: { color: tokens.color.text.secondary, backgroundColor: tokens.color.surface.inset, borderRadius: tokens.radius.pill, paddingHorizontal: 10, paddingVertical: 6, fontSize: tokens.type['label'], fontWeight: '900', overflow: 'hidden' },
   formCard: { gap: 12, backgroundColor: tokens.color.surface.inset, borderRadius: tokens.radius.card, padding: 18, marginBottom: 48 },
   formHelp: { color: tokens.color.text.muted, lineHeight: 20 },
-  input: { minHeight: 52, borderRadius: tokens.radius.control, backgroundColor: tokens.color.surface.panel, color: tokens.color.text.primary, paddingHorizontal: 14, fontSize: tokens.type['body'], fontWeight: '600' },
-  messageInput: { minHeight: 96, paddingTop: 14, textAlignVertical: 'top' },
-  roleButton: { alignItems: 'center', justifyContent: 'center', minHeight: tokens.size.tap, borderRadius: tokens.radius.control, borderWidth: 1, borderColor: tokens.color.border.strong, backgroundColor: tokens.color.surface.panel },
-  roleButtonDisabled: { opacity: 0.55 },
-  roleButtonText: { color: tokens.color.text.primary, fontWeight: '800' },
+  messageInput: { minHeight: 96 },
   signedInCard: { backgroundColor: tokens.color.surface.panel, borderRadius: 18, padding: 14, gap: 3 },
-  signedInLabel: { color: tokens.color.text.muted, fontSize: tokens.type['label'], fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1 },
-  signedInName: { color: tokens.color.text.primary, fontSize: 16, fontWeight: '900' },
+  signedInLabel: { color: tokens.color.text.muted, fontSize: tokens.type['label'], fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
+  signedInName: { color: tokens.color.text.primary, fontSize: 16, fontWeight: '700' },
   signedInEmail: { color: tokens.color.text.muted, fontWeight: '700' },
   errorText: { color: tokens.color.status.danger, fontWeight: '600', lineHeight: 20 },
   successText: { color: tokens.color.status.success, fontWeight: '700', lineHeight: 20 },
   stickyBar: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: tokens.color.surface.panel, borderTopWidth: 1, borderTopColor: tokens.color.surface.inset, paddingTop: 14, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 -2px 10px rgba(0,0,0,0.08)', elevation: 8 },
   priceLabel: { color: tokens.color.text.muted, fontSize: 14, fontWeight: '600' },
-  price: { color: tokens.color.text.primary, fontSize: 24, fontWeight: '800' },
+  price: { color: tokens.color.text.primary, fontSize: 24, fontWeight: '700' },
   remaining: { color: tokens.color.text.muted, fontSize: tokens.type['label'], fontWeight: '600' },
   stickyAction: { alignItems: 'flex-end', gap: 6 },
   stickyWarning: { color: tokens.color.status.danger, fontSize: tokens.type['label'], fontWeight: '700' },
-  ticketButton: { backgroundColor: tokens.color.action.primary, paddingHorizontal: 22, paddingVertical: 16, borderRadius: tokens.radius.control, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 8 },
-  ticketButtonDisabled: { opacity: 0.45 },
-  ticketButtonText: { color: tokens.color.text.inverse, fontWeight: '700' },
   centerState: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 28, backgroundColor: tokens.color.surface.panel },
-  centerTitle: { color: tokens.color.text.primary, fontSize: 24, fontWeight: '800', textAlign: 'center', marginBottom: 8 },
+  centerTitle: { color: tokens.color.text.primary, fontSize: 24, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
   centerBody: { color: tokens.color.text.muted, fontSize: tokens.type['body'], lineHeight: 22, textAlign: 'center' },
 });

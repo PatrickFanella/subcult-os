@@ -10,7 +10,7 @@ type Worksheet = { evaluatedAt: string; entries: AccessInformationRevisionDTO[] 
 type History = { topic: EventAccessTopic; revisions: AccessInformationRevisionDTO[]; nextBefore?: number };
 type Draft = { entry: AccessInformationRevisionDTO; reviewed: string; expires: string; reason: string };
 const draftFrom = (entry: AccessInformationRevisionDTO): Draft => ({ entry, reviewed: entry.reviewedAt?.slice(0, 16) ?? '', expires: entry.expiresAt?.slice(0, 16) ?? '', reason: '' });
-const control = 'mt-1 w-full rounded-control border border-stroke-subtle bg-surface-inset p-3 text-fg-primary';
+const control = 'field mt-1 py-3';
 
 export { AccessEntrySummary } from '../components/AccessEntrySummary';
 
@@ -79,7 +79,7 @@ function AccessInformationView({ eventId, workspaceId, placeId }: { eventId?: st
   }
   return <main className="mx-auto max-w-5xl space-y-6 px-4 py-6 text-fg-primary sm:px-6">
     <a className="text-sm underline" href={placeId ? `/workspace/${workspaceId}/venue-access` : `/events/${eventId}`}>{placeId ? 'Back to venue worksheets' : 'Back to event'}</a>
-    <header className="space-y-3"><p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Private {scope} worksheet</p><h1 className="text-3xl font-extrabold">Access information</h1>{name && <p className="text-lg font-bold">{name}</p>}
+    <header className="space-y-3"><p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Private {scope} worksheet</p><h1 className="text-3xl font-bold">Access information</h1>{name && <p className="text-lg font-bold">{name}</p>}
       <p className="max-w-3xl text-fg-secondary">{scope === 'venue' ? 'Record assertions about this venue, their source and when they were checked. An event may use a different entrance or arrangement, so venue assertions never become event observations automatically.' : 'Record conditions for this event, their source and when they were checked. Organizer assertions and recorded observations remain distinct. Venue information is not inherited.'} This worksheet remains private.</p>
       <p className="text-sm text-fg-secondary">Keep personal accommodation requests, diagnoses and attendee details out of this worksheet. Keep individual requests in your private communication with the attendee.</p>
     </header>

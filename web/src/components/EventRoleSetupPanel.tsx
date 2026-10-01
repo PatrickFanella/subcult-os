@@ -6,7 +6,7 @@ import { emptyRoleDraft, rolePayload } from '../modules/eventRoles/roleDraft';
 import { Button } from '../ui/Button';
 import { Notice } from '../ui/Notice';
 
-const inputClass = 'w-full rounded-control border border-stroke-subtle bg-surface-inset px-4 py-3 text-fg-primary disabled:cursor-not-allowed disabled:opacity-60';
+const inputClass = 'field py-3';
 
 export function EventRoleSetupPanel({ eventId, roles, allowed, onCreated }: {
   eventId: string;
@@ -66,7 +66,7 @@ export function EventRoleSetupPanel({ eventId, roles, allowed, onCreated }: {
   return (
     <section className="min-w-0 rounded-panel border border-stroke-subtle bg-surface-panel p-6 [overflow-wrap:anywhere]">
       <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Participation roles</p>
-      <h2 className="mt-2 text-2xl font-extrabold text-fg-primary">Set up applications</h2>
+      <h2 className="mt-2 text-2xl font-bold text-fg-primary">Set up applications</h2>
       <p className="mt-2 text-sm leading-6 text-fg-secondary">Public roles accept interest through the published event page. Reviewing an application and assigning a task or shift are separate steps.</p>
       {!denied ? (
         <ul className="mt-4 space-y-3" aria-label="Event participation roles">

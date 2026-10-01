@@ -153,7 +153,7 @@ export function TicketView({ code }: { code: string }) {
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className={publicEyebrowClass}>Ticket</p>
-            <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] text-fg-primary sm:text-4xl">Your ticket</h1>
+            <h1 className="mt-2 text-3xl font-bold tracking-[-0.04em] text-fg-primary sm:text-4xl">Your ticket</h1>
           </div>
           <a className={publicSecondaryButtonClass} href="/">
             Workspace
@@ -164,7 +164,7 @@ export function TicketView({ code }: { code: string }) {
           <p className={`${publicMutedTextClass} leading-6`}>Your reservation lives here. Keep this page open or save the code for arrival.</p>
 
           {loading ? <div className={`${publicCardClass} ${publicMutedTextClass}`}>Loading ticket…</div> : null}
-          {error ? <div role="alert" className="rounded-[22px] border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm font-bold text-status-danger">
+          {error ? <div role="alert" className="border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm font-bold text-status-danger">
             <p>{error}</p>
             {ticket ? <p className="mt-2">Showing the last loaded ticket. Its payment and check-in status may have changed.</p> : null}
           </div> : null}
@@ -174,16 +174,16 @@ export function TicketView({ code }: { code: string }) {
 
           {ticket ? (
             <>
-              <div className="overflow-hidden rounded-hero border border-stroke-subtle bg-surface-panel p-6 shadow-sm">
+              <div className="overflow-hidden rounded-hero border border-stroke-subtle bg-surface-panel p-6">
                 <div className="flex items-start justify-between gap-3">
                   <span className={publicStatusPillClass(ticketStatusTone(ticket))}>{ticketJourneyStatusBadge(ticket)}</span>
-                  <span className="rounded-full bg-surface-panel p-3 text-xl shadow-sm" aria-hidden="true">
+                  <span className="bg-surface-panel p-3 text-xl" aria-hidden="true">
                     ↗
                   </span>
                 </div>
 
                 <div className="mt-5">
-                  <h2 className="text-2xl font-black tracking-[-0.03em] text-fg-primary">Ticket {ticket.code}</h2>
+                  <h2 className="break-all text-2xl font-bold text-fg-primary">Ticket {ticket.code}</h2>
                   <p className="mt-1 text-sm text-fg-muted">{ticketJourneyDisplayName(ticket)}</p>
                 </div>
 
@@ -195,16 +195,16 @@ export function TicketView({ code }: { code: string }) {
                 <div className="my-6 border-t-2 border-dashed border-stroke-subtle" />
 
                 <div className="flex flex-col items-center text-center">
-				<div className="flex h-56 w-56 items-center justify-center rounded-[24px] border border-stroke-subtle bg-surface-panel p-4" aria-label="Ticket QR code">
+				<div className="flex h-56 w-56 items-center justify-center border border-stroke-subtle bg-surface-panel p-4" aria-label="Ticket QR code">
 					{qr?.code === ticket.code ? (
 						<img className="h-full w-full" src={qr.dataUrl} alt={`QR code for ticket ${ticket.code}`} />
 					) : qrFailedCode === ticket.code ? (
                       <span role="status" className="text-sm font-bold text-fg-secondary">QR unavailable. Show the ticket code below for manual entry.</span>
                     ) : (
-                      <span className="text-xs font-black uppercase tracking-[0.28em] text-fg-muted">Preparing QR</span>
+                      <span className="text-xs font-bold uppercase tracking-[0.28em] text-fg-muted">Preparing QR</span>
                     )}
                   </div>
-                  <p className="mt-4 break-words font-mono text-sm tracking-[0.28em] text-fg-secondary">{ticket.code}</p>
+                  <p className="mt-4 max-w-full break-all text-center font-mono text-sm tracking-[0.12em] text-fg-secondary">{ticket.code}</p>
                   <p className="mt-2 text-sm text-fg-muted">{ticketJourneyCodeCopy(ticket)}</p>
                 </div>
               </div>
@@ -214,7 +214,7 @@ export function TicketView({ code }: { code: string }) {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className={publicEyebrowClass}>Payment status</p>
-                      <p className="mt-2 text-2xl font-black tracking-[-0.03em] text-fg-primary">{ticketJourneyPaymentLabel(ticket.paymentStatus)}</p>
+                      <p className="mt-2 text-2xl font-bold tracking-[-0.03em] text-fg-primary">{ticketJourneyPaymentLabel(ticket.paymentStatus)}</p>
                     </div>
                     <span className={publicStatusPillClass(ticketPaymentTone(ticket.paymentStatus))}>{ticketJourneyPaymentBadge(ticket)}</span>
                   </div>
@@ -226,7 +226,7 @@ export function TicketView({ code }: { code: string }) {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className={publicEyebrowClass}>Status</p>
-                      <p className="mt-2 text-2xl font-black tracking-[-0.03em] text-fg-primary">{ticketJourneyStatusLabel(ticket.status)}</p>
+                      <p className="mt-2 text-2xl font-bold tracking-[-0.03em] text-fg-primary">{ticketJourneyStatusLabel(ticket.status)}</p>
                     </div>
                     <span className={publicStatusPillClass(ticketStatusTone(ticket))}>{ticketJourneyStatusBadge(ticket)}</span>
                   </div>
@@ -238,7 +238,7 @@ export function TicketView({ code }: { code: string }) {
               </div>
 
               <div className={publicCardClass}>
-                <p className="text-xl font-black tracking-[-0.03em] text-fg-primary">Arrival notes</p>
+                <p className="text-xl font-bold tracking-[-0.03em] text-fg-primary">Arrival notes</p>
                 <p className="mt-2 text-sm leading-6 text-fg-secondary">{ticketArrivalNotes(ticket.paymentStatus)}</p>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">

@@ -105,7 +105,7 @@ export function MemberRolesView({ workspaceId }: { workspaceId: string }) {
   return <main className="min-h-screen bg-surface-page px-4 py-10 text-fg-primary">
     <section className="mx-auto min-w-0 max-w-5xl space-y-6 [overflow-wrap:anywhere]">
       <header className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
-        <h1 className="text-3xl font-extrabold">Member roles</h1>
+        <h1 className="text-3xl font-bold">Member roles</h1>
         {workspace ? <p className="mt-2 text-fg-secondary">{workspace.name}</p> : null}
         <p className="mt-2 text-sm text-fg-secondary">Owners can assign workspace roles. Review the capabilities before saving. Role changes do not restore expired or revoked access.</p>
         <div className="mt-4 flex flex-wrap gap-3">
@@ -132,7 +132,7 @@ export function MemberRolesView({ workspaceId }: { workspaceId: string }) {
               <fieldset className="space-y-3" disabled={Boolean(actioning) || reloadRequired}>
                 <label className="block text-sm">
                   <span>Role to assign</span>
-                  <select className="mt-2 block w-full rounded-control border border-stroke-subtle bg-surface-inset px-4 py-3 text-fg-primary" value={selected ?? ''} onChange={event => setDrafts(current => ({ ...current, [member.id]: event.target.value as AssignableMemberRole }))}>
+                  <select className="field mt-2 block py-3" value={selected ?? ''} onChange={event => setDrafts(current => ({ ...current, [member.id]: event.target.value as AssignableMemberRole }))}>
                     {assignableMemberRoles.map(role => <option key={role} value={role}>{roleLabel(role)}</option>)}
                   </select>
                 </label>
