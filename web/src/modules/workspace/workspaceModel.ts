@@ -133,11 +133,11 @@ export function commitmentStatusLabel(status: CommitmentDTO['status']) {
 export function commitmentStatusTone(status: CommitmentDTO['status']) {
 	switch (status) {
 		case 'open':
-			return 'border-amber-400/20 bg-amber-400/10 text-amber-200';
+			return 'border-status-warning/20 bg-status-surface-warning text-status-warning';
 		case 'done':
-			return 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200';
+			return 'border-status-success/20 bg-status-surface-success text-status-success';
 		case 'cancelled':
-			return 'border-rose-400/20 bg-rose-400/10 text-rose-200';
+			return 'border-status-danger/20 bg-status-surface-danger text-status-danger';
 	}
 }
 
@@ -159,22 +159,22 @@ export function eventStatusLabel(status: EventStatus) {
 export function eventStatusTone(status: EventStatus) {
 	switch (status) {
 		case 'draft':
-			return 'border-amber-400/25 bg-amber-400/10 text-amber-200';
+			return 'border-status-warning/25 bg-status-surface-warning text-status-warning';
 		case 'published':
-			return 'border-emerald-400/25 bg-emerald-400/10 text-emerald-200';
+			return 'border-status-success/25 bg-status-surface-success text-status-success';
 		case 'end_of_night':
-			return 'border-fuchsia-400/25 bg-fuchsia-400/10 text-fuchsia-200';
+			return 'border-status-info/25 bg-status-surface-info text-status-info';
 	}
 }
 
 export function eventStatusSurface(status: EventStatus) {
 	switch (status) {
 		case 'draft':
-			return 'border-amber-400/20 bg-amber-400/[0.06]';
+			return 'border-status-warning/20 bg-status-surface-warning';
 		case 'published':
-			return 'border-emerald-400/20 bg-emerald-400/[0.06]';
+			return 'border-status-success/20 bg-status-surface-success';
 		case 'end_of_night':
-			return 'border-fuchsia-400/20 bg-fuchsia-400/[0.06]';
+			return 'border-status-info/20 bg-status-surface-info';
 	}
 }
 

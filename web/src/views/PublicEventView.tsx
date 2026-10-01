@@ -22,8 +22,7 @@ import {
   publicStatusPillClass,
 } from '../modules/publicUi/publicUi';
 
-const publicInputClass =
-  'w-full rounded-2xl border border-stroke-subtle bg-surface-panel px-4 py-3 text-fg-primary outline-none transition placeholder:text-fg-muted focus:border-stroke-strong focus:ring-2 focus:ring-stroke-subtle disabled:cursor-not-allowed disabled:bg-surface-inset disabled:text-fg-muted';
+const publicInputClass = 'field py-3';
 
 function formatDateTime(value: string) {
   const date = new Date(value);
@@ -306,23 +305,23 @@ function PublicEventPage({ slug }: { slug: string }) {
     <main className={publicPageShellClass}>
       <section className={`${publicPageInnerClass} min-w-0 [overflow-wrap:anywhere]`}>
         <header className={publicHeroCardClass}>
-          {event?.imageUrl ? <img className="h-72 w-full object-cover sm:h-96" src={event.imageUrl} alt="" /> : <div className="h-24 bg-action-disabled sm:h-36" />}
+          {event?.imageUrl ? <img className="h-72 w-full object-cover sm:h-96" src={event.imageUrl} alt="" /> : null}
 
           <div className="p-5 sm:p-7">
             <div className="flex flex-wrap items-center gap-2">
               <span className={publicStatusPillClass()}>{pricingLabel(event)}</span>
               <span className={publicStatusPillClass('success')}>No account needed</span>
-              <a className={publicStatusPillClass()} href="/discover">
-                Discover more events
-              </a>
               {event?.pricingMode === 'fixed' ? <span className={publicStatusPillClass()}>Secure checkout</span> : null}
               <span className={publicStatusPillClass(!event || !availabilityKnown ? 'neutral' : event.isFull ? 'danger' : 'success')}>{!event || !availabilityKnown ? 'Availability unavailable' : event.isFull ? 'Sold out' : `${event.remainingTickets} remaining`}</span>
+              <a className="ml-auto text-xs font-bold uppercase tracking-[0.05em] text-fg-primary underline underline-offset-4" href="/discover">
+                Discover more events
+              </a>
             </div>
 
             <div className="mt-5 grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
               <div>
                 <p className={publicEyebrowClass}>{event ? pricingLabel(event) : 'Event details'}</p>
-                <h1 className="mt-3 text-4xl font-black tracking-tight text-fg-primary sm:text-5xl">{event?.title ?? (loading ? 'Loading event…' : 'Event unavailable')}</h1>
+                <h1 className="mt-3 text-4xl font-bold tracking-tight text-fg-primary sm:text-5xl">{event?.title ?? (loading ? 'Loading event…' : 'Event unavailable')}</h1>
                 <p className="mt-3 max-w-2xl text-base leading-7 text-fg-secondary">{!event ? (loading ? 'Loading event details and availability.' : 'Return to Discover to choose an available event.') : availabilityKnown ? publicEventConversionSummary(event, pricingLabel(event)) : 'Your ticket is reserved. Current availability could not be refreshed.'}</p>
               </div>
 
@@ -367,9 +366,9 @@ function PublicEventPage({ slug }: { slug: string }) {
               </section>
 
               {reservation ? (
-                <section className="rounded-panel border border-status-success/20 bg-status-surface-success p-5 shadow-sm">
+                <section className="rounded-panel border border-status-success/20 bg-status-surface-success p-5">
                   <p className={publicEyebrowClass}>Reservation confirmed</p>
-                  <h2 className="mt-3 text-2xl font-black text-fg-primary">Your ticket is ready</h2>
+                  <h2 className="mt-3 text-2xl font-bold text-fg-primary">Your ticket is ready</h2>
 
                   <div className="mt-5 grid gap-3 text-sm text-fg-secondary">
                     <div className="rounded-3xl bg-surface-panel p-4">
@@ -455,7 +454,7 @@ function PublicEventPage({ slug }: { slug: string }) {
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="min-w-0 flex-1">
-                            <h3 className="text-base font-black text-fg-primary">{role.name}</h3>
+                            <h3 className="text-base font-bold text-fg-primary">{role.name}</h3>
                             <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-fg-secondary">{role.description || 'No description provided.'}</p>
                           </div>
                           <span className={`${publicStatusPillClass()} shrink-0`}>{role.capacity > 0 ? `${role.capacity} spots` : 'Open'}</span>

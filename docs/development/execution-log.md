@@ -2008,3 +2008,53 @@ Resume rendered light/dark and narrow/wide review when the T3 preview connects,
 then exact native font loading and device review. The original event's timed
 shifts, finance/closeout, archive/template reuse and paired measurements remain
 open; the user-directed design change is the current source priority.
+
+## Subcults terminal adoption pass — 2026-09-30
+
+Applied the terminal foundation to screens that still used the old styling. On
+web, removed pill and arbitrary rounding, soft shadows and weights above bold
+from the views. Mapped the amber, emerald, rose and fuchsia tone helpers to
+semantic status tokens. Destructive actions now use the danger outline instead
+of purple. Links styled as actions share the uppercase `btn-*` labels. Field
+text stays regular weight. On native, `terminalStyles()` now also squares
+per-corner radii and applies monospace to color-only text styles. Placeholder
+and icon colors now come from tokens. Source weights above bold were reduced to
+bold.
+
+Headless Chromium screenshots were taken of the gallery, login, signed-in
+workspace and event editor at 390 and 1280 px in light and dark. Native device
+review was not done. `bash scripts/dev-env.sh verify` exited 0 with 375 web
+tests, 42 mobile tests and 426 top-level disposable database tests, and no
+failures or skips.
+
+Follow-up, 2026-10-01: web buttons, links and fields now use the shared
+`btn-primary`/`btn-secondary`/`btn-ghost`/`btn-danger` and `field` utilities.
+The exceptions are selected-state tabs and card links. `Button` gained a danger
+variant. Staffing and commitment counters size by container so monospace labels
+fit side columns. On native, `PrimaryButton` (primary/secondary/danger, icon),
+`Pill` (all tones) and a new `Field` are adopted by 14 screens. Links,
+selection toggles, icon-only controls, the run-of-show row actions and
+immersive surfaces stay local. Expo web export succeeded for 20 routes. Expo web
+screenshots at 390 px show the avatar circle kept and the navigation dot
+square. Other round indicators need event data or a camera and were not
+rendered. A statically exported page first loaded in dark mode renders
+StyleSheet colors light, which is not yet fixed. The full pinned gate exited 0
+with 375 web, 42 mobile and 426 top-level disposable database tests.
+
+Second follow-up, 2026-10-01:
+- Native `app.json` set `userInterfaceStyle` to `light`, which locked iOS and
+  Android to light so System appearance never followed a dark device. It is now
+  `automatic`.
+- `useThemeTokens()` returns light tokens during web hydration through
+  `useSyncExternalStore`'s server snapshot, then switches. A statically exported
+  page first loaded in dark now renders fully dark. Login and settings were
+  checked from prerendered markup in a fresh Expo web export.
+- The public event page no longer shows an empty grey block when an event has
+  no artwork. "Discover more events" is a link rather than a status chip.
+- Long ticket codes wrap on the ticket page at 390 px.
+- Selected pricing cards and the active workspace use a purple frame instead of
+  the disabled background. Cards with a hidden radio show a focus outline.
+  Pricing cards size by container.
+- Unchanged hover states now strengthen the border.
+- The full pinned gate exited 0 with 375 web, 42 mobile and 426 top-level
+  disposable database tests.

@@ -136,9 +136,9 @@ export function DoorView({ eventId }: { eventId: string }) {
   return (
     <main className={publicPageShellClass}>
       <section className={`${publicPageInnerClass} max-w-3xl`}>
-        <header className="rounded-hero border border-stroke-subtle bg-surface-panel p-6 shadow-sm">
-          <p className={`${publicEyebrowClass} text-blue-600`}>Door Mode</p>
-          <h1 className="mt-2 text-4xl font-black tracking-[-0.04em] text-fg-primary">Guest List</h1>
+        <header className="rounded-hero border border-stroke-subtle bg-surface-panel p-6">
+          <p className={`${publicEyebrowClass} text-status-info`}>Door Mode</p>
+          <h1 className="mt-2 text-4xl font-bold tracking-[-0.04em] text-fg-primary">Guest List</h1>
           <p className={`mt-2 ${publicMutedTextClass}`}>Search by name, email, or exact ticket code. Paste a full code and press Search to jump straight to check-in.</p>
 
           <div className="mt-4 rounded-2xl bg-surface-inset px-4 py-3 text-sm font-medium text-fg-secondary">Event ID: {eventId || 'Missing'}</div>
@@ -148,7 +148,7 @@ export function DoorView({ eventId }: { eventId: string }) {
           <label className="block space-y-2 text-sm">
             <span className="font-bold text-fg-primary">Lookup or exact code</span>
             <input
-              className="door-input w-full rounded-[18px] border border-stroke-subtle bg-surface-inset px-4 py-4 text-base font-medium text-fg-primary outline-none transition placeholder:text-fg-muted focus:border-stroke-strong focus:bg-surface-panel"
+              className="field door-input py-4 text-base"
               type="search"
               autoComplete="off"
               value={query}
@@ -159,14 +159,14 @@ export function DoorView({ eventId }: { eventId: string }) {
 
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <button
-              className={`door-action ${publicPrimaryButtonClass} min-h-14 rounded-[18px] text-base`}
+              className={`door-action ${publicPrimaryButtonClass} min-h-14 text-base`}
               type="submit"
               disabled={loading}
             >
               {loading ? 'Searching…' : 'Search'}
             </button>
             <button
-              className={`door-action ${publicSecondaryButtonClass} min-h-14 rounded-[18px] text-base`}
+              className={`door-action ${publicSecondaryButtonClass} min-h-14 text-base`}
               type="button"
               onClick={handleClear}
             >
@@ -177,9 +177,9 @@ export function DoorView({ eventId }: { eventId: string }) {
           <p className="mt-3 text-xs leading-5 text-fg-muted">Exact code works. Search by email, name, or the full ticket code to pull up a single result.</p>
         </form>
 
-        {error ? <p className="rounded-[18px] border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm font-bold text-status-danger">{error}</p> : null}
+        {error ? <p className="border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm font-bold text-status-danger">{error}</p> : null}
         {notice ? (
-          <p className={`rounded-[18px] border px-4 py-3 text-sm ${noticeClassName(notice.kind)}`} aria-live="polite">
+          <p className={`border px-4 py-3 text-sm ${noticeClassName(notice.kind)}`} aria-live="polite">
             {notice.text}
           </p>
         ) : null}
@@ -189,11 +189,11 @@ export function DoorView({ eventId }: { eventId: string }) {
 
           {results.map((ticket) => (
             <article key={ticket.id} className={publicCardClass}>
-              <div className={`rounded-[24px] border px-4 py-4 ${doorStatusCardClass(ticket.status)}`}>
+              <div className={`border px-4 py-4 ${doorStatusCardClass(ticket.status)}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className={publicEyebrowClass}>Status</p>
-                    <p className="mt-2 text-2xl font-black tracking-[-0.03em]">{ticketJourneyStatusLabel(ticket.status)}</p>
+                    <p className="mt-2 text-2xl font-bold tracking-[-0.03em]">{ticketJourneyStatusLabel(ticket.status)}</p>
                   </div>
                   <span className={publicStatusPillClass(doorStatusPillTone(ticket.status))}>{ticketJourneyDoorStatusBadge(ticket.status)}</span>
                 </div>
@@ -203,7 +203,7 @@ export function DoorView({ eventId }: { eventId: string }) {
 
               <div className="mt-4 space-y-3">
                 <div>
-                  <p className="text-2xl font-black tracking-[-0.03em] text-fg-primary">{ticket.displayName ?? 'Guest'}</p>
+                  <p className="text-2xl font-bold tracking-[-0.03em] text-fg-primary">{ticket.displayName ?? 'Guest'}</p>
                 </div>
 
                 <div className="rounded-2xl bg-surface-inset px-4 py-4">
@@ -224,7 +224,7 @@ export function DoorView({ eventId }: { eventId: string }) {
               </div>
 
               <button
-                className={`door-action mt-4 w-full ${publicPrimaryButtonClass} min-h-14 rounded-[18px] text-base`}
+                className={`door-action mt-4 w-full ${publicPrimaryButtonClass} min-h-14 text-base`}
                 type="button"
                 onClick={() => handleCheckIn(ticket)}
                 disabled={checkingIn === ticket.code || ticket.status === 'checked_in' || !ticket.admissionEligible}

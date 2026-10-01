@@ -2,11 +2,13 @@ import { useThemedStyles } from '@/theme/ThemeProvider';
 import type { Tokens } from '@/theme/tokens';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import * as authAPI from '@/api/auth';
 import { useAuth } from '@/auth/AuthContext';
 import { newPasswordProblem, recoveryRequestNotice } from '@/modules/auth/recoveryModel';
+import { Field } from '@/ui/Field';
+import { PrimaryButton } from '@/ui/PrimaryButton';
 
 // Opened from a recovery email link (https://<web host>/recover-password?token=…)
 // or from sign in without a token, where it requests a new link instead.
@@ -75,29 +77,25 @@ export default function RecoverPasswordScreen() {
       <View style={styles.card}>
         {token ? (
           <>
-            <TextInput
+            <Field
               value={password}
               onChangeText={setPassword}
               secureTextEntry
               autoComplete="new-password"
               textContentType="newPassword"
               placeholder="New password"
-              placeholderTextColor="#a3a3a3"
-              style={styles.input}
             />
-            <TextInput
+            <Field
               value={confirmation}
               onChangeText={setConfirmation}
               secureTextEntry
               autoComplete="new-password"
               textContentType="newPassword"
               placeholder="Confirm new password"
-              placeholderTextColor="#a3a3a3"
-              style={styles.input}
             />
           </>
         ) : (
-          <TextInput
+          <Field
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -106,15 +104,11 @@ export default function RecoverPasswordScreen() {
             autoComplete="email"
             textContentType="emailAddress"
             placeholder="Email address"
-            placeholderTextColor="#a3a3a3"
-            style={styles.input}
           />
         )}
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {notice ? <Text style={styles.notice}>{notice}</Text> : null}
-        <Pressable disabled={working} onPress={token ? resetPassword : requestLink} style={[styles.button, working && styles.buttonDisabled]}>
-          <Text style={styles.buttonText}>{working ? 'Working…' : token ? 'Save new password' : 'Request recovery link'}</Text>
-        </Pressable>
+        <PrimaryButton busy={working} onPress={token ? resetPassword : requestLink} style={styles.button} label={working ? 'Working…' : token ? 'Save new password' : 'Request recovery link'} />
       </View>
 
       <Pressable onPress={() => router.replace('/login')}>
@@ -127,15 +121,12 @@ export default function RecoverPasswordScreen() {
 const createStyles = (tokens: Tokens) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: tokens.color.surface.panel },
   content: { flexGrow: 1, justifyContent: 'center', padding: 24, gap: 14 },
-  kicker: { alignSelf: 'flex-start', color: tokens.color.text.muted, backgroundColor: tokens.color.surface.inset, paddingHorizontal: 8, paddingVertical: 4, borderRadius: tokens.radius.pill, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: tokens.type['label'], fontWeight: '800' },
-  title: { color: tokens.color.text.primary, fontSize: 36, fontWeight: '800', letterSpacing: -1.2 },
+  kicker: { alignSelf: 'flex-start', color: tokens.color.text.muted, backgroundColor: tokens.color.surface.inset, paddingHorizontal: 8, paddingVertical: 4, borderRadius: tokens.radius.pill, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: tokens.type['label'], fontWeight: '700' },
+  title: { color: tokens.color.text.primary, fontSize: 36, fontWeight: '700', letterSpacing: -1.2 },
   body: { color: tokens.color.text.muted, fontSize: 16, lineHeight: 23, marginBottom: 12 },
   card: { marginTop: 8, gap: 12, backgroundColor: tokens.color.surface.inset, borderRadius: tokens.radius.panel, padding: 20 },
-  input: { minHeight: 54, borderRadius: tokens.radius.control, backgroundColor: tokens.color.surface.panel, color: tokens.color.text.primary, paddingHorizontal: 14, fontSize: tokens.type['body'], fontWeight: '600' },
   error: { color: tokens.color.status.danger, fontWeight: '700', lineHeight: 20 },
   notice: { color: tokens.color.status.success, fontWeight: '700', lineHeight: 20 },
-  button: { minHeight: tokens.size.field, borderRadius: 18, backgroundColor: tokens.color.action.primary, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
-  buttonDisabled: { opacity: 0.55 },
-  buttonText: { color: tokens.color.text.inverse, fontWeight: '800', fontSize: 16 },
-  link: { color: tokens.color.text.primary, fontWeight: '800', fontSize: tokens.type['body'] },
+  button: { marginTop: 4 },
+  link: { color: tokens.color.text.primary, fontWeight: '700', fontSize: tokens.type['body'] },
 });

@@ -22,12 +22,12 @@ describe('eventLifecycle', () => {
 		expect(eventLifecycleLabel('draft')).toBe('Draft');
 		expect(eventLifecycleLabel('published')).toBe('Published');
 		expect(eventLifecycleLabel('end_of_night')).toBe('End of Night');
-		expect(eventLifecycleTone('draft')).toBe('border-amber-400/30 bg-amber-400/10 text-amber-200');
-		expect(eventLifecycleTone('published')).toBe('border-emerald-400/30 bg-emerald-400/10 text-emerald-200');
-		expect(eventLifecycleTone('end_of_night')).toBe('border-fuchsia-400/30 bg-fuchsia-400/10 text-fuchsia-200');
-		expect(eventLifecycleSurface('draft')).toBe('border-amber-400/20 bg-amber-400/[0.06]');
-		expect(eventLifecycleSurface('published')).toBe('border-emerald-400/20 bg-emerald-400/[0.06]');
-		expect(eventLifecycleSurface('end_of_night')).toBe('border-fuchsia-400/20 bg-fuchsia-400/[0.06]');
+		expect(eventLifecycleTone('draft')).toBe('border-status-warning/30 bg-status-surface-warning text-status-warning');
+		expect(eventLifecycleTone('published')).toBe('border-status-success/30 bg-status-surface-success text-status-success');
+		expect(eventLifecycleTone('end_of_night')).toBe('border-status-info/30 bg-status-surface-info text-status-info');
+		expect(eventLifecycleSurface('draft')).toBe('border-status-warning/20 bg-status-surface-warning');
+		expect(eventLifecycleSurface('published')).toBe('border-status-success/20 bg-status-surface-success');
+		expect(eventLifecycleSurface('end_of_night')).toBe('border-status-info/20 bg-status-surface-info');
 		expect(eventLifecycleSummary('draft')).toBe('Private until the checklist is complete and the public page goes live.');
 		expect(eventLifecycleSummary('published')).toBe('Live now. Keep the public page handy and end the night when the door closes.');
 		expect(eventLifecycleSummary('end_of_night')).toBe('Closed out. Review the report and jump back to the workspace when you are done.');

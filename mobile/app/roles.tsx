@@ -3,11 +3,14 @@ import type { Tokens } from '@/theme/tokens';
 import { useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, Plus, Users, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { createEventRole, listEventRoleApplications, listEventRoles, reviewEventRoleApplication, updateEventRole } from '@/api/staff';
 import type { EventRoleApplicationDTO, EventRoleApplicationStatus, EventRoleDTO } from '@/api/types';
 import { safeBack } from '@/navigation/safeBack';
+import { Field } from '@/ui/Field';
+import { Pill } from '@/ui/Pill';
+import { PrimaryButton } from '@/ui/PrimaryButton';
 
 const reviewActions: { label: string; status: EventRoleApplicationStatus }[] = [
   { label: 'Review', status: 'under_review' },
@@ -154,8 +157,8 @@ export default function RolesScreen() {
               <Pressable onPress={stopEditingRole} style={styles.cancelEditButton}><X size={16} color={tokens.color.text.muted} /></Pressable>
             ) : null}
           </View>
-          <TextInput value={name} onChangeText={setName} placeholder="Door volunteer, performer, vendor…" placeholderTextColor="#a3a3a3" style={styles.input} />
-          <TextInput value={capacity} onChangeText={(value) => setCapacity(value.replace(/[^0-9]/g, ''))} placeholder="Capacity" placeholderTextColor="#a3a3a3" keyboardType="number-pad" style={styles.input} />
+          <Field value={name} onChangeText={setName} placeholder="Door volunteer, performer, vendor…" />
+          <Field value={capacity} onChangeText={(value) => setCapacity(value.replace(/[^0-9]/g, ''))} placeholder="Capacity" keyboardType="number-pad" />
           <View style={styles.visibilityRow}>
             <VisibilityButton label="Public" selected={isPublic} onPress={() => setIsPublic(true)} />
             <VisibilityButton label="Private" selected={!isPublic} onPress={() => setIsPublic(false)} />
@@ -170,10 +173,8 @@ export default function RolesScreen() {
               <Text style={styles.helpText}>{isActive ? 'Active roles can receive applications if public.' : 'Inactive roles stay in organizer history but are hidden from public application flow.'}</Text>
             </>
           ) : null}
-          <TextInput value={description} onChangeText={setDescription} placeholder="What should applicants know?" placeholderTextColor="#a3a3a3" multiline style={[styles.input, styles.textArea]} />
-          <Pressable disabled={creating} onPress={() => void saveRole()} style={[styles.primaryButton, creating && styles.disabled]}>
-            <Plus size={18} color={tokens.color.text.inverse} /><Text style={styles.primaryButtonText}>{creating ? 'Saving…' : editingRoleID ? 'Save role' : 'Create role'}</Text>
-          </Pressable>
+          <Field value={description} onChangeText={setDescription} placeholder="What should applicants know?" multiline style={styles.textArea} />
+          <PrimaryButton busy={creating} onPress={() => void saveRole()} icon={<Plus size={18} color={tokens.color.text.inverse} />} label={creating ? 'Saving…' : editingRoleID ? 'Save role' : 'Create role'} />
         </View>
 
         <View style={styles.section}>
@@ -186,9 +187,7 @@ export default function RolesScreen() {
                 <Text style={styles.roleName}>{role.name}</Text>
                 <Text style={styles.roleMeta}>{role.capacity} spots · {role.public ? 'public' : 'private'} · {role.active ? 'active' : 'inactive'}</Text>
                 {role.description ? <Text style={styles.roleDescription}>{role.description}</Text> : null}
-                <Pressable onPress={() => startEditingRole(role)} style={styles.editRoleButton}>
-                  <Text style={styles.editRoleButtonText}>Edit role</Text>
-                </Pressable>
+                <PrimaryButton variant="secondary" onPress={() => startEditingRole(role)} style={styles.editRoleButton} label="Edit role" />
               </View>
             </View>
           ))}
@@ -200,18 +199,16 @@ export default function RolesScreen() {
           {applications.map((application) => (
             <View key={application.id} style={styles.applicationCard}>
               <View style={styles.applicationHeader}>
-                <View>
+                <View style={styles.applicantCopy}>
                   <Text style={styles.applicantName}>{application.applicantName}</Text>
                   <Text style={styles.roleMeta}>{roleName(application.roleId)} · {application.applicantEmail}</Text>
                 </View>
-                <Text style={styles.statusPill}>{application.status}</Text>
+                <Pill tone="info">{application.status}</Pill>
               </View>
               {application.message ? <Text style={styles.applicationMessage}>{application.message}</Text> : null}
               <View style={styles.actionsRow}>
                 {reviewActions.map((action) => (
-                  <Pressable key={action.status} disabled={updatingID === application.id || application.status === action.status} onPress={() => void review(application, action.status)} style={[styles.actionButton, application.status === action.status && styles.disabled]}>
-                    <Text style={styles.actionButtonText}>{updatingID === application.id ? 'Saving…' : action.label}</Text>
-                  </Pressable>
+                  <PrimaryButton key={action.status} variant="secondary" disabled={updatingID === application.id || application.status === action.status} onPress={() => void review(application, action.status)} label={updatingID === application.id ? 'Saving…' : action.label} />
                 ))}
               </View>
             </View>
@@ -237,42 +234,35 @@ const createStyles = (tokens: Tokens) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: tokens.color.surface.panel, padding: 24, paddingTop: 56 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 24 },
   backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: tokens.color.surface.inset, alignItems: 'center', justifyContent: 'center' },
-  kicker: { alignSelf: 'flex-start', color: tokens.color.text.muted, backgroundColor: tokens.color.surface.inset, paddingHorizontal: 8, paddingVertical: 4, borderRadius: tokens.radius.pill, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: tokens.type['label'], fontWeight: '800' },
-  title: { fontSize: tokens.type['title'], fontWeight: '900', letterSpacing: -1, color: tokens.color.text.primary, marginTop: 6 },
+  kicker: { alignSelf: 'flex-start', color: tokens.color.text.muted, backgroundColor: tokens.color.surface.inset, paddingHorizontal: 8, paddingVertical: 4, borderRadius: tokens.radius.pill, overflow: 'hidden', textTransform: 'uppercase', letterSpacing: 1.5, fontSize: tokens.type['label'], fontWeight: '700' },
+  title: { fontSize: tokens.type['title'], fontWeight: '700', letterSpacing: -1, color: tokens.color.text.primary, marginTop: 6 },
   content: { gap: 22, paddingBottom: 48 },
   panel: { backgroundColor: tokens.color.surface.inset, borderRadius: tokens.radius.panel, padding: 18, gap: 12 },
   panelHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  panelTitle: { color: tokens.color.text.primary, fontSize: 20, fontWeight: '900' },
+  panelTitle: { color: tokens.color.text.primary, fontSize: 20, fontWeight: '700' },
   cancelEditButton: { width: 32, height: 32, borderRadius: tokens.radius.control, backgroundColor: tokens.color.surface.panel, alignItems: 'center', justifyContent: 'center' },
-  input: { minHeight: 52, borderRadius: tokens.radius.control, backgroundColor: tokens.color.surface.panel, color: tokens.color.text.primary, paddingHorizontal: 14, paddingVertical: 12, fontWeight: '700' },
-  textArea: { minHeight: 104, textAlignVertical: 'top', lineHeight: 20 },
+  textArea: { minHeight: 104 },
   visibilityRow: { flexDirection: 'row', gap: 10 },
   visibilityButton: { flex: 1, borderRadius: tokens.radius.control, borderWidth: 1, borderColor: tokens.color.border.subtle, backgroundColor: tokens.color.surface.panel, paddingVertical: 13, alignItems: 'center' },
   visibilityButtonActive: { backgroundColor: tokens.color.action.primary, borderColor: tokens.color.text.primary },
-  visibilityButtonText: { color: tokens.color.text.primary, fontWeight: '900' },
+  visibilityButtonText: { color: tokens.color.text.primary, fontWeight: '700' },
   visibilityButtonTextActive: { color: tokens.color.text.inverse },
   helpText: { color: tokens.color.text.muted, fontSize: tokens.type['label'], lineHeight: 18, fontWeight: '600' },
-  primaryButton: { minHeight: 52, borderRadius: tokens.radius.control, backgroundColor: tokens.color.action.primary, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
-  primaryButtonText: { color: tokens.color.text.inverse, fontWeight: '900' },
-  disabled: { opacity: 0.45 },
   section: { gap: 12 },
-  sectionTitle: { color: tokens.color.text.primary, fontSize: 20, fontWeight: '900' },
+  sectionTitle: { color: tokens.color.text.primary, fontSize: 20, fontWeight: '700' },
   message: { color: tokens.color.text.muted, fontWeight: '700', lineHeight: 20 },
-  error: { color: tokens.color.status.danger, fontWeight: '800', lineHeight: 20 },
+  error: { color: tokens.color.status.danger, fontWeight: '700', lineHeight: 20 },
   roleCard: { backgroundColor: tokens.color.surface.panel, borderRadius: 22, borderWidth: 1, borderColor: tokens.color.surface.inset, padding: 16, flexDirection: 'row', gap: 14 },
   roleIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: tokens.color.surface.inset, alignItems: 'center', justifyContent: 'center' },
   roleCopy: { flex: 1 },
-  roleName: { color: tokens.color.text.primary, fontSize: 18, fontWeight: '900' },
+  roleName: { color: tokens.color.text.primary, fontSize: 18, fontWeight: '700' },
   roleMeta: { color: tokens.color.text.muted, fontSize: tokens.type['label'], fontWeight: '700', marginTop: 3 },
   roleDescription: { color: tokens.color.text.secondary, lineHeight: 20, marginTop: 8 },
-  editRoleButton: { alignSelf: 'flex-start', marginTop: 10, borderRadius: tokens.radius.pill, borderWidth: 1, borderColor: tokens.color.border.subtle, backgroundColor: tokens.color.surface.panel, paddingHorizontal: 12, paddingVertical: 8 },
-  editRoleButtonText: { color: tokens.color.text.primary, fontSize: tokens.type['label'], fontWeight: '900' },
+  editRoleButton: { alignSelf: 'flex-start', marginTop: 10 },
   applicationCard: { backgroundColor: tokens.color.surface.inset, borderRadius: 22, padding: 16, gap: 12 },
   applicationHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
-  applicantName: { color: tokens.color.text.primary, fontSize: 18, fontWeight: '900' },
-  statusPill: { alignSelf: 'flex-start', color: tokens.color.status.info, backgroundColor: tokens.color.statusSurface.info, paddingHorizontal: 10, paddingVertical: 6, borderRadius: tokens.radius.pill, overflow: 'hidden', fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
+  applicantCopy: { flex: 1 },
+  applicantName: { color: tokens.color.text.primary, fontSize: 18, fontWeight: '700' },
   applicationMessage: { color: tokens.color.text.secondary, lineHeight: 20 },
   actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  actionButton: { backgroundColor: tokens.color.surface.panel, borderRadius: tokens.radius.pill, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: tokens.color.border.subtle },
-  actionButtonText: { color: tokens.color.text.primary, fontSize: tokens.type['label'], fontWeight: '900' },
 });

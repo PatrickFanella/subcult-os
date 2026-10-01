@@ -3,12 +3,14 @@ import type { Tokens } from '@/theme/tokens';
 import { useLocalSearchParams } from 'expo-router';
 import { CheckCircle2, ChevronLeft, Circle, Clock, Plus, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { formatTime } from '@/api/format';
 import { createEventStaffing, listEventStaffing, updateEventStaffing, updateEventStaffingStatus } from '@/api/staff';
 import type { EventStaffingItemDTO } from '@/api/types';
 import { safeBack } from '@/navigation/safeBack';
+import { Field } from '@/ui/Field';
+import { PrimaryButton } from '@/ui/PrimaryButton';
 import {
 	applyRunOfShowStatusUpdate,
 	buildCreateRunOfShowPayload,
@@ -143,53 +145,44 @@ export default function RunOfShowScreen() {
               </Pressable>
             ) : null}
           </View>
-          <TextInput
+          <Field
             value={form.title}
             onChangeText={(value) => setForm((current) => ({ ...current, title: value }))}
             placeholder="Task or shift title"
-            placeholderTextColor="#a3a3a3"
-            style={styles.input}
           />
-		  <TextInput
-			value={form.participantRequirements}
-			onChangeText={(value) => setForm((current) => ({ ...current, participantRequirements: value }))}
-			placeholder="Participant requirements (shared with the assigned person through their participant portal)"
-			placeholderTextColor="#a3a3a3"
-			multiline
-			style={[styles.input, styles.notesInput]}
-		  />
+          <Field
+            value={form.participantRequirements}
+            onChangeText={(value) => setForm((current) => ({ ...current, participantRequirements: value }))}
+            placeholder="Participant requirements (shared with the assigned person through their participant portal)"
+            multiline
+            style={styles.notesInput}
+          />
           <View style={styles.kindRow}>
             <KindButton label="Task" selected={form.kind === 'task'} disabled={Boolean(editingID)} onPress={() => setForm((current) => ({ ...current, kind: 'task' }))} />
             <KindButton label="Shift" selected={form.kind === 'shift'} disabled={Boolean(editingID)} onPress={() => setForm((current) => ({ ...current, kind: 'shift' }))} />
           </View>
           <View style={styles.timeInputsRow}>
-            <TextInput
+            <Field
               value={form.startsAt}
               onChangeText={(value) => setForm((current) => ({ ...current, startsAt: value }))}
               placeholder="Start time"
-              placeholderTextColor="#a3a3a3"
-              style={[styles.input, styles.timeInput]}
+              containerStyle={styles.timeInput}
             />
-            <TextInput
+            <Field
               value={form.endsAt}
               onChangeText={(value) => setForm((current) => ({ ...current, endsAt: value }))}
               placeholder="End time"
-              placeholderTextColor="#a3a3a3"
-              style={[styles.input, styles.timeInput]}
+              containerStyle={styles.timeInput}
             />
           </View>
-          <TextInput
+          <Field
             value={form.notes}
             onChangeText={(value) => setForm((current) => ({ ...current, notes: value }))}
             placeholder="Notes"
-            placeholderTextColor="#a3a3a3"
             multiline
-            style={[styles.input, styles.notesInput]}
+            style={styles.notesInput}
           />
-          <Pressable disabled={creating} onPress={() => void saveForm()} style={[styles.createButton, creating && styles.createButtonDisabled]}>
-            <Plus size={18} color={tokens.color.text.inverse} />
-            <Text style={styles.createButtonText}>{creating ? 'Saving…' : editingID ? 'Save changes' : 'Add item'}</Text>
-          </Pressable>
+          <PrimaryButton busy={creating} onPress={() => void saveForm()} icon={<Plus size={18} color={tokens.color.text.inverse} />} label={creating ? 'Saving…' : editingID ? 'Save changes' : 'Add item'} />
           <Text style={styles.helpText}>{editingID ? 'Kind cannot be changed after creation yet. Times are optional.' : 'Times are optional. Use local format like 2026-06-19 21:00.'}</Text>
         </View>
         {loading ? <Text style={styles.message}>Loading run of show…</Text> : null}
@@ -243,48 +236,44 @@ function KindButton({ label, selected, disabled, onPress }: { label: string; sel
 
 function statusIcon(status: string, tokens: Tokens) {
   if (status === 'completed') return <CheckCircle2 size={24} color={tokens.color.status.success} fill={tokens.color.surface.panel} />;
-  if (status === 'assigned') return <Clock size={24} color="#3b82f6" fill={tokens.color.surface.panel} />;
-  return <Circle size={24} color="#d4d4d4" fill={tokens.color.surface.panel} />;
+  if (status === 'assigned') return <Clock size={24} color={tokens.color.status.info} fill={tokens.color.surface.panel} />;
+  return <Circle size={24} color={tokens.color.border.strong} fill={tokens.color.surface.panel} />;
 }
 
 const createStyles = (tokens: Tokens) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: tokens.color.surface.panel, padding: 24, paddingTop: 64 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 32 },
   backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: tokens.color.surface.inset, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 24, fontWeight: '800', letterSpacing: -0.8, color: tokens.color.text.primary },
+  title: { fontSize: 24, fontWeight: '700', letterSpacing: -0.8, color: tokens.color.text.primary },
   scroller: { flex: 1 },
   timeline: { gap: 28, paddingBottom: 96 },
   createPanel: { backgroundColor: tokens.color.surface.inset, borderRadius: tokens.radius.panel, padding: 18, gap: 12 },
   panelHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  panelTitle: { color: tokens.color.text.primary, fontSize: 20, fontWeight: '900', letterSpacing: -0.3 },
+  panelTitle: { color: tokens.color.text.primary, fontSize: 20, fontWeight: '700', letterSpacing: -0.3 },
   cancelEditButton: { width: 32, height: 32, borderRadius: tokens.radius.control, backgroundColor: tokens.color.surface.panel, alignItems: 'center', justifyContent: 'center' },
-  input: { minHeight: 52, borderRadius: tokens.radius.control, backgroundColor: tokens.color.surface.panel, color: tokens.color.text.primary, paddingHorizontal: 14, paddingVertical: 12, fontWeight: '700' },
-  notesInput: { minHeight: 96, textAlignVertical: 'top', lineHeight: 20 },
+  notesInput: { minHeight: 96 },
   kindRow: { flexDirection: 'row', gap: 10 },
   kindButton: { flex: 1, borderRadius: tokens.radius.control, borderWidth: 1, borderColor: tokens.color.border.subtle, backgroundColor: tokens.color.surface.panel, paddingVertical: 13, alignItems: 'center' },
   kindButtonActive: { backgroundColor: tokens.color.action.primary, borderColor: tokens.color.text.primary },
   kindButtonDisabled: { opacity: 0.55 },
-  kindButtonText: { color: tokens.color.text.primary, fontWeight: '900' },
+  kindButtonText: { color: tokens.color.text.primary, fontWeight: '700' },
   kindButtonTextActive: { color: tokens.color.text.inverse },
   timeInputsRow: { flexDirection: 'row', gap: 10 },
   timeInput: { flex: 1 },
-  createButton: { minHeight: 52, borderRadius: tokens.radius.control, backgroundColor: tokens.color.action.primary, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
-  createButtonDisabled: { opacity: 0.45 },
-  createButtonText: { color: tokens.color.text.inverse, fontWeight: '900' },
   helpText: { color: tokens.color.text.muted, fontSize: tokens.type['label'], lineHeight: 18 },
   message: { color: tokens.color.text.muted, fontWeight: '700' },
   error: { color: tokens.color.status.danger, fontWeight: '700', lineHeight: 20 },
   taskRow: { flexDirection: 'row', gap: 20, position: 'relative' },
-  time: { width: 48, textAlign: 'right', color: tokens.color.text.muted, fontSize: tokens.type['label'], fontWeight: '800' },
+  time: { width: 48, textAlign: 'right', color: tokens.color.text.muted, fontSize: tokens.type['label'], fontWeight: '700' },
   iconWrap: { marginTop: 2, backgroundColor: tokens.color.surface.panel, zIndex: 2 },
   taskBody: { flex: 1, paddingBottom: 8 },
   completed: { opacity: 0.5 },
-  taskTitle: { fontSize: 18, fontWeight: '800', color: tokens.color.text.primary, marginBottom: 6 },
+  taskTitle: { fontSize: 18, fontWeight: '700', color: tokens.color.text.primary, marginBottom: 6 },
   assignee: { alignSelf: 'flex-start', backgroundColor: tokens.color.surface.inset, color: tokens.color.text.secondary, fontSize: tokens.type['label'], fontWeight: '600', paddingHorizontal: 10, paddingVertical: 5, borderRadius: tokens.radius.pill, overflow: 'hidden' },
   notes: { color: tokens.color.text.muted, lineHeight: 20, marginTop: 8 },
   actionsRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
   actionButton: { backgroundColor: tokens.color.action.primary, borderRadius: tokens.radius.pill, paddingHorizontal: 14, paddingVertical: 8 },
-  actionButtonText: { color: tokens.color.text.inverse, fontSize: tokens.type['label'], fontWeight: '800' },
+  actionButtonText: { color: tokens.color.text.inverse, fontSize: tokens.type['label'], fontWeight: '700' },
   actionButtonMuted: { backgroundColor: tokens.color.surface.inset, borderRadius: tokens.radius.pill, paddingHorizontal: 14, paddingVertical: 8 },
-  actionButtonMutedText: { color: tokens.color.text.secondary, fontSize: tokens.type['label'], fontWeight: '800' },
+  actionButtonMutedText: { color: tokens.color.text.secondary, fontSize: tokens.type['label'], fontWeight: '700' },
 });

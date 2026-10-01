@@ -85,9 +85,9 @@ export function InviteView({ token }: { token: string }) {
           </a>
         </div>
 
-        <div className="rounded-panel border border-stroke-subtle bg-surface-panel p-6 shadow-panel sm:p-8">
+        <div className="rounded-panel border border-stroke-subtle bg-surface-panel p-6 sm:p-8">
           <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Invitation</p>
-          <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-fg-primary">Accept your invite</h1>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight text-fg-primary">Accept your invite</h1>
           <p className="mt-2 text-sm leading-6 text-fg-secondary">
             We&apos;re checking this invitation, then linking it to the right account path.
           </p>
@@ -128,26 +128,26 @@ export function InviteView({ token }: { token: string }) {
             </div>
           ) : null}
 
-          <div className="mt-6 rounded-[1.5rem] border border-stroke-subtle bg-surface-inset p-4">
+          <div className="mt-6 border border-stroke-subtle bg-surface-inset p-4">
             <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Next steps</p>
             <p className="mt-2 text-sm leading-6 text-fg-secondary">
               Keep moving with the workspace, or return here after signing in with the invited email.
             </p>
             <div className="mt-4 flex flex-wrap gap-3 text-sm">
               <a
-                className="rounded-2xl bg-action-primary px-4 py-3 font-medium text-fg-inverse transition hover:bg-action-hover"
+                className="btn-primary px-4"
                 href="/workspace"
               >
                 Workspace
               </a>
               <a
-                className="rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 font-medium text-fg-primary transition hover:bg-surface-inset"
+                className="btn-secondary px-4"
                 href={`/login?next=${encodedNextPath}`}
               >
                 Sign in
               </a>
               <a
-                className="rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 font-medium text-fg-primary transition hover:bg-surface-inset"
+                className="btn-secondary px-4"
                 href={`/signup?next=${encodedNextPath}`}
               >
                 Create account

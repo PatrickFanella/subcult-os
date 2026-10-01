@@ -26,9 +26,10 @@ pairs in both themes. Generated files stay committed so either app can build ind
 | Text | Foreground roles adapt to the theme. Inverse text follows the primary action; on-immersive text stays white for artwork and scanner surfaces. |
 | Actions | Purple primary with white text in both modes, outlined secondary, quiet ghost. Use the outlined variant when a control needs a visible boundary. Every action needs a clear verb and a visible focus state. |
 | Status | Green success, amber attention, red failure, cyan information. Always include words; color alone cannot describe a state. |
-| Typography | Self-hosted Space Mono 400/700 on web. Platform monospace (Courier on iOS) in native themed working-screen styles. Body copy retains ordinary case and readable line height; buttons use uppercase labels. Exact native Space Mono loading remains a follow-up. |
+| Typography | Self-hosted Space Mono 400/700 on web. Platform monospace (Courier on iOS) in native themed working-screen styles. Bold (700) is the heaviest weight. Body copy retains ordinary case and readable line height; buttons and button-styled links use uppercase labels. Exact native Space Mono loading remains a follow-up. |
 | Spacing | 4, 8, 12, 16, 24, 32, 48 px. Use 16 px page gutters on small screens and 24–32 px on wider screens. |
-| Corners | Square controls, cards, panels and artwork frames. Native avatars retain their existing circular shape; explicitly rounded web badges may remain compact. |
+| Corners | Square controls, cards, panels, badges and artwork frames. Native avatars retain their existing circular shape. |
+| Depth | Borders separate surfaces; panels have no soft shadows. |
 | Targets | 48 px minimum for primary controls; 56 px fields and door controls. Keep scanner, navigation, and compact icon targets independently reviewable on devices. |
 | Motion | Functional state transitions; web respects reduced-motion preference. Do not animate information required to operate the door. |
 
@@ -41,9 +42,9 @@ replacement for event identity.
 ## Components and adoption
 
 Web foundations live in `web/src/styles.css` and `web/src/ui/`. `Button` exposes
-primary, secondary, and ghost variants, defaults to `type="button"`, and disables
+primary, secondary, ghost, and danger variants, defaults to `type="button"`, and disables
 busy actions. `Notice` announces errors as alerts and other feedback as status.
-Use a native label with the shared `field` class for inputs. The existing
+Buttons and links styled as actions use the same `btn-primary`, `btn-secondary`, `btn-ghost`, and `btn-danger` utilities; destructive actions use `btn-danger`, not the purple primary. Counter grids in side columns size by container (`auto-fit`) rather than viewport so monospace labels fit. Use a native label with the shared `field` class for inputs; entered text stays regular weight inside bold labels. The existing
 `publicUi` exports remain the common styling contract for public pages, tickets,
 participant journeys, and the door.
 
@@ -54,7 +55,11 @@ remain intact. Authentication uses the shared button and notice components.
 
 Native foundations live in `mobile/src/theme/` and `mobile/src/global.css`.
 Screen components read `useThemeTokens()` and `useThemedStyles()` so common
-colors and corner sizes update when appearance changes; Uniwind
+colors and corner sizes update when appearance changes. `useThemedStyles()`
+applies `terminalStyles()` from `mobile/src/theme/terminal.ts`: every corner
+radius becomes square except styles named `avatar`, and text styles get the
+platform monospace font capped at bold. Placeholder and icon colors come from
+tokens; Uniwind
 components use the generated theme. `PrimaryButton` exposes disabled and busy
 states and button accessibility semantics. `Pill` supports all feedback tones.
 The bottom navigation exposes its selected tab state and uses readable muted

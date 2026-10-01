@@ -19,7 +19,7 @@ export function WorkspaceInviteForm({ role, email, busy, notice, onEmailChange, 
       <label className="mt-4 block space-y-2 text-sm">
         <span className="text-fg-secondary">Email</span>
         <input
-          className="w-full rounded-control border border-stroke-subtle bg-surface-inset px-4 py-3 text-fg-primary disabled:cursor-not-allowed disabled:opacity-60"
+          className="field py-3"
           type="email"
           autoComplete="email"
           required

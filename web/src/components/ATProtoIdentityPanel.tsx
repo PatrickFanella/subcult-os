@@ -95,17 +95,17 @@ export function ATProtoIdentityPanel() {
   if (available === false) return null;
 
   return (
-    <section className="overflow-hidden rounded-panel border border-status-info/20 bg-surface-panel shadow-panel" aria-labelledby="atproto-identity-title">
+    <section className="overflow-hidden rounded-panel border border-status-info/20 bg-surface-panel" aria-labelledby="atproto-identity-title">
       <div className="grid gap-6 p-6 lg:grid-cols-[0.9fr_1.1fr]">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Portable identity</p>
-          <h2 id="atproto-identity-title" className="mt-2 text-2xl font-extrabold tracking-tight text-fg-primary">Link an AT Protocol account</h2>
+          <h2 id="atproto-identity-title" className="mt-2 text-2xl font-bold tracking-tight text-fg-primary">Link an AT Protocol account</h2>
           <p className="mt-3 max-w-xl text-sm leading-6 text-fg-secondary">
             Prove control of a handle or DID without handing Subcult OS repository permissions. A link identifies you; it never adds workspace membership or publishing authority.
           </p>
           <div className="mt-4 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.2em] text-fg-secondary">
-            <span className="rounded-full border border-status-info/20 bg-action-disabled px-3 py-1">Identity scope only</span>
-            <span className="rounded-full border border-stroke-subtle bg-surface-inset px-3 py-1">No automatic merge</span>
+            <span className="border border-status-info/30 bg-status-surface-info px-3 py-1 text-status-info">Identity scope only</span>
+            <span className="border border-stroke-subtle bg-surface-inset px-3 py-1">No automatic merge</span>
           </div>
         </div>
 
@@ -115,7 +115,7 @@ export function ATProtoIdentityPanel() {
           <div className="mt-3 flex flex-col gap-3 sm:flex-row">
             <input
               id="atproto-identifier"
-              className="min-w-0 flex-1 rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-fg-primary outline-none transition placeholder:text-fg-muted focus:border-stroke-focus"
+              className="field min-w-0 flex-1 py-3"
               value={identifier}
               onChange={(event) => setIdentifier(event.target.value)}
               placeholder="handle.example.com"
@@ -124,7 +124,7 @@ export function ATProtoIdentityPanel() {
               spellCheck={false}
               disabled={submitting || available === null}
             />
-            <button className="rounded-2xl bg-action-primary px-5 py-3 font-medium text-fg-inverse transition hover:bg-action-hover disabled:cursor-not-allowed disabled:bg-action-disabled" type="submit" disabled={submitting || available === null}>
+            <button className="btn-primary px-5" type="submit" disabled={submitting || available === null}>
               {submitting ? 'Opening…' : available === null ? 'Checking…' : 'Link account'}
             </button>
           </div>
@@ -146,13 +146,13 @@ export function ATProtoIdentityPanel() {
                   <p className="text-xs text-fg-muted">Linked {new Date(link.verifiedAt).toLocaleDateString()}</p>
                   {confirmingDID === link.did ? (
                     <span className="flex items-center gap-2">
-                      <button className="rounded-full border border-stroke-subtle px-3 py-2 text-xs text-fg-secondary hover:bg-surface-inset" type="button" onClick={() => setConfirmingDID(null)}>Keep linked</button>
-                      <button className="rounded-full bg-action-primary px-3 py-2 text-xs font-medium text-fg-inverse hover:bg-action-hover disabled:opacity-50" type="button" onClick={() => void unlink(link.did)} disabled={unlinkingDID === link.did}>
+                      <button className="btn-secondary px-3 text-xs" type="button" onClick={() => setConfirmingDID(null)}>Keep linked</button>
+                      <button className="btn-primary px-3 text-xs" type="button" onClick={() => void unlink(link.did)} disabled={unlinkingDID === link.did}>
                         {unlinkingDID === link.did ? 'Unlinking…' : 'Confirm unlink'}
                       </button>
                     </span>
                   ) : (
-                    <button className="rounded-full border border-status-danger/20 px-3 py-2 text-xs text-status-danger hover:bg-action-disabled" type="button" onClick={() => setConfirmingDID(link.did)}>Unlink</button>
+                    <button className="btn-danger px-3 text-xs" type="button" onClick={() => setConfirmingDID(link.did)}>Unlink</button>
                   )}
                 </div>
               </article>

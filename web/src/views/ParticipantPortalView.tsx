@@ -54,10 +54,10 @@ export function ParticipantPortalView() {
   return (
     <main className={publicPageShellClass}>
       <section className={`${publicPageInnerClass} max-w-4xl`}>
-        <header className="flex flex-wrap items-start justify-between gap-4 rounded-hero border border-stroke-subtle bg-surface-panel p-6 shadow-sm">
+        <header className="flex flex-wrap items-start justify-between gap-4 rounded-hero border border-stroke-subtle bg-surface-panel p-6">
           <div>
             <p className={publicEyebrowClass}>Participant portal</p>
-            <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] text-fg-primary sm:text-4xl">Your event work</h1>
+            <h1 className="mt-2 text-3xl font-bold tracking-[-0.04em] text-fg-primary sm:text-4xl">Your event work</h1>
             <p className={`mt-2 max-w-2xl ${publicMutedTextClass}`}>This page shows assignments and commitments linked to your signed-in account.</p>
           </div>
           <a className={publicSecondaryButtonClass} href="/">Workspace</a>
@@ -70,12 +70,12 @@ export function ParticipantPortalView() {
         </div>
 
         {loading ? <p className={`mt-5 ${publicMutedTextClass}`}>Loading your assignments…</p> : null}
-        {error ? <div role="alert" className="mt-5 rounded-[22px] border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm font-bold text-status-danger">{error}</div> : null}
+        {error ? <div role="alert" className="mt-5 border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm font-bold text-status-danger">{error}</div> : null}
 
         {portal ? <div className="mt-5 grid gap-5 lg:grid-cols-2">
           <section className={publicCardClass}>
             <p className={publicEyebrowClass}>Schedule</p>
-            <h2 className="mt-2 text-2xl font-black text-fg-primary">Assignments</h2>
+            <h2 className="mt-2 text-2xl font-bold text-fg-primary">Assignments</h2>
             {portal.assignments.length === 0 ? <p className={`mt-4 ${publicMutedTextClass}`}>No assignments are available.</p> : <ul className="mt-4 space-y-3">
               {portal.assignments.map((assignment) => <li key={assignment.staffingItemId} className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                 <div className="flex items-start justify-between gap-3"><div><p className="font-bold text-fg-primary">{assignment.title}</p><p className={publicMutedTextClass}>{assignment.eventTitle} · {assignment.kind}</p></div><span className={publicStatusPillClass(statusTone(assignment.status))}>{assignment.status}</span></div>
@@ -86,7 +86,7 @@ export function ParticipantPortalView() {
           </section>
           <section className={publicCardClass}>
             <p className={publicEyebrowClass}>Commitments</p>
-            <h2 className="mt-2 text-2xl font-black text-fg-primary">Commitments</h2>
+            <h2 className="mt-2 text-2xl font-bold text-fg-primary">Commitments</h2>
             {portal.commitments.length === 0 ? <p className={`mt-4 ${publicMutedTextClass}`}>No commitments are available.</p> : <ul className="mt-4 space-y-3">
               {portal.commitments.map((commitment) => <li key={commitment.id} className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                 <div className="flex items-start justify-between gap-3"><div><p className="font-bold text-fg-primary">{commitment.title}</p><p className={publicMutedTextClass}>{commitment.eventTitle}</p></div><span className={publicStatusPillClass(statusTone(commitment.status))}>{commitment.status}</span></div>

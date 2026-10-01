@@ -1,10 +1,10 @@
 import type { ButtonHTMLAttributes } from 'react';
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: 'primary' | 'secondary' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
   busy?: boolean;
 };
-const variants = { primary: 'btn-primary', secondary: 'btn-secondary', ghost: 'btn-ghost' };
+const variants = { primary: 'btn-primary', secondary: 'btn-secondary', ghost: 'btn-ghost', danger: 'btn-danger' };
 
 export function Button({ variant = 'primary', busy = false, disabled, className = '', children, type = 'button', ...props }: ButtonProps) {
   return (

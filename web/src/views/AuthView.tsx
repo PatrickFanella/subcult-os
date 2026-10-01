@@ -102,9 +102,9 @@ export function AuthView() {
           </a>
         </div>
 
-        <div className="rounded-panel border border-stroke-subtle bg-surface-panel p-6 shadow-panel">
+        <div className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
           <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">{eyebrow}</p>
-          <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-fg-primary">{title}</h1>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight text-fg-primary">{title}</h1>
           <p className="mt-2 text-sm leading-6 text-fg-secondary">{description}</p>
 
           {invitePrompt ? (
@@ -115,7 +115,7 @@ export function AuthView() {
 
           <div className="mt-6 flex gap-2 text-sm">
             <a
-              className={`rounded-full px-3 py-2 transition ${mode === 'login' ? 'bg-action-primary text-fg-inverse' : 'bg-surface-inset text-fg-secondary hover:bg-surface-inset'}`}
+              className={`px-3 py-2 font-bold uppercase tracking-[0.05em] transition ${mode === 'login' ? 'bg-action-primary text-fg-inverse' : 'bg-surface-inset text-fg-secondary hover:border-stroke-strong'}`}
               href={authHref('login')}
               onClick={(event) => {
                 event.preventDefault();
@@ -125,7 +125,7 @@ export function AuthView() {
               Sign in
             </a>
             <a
-              className={`rounded-full px-3 py-2 transition ${mode === 'signup' ? 'bg-action-primary text-fg-inverse' : 'bg-surface-inset text-fg-secondary hover:bg-surface-inset'}`}
+              className={`px-3 py-2 font-bold uppercase tracking-[0.05em] transition ${mode === 'signup' ? 'bg-action-primary text-fg-inverse' : 'bg-surface-inset text-fg-secondary hover:border-stroke-strong'}`}
               href={authHref('signup')}
               onClick={(event) => {
                 event.preventDefault();
@@ -140,7 +140,7 @@ export function AuthView() {
             <label className="block space-y-2 text-sm">
               <span className="text-fg-secondary">Email</span>
               <input
-                className="w-full rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-fg-primary outline-none transition placeholder:text-fg-muted focus:border-stroke-focus focus:bg-surface-inset"
+                className="field py-3"
                 type="email"
                 autoComplete="email"
                 required
@@ -153,7 +153,7 @@ export function AuthView() {
               <label className="block space-y-2 text-sm">
                 <span className="text-fg-secondary">Display name</span>
                 <input
-                  className="w-full rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-fg-primary outline-none transition placeholder:text-fg-muted focus:border-stroke-focus focus:bg-surface-inset"
+                  className="field py-3"
                   type="text"
                   autoComplete="name"
                   value={displayName}
@@ -166,7 +166,7 @@ export function AuthView() {
             <label className="block space-y-2 text-sm">
               <span className="text-fg-secondary">Password</span>
               <input
-                className="w-full rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-fg-primary outline-none transition placeholder:text-fg-muted focus:border-stroke-focus focus:bg-surface-inset"
+                className="field py-3"
                 type="password"
                 autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                 minLength={8}

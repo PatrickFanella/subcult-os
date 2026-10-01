@@ -1,4 +1,6 @@
 import { useThemeTokens } from '@/theme/ThemeProvider';
+import { terminalFontFamily } from '@/theme/terminal';
+import { Platform } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -18,7 +20,7 @@ export default function RootLayout() {
           screenOptions={{
             headerStyle: { backgroundColor: tokens.color.surface.panel },
             headerTintColor: tokens.color.text.primary,
-            headerTitleStyle: { fontWeight: '800' },
+            headerTitleStyle: { fontFamily: terminalFontFamily(Platform.OS), fontWeight: '700' },
             contentStyle: { backgroundColor: tokens.color.surface.panel },
           }}
         >

@@ -128,7 +128,7 @@ export function DiscoveryOccurrencesSection() {
 
 	return (
 		<section aria-label={discoveryOccurrencesTitle} className="flex min-w-0 flex-col gap-4 [overflow-wrap:anywhere]">
-			<header className="rounded-hero border border-stroke-subtle bg-surface-panel p-6 shadow-sm sm:p-8">
+			<header className="rounded-hero border border-stroke-subtle bg-surface-panel p-6 sm:p-8">
 				<p className={publicEyebrowClass}>{discoveryOccurrencesTitle}</p>
 				<p className="mt-3 max-w-2xl text-base leading-7 text-fg-secondary">{discoveryOccurrencesDescription}</p>
 			</header>
@@ -139,14 +139,14 @@ export function DiscoveryOccurrencesSection() {
 			{loading ? <div className={`${publicCardClass} ${publicMutedTextClass}`}>{discoveryOccurrencesLoadingCopy}</div> : null}
 
 			{error ? (
-				<p className="rounded-[24px] border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm font-medium text-status-danger">
+				<p className="border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm font-medium text-status-danger">
 					{discoveryOccurrencesErrorCopy(error)}
 				</p>
 			) : null}
 
 			{!loading && !error && occurrences?.length === 0 ? (
 				<div className={publicCardClass}>
-					<h2 className="text-xl font-black text-fg-primary">{discoveryOccurrencesEmptyTitle}</h2>
+					<h2 className="text-xl font-bold text-fg-primary">{discoveryOccurrencesEmptyTitle}</h2>
 					<p className={`mt-2 ${publicMutedTextClass}`}>{discoveryOccurrencesEmptyBody}</p>
 				</div>
 			) : null}
@@ -157,7 +157,7 @@ export function DiscoveryOccurrencesSection() {
 					<svg
 						role="group"
 						aria-label="Coordinate plot of discovery occurrences with public locations"
-						className="mt-3 w-full rounded-[20px] bg-surface-inset"
+						className="mt-3 w-full bg-surface-inset"
 						viewBox={`0 0 ${DISCOVERY_MAP_WIDTH} ${DISCOVERY_MAP_HEIGHT}`}
 					>
 						{plotPoints.map((point) => (
@@ -187,12 +187,12 @@ export function DiscoveryOccurrencesSection() {
 								role="button"
 								tabIndex={0}
 								aria-label={occurrence.name}
-								className="flex h-full cursor-pointer flex-col gap-3 rounded-[24px] border border-stroke-subtle bg-surface-panel p-5 shadow-sm outline-none focus-visible:focus-ring"
+								className="flex h-full cursor-pointer flex-col gap-3 border border-stroke-subtle bg-surface-panel p-5 outline-none focus-visible:focus-ring"
 								onClick={() => openDetail(occurrence.uri)}
 								onKeyDown={(event) => handleCardKeyDown(event, occurrence.uri)}
 							>
 								<p className={publicEyebrowClass}>{formatOccurrenceDateTime(occurrence.startsAt, occurrence.timezone)}</p>
-								<h3 className="text-xl font-black leading-tight text-fg-primary">{occurrence.name}</h3>
+								<h3 className="text-xl font-bold leading-tight text-fg-primary">{occurrence.name}</h3>
 								<span className={publicStatusPillClass(isOccurrenceUnavailable(occurrence) ? 'danger' : 'neutral')}>{occurrenceStatusLabel(occurrence)}</span>
 								<p className={publicMutedTextClass}>{occurrenceLocationSummary(occurrence.location)}</p>
 							</article>
@@ -220,39 +220,39 @@ export function DiscoveryOccurrencesSection() {
 						onClick={(event) => event.stopPropagation()}
 					>
 						<div className="flex items-start justify-between gap-3">
-							<h2 className="min-w-0 flex-1 text-2xl font-black text-fg-primary">{selected.name}</h2>
+							<h2 className="min-w-0 flex-1 text-2xl font-bold text-fg-primary">{selected.name}</h2>
 							<button type="button" className={`${publicSecondaryButtonClass} shrink-0`} onClick={() => setSelectedURI(null)}>
 								{discoveryOccurrenceDetailCloseLabel}
 							</button>
 						</div>
 
 						<dl className="mt-4 grid gap-3 text-sm text-fg-secondary">
-							<div className="rounded-[20px] bg-surface-inset p-4">
+							<div className="bg-surface-inset p-4">
 								<dt className={publicEyebrowClass}>Source</dt>
 								<dd className="mt-2 break-all font-mono text-xs text-fg-secondary">{selected.source.uri}</dd>
 							</div>
-							<div className="rounded-[20px] bg-surface-inset p-4">
+							<div className="bg-surface-inset p-4">
 								<dt className={publicEyebrowClass}>Status</dt>
 								<dd className="mt-2 font-bold text-fg-primary">{occurrenceStatusLabel(selected)}</dd>
 							</div>
-							<div className="rounded-[20px] bg-surface-inset p-4">
+							<div className="bg-surface-inset p-4">
 								<dt className={publicEyebrowClass}>When</dt>
 								<dd className="mt-2 font-bold text-fg-primary">{formatOccurrenceDateTime(selected.startsAt, selected.timezone)}</dd>
 							</div>
-							<div className="rounded-[20px] bg-surface-inset p-4">
+							<div className="bg-surface-inset p-4">
 								<dt className={publicEyebrowClass}>Location</dt>
 								<dd className="mt-2 font-bold text-fg-primary">{occurrenceLocationSummary(selected.location)}</dd>
 							</div>
 						</dl>
 
 						{isOccurrenceUnavailable(selected) ? (
-							<p className="mt-4 rounded-[20px] border border-status-warning/20 bg-status-surface-warning p-4 text-sm font-medium text-status-warning">This occurrence is no longer available from its source.</p>
+							<p className="mt-4 border border-status-warning/20 bg-status-surface-warning p-4 text-sm font-medium text-status-warning">This occurrence is no longer available from its source.</p>
 						) : selected.handoff.kind === 'local' ? (
 							<a className={`${publicPrimaryButtonClass} mt-4 w-full`} href={handoffLocalPath(selected.handoff) ?? '#'}>
 								{handoffButtonLabel(selected.handoff)}
 							</a>
 						) : (
-							<p className="mt-4 rounded-[20px] border border-stroke-subtle bg-surface-inset p-4 text-sm font-medium text-fg-secondary">{handoffUnavailableReasonCopy(selected.handoff)}</p>
+							<p className="mt-4 border border-stroke-subtle bg-surface-inset p-4 text-sm font-medium text-fg-secondary">{handoffUnavailableReasonCopy(selected.handoff)}</p>
 						)}
 					</div>
 				</dialog>
@@ -319,21 +319,21 @@ export function DiscoverView() {
 	return (
 		<main className={publicPageShellClass}>
 			<section className={`${publicPageInnerClass} min-w-0 max-w-6xl [overflow-wrap:anywhere]`}>
-				<header className="rounded-hero border border-stroke-subtle bg-surface-panel p-6 shadow-sm sm:p-8">
+				<header className="rounded-hero border border-stroke-subtle bg-surface-panel p-6 sm:p-8">
 					<p className={publicEyebrowClass}>{discoveryBrowseLabel}</p>
 					<div className="mt-3 flex flex-wrap items-center gap-2">
 						<span className={publicStatusPillClass('success')}>{discoveryBadgeLabel}</span>
 						<span className={publicStatusPillClass()}>{discoveryScopeLabel}</span>
 					</div>
 
-					<h1 className="mt-5 text-4xl font-black tracking-tight text-fg-primary sm:text-5xl">{discoveryTitle}</h1>
+					<h1 className="mt-5 text-4xl font-bold tracking-tight text-fg-primary sm:text-5xl">{discoveryTitle}</h1>
 					<p className="mt-3 max-w-2xl text-base leading-7 text-fg-secondary">{discoveryDescription}</p>
 
-					<form className="mt-6 flex flex-col gap-3 rounded-[24px] border border-stroke-subtle bg-surface-inset p-4 sm:flex-row sm:items-end" onSubmit={handleSubmit}>
+					<form className="mt-6 flex flex-col gap-3 border border-stroke-subtle bg-surface-inset p-4 sm:flex-row sm:items-end" onSubmit={handleSubmit}>
 						<label className="flex-1 space-y-2">
 							<span className={publicEyebrowClass}>{discoverySearchLabel}</span>
 							<input
-								className="w-full rounded-full border border-stroke-strong bg-surface-panel px-4 py-3 text-sm text-fg-primary outline-none transition placeholder:text-fg-muted focus-visible:focus-ring"
+								className="field py-3 text-sm focus-visible:focus-ring"
 								type="search"
 								value={searchQuery}
 								onChange={(event) => setSearchQuery(event.target.value)}
@@ -357,14 +357,14 @@ export function DiscoverView() {
 				{loading ? <div className={`${publicCardClass} ${publicMutedTextClass}`}>{discoveryLoadingCopy}</div> : null}
 
 				{error ? (
-					<p className="rounded-[24px] border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm font-medium text-status-danger">
+					<p className="border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm font-medium text-status-danger">
 						{discoveryErrorCopy(error)}
 					</p>
 				) : null}
 
 				{!loading && !error && events?.length === 0 ? (
 					<div className={publicCardClass}>
-						<h2 className="text-xl font-black text-fg-primary">{discoveryEmptyTitle(searchQuery)}</h2>
+						<h2 className="text-xl font-bold text-fg-primary">{discoveryEmptyTitle(searchQuery)}</h2>
 						<p className={`mt-2 ${publicMutedTextClass}`}>{discoveryEmptyBody(searchQuery)}</p>
 					</div>
 				) : null}
@@ -372,44 +372,44 @@ export function DiscoverView() {
 				{!loading && !error && events && events.length > 0 ? (
 					<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
 						{events.map((event) => (
-							<article key={event.id} className="overflow-hidden rounded-panel border border-stroke-subtle bg-surface-panel shadow-sm">
+							<article key={event.id} className="overflow-hidden rounded-panel border border-stroke-subtle bg-surface-panel">
 								{event.imageUrl ? <img className="h-48 w-full object-cover" src={event.imageUrl} alt="" /> : null}
 
 								<div className="flex h-full flex-col p-5">
 									<div className="flex items-start justify-between gap-3">
 										<div className="min-w-0 flex-1">
 											<p className={publicEyebrowClass}>{formatDiscoveryDateTime(event.startsAt)}</p>
-											<h2 className="mt-2 text-2xl font-black leading-tight text-fg-primary">{event.title}</h2>
+											<h2 className="mt-2 text-2xl font-bold leading-tight text-fg-primary">{event.title}</h2>
 										</div>
 										<span className={`${publicStatusPillClass(event.isFull ? 'danger' : 'neutral')} shrink-0`}>{discoveryRemainingLabel(event)}</span>
 									</div>
 
 									<div className="mt-4 grid gap-3 text-sm text-fg-secondary">
-										<div className="rounded-[20px] bg-surface-inset p-4">
+										<div className="bg-surface-inset p-4">
 											<p className={publicEyebrowClass}>Hosted by</p>
 											<p className="mt-2 font-bold text-fg-primary">{event.workspaceName}</p>
 										</div>
-										<div className="rounded-[20px] bg-surface-inset p-4">
+										<div className="bg-surface-inset p-4">
 											<p className={publicEyebrowClass}>Location</p>
 											<p className="mt-2 font-bold text-fg-primary">{event.locationDisplay}</p>
 										</div>
-										<div className="rounded-[20px] bg-surface-inset p-4">
+										<div className="bg-surface-inset p-4">
 											<p className={publicEyebrowClass}>Description</p>
 											<p className="mt-2 leading-6 text-fg-secondary">{event.publicDescription || 'No public description provided.'}</p>
 										</div>
 										<div className="grid gap-3 sm:grid-cols-2">
-											<div className="rounded-[20px] bg-surface-inset p-4">
+											<div className="bg-surface-inset p-4">
 												<p className={publicEyebrowClass}>Pricing</p>
 												<p className="mt-2 font-bold text-fg-primary">{discoveryPricingLabel(event)}</p>
 											</div>
-											<div className="rounded-[20px] bg-surface-inset p-4">
+											<div className="bg-surface-inset p-4">
 												<p className={publicEyebrowClass}>Remaining tickets</p>
 												<p className={`mt-2 font-bold ${event.isFull ? 'text-status-danger' : 'text-fg-primary'}`}>{event.remainingTickets}</p>
 											</div>
 										</div>
 									{event.applicationsOpen ? (
-										<div className="rounded-[20px] border border-status-success/20 bg-status-surface-success p-4">
-											<p className="text-xs font-black uppercase tracking-[0.24em] text-status-success">Applications</p>
+										<div className="border border-status-success/20 bg-status-surface-success p-4">
+											<p className="text-xs font-bold uppercase tracking-[0.24em] text-status-success">Applications</p>
 											<p className="mt-2 font-bold text-status-success">Applications open</p>
 										</div>
 									) : null}
