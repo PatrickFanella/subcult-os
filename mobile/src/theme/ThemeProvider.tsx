@@ -41,5 +41,19 @@ export function useThemeTokens(): Tokens {
 }
 export function useThemedStyles<T>(factory: (tokens: Tokens) => T): T {
   const selected = useThemeTokens();
-  return useMemo(() => factory(selected), [factory, selected]);
+  return useMemo(() => {
+    const styles = factory(selected);
+    if (!styles || typeof styles !== 'object') return styles;
+    const terminal = Object.fromEntries(Object.entries(styles).map(([name, value]) => {
+      if (!value || typeof value !== 'object') return [name, value];
+      const style = { ...value } as Record<string, unknown>;
+      if ('borderRadius' in style && !name.toLowerCase().includes('avatar')) style.borderRadius = 0;
+      if ('fontSize' in style || 'fontWeight' in style || 'fontFamily' in style) {
+        style.fontFamily = Platform.OS === 'ios' ? 'Courier' : 'monospace';
+        if (style.fontWeight && Number(style.fontWeight) > 700) style.fontWeight = '700';
+      }
+      return [name, style];
+    }));
+    return terminal as T;
+  }, [factory, selected]);
 }

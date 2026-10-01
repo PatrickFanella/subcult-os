@@ -1,4 +1,4 @@
-import { ActivityIndicator, Pressable, Text } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, Text } from 'react-native';
 import { useThemeTokens } from '@/theme/ThemeProvider';
 
 type PrimaryButtonProps = {
@@ -16,7 +16,7 @@ export function PrimaryButton({ label, onPress, disabled = false, busy = false }
       accessibilityState={{ disabled: disabled || busy, busy }}
       className="btn-primary flex-row gap-2 active:opacity-80" style={disabled || busy ? { opacity: 0.5 } : undefined}>
       {busy ? <ActivityIndicator color={tokens.color.text.inverse} /> : null}
-      <Text className="text-fg-inverse text-body font-black">{label}</Text>
+      <Text className="text-fg-inverse text-body font-bold" style={{ fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', textTransform: 'uppercase' }}>{label}</Text>
     </Pressable>
   );
 }

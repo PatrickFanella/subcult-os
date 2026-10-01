@@ -1,0 +1,18 @@
+{
+  "package": "@fontsource/space-mono",
+  "version": "5.2.9",
+  "license": "OFL-1.1",
+  "referenceRepository": "subculture-collective/subcults",
+  "files": [
+    {
+      "file": "space-mono-latin-400.woff2",
+      "source": "files/space-mono-latin-400-normal.woff2",
+      "sha256": "fb4a81a2d0a893e5c38c394a7e716a1cef0b24610a0af49c96f6d529bd66bf2b"
+    },
+    {
+      "file": "space-mono-latin-700.woff2",
+      "source": "files/space-mono-latin-700-normal.woff2",
+      "sha256": "2d46bd159b53f55c41167a4f1540a074649464194fd1e416f5b4694a6c0f282c"
+    }
+  ]
+}

@@ -10,11 +10,11 @@ export function DesignSystemView() {
       <div className={`${publicPageInnerClass} max-w-6xl`}>
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-stroke-subtle pb-5">
           <a href="/discover" className="text-lg font-black tracking-tight">subcult</a>
-          <span className={publicEyebrowClass}>Design system · 01</span>
+          <span className={publicEyebrowClass}>Design system · Terminal</span>
         </header>
         <section className="grid items-end gap-6 py-6 md:grid-cols-[2fr_1fr]">
           <div><p className={publicEyebrowClass}>Built around the room</p><h1 className="heading-1 mt-4 max-w-3xl">The artwork speaks.<br />The interface works.</h1></div>
-          <p className="body-copy max-w-sm">Monochrome surfaces. Clear actions. Bold type. A shared foundation for finding an event, joining the crew, and running the door.</p>
+          <p className="body-copy max-w-sm">Sharp frames. Purple actions. Monospace type. A shared foundation for finding an event, joining the crew, and running the door.</p>
         </section>
         <section className="grid gap-6 md:grid-cols-2" aria-label="Event and controls">
           <article className="overflow-hidden rounded-hero bg-surface-immersive text-fg-on-immersive">
@@ -35,7 +35,7 @@ export function DesignSystemView() {
           <div className={publicCardClass}><p className={publicEyebrowClass}>Type & spacing</p><h2 className="heading-2 mt-3">A room for everyone</h2><p className="body-copy mt-4">Heavy headings establish the event. Plain, readable body text carries times, places, and instructions.</p><p className="body-small mt-3">Use the 4, 8, 12, 16, 24, 32, 48 spacing scale. Keep labels close to the controls they describe.</p><div className="mt-6 flex flex-wrap gap-2">{(['neutral', 'success', 'warning', 'danger'] as const).map((tone) => <span key={tone} className={publicStatusPillClass(tone)}>{tone === 'neutral' ? 'Draft' : tone === 'success' ? 'Ready' : tone === 'warning' ? 'Needs attention' : 'Unavailable'}</span>)}</div></div>
           <div className={`${publicCardClass} space-y-3`}><p className={publicEyebrowClass}>Feedback</p><Notice tone="success">Check-in complete. You’re ready to enter.</Notice><Notice tone="warning">You’re offline. Keep this screen open until sync completes.</Notice><Notice tone="danger">This ticket cannot be admitted. Ask the door lead for help.</Notice><Notice tone="info">No events yet. Published events will appear here.</Notice></div>
         </section>
-        <footer className="body-small border-t border-stroke-subtle py-5">Subcult · Mobile-first foundations, shared across web and native.</footer>
+        <footer className="body-small border-t border-stroke-subtle py-5">Subcult · Subcults terminal foundations, shared across web and native.</footer>
       </div>
     </main>
   );

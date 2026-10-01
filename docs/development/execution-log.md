@@ -1980,3 +1980,31 @@ outbox rows are held. Private receipts contain no ticket/recovery capability.
 Remaining original-event browser stages include timed shifts, finance/closeout,
 private archive/template reuse and paired workflow measurements. Physical device,
 provider, deployment and issue #25 acceptance gates remain open.
+
+
+## Subcults terminal design foundation — 2026-09-30
+
+The user selected the old Subcults CSS design system. The reference is the separate
+`subcults` repository at `93a13af`, `web/src/index.css`: Space Mono, black and
+charcoal surfaces, purple actions, neon status accents and square controls. This
+supersedes the mobile-derived monochrome foundation. Existing Light/Dark/System
+preferences remain in place; light mode uses the same structure with darker
+status colors. The shared JSON tokens remain the source for both clients.
+
+Web now self-hosts licensed Space Mono 400/700, uses square shared controls and
+visible cyan focus in dark mode, and updates the design gallery. Native themed
+StyleSheet factories use platform monospace and square corners, preserving
+avatars. Exact native Space Mono loading and isolated inline styles still need
+device review. Font source version and hashes are recorded beside the assets.
+
+The token generator passes its admitted foreground/surface contrast checks. The
+final pinned full gate passed375 web/39 mobile tests and the complete disposable
+database gate (426 top-level / 610 including nested), with no failures or skips. The T3
+preview repeatedly loads `chrome-error://chromewebdata/` although the host serves
+`/design-system` with HTTP200. This slice has no rendered browser or native device
+qualification. Retained application and synthetic journey data remain preserved.
+
+Resume rendered light/dark and narrow/wide review when the T3 preview connects,
+then exact native font loading and device review. The original event's timed
+shifts, finance/closeout, archive/template reuse and paired measurements remain
+open; the user-directed design change is the current source priority.

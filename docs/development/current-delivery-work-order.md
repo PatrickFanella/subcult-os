@@ -538,3 +538,19 @@ The corrected web generic notice was checked in the real browser. Continue hoste
 monitoring and then timed shifts, finance/closeout and private archive/template
 reuse in the preserved original event. Paired timings, intended-user and real
 device/provider/deployment gates remain open; offline admission stays disabled.
+
+
+### User-selected Subcults terminal foundation — 2026-09-30
+
+The old `subcults` CSS at `93a13af` is now the shared visual reference: monospace,
+square frames, purple actions, black/charcoal dark surfaces and neon accents.
+Light/Dark/System preferences remain. Web bundles Space Mono with its license;
+native themed styles currently use platform monospace. Shared tokens and the
+design gallery are updated. Exact native font loading remains a device task.
+
+Token contrast and the final full pinned local gate passed375 web/39 mobile
+tests and the complete disposable database gate (426/610), with no failures or
+skips. The gate database was removed. T3 preview currently resolves to a
+browser connection error despite host HTTP200, so rendered visual review is
+pending. Finish publication and hosted checks, restore preview qualification,
+then resume the preserved original-event workflow stages.

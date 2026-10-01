@@ -1,10 +1,15 @@
 # Subcult design system
 
-Subcult uses the current mobile discovery and event screens as its visual
-foundation: white surfaces, black actions, bold sans-serif headings, rounded
-controls, and large event artwork. Event imagery supplies identity and color;
-the interface keeps information and next steps readable. This direction was
-selected on September 29, 2026.
+Subcult uses the original Subcults terminal CSS as its visual foundation: sharp
+corners, visible borders, monospace type, purple actions and cyan focus. The user
+selected this direction on September 30, 2026, replacing the September 29
+mobile-derived monochrome direction. Reference: `subcults` revision `93a13af`,
+`web/src/index.css`; the newer three-font styling is a separate revision.
+
+Dark mode uses the original black/charcoal surfaces and neon status accents.
+Light mode keeps the same structure and purple actions with pale neutral surfaces
+and darker status text. Light, Dark and System remain available. Event artwork
+continues to provide event identity.
 
 ## Foundations
 
@@ -17,15 +22,15 @@ pairs in both themes. Generated files stay committed so either app can build ind
 
 | Foundation | Rule |
 | --- | --- |
-| Surfaces | Light: soft neutral canvas and white panels. Dark: near-black canvas and charcoal panels. Immersive artwork and scanner surfaces stay black in both modes. |
+| Surfaces | Light: pale lavender-neutral canvas and white panels. Dark: black canvas and charcoal panels. Immersive artwork and scanner surfaces stay black in both modes. |
 | Text | Foreground roles adapt to the theme. Inverse text follows the primary action; on-immersive text stays white for artwork and scanner surfaces. |
-| Actions | Black primary in light mode, white primary in dark mode, outlined secondary, quiet ghost. Use the outlined variant when a control needs a visible boundary. Every action needs a clear verb and a visible focus state. |
-| Status | Green success, amber attention, red failure, blue information. Always include words; color alone cannot describe a state. |
-| Typography | Platform sans-serif on native; Arial/Helvetica Neue on web. Heavy, tight headings; ordinary case and readable line height for instructions. No serif display theme. |
+| Actions | Purple primary with white text in both modes, outlined secondary, quiet ghost. Use the outlined variant when a control needs a visible boundary. Every action needs a clear verb and a visible focus state. |
+| Status | Green success, amber attention, red failure, cyan information. Always include words; color alone cannot describe a state. |
+| Typography | Self-hosted Space Mono 400/700 on web. Platform monospace (Courier on iOS) in native themed working-screen styles. Body copy retains ordinary case and readable line height; buttons use uppercase labels. Exact native Space Mono loading remains a follow-up. |
 | Spacing | 4, 8, 12, 16, 24, 32, 48 px. Use 16 px page gutters on small screens and 24–32 px on wider screens. |
-| Corners | 16 px controls, 24 px cards/insets, 28 px panels, 32 px artwork heroes. Pills are reserved for badges and compact navigation. |
+| Corners | Square controls, cards, panels and artwork frames. Native avatars retain their existing circular shape; explicitly rounded web badges may remain compact. |
 | Targets | 48 px minimum for primary controls; 56 px fields and door controls. Keep scanner, navigation, and compact icon targets independently reviewable on devices. |
-| Motion | Short state transitions; web respects reduced-motion preference. Do not animate information required to operate the door. |
+| Motion | Functional state transitions; web respects reduced-motion preference. Do not animate information required to operate the door. |
 
 Artwork must come from the event when available. Existing fallback imagery is
 retained; the gallery uses one of the mobile app's existing fallback images.
@@ -42,7 +47,7 @@ Use a native label with the shared `field` class for inputs. The existing
 `publicUi` exports remain the common styling contract for public pages, tickets,
 participant journeys, and the door.
 
-The former dark operator screens now use semantic light-theme classes, including
+Operator screens use semantic theme classes, including
 workspace, event editing, identity, invitations, imports, lifecycle notices,
 finance, and archive approval. Existing workflow handlers and confirmation steps
 remain intact. Authentication uses the shared button and notice components.
@@ -99,3 +104,18 @@ workspace, editor, ticket, and door journeys at narrow and wide web widths.
 Review discovery, event details, forms, navigation, and scanner on iOS and
 Android, including keyboard focus where supported and increased text size.
 Build and unit-test results are separate from browser and device evidence.
+
+## Font provenance and remaining qualification
+
+Web Latin Space Mono 400/700 WOFF2 files and the SIL Open Font License are vendored
+from the existing Subcults `@fontsource/space-mono` 5.2.9 package.
+`web/src/assets/fonts/provenance.json` records source filenames and SHA-256 hashes. They load locally
+without a runtime font-provider request. Other scripts fall back to the installed
+monospace font. Native themed StyleSheet factories apply monospace typography and
+square corners centrally; isolated inline styles and native font loading still
+need device review. Existing interaction and data contracts remain unchanged.
+
+The token generator computes contrast from actual color values. The historical
+Subcults design document contains inaccurate contrast figures and is not used as
+contrast evidence. Purple actions use white text in both themes; cyan focus and
+visible borders distinguish secondary actions and fields.
