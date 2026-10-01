@@ -9,7 +9,7 @@ This repository is `subcult-os`, a Go full-stack project with Vite React TypeScr
 3. Keep generated caches, secrets, and local data out of git.
 4. Update this file and `README.md` when stack conventions change.
 
-Use the mobile-derived monochrome design system in `docs/design-system.md`.
+Use the Subcults terminal design system in `docs/design-system.md`.
 Edit `contracts/design/tokens.json`, then run `node scripts/design-tokens.mjs`;
 do not edit generated client tokens independently. Prefer semantic colors and
 shared controls. Keep event artwork and scanner surfaces immersive.

@@ -20,7 +20,8 @@ Bootstrapped from `subculture-collective/project-template`.
 ## Future development
 
 Web and mobile share the [Subcult design system](docs/design-system.md), based
-on the current mobile discovery and event screens. Edit
+on the original Subcults terminal CSS: sharp corners, monospace typography,
+purple actions and cyan focus. Edit
 `contracts/design/tokens.json` and run `node scripts/design-tokens.mjs` to update
 both clients. The isolated web preview provides a `/design-system` gallery in
 development; `make verify` checks generated-token drift and text contrast in both
