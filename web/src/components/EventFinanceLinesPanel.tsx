@@ -190,9 +190,9 @@ function FinanceLedger({ eventId }: { eventId: string }) {
   }
 
   return (
-    <section className="mt-6 rounded-2xl border border-stroke-subtle bg-surface-inset p-5">
-      <p className="text-xs uppercase tracking-[0.25em] text-fg-muted">Finance ledger</p>
-      <h3 className="mt-2 text-xl font-semibold text-fg-primary">Budgets, payables, and manual actuals</h3>
+    <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
+      <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Finance ledger</p>
+      <h3 className="mt-2 text-2xl font-bold text-fg-primary">Budgets, payables, and manual actuals</h3>
       <p className="mt-2 text-sm text-fg-secondary">
         Manual actual payments are records only. They do not send, execute, or confirm a provider payment, and they do not alter ticket settlement totals.
       </p>
@@ -281,7 +281,7 @@ function FinanceLedger({ eventId }: { eventId: string }) {
       </form> : null}
 
       <section className="mt-6" aria-labelledby="finance-current-totals">
-        <h4 id="finance-current-totals" className="text-sm font-semibold uppercase tracking-[0.18em] text-status-info">Current ledger totals</h4>
+        <h4 id="finance-current-totals" className="text-xs uppercase tracking-[0.2em] text-fg-muted">Current ledger totals</h4>
         <p className="mt-1 text-sm text-fg-secondary">Each category remains separate from ticket settlement receipts.</p>
         <dl className="mt-3 grid gap-2 sm:grid-cols-2">
           {totals.map((total) => (
@@ -290,12 +290,12 @@ function FinanceLedger({ eventId }: { eventId: string }) {
               <dd className="mt-1 font-semibold text-fg-primary">{money(total.amountCents, total.currency)}</dd>
             </div>
           ))}
-          {access === 'ready' && totals.length === 0 && <p className="text-sm text-fg-secondary">No current finance lines recorded.</p>}
+          {access === 'ready' && totals.length === 0 && <p className="text-sm text-fg-secondary sm:col-span-2">No current finance lines recorded.</p>}
         </dl>
       </section>
 
       <section className="mt-6" aria-labelledby="finance-history">
-        <h4 id="finance-history" className="text-sm font-semibold uppercase tracking-[0.18em] text-status-info">Retained history</h4>
+        <h4 id="finance-history" className="text-xs uppercase tracking-[0.2em] text-fg-muted">Retained history</h4>
         <ol className="mt-3 space-y-2">
           {lines.map((line) => (
             <li key={line.id} className="border border-stroke-subtle bg-surface-inset p-3 text-sm">

@@ -2058,3 +2058,28 @@ Second follow-up, 2026-10-01:
 - Unchanged hover states now strengthen the border.
 - The full pinned gate exited 0 with 375 web, 42 mobile and 426 top-level
   disposable database tests.
+
+## Subcults terminal polish pass — 2026-10-01
+
+Full-screen review of every web route at 390 and 1280 px in light and dark.
+- Fixed a horizontal overflow on phones that PR 195 introduced. The workspace
+  scrolled sideways by 277 px and the editor by 40 px, because unclamped
+  `auto-fit` grids inflated their sidebar's minimum width. Grid minimums now use
+  `min(…, 100%)` and sidebars have `min-w-0`. This regression is live in
+  production until the next web release.
+- The event editor is widened to `max-w-6xl`. Its sidebar keeps only the
+  contextual panels: create help, draft checklist, templates, live event, actions
+  and workspace link. Finance, settlement, roles, applications, participants,
+  staffing, notifications, reminders, archive and commitments move to a
+  two-column area below. This removes the empty form column.
+- Uppercase labels use a single letter-spacing. Panels no longer use status
+  borders or label colors as decoration. List item titles are bold. Text links
+  are underlined with a shared offset.
+- Venue access, cultural imports, lifecycle intents and access information share
+  the framed header used by member roles. Their bare labels, buttons and forms
+  now use shared field, button and panel styles.
+- Recover, verify-email and email-preference pages show the brand bar.
+- Workspace stats sit three across on phones. Archive search wraps instead of
+  squeezing its input.
+
+No overflow on any captured route at 390 px.

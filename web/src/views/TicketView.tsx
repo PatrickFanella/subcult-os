@@ -201,7 +201,7 @@ export function TicketView({ code }: { code: string }) {
 					) : qrFailedCode === ticket.code ? (
                       <span role="status" className="text-sm font-bold text-fg-secondary">QR unavailable. Show the ticket code below for manual entry.</span>
                     ) : (
-                      <span className="text-xs font-bold uppercase tracking-[0.28em] text-fg-muted">Preparing QR</span>
+                      <span className="text-xs font-bold uppercase tracking-[0.2em] text-fg-muted">Preparing QR</span>
                     )}
                   </div>
                   <p className="mt-4 max-w-full break-all text-center font-mono text-sm tracking-[0.12em] text-fg-secondary">{ticket.code}</p>

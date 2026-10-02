@@ -102,8 +102,8 @@ export function MemberRolesView({ workspaceId }: { workspaceId: string }) {
   }
 
   const canManage = workspace?.role === 'owner';
-  return <main className="min-h-screen bg-surface-page px-4 py-10 text-fg-primary">
-    <section className="mx-auto min-w-0 max-w-5xl space-y-6 [overflow-wrap:anywhere]">
+  return <main className="min-h-screen bg-surface-canvas px-4 py-10 text-fg-primary">
+    <section className="mx-auto min-w-0 max-w-4xl space-y-6 [overflow-wrap:anywhere]">
       <header className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
         <h1 className="text-3xl font-bold">Member roles</h1>
         {workspace ? <p className="mt-2 text-fg-secondary">{workspace.name}</p> : null}

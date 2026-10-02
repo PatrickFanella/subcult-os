@@ -55,10 +55,11 @@ export function IdentityActionView({ action }: { action: IdentityAction }) {
 
   const title = action === 'verify' ? 'Verify your email' : action === 'request-recovery' ? 'Recover your account' : 'Choose a new password';
   return (
-    <main className="min-h-screen px-4 py-6 text-fg-primary">
+    <main className="min-h-screen px-4 py-6 text-fg-primary sm:px-6 lg:px-8">
       <section className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-md flex-col justify-center">
+        <p className="mb-4 text-xs uppercase tracking-[0.2em] text-fg-secondary">subcult-os</p>
         <div className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
-          <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Account security</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Account security</p>
           <h1 className="mt-3 text-3xl font-bold text-fg-primary">{title}</h1>
           {action === 'verify' ? <p className="mt-3 text-sm text-fg-secondary">Confirm below to verify your email and sign in.</p> : null}
           {!notice ? (
@@ -73,7 +74,7 @@ export function IdentityActionView({ action }: { action: IdentityAction }) {
           ) : null}
           {error ? <p role="alert" className="mt-4 rounded-2xl bg-status-surface-danger px-4 py-3 text-sm text-status-danger">{error}</p> : null}
           {notice ? <p role="status" className="mt-4 rounded-2xl bg-status-surface-success px-4 py-3 text-sm text-status-success">{notice}</p> : null}
-          <a className="mt-5 inline-block text-sm text-fg-primary" href="/login">Return to sign in</a>
+          <a className="mt-5 inline-block text-sm text-fg-primary underline underline-offset-4" href="/login">Return to sign in</a>
         </div>
       </section>
     </main>

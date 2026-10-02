@@ -44,7 +44,7 @@ replacement for event identity.
 Web foundations live in `web/src/styles.css` and `web/src/ui/`. `Button` exposes
 primary, secondary, ghost, and danger variants, defaults to `type="button"`, and disables
 busy actions. `Notice` announces errors as alerts and other feedback as status.
-Buttons and links styled as actions use the same `btn-primary`, `btn-secondary`, `btn-ghost`, and `btn-danger` utilities; destructive actions use `btn-danger`, not the purple primary. Counter grids in side columns size by container (`auto-fit`) rather than viewport so monospace labels fit. Use a native label with the shared `field` class for inputs; entered text stays regular weight inside bold labels. The existing
+Buttons and links styled as actions use the same `btn-primary`, `btn-secondary`, `btn-ghost`, and `btn-danger` utilities; destructive actions use `btn-danger`, not the purple primary. Counter grids in side columns size by container with `repeat(auto-fit, minmax(min(<size>, 100%), 1fr))`; without the `min()` clamp a grid column reports its full repeated width as its minimum and pushes the page wider than a phone screen. Give grid sidebars `min-w-0`. Uppercase labels use `tracking-[0.2em]`; buttons keep the shared 0.05em. Status colors mark states, not decoration: ordinary panels use `border-stroke-subtle` and muted labels. Text links are underlined. Use a native label with the shared `field` class for inputs; entered text stays regular weight inside bold labels. The existing
 `publicUi` exports remain the common styling contract for public pages, tickets,
 participant journeys, and the door.
 

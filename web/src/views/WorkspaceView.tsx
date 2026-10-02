@@ -855,14 +855,14 @@ export function WorkspaceView() {
       <section className="mx-auto w-full max-w-6xl space-y-6">
         <header className="flex flex-col gap-4 rounded-panel border border-stroke-subtle bg-surface-panel p-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">subcult-os</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">subcult-os</p>
             <h1 className="mt-2 text-3xl font-bold tracking-tight text-fg-primary">Operator home</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-fg-secondary">
               Run the room from one place: create the next event, invite help, and keep the Door moving.
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2 text-sm">
+          <div className="flex flex-wrap gap-2 text-sm lg:max-w-md lg:justify-end">
 			{me ? <a className="btn-secondary px-4 text-sm" href="/participant">
 			  My assignments
 			</a> : null}
@@ -888,13 +888,13 @@ export function WorkspaceView() {
         {loading ? (
           <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
             <div className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
-              <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Loading workspace</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Loading workspace</p>
               <h2 className="mt-2 text-3xl font-bold tracking-tight text-fg-primary">Finding the right room</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-fg-secondary">We are checking your current Workspace, loading its events, and preparing the operator dashboard.</p>
             </div>
 
             <aside className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
-              <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Workspace access</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Workspace access</p>
               <p className="mt-2 text-sm leading-6 text-fg-secondary">One person can operate multiple Workspaces. Use this switcher to jump between them.</p>
               <a className="btn-secondary mt-4 inline-flex px-4 text-sm" href="/discover">
                 Public discovery
@@ -907,7 +907,7 @@ export function WorkspaceView() {
         ) : me && me.workspaces.length === 0 ? (
           <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
             <div className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
-              <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">No workspace yet</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">No workspace yet</p>
               <h2 className="mt-2 text-2xl font-bold text-fg-primary">Create one to start</h2>
               <p className="mt-2 text-sm leading-6 text-fg-secondary">You need a workspace before you can invite members or publish events.</p>
             </div>
@@ -935,41 +935,45 @@ export function WorkspaceView() {
                   <div className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Current workspace</p>
+                        <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Current workspace</p>
                         <h2 className="mt-2 text-3xl font-bold tracking-tight text-fg-primary">{workspace.name}</h2>
                         <p className="mt-2 text-sm text-fg-secondary">You are signed in as {me?.email ?? 'a member'}.</p>
                       </div>
-                      <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-xs uppercase tracking-[0.25em] text-fg-secondary">{roleLabel(workspace.role)}</span>
+                      <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-xs uppercase tracking-[0.2em] text-fg-secondary">{roleLabel(workspace.role)}</span>
                     </div>
-                    {workspace.role === 'owner' && <a className="mt-4 inline-block text-sm text-fg-primary underline" href={`/workspace/${workspace.id}/lifecycle-intents`}>Open lifecycle worklist</a>}
-                    {workspace.role === 'owner' && <a className="ml-4 mt-4 inline-block text-sm text-fg-primary underline" href={`/workspace/${workspace.id}/venue-access`}>Venue access worksheets</a>}
-                    {workspace.role === 'owner' && <a className="ml-4 mt-4 inline-block text-sm text-fg-primary underline" href={`/workspace/${workspace.id}/members`}>Manage member roles</a>}
+                    {workspace.role === 'owner' ? (
+                      <nav className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm" aria-label="Workspace tools">
+                        <a className="text-fg-primary underline underline-offset-4" href={`/workspace/${workspace.id}/lifecycle-intents`}>Open lifecycle worklist</a>
+                        <a className="text-fg-primary underline underline-offset-4" href={`/workspace/${workspace.id}/venue-access`}>Venue access worksheets</a>
+                        <a className="text-fg-primary underline underline-offset-4" href={`/workspace/${workspace.id}/members`}>Manage member roles</a>
+                      </nav>
+                    ) : null}
 
-                    <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                      <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                    <div className="mt-6 grid grid-cols-3 gap-2 sm:gap-3">
+                      <div className="min-w-0 border border-stroke-subtle bg-surface-inset p-3 sm:p-4">
                         <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Members</p>
                         <p className="mt-2 text-2xl font-semibold text-fg-primary">{workspace.members.length}</p>
                       </div>
-                      <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                      <div className="min-w-0 border border-stroke-subtle bg-surface-inset p-3 sm:p-4">
                         <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Invites</p>
                         <p className="mt-2 text-2xl font-semibold text-fg-primary">{workspace.invitations.length}</p>
                       </div>
-                      <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                      <div className="min-w-0 border border-stroke-subtle bg-surface-inset p-3 sm:p-4">
                         <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Events</p>
                         <p className="mt-2 text-2xl font-semibold text-fg-primary">{events.length}</p>
                       </div>
                     </div>
 
-                    <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                      <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                    <div className="mt-6 grid grid-cols-3 gap-2 sm:gap-3">
+                      <div className="min-w-0 border border-stroke-subtle bg-surface-inset p-3 sm:p-4">
                         <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Draft</p>
                         <p className="mt-2 text-2xl font-semibold text-fg-primary">{statusCounts.draft}</p>
                       </div>
-                      <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                      <div className="min-w-0 border border-stroke-subtle bg-surface-inset p-3 sm:p-4">
                         <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Live</p>
                         <p className="mt-2 text-2xl font-semibold text-fg-primary">{statusCounts.published}</p>
                       </div>
-                      <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
+                      <div className="min-w-0 border border-stroke-subtle bg-surface-inset p-3 sm:p-4">
                         <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Closed</p>
                         <p className="mt-2 text-2xl font-semibold text-fg-primary">{statusCounts.end_of_night}</p>
                       </div>
@@ -977,7 +981,7 @@ export function WorkspaceView() {
                   </div>
 
                   <div className={`rounded-panel border p-6 ${toneSurface(guidance.tone)}`}>
-                    <p className={`text-xs uppercase tracking-[0.3em] ${toneLabel(guidance.tone)}`}>{guidance.eyebrow}</p>
+                    <p className={`text-xs uppercase tracking-[0.2em] ${toneLabel(guidance.tone)}`}>{guidance.eyebrow}</p>
                     <h3 className="mt-2 text-2xl font-semibold tracking-tight text-fg-primary">{guidance.title}</h3>
                     <p className="mt-3 max-w-xl text-sm leading-6 text-fg-secondary">{guidance.body}</p>
                     <div className="mt-6 flex flex-wrap gap-2 text-sm">
@@ -1001,7 +1005,7 @@ export function WorkspaceView() {
                 </div>
 
                 <div className="mt-6 space-y-3">
-                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Members</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Members</p>
                   <div className="space-y-2">
                     {workspace.members.length === 0 ? (
                       <div className="rounded-2xl border border-dashed border-stroke-subtle bg-surface-inset p-5 text-sm text-fg-secondary">
@@ -1012,11 +1016,11 @@ export function WorkspaceView() {
                     {workspace.members.map((member) => (
                       <div key={member.id} className="flex items-center justify-between gap-3 rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-sm">
                         <div>
-                          <p className="font-medium text-fg-primary">{member.displayName ?? member.email}</p>
+                          <p className="font-bold text-fg-primary">{member.displayName ?? member.email}</p>
                           <p className="text-fg-secondary">{member.email}</p>
                         </div>
                         <div className="text-right">
-                          <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-[11px] uppercase tracking-[0.25em] text-fg-secondary">{roleLabel(member.role)}</span>
+                          <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-fg-secondary">{roleLabel(member.role)}</span>
                           <MembershipAccess member={member} />
                         </div>
                       </div>
@@ -1026,8 +1030,8 @@ export function WorkspaceView() {
 
                 <div className="mt-6 space-y-3">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Events</p>
-                    <a className="btn-primary px-3 text-xs uppercase tracking-[0.25em]" href={`/events/new?workspaceId=${workspace.id}`}>
+                    <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Events</p>
+                    <a className="btn-primary px-3 text-xs" href={`/events/new?workspaceId=${workspace.id}`}>
                       New event
                     </a>
                   </div>
@@ -1046,11 +1050,11 @@ export function WorkspaceView() {
                       <article key={event.id} className={`border p-4 ${eventStatusSurface(event.status)}`}>
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
-                            <h3 className="text-lg font-medium text-fg-primary">{event.title}</h3>
+                            <h3 className="text-lg font-bold text-fg-primary">{event.title}</h3>
                             <p className="mt-1 text-sm text-fg-secondary">{formatDateTime(event.startsAt)}</p>
                             <p className="mt-2 text-sm leading-6 text-fg-secondary line-clamp-3">{event.publicDescription}</p>
                           </div>
-                          <span className={`border px-3 py-1 text-xs uppercase tracking-[0.25em] ${eventStatusTone(event.status)}`}>{eventStatusLabel(event.status)}</span>
+                          <span className={`border px-3 py-1 text-xs uppercase tracking-[0.2em] ${eventStatusTone(event.status)}`}>{eventStatusLabel(event.status)}</span>
                         </div>
                         <p className="mt-3 text-sm font-medium text-fg-primary">{eventStatusSummary(event.status)}</p>
                         <div className="mt-4 rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-sm text-fg-secondary">{eventCountLabel(event)}</div>
@@ -1082,7 +1086,7 @@ export function WorkspaceView() {
                           {isClosedEvent(event.status) ? (
                             <>
                               <div className="rounded-2xl border border-status-info/20 bg-status-surface-info px-3 py-3 text-sm text-status-info">
-                                <p className="text-[11px] uppercase tracking-[0.25em] text-status-info">Archive ready after closeout</p>
+                                <p className="text-[11px] uppercase tracking-[0.2em] text-status-info">Archive ready after closeout</p>
                                 <p className="mt-2 leading-6">Use the private archive to seed the next draft from the event editor.</p>
                               </div>
                               {workspace?.role === 'owner' ? (
@@ -1111,14 +1115,14 @@ export function WorkspaceView() {
                 </div>
 
                 <section className="space-y-3 rounded-panel border border-stroke-subtle bg-surface-panel p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Workspace archive</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Workspace archive</p>
                   <div className="rounded-2xl border border-status-info/20 bg-status-surface-info p-4 text-sm leading-6 text-status-info">
-                    <p className="text-[11px] uppercase tracking-[0.25em] text-status-info">Operator learning loop</p>
+                    <p className="text-[11px] uppercase tracking-[0.2em] text-status-info">Operator learning loop</p>
                     <p className="mt-2">{archiveLearningLoop}</p>
                   </div>
 
                   <form className="flex flex-wrap items-end gap-3 rounded-2xl border border-stroke-subtle bg-surface-inset p-4" onSubmit={handleArchiveSearch}>
-                    <label className="min-w-0 flex-1 space-y-2 text-sm">
+                    <label className="min-w-0 flex-[1_1_16rem] space-y-2 text-sm">
                       <span className="text-fg-secondary">Search archives</span>
                       <input
                         className="field py-3"
@@ -1154,11 +1158,11 @@ export function WorkspaceView() {
                       <article key={archive.id} className="border border-stroke-subtle bg-surface-inset p-4">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
-                            <h3 className="text-lg font-medium text-fg-primary">{archive.title}</h3>
+                            <h3 className="text-lg font-bold text-fg-primary">{archive.title}</h3>
                             <p className="mt-1 text-sm text-fg-secondary">Starts {formatDateTime(archive.startsAt)}</p>
                             <p className="mt-1 text-sm text-fg-secondary">Location {archive.locationDisplay}</p>
                           </div>
-                          <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-xs uppercase tracking-[0.25em] text-fg-secondary">
+                          <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-xs uppercase tracking-[0.2em] text-fg-secondary">
                             {archive.noteCount === 1 ? '1 note' : `${archive.noteCount} notes`}
                           </span>
                         </div>
@@ -1194,7 +1198,7 @@ export function WorkspaceView() {
                 {templates !== null ? (
                   <section className="space-y-4 rounded-panel border border-stroke-subtle bg-surface-panel p-6">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Event templates</p>
+                      <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Event templates</p>
                       <p className="mt-2 text-sm leading-6 text-fg-secondary">Private planning memory for repeatable event setup.</p>
                     </div>
 
@@ -1209,12 +1213,12 @@ export function WorkspaceView() {
                           <article key={template.id} className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                             <div className="flex flex-wrap items-start justify-between gap-3">
                               <div>
-                                <p className="text-lg font-medium text-fg-primary">{template.name}</p>
+                                <p className="text-lg font-bold text-fg-primary">{template.name}</p>
                                 <p className="mt-1 text-sm text-fg-secondary">{template.title}</p>
                               </div>
 
                               {workspace.role === 'owner' ? (
-                                <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.25em]">
+                                <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.2em]">
                                   <button
                                     className="btn-secondary px-3 py-1"
                                     type="button"
@@ -1253,9 +1257,9 @@ export function WorkspaceView() {
                     {workspace.role === 'owner' ? (
                       <form className="space-y-4 rounded-2xl border border-stroke-subtle bg-surface-inset p-4" onSubmit={handleTemplateSubmit}>
                         <div className="flex flex-wrap items-center justify-between gap-3">
-                          <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">{editingTemplateId ? 'Edit template' : 'Add template'}</p>
+                          <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">{editingTemplateId ? 'Edit template' : 'Add template'}</p>
                           {editingTemplateId ? (
-                            <button className="btn-secondary px-3 py-1 text-xs uppercase tracking-[0.25em]" type="button" onClick={resetTemplateEditor}>
+                            <button className="btn-secondary px-3 py-1 text-xs" type="button" onClick={resetTemplateEditor}>
                               Cancel
                             </button>
                           ) : null}
@@ -1314,15 +1318,15 @@ export function WorkspaceView() {
                         <fieldset className="border border-stroke-subtle bg-surface-inset p-4">
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
-                              <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Pricing</p>
+                              <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Pricing</p>
                               <h2 className="mt-2 text-lg font-bold text-fg-primary">Free or fixed paid tickets</h2>
                             </div>
-                            <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-fg-secondary">
+                            <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-fg-secondary">
                               USD only
                             </span>
                           </div>
 
-                          <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] gap-3">
+                          <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(13rem,100%),1fr))] gap-3">
                             <label className={`cursor-pointer rounded-2xl border p-4 transition focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-stroke-focus ${templateForm.pricingMode === 'free' ? 'border-action-primary bg-surface-panel text-fg-primary ring-1 ring-action-primary' : 'border-stroke-subtle bg-surface-inset text-fg-secondary hover:border-stroke-strong'}`}>
                               <input
                                 className="sr-only"
@@ -1390,7 +1394,7 @@ export function WorkspaceView() {
                 {contacts !== null && !contactsDenied ? (
                   <section className="space-y-4 rounded-panel border border-stroke-subtle bg-surface-panel p-6">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Contacts</p>
+                      <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Contacts</p>
                       <p className="mt-2 text-sm leading-6 text-fg-secondary">Private memory for people you want to remember across events.</p>
                     </div>
 
@@ -1404,13 +1408,13 @@ export function WorkspaceView() {
                           <article key={contact.id} className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                             <div className="flex flex-wrap items-start justify-between gap-3">
                               <div>
-                                <p className="text-lg font-medium text-fg-primary">{contact.displayName}</p>
+                                <p className="text-lg font-bold text-fg-primary">{contact.displayName}</p>
                                 <p className="mt-1 text-sm text-fg-secondary">
                                   {[contact.email, contact.phone].filter(Boolean).join(' · ') || 'No contact details'}
                                 </p>
                               </div>
                               {workspace.role === 'owner' ? (
-                                <button className="btn-secondary px-3 py-1 text-xs uppercase tracking-[0.25em]" type="button" onClick={() => editContact(contact)}>
+                                <button className="btn-secondary px-3 py-1 text-xs" type="button" onClick={() => editContact(contact)}>
                                   Edit
                                 </button>
                               ) : null}
@@ -1435,10 +1439,10 @@ export function WorkspaceView() {
                     )}
 
                     {reminders !== null ? (
-                      <section className="space-y-4 rounded-panel border border-status-info/20 bg-surface-panel p-6">
+                      <section className="space-y-4 rounded-panel border border-stroke-subtle bg-surface-panel p-6">
                         <div className="flex flex-wrap items-start justify-between gap-4">
                           <div>
-                            <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Reminder activity</p>
+                            <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Reminder activity</p>
                             <h3 className="mt-2 text-2xl font-semibold text-fg-primary">
                               {reminders === undefined ? 'Loading reminders…' : `${visibleReminders.length} reminder${visibleReminders.length === 1 ? '' : 's'}`}
                             </h3>
@@ -1472,7 +1476,7 @@ export function WorkspaceView() {
                                       {reminder.recipientEmail} · {reminder.reminderType}
                                     </p>
                                   </div>
-                                  <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-fg-primary">
+                                  <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-fg-primary">
                                     {reminder.status}
                                   </span>
                                 </div>
@@ -1494,9 +1498,9 @@ export function WorkspaceView() {
                     {workspace.role === 'owner' ? (
                       <form className="space-y-4 rounded-2xl border border-stroke-subtle bg-surface-inset p-4" onSubmit={handleContactSubmit}>
                         <div className="flex flex-wrap items-center justify-between gap-3">
-                          <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">{editingContactId ? 'Edit contact' : 'Add contact'}</p>
+                          <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">{editingContactId ? 'Edit contact' : 'Add contact'}</p>
                           {editingContactId ? (
-                            <button className="btn-secondary px-3 py-1 text-xs uppercase tracking-[0.25em]" type="button" onClick={resetContactEditor}>
+                            <button className="btn-secondary px-3 py-1 text-xs" type="button" onClick={resetContactEditor}>
                               Cancel
                             </button>
                           ) : null}
@@ -1555,11 +1559,11 @@ export function WorkspaceView() {
                 {commitments !== null && !commitmentsDenied ? (
                   <section className="space-y-4 rounded-panel border border-stroke-subtle bg-surface-panel p-6">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Commitments</p>
+                      <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Commitments</p>
                       <p className="mt-2 text-sm leading-6 text-fg-secondary">Track private promises, due dates, and follow-up status across the workspace.</p>
                     </div>
 
-                    <div className="grid grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))] gap-3 text-sm">
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(min(7.5rem,100%),1fr))] gap-3 text-sm">
                       <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                         <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Open</p>
                         <p className="mt-2 text-2xl font-semibold text-fg-primary">{commitmentCounts.open}</p>
@@ -1584,13 +1588,13 @@ export function WorkspaceView() {
                           <article key={commitment.id} className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                             <div className="flex flex-wrap items-start justify-between gap-3">
                               <div>
-                                <p className="text-lg font-medium text-fg-primary">{commitment.title}</p>
+                                <p className="text-lg font-bold text-fg-primary">{commitment.title}</p>
                                 <p className="mt-1 text-sm text-fg-secondary">
                                   {commitment.dueAt ? `Due ${formatDateTime(commitment.dueAt)}` : 'No due date'}
                                   {commitment.eventId ? ` · ${eventTitleById.get(commitment.eventId) ?? 'Workspace event'}` : ' · Workspace level'}
                                 </p>
                               </div>
-                              <span className={`border px-3 py-1 text-xs uppercase tracking-[0.25em] ${commitmentStatusTone(commitment.status)}`}>
+                              <span className={`border px-3 py-1 text-xs uppercase tracking-[0.2em] ${commitmentStatusTone(commitment.status)}`}>
                                 {commitmentStatusLabel(commitment.status)}
                               </span>
                             </div>
@@ -1628,7 +1632,7 @@ export function WorkspaceView() {
 
                     {workspace.role === 'owner' ? (
                       <form className="space-y-4 rounded-2xl border border-stroke-subtle bg-surface-inset p-4" onSubmit={handleCommitmentSubmit}>
-                        <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Add commitment</p>
+                        <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Add commitment</p>
                         <label className="block space-y-2 text-sm">
                           <span className="text-fg-secondary">Title</span>
                           <input
@@ -1679,7 +1683,7 @@ export function WorkspaceView() {
                 ) : null}
               </div>
 
-              <aside className="space-y-6">
+              <aside className="min-w-0 space-y-6">
                 <WorkspaceInviteForm
                   role={workspace.role}
                   email={inviteEmail}
@@ -1693,7 +1697,7 @@ export function WorkspaceView() {
                 />
 
                 <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Invitations</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Invitations</p>
                   <p className="mt-2 text-sm leading-6 text-fg-secondary">Pending vs accepted, with open links when the token is available.</p>
 
                   <div className="mt-4 space-y-3 text-sm">
@@ -1713,7 +1717,7 @@ export function WorkspaceView() {
                               <p className="font-medium text-fg-primary">{invitation.email}</p>
                               <p className="mt-1 text-fg-secondary">{roleLabel(invitation.role)}</p>
                             </div>
-                            <span className={`border px-3 py-1 text-[11px] uppercase tracking-[0.25em] ${accepted ? 'border-status-success/20 bg-status-surface-success text-status-success' : 'border-status-warning/20 bg-status-surface-warning text-status-warning'}`}>
+                            <span className={`border px-3 py-1 text-[11px] uppercase tracking-[0.2em] ${accepted ? 'border-status-success/20 bg-status-surface-success text-status-success' : 'border-status-warning/20 bg-status-surface-warning text-status-warning'}`}>
                               {accepted ? 'Accepted' : 'Pending'}
                             </span>
                           </div>
@@ -1732,7 +1736,7 @@ export function WorkspaceView() {
                 </section>
 
                 <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Workspace access</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Workspace access</p>
                   <p className="mt-2 text-sm leading-6 text-fg-secondary">One person can operate multiple Workspaces. Use this switcher to jump between them.</p>
                   <div className="mt-4 space-y-2 text-sm text-fg-secondary">
                     {workspaceSummaries.map((summary) => (
@@ -1748,10 +1752,10 @@ export function WorkspaceView() {
                       >
                         <span className="min-w-0">
                           <span className={`block truncate ${summary.id === workspace.id ? 'text-fg-primary' : 'text-fg-primary'}`}>{summary.name}</span>
-                          <span className="mt-1 block text-xs uppercase tracking-[0.25em] text-fg-muted">{roleLabel(summary.role)}</span>
+                          <span className="mt-1 block text-xs uppercase tracking-[0.2em] text-fg-muted">{roleLabel(summary.role)}</span>
                         </span>
                         <span
-                          className={`shrink-0 border px-3 py-1 text-[11px] uppercase tracking-[0.25em] ${
+                          className={`shrink-0 border px-3 py-1 text-[11px] uppercase tracking-[0.2em] ${
                             summary.id === workspace.id
                               ? 'border-status-success bg-status-surface-success text-status-success'
                               : 'border-stroke-subtle bg-surface-inset text-fg-secondary'
@@ -1769,7 +1773,7 @@ export function WorkspaceView() {
 
                 {emailOutbox && emailOutbox.length > 0 ? (
                   <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
-                    <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Dev email outbox</p>
+                    <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Dev email outbox</p>
                     <p className="mt-2 text-sm leading-6 text-fg-secondary">Development-only mailbox. It surfaces recent invite and ticket emails with quick links when available.</p>
 
                     <div className="mt-4 space-y-3">
@@ -1784,12 +1788,12 @@ export function WorkspaceView() {
                                 <p className="font-medium text-fg-primary">{email.subject}</p>
                                 <p className="mt-1 text-fg-secondary">To {email.recipientEmail}</p>
                               </div>
-                              <p className="text-xs uppercase tracking-[0.25em] text-fg-muted">{formatDateTime(email.createdAt)}</p>
+                              <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">{formatDateTime(email.createdAt)}</p>
                             </div>
 
                             <p className="mt-3 line-clamp-3 whitespace-pre-wrap text-fg-secondary">{email.body}</p>
 
-                            <div className="mt-4 flex flex-wrap gap-2 text-xs uppercase tracking-[0.25em] text-fg-muted">
+                            <div className="mt-4 flex flex-wrap gap-2 text-xs uppercase tracking-[0.2em] text-fg-muted">
                               <span>{email.relatedType}</span>
                               <span>{email.relatedId}</span>
                             </div>
@@ -1813,7 +1817,7 @@ export function WorkspaceView() {
               </aside>
             </section>
 
-            <p className="px-1 text-xs uppercase tracking-[0.3em] text-fg-muted">Workspace ID {workspaceId}</p>
+            <p className="px-1 text-xs uppercase tracking-[0.2em] text-fg-muted">Workspace ID {workspaceId}</p>
           </>
         ) : null}
       </section>

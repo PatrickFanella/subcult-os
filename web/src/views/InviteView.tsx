@@ -78,22 +78,22 @@ export function InviteView({ token }: { token: string }) {
   return (
     <main className="min-h-screen px-4 py-6 text-fg-primary sm:px-6 lg:px-8">
       <section className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-2xl flex-col justify-center">
-        <div className="mb-4 flex items-center justify-between text-xs uppercase tracking-[0.3em] text-fg-secondary">
+        <div className="mb-4 flex items-center justify-between text-xs uppercase tracking-[0.2em] text-fg-secondary">
           <span>subcult-os</span>
-          <a className="text-fg-primary transition hover:text-fg-primary" href="/workspace">
+          <a className="text-fg-primary underline underline-offset-4" href="/workspace">
             Workspace
           </a>
         </div>
 
         <div className="rounded-panel border border-stroke-subtle bg-surface-panel p-6 sm:p-8">
-          <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Invitation</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Invitation</p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-fg-primary">Accept your invite</h1>
           <p className="mt-2 text-sm leading-6 text-fg-secondary">
             We&apos;re checking this invitation, then linking it to the right account path.
           </p>
 
           <details className="mt-6 rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-xs text-fg-muted">
-            <summary className="cursor-pointer list-none uppercase tracking-[0.25em] text-fg-secondary">
+            <summary className="cursor-pointer list-none uppercase tracking-[0.2em] text-fg-secondary">
               Invite token
             </summary>
             <div className="mt-3 space-y-1 font-mono text-[11px] leading-5 text-fg-secondary">
@@ -129,7 +129,7 @@ export function InviteView({ token }: { token: string }) {
           ) : null}
 
           <div className="mt-6 border border-stroke-subtle bg-surface-inset p-4">
-            <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Next steps</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Next steps</p>
             <p className="mt-2 text-sm leading-6 text-fg-secondary">
               Keep moving with the workspace, or return here after signing in with the invited email.
             </p>

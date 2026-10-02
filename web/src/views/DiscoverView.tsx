@@ -409,7 +409,7 @@ export function DiscoverView() {
 										</div>
 									{event.applicationsOpen ? (
 										<div className="border border-status-success/20 bg-status-surface-success p-4">
-											<p className="text-xs font-bold uppercase tracking-[0.24em] text-status-success">Applications</p>
+											<p className="text-xs font-bold uppercase tracking-[0.2em] text-fg-muted">Applications</p>
 											<p className="mt-2 font-bold text-status-success">Applications open</p>
 										</div>
 									) : null}

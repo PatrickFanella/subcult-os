@@ -65,7 +65,7 @@ export function EventRoleSetupPanel({ eventId, roles, allowed, onCreated }: {
 
   return (
     <section className="min-w-0 rounded-panel border border-stroke-subtle bg-surface-panel p-6 [overflow-wrap:anywhere]">
-      <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Participation roles</p>
+      <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Participation roles</p>
       <h2 className="mt-2 text-2xl font-bold text-fg-primary">Set up applications</h2>
       <p className="mt-2 text-sm leading-6 text-fg-secondary">Public roles accept interest through the published event page. Reviewing an application and assigning a task or shift are separate steps.</p>
       {!denied ? (
@@ -83,10 +83,10 @@ export function EventRoleSetupPanel({ eventId, roles, allowed, onCreated }: {
       {allowed && !denied ? (
         <form className="mt-5 space-y-4" onSubmit={submit}>
           <fieldset className="space-y-4" disabled={busy || reloadRequired}>
-            <label className="block space-y-2 text-sm font-semibold text-fg-primary">Role name<input className={inputClass} value={draft.name} required onChange={e => setDraft(current => ({ ...current, name: e.target.value }))} /></label>
-            <label className="block space-y-2 text-sm font-semibold text-fg-primary">Role description<textarea className={`${inputClass} min-h-28`} value={draft.description} onChange={e => setDraft(current => ({ ...current, description: e.target.value }))} /></label>
+            <label className="block space-y-2 text-sm text-fg-primary">Role name<input className={inputClass} value={draft.name} required onChange={e => setDraft(current => ({ ...current, name: e.target.value }))} /></label>
+            <label className="block space-y-2 text-sm text-fg-primary">Role description<textarea className={`${inputClass} min-h-28`} value={draft.description} onChange={e => setDraft(current => ({ ...current, description: e.target.value }))} /></label>
             <p className="text-sm text-fg-muted">Use participant-facing details. Keep operator notes in the staffing board. Descriptions can contain up to 2000 characters.</p>
-            <label className="block space-y-2 text-sm font-semibold text-fg-primary">Role capacity<input className={inputClass} type="number" min="0" max="2147483647" step="1" value={draft.capacity} onChange={e => setDraft(current => ({ ...current, capacity: e.target.value }))} /></label>
+            <label className="block space-y-2 text-sm text-fg-primary">Role capacity<input className={inputClass} type="number" min="0" max="2147483647" step="1" value={draft.capacity} onChange={e => setDraft(current => ({ ...current, capacity: e.target.value }))} /></label>
             <p className="text-sm text-fg-muted">Use 0 for no capacity limit.</p>
             <label className="flex items-start gap-3 text-sm text-fg-primary"><input className="mt-1" type="checkbox" checked={draft.public} onChange={e => setDraft(current => ({ ...current, public: e.target.checked }))} /><span>Accept public applications<span className="mt-1 block text-fg-secondary">The role and description appear on the public page when this event is published.</span></span></label>
             <Button type="submit" busy={busy}>{busy ? 'Adding role…' : draft.public ? 'Add public application role' : 'Add private role'}</Button>

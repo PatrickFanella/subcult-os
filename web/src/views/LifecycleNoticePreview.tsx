@@ -58,8 +58,8 @@ export function LifecycleNoticePreview({ eventId, changeId, canApprove = true, o
     <p className="text-sm text-fg-secondary">Save the listing cancellation or reschedule first, then record its exact revision. Review the message and recipients before approving its queue. Messages remain held while sending is disabled.</p>
     {!canApprove && <p className="text-sm text-status-warning">This decision was superseded. Inspect any existing notice outcomes before recording a correction.</p>}
     {!queued && canApprove && <fieldset disabled={busy} className="flex flex-wrap gap-4 text-sm"><legend className="mb-2">Recipients</legend>
-      <label><input type="checkbox" checked={ticketHolders} onChange={(e) => setTicketHolders(e.target.checked)} /> Ticket holders</label>
-      <label><input type="checkbox" checked={assignedCrew} onChange={(e) => setAssignedCrew(e.target.checked)} /> Assigned crew</label>
+      <label className="block space-y-2 text-sm"><input type="checkbox" checked={ticketHolders} onChange={(e) => setTicketHolders(e.target.checked)} /> Ticket holders</label>
+      <label className="block space-y-2 text-sm"><input type="checkbox" checked={assignedCrew} onChange={(e) => setAssignedCrew(e.target.checked)} /> Assigned crew</label>
     </fieldset>}
     {!queued && canApprove && <button disabled={busy || (!ticketHolders && !assignedCrew)} onClick={() => void review()} className="btn-secondary px-3 text-sm">Preview listing notice</button>}
     <button disabled={busy} onClick={() => void refresh()} className="ml-3 text-sm underline">{queued ? 'Refresh delivery outcomes' : 'Check queued notice'}</button>
