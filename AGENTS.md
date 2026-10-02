@@ -13,7 +13,8 @@ Use the Subcults terminal design system in `docs/design-system.md`.
 Edit `contracts/design/tokens.json`, then run `node scripts/design-tokens.mjs`;
 do not edit generated client tokens independently. Prefer semantic colors and
 shared controls. Keep event artwork and scanner surfaces immersive.
-Web brand assets in `web/public/` come from the `subcult-studio` Subcult OS pack.
+Brand assets in `web/public/` and the app icons in `mobile/assets/` come from the
+`subcult-studio` Subcult OS pack.
 Change the mark in Studio, then re-export with `python3 scripts/brand-assets.py
 --studio-root <checkout>`; do not edit the exported files or
 `docs/brand-provenance.json` by hand.
