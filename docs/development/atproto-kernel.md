@@ -23,11 +23,11 @@ Syntax validation is not resolution or authority proof. A handle must be resolve
 
 Do not implement OAuth as a conventional authorization-code shortcut. The current AT Protocol [OAuth specification](https://atproto.com/specs/oauth) requires PKCE, pushed authorization requests, DPoP with server nonces, automated client metadata, issuer/resource-server discovery, returned-scope checks and mandatory `sub` validation. Identity-only linking still requires the `atproto` scope but must request no repository permissions by default.
 
-The product owner selected `https://subcults.subcult.tv` as the production web origin and authorized eventual replacement of the legacy service there. Subcult OS preserves the legacy public OAuth identity at these exact URLs:
+The product owner first selected `https://subcults.subcult.tv` as the production web origin and replaced the legacy service there on 2026-09-30. On 2026-10-02 the owner moved the canonical origin to `https://os.subcult.tv`. The legacy host now redirects pages to it and still proxies `/api`. The AT OAuth client identity moves with the origin, so the legacy client ID is no longer preserved. AT linking was still disabled, and the legacy database had no OAuth links, sessions or requests. The production client uses these URLs:
 
-- client ID and metadata: `https://subcults.subcult.tv/api/v1/auth/atproto/client-metadata`
-- callback: `https://subcults.subcult.tv/api/v1/auth/atproto/callback`
-- public JWKS: `https://subcults.subcult.tv/api/v1/auth/atproto/jwks`
+- client ID and metadata: `https://os.subcult.tv/api/v1/auth/atproto/client-metadata`
+- callback: `https://os.subcult.tv/api/v1/auth/atproto/callback`
+- public JWKS: `https://os.subcult.tv/api/v1/auth/atproto/jwks`
 
 The replacement is a confidential web client using `private_key_jwt`, ES256 and a P-256 signing key supplied only through the deployment secret store. Its metadata requests only `atproto`; the broader repository scopes advertised by the legacy service are deliberately not inherited. `GET` metadata/JWKS, authenticated `POST` start, and public state-bound `GET` callback endpoints exist behind `ATPROTO_OAUTH_ENABLED`. That flag remains false by default until link UI and bounded live interoperability are qualified.
 

@@ -16,7 +16,7 @@ uses it: a custom scheme cannot be verified and has no browser fallback.
 | API | `MOBILE_APPLE_APP_IDS` | Comma-separated `TEAMID.tv.clpr.subcultos` values. Serves `/.well-known/apple-app-site-association`. |
 | API | `MOBILE_ANDROID_PACKAGE` | `tv.clpr.subcultos`. Set together with the fingerprint list. |
 | API | `MOBILE_ANDROID_CERT_SHA256` | Comma-separated SHA-256 signing-certificate fingerprints (`AA:BB:…`, 32 bytes). Serves `/.well-known/assetlinks.json`. |
-| Mobile build | `SUBCULT_APP_LINK_HOST` | The hostname of `PUBLIC_WEB_URL`, for example `subcults.subcult.tv`. Adds iOS `associatedDomains` and an Android `autoVerify` intent filter. |
+| Mobile build | `SUBCULT_APP_LINK_HOST` | The hostname of `PUBLIC_WEB_URL`, for example `os.subcult.tv`. Adds iOS `associatedDomains` and an Android `autoVerify` intent filter. |
 
 Each `/.well-known` document returns 404 until its variables are set. The web
 nginx image proxies both paths to the API; any edge proxy in front of it must
