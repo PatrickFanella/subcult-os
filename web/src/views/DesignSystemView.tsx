@@ -19,7 +19,7 @@ export function DesignSystemView() {
         <section className="grid gap-6 md:grid-cols-2" aria-label="Event and controls">
           <article className="overflow-hidden rounded-hero border border-stroke-subtle bg-surface-immersive text-fg-on-immersive">
             <img className="h-64 w-full object-cover" src="https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1080&q=80" alt="Stage lights above a crowd at a concert" />
-            <div className="space-y-4 p-6"><p className="text-xs font-bold uppercase tracking-widest">Friday · Doors at 8 PM</p><h2 className="text-4xl font-bold tracking-tight">A night together</h2><p className="text-sm">Example event · Main room</p><a href="/discover" className="inline-flex min-h-touch items-center rounded-control border border-stroke-strong bg-surface-panel px-5 text-sm font-bold uppercase tracking-[0.05em] text-fg-primary">Find your next event</a></div>
+            <div className="space-y-4 p-6"><p className="text-xs font-bold uppercase tracking-[0.2em]">Friday · Doors at 8 PM</p><h2 className="text-4xl font-bold tracking-tight">A night together</h2><p className="text-sm">Example event · Main room</p><a href="/discover" className="inline-flex min-h-touch items-center rounded-control border border-stroke-strong bg-surface-panel px-5 text-sm font-bold uppercase tracking-[0.05em] text-fg-primary">Find your next event</a></div>
           </article>
           <section className={publicCardClass} aria-labelledby="controls-title">
             <p className={publicEyebrowClass}>Controls</p><h2 id="controls-title" className="heading-2 mt-3">Clear next steps</h2>

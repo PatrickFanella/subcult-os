@@ -42,10 +42,11 @@ export function ConsentActionView({ action }: { action: ConsentAction }) {
       ? 'A workspace asked to send you announcement emails. Nothing is sent until you confirm below, and you can withdraw at any time.'
       : 'Confirm below to withdraw your consent. Transactional messages you request yourself, such as ticket confirmations, are unaffected.';
   return (
-    <main className="min-h-screen px-4 py-6 text-fg-primary">
+    <main className="min-h-screen px-4 py-6 text-fg-primary sm:px-6 lg:px-8">
       <section className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-md flex-col justify-center">
+        <p className="mb-4 text-xs uppercase tracking-[0.2em] text-fg-secondary">subcult-os</p>
         <div className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
-          <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Email preferences</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Email preferences</p>
           <h1 className="mt-3 text-3xl font-bold text-fg-primary">{title}</h1>
           <p className="mt-3 text-sm text-fg-secondary">{explanation}</p>
           {!notice ? (

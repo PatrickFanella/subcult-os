@@ -379,7 +379,7 @@ function PublicEventPage({ slug }: { slug: string }) {
 
                     <div className="rounded-3xl bg-surface-panel p-4">
                       <p className={publicEyebrowClass}>Access code</p>
-                      <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold tracking-[0.35em] text-fg-primary">
+                      <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold tracking-[0.2em] text-fg-primary">
                         {chunkCode(reservation.code).map((part, index) => (
                           <span key={`${part}-${index}`} className="rounded-2xl border border-stroke-subtle bg-surface-inset px-3 py-2 font-mono">
                             {part}
@@ -515,7 +515,7 @@ function PublicEventPage({ slug }: { slug: string }) {
                         </div>
 
                         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                          <p className="text-xs font-bold uppercase tracking-[0.25em] text-fg-muted">Max 2000 runes</p>
+                          <p className="text-xs font-bold uppercase tracking-[0.2em] text-fg-muted">Max 2000 runes</p>
                           <button className={publicSecondaryButtonClass} type="submit" disabled={draft.submitting || draft.submitted}>
                             {draft.submitted ? 'Submitted' : draft.submitting ? 'Submitting…' : 'Submit application'}
                           </button>

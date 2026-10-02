@@ -95,10 +95,10 @@ export function ATProtoIdentityPanel() {
   if (available === false) return null;
 
   return (
-    <section className="overflow-hidden rounded-panel border border-status-info/20 bg-surface-panel" aria-labelledby="atproto-identity-title">
+    <section className="overflow-hidden rounded-panel border border-stroke-subtle bg-surface-panel" aria-labelledby="atproto-identity-title">
       <div className="grid gap-6 p-6 lg:grid-cols-[0.9fr_1.1fr]">
         <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Portable identity</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Portable identity</p>
           <h2 id="atproto-identity-title" className="mt-2 text-2xl font-bold tracking-tight text-fg-primary">Link an AT Protocol account</h2>
           <p className="mt-3 max-w-xl text-sm leading-6 text-fg-secondary">
             Prove control of a handle or DID without handing Subcult OS repository permissions. A link identifies you; it never adds workspace membership or publishing authority.
@@ -136,7 +136,7 @@ export function ATProtoIdentityPanel() {
 
       {links.length > 0 ? (
         <div className="border-t border-stroke-subtle bg-surface-inset px-6 py-5">
-          <p className="text-xs uppercase tracking-[0.25em] text-fg-muted">Linked identities</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Linked identities</p>
           <div className="mt-3 grid gap-3 md:grid-cols-2">
             {links.map((link) => (
               <article key={link.did} className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">

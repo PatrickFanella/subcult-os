@@ -14,7 +14,7 @@ export function WorkspaceInviteForm({ role, email, busy, notice, onEmailChange, 
 
   return (
     <form id="invite-member" className="rounded-panel border border-stroke-subtle bg-surface-panel p-6" onSubmit={onSubmit}>
-      <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Invite member</p>
+      <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Invite member</p>
       <p className="mt-2 text-sm leading-6 text-fg-secondary">Create a member invitation and queue its email. The invitation appears below; email delivery is a separate step.</p>
       <label className="mt-4 block space-y-2 text-sm">
         <span className="text-fg-secondary">Email</span>

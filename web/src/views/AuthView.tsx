@@ -95,15 +95,15 @@ export function AuthView() {
   return (
     <main className="min-h-screen px-4 py-6 text-fg-primary sm:px-6 lg:px-8">
       <section className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-md flex-col justify-center">
-        <div className="mb-4 flex items-center justify-between text-xs uppercase tracking-[0.3em] text-fg-secondary">
+        <div className="mb-4 flex items-center justify-between text-xs uppercase tracking-[0.2em] text-fg-secondary">
           <span>subcult-os</span>
-          <a className="text-fg-primary transition hover:text-fg-primary" href="/">
+          <a className="text-fg-primary underline underline-offset-4" href="/">
             Workspace
           </a>
         </div>
 
         <div className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
-          <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">{eyebrow}</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">{eyebrow}</p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-fg-primary">{title}</h1>
           <p className="mt-2 text-sm leading-6 text-fg-secondary">{description}</p>
 
@@ -190,7 +190,7 @@ export function AuthView() {
             >
               {loading ? 'Working…' : title}
             </Button>
-            {mode === 'login' ? <a className="block text-center text-sm text-fg-primary" href="/recover">Forgot your password?</a> : null}
+            {mode === 'login' ? <a className="block text-center text-sm text-fg-primary underline underline-offset-4" href="/recover">Forgot your password?</a> : null}
           </form>
         </div>
       </section>

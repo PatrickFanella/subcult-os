@@ -1075,17 +1075,17 @@ export function EventEditorView({ eventId }: { eventId: string }) {
 
   return (
     <main className="min-h-screen px-4 py-6 text-fg-primary sm:px-6 lg:px-8">
-      <section className="mx-auto w-full max-w-4xl space-y-6">
+      <section className="mx-auto w-full max-w-6xl space-y-6">
         <header className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Event editor</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Event editor</p>
               <h1 className="mt-2 text-3xl font-bold tracking-tight text-fg-primary">{creating ? 'New event' : effective?.title ?? 'Loading event'}</h1>
               <p className="mt-2 text-sm leading-6 text-fg-secondary">Set the public page, ticket pricing, and door flow from one mobile-friendly editor.</p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className={`border px-4 py-2 text-xs uppercase tracking-[0.25em] ${lifecycleTone}`}>{lifecycleLabel}</span>
+              <span className={`border px-4 py-2 text-xs uppercase tracking-[0.2em] ${lifecycleTone}`}>{lifecycleLabel}</span>
               {effective && currentWorkspace?.id === effective.workspaceId && currentWorkspace.role === 'owner' && <a className="btn-secondary px-4 py-2" href={`/events/${effective.id}/access-info`}>Access worksheet</a>}
               {effective?.publicUrl ? (
                 <a className="btn-secondary px-4" href={effective.publicUrl}>
@@ -1114,7 +1114,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
               <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                 <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Public URL</p>
                 {effective.publicUrl ? (
-                  <a className="mt-2 block break-all text-sm font-medium text-fg-primary transition hover:text-fg-primary" href={effective.publicUrl}>
+                  <a className="mt-2 block break-all text-sm text-fg-primary underline underline-offset-4" href={effective.publicUrl}>
                     {effective.publicUrl}
                   </a>
                 ) : (
@@ -1123,7 +1123,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
               </div>
               <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                 <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Door URL</p>
-                <a className="mt-2 block break-all text-sm font-medium text-fg-primary transition hover:text-fg-primary" href={`/door/${effective.id}`}>
+                <a className="mt-2 block break-all text-sm text-fg-primary underline underline-offset-4" href={`/door/${effective.id}`}>
                   /door/{effective.id}
                 </a>
               </div>
@@ -1157,10 +1157,11 @@ export function EventEditorView({ eventId }: { eventId: string }) {
         {message ? <p className="rounded-2xl border border-status-success/20 bg-status-surface-success px-4 py-3 text-sm text-status-success">{message}</p> : null}
 
         {!loading ? (
-          <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+          <>
+            <div className="grid items-start gap-6 lg:grid-cols-[1.15fr_0.85fr]">
             {creating && !hasWorkspace ? (
               <section className="space-y-4 rounded-panel border border-stroke-subtle bg-surface-panel p-6">
-                <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Create from workspace</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Create from workspace</p>
                 <h2 className="text-2xl font-bold text-fg-primary">Events start inside a workspace</h2>
                 <p className="max-w-xl text-sm leading-6 text-fg-secondary">
                   Open the workspace first, then use its New event button so this event can inherit the right workspace context.
@@ -1240,15 +1241,15 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                 <fieldset className={`border p-4 ${pricingLocked || (!creating && !canEditPricing) ? 'border-stroke-subtle bg-surface-inset opacity-70' : 'border-stroke-subtle bg-surface-inset'}`} disabled={pricingLocked || (!creating && !canEditPricing)}>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Pricing</p>
+                      <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Pricing</p>
                       <h2 className="mt-2 text-lg font-bold text-fg-primary">Free or fixed paid tickets</h2>
                     </div>
-                    <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-fg-secondary">
+                    <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-fg-secondary">
                       USD only
                     </span>
                   </div>
 
-                  <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] gap-3">
+                  <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(13rem,100%),1fr))] gap-3">
                     <label className={`cursor-pointer rounded-2xl border p-4 transition focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-stroke-focus ${form.pricingMode === 'free' ? 'border-action-primary bg-surface-panel text-fg-primary ring-1 ring-action-primary' : 'border-stroke-subtle bg-surface-inset text-fg-secondary hover:border-stroke-strong'}`}>
                       <input
                         className="sr-only"
@@ -1264,7 +1265,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                           <p className="text-sm font-semibold">Free reservation</p>
                           <p className="mt-1 text-sm leading-6 text-current/70">Guests reserve without paying. Keep the old no-cost flow.</p>
                         </div>
-                        <span className="border border-current/15 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em]">Free</span>
+                        <span className="border border-current/15 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.2em]">Free</span>
                       </div>
                     </label>
 
@@ -1283,7 +1284,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                           <p className="text-sm font-semibold">Fixed paid ticket</p>
                           <p className="mt-1 text-sm leading-6 text-current/70">Guests pay through Stripe Checkout in USD.</p>
                         </div>
-                        <span className="border border-current/15 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em]">Paid</span>
+                        <span className="border border-current/15 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.2em]">Paid</span>
                       </div>
                     </label>
                   </div>
@@ -1323,10 +1324,10 @@ export function EventEditorView({ eventId }: { eventId: string }) {
               </form>
             )}
 
-            <aside className="space-y-6">
+            <aside className="min-w-0 space-y-6">
               {creating && hasWorkspace ? (
                 <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Publish checklist</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Publish checklist</p>
                   <h2 className="mt-2 text-2xl font-bold text-fg-primary">Ready to go live?</h2>
                   <ul className="mt-4 space-y-3 text-sm leading-6 text-fg-secondary">
                     <li>• Title, start time, location, and public description are filled out.</li>
@@ -1338,7 +1339,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
 
               {!creating && isDraftEvent(effective?.status) ? (
                 <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Publish checklist</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Publish checklist</p>
                   <h2 className="mt-2 text-2xl font-bold text-fg-primary">Before you publish</h2>
                   <ul className="mt-4 space-y-3 text-sm leading-6 text-fg-secondary">
                     <li>• Confirm the public title and description read well on mobile.</li>
@@ -1349,8 +1350,8 @@ export function EventEditorView({ eventId }: { eventId: string }) {
               ) : null}
 
               {!creating && effective && currentWorkspace?.id === effective.workspaceId && currentWorkspace?.role === 'owner' ? (
-                <section className="rounded-panel border border-status-info/20 bg-surface-panel p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Event templates</p>
+                <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
+                  <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Event templates</p>
                   <h2 className="mt-2 text-2xl font-bold text-fg-primary">Private template tools</h2>
                   <p className="mt-2 text-sm leading-6 text-fg-secondary">Template notes stay inside this private editor panel. Save the current event as a template or apply a saved one while the event is still a draft.</p>
 
@@ -1392,7 +1393,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                                   <p className="text-sm font-semibold text-fg-primary">{template.name}</p>
                                   <p className="mt-1 text-sm text-fg-secondary">{template.title}</p>
                                 </div>
-                                <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-fg-primary">
+                                <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-fg-primary">
                                   {template.pricingMode === 'free' ? 'Free' : `${template.ticketPriceCents / 100} USD`}
                                 </span>
                               </div>
@@ -1425,15 +1426,15 @@ export function EventEditorView({ eventId }: { eventId: string }) {
 
               {!creating && isPublishedEvent(effective?.status) ? (
                 <section className="rounded-panel border border-status-success/20 bg-status-surface-success p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-status-success">Live event</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-status-success">Live event</p>
                   <h2 className="mt-2 text-2xl font-bold text-fg-primary">Next step: end of night</h2>
                   <div className="mt-4 space-y-3 text-sm">
                     {effective.publicUrl ? (
-                      <a className="btn-secondary flex px-4" href={effective.publicUrl}>
+                      <a className="block break-all border border-stroke-subtle bg-surface-inset px-4 py-3 text-fg-primary underline-offset-4 hover:underline" href={effective.publicUrl}>
                         Public page: {effective.publicUrl}
                       </a>
                     ) : null}
-                    <a className="btn-secondary flex px-4" href={`/door/${effective.id}`}>
+                    <a className="block break-all border border-stroke-subtle bg-surface-inset px-4 py-3 text-fg-primary underline-offset-4 hover:underline" href={`/door/${effective.id}`}>
                       Door URL: /door/{effective.id}
                     </a>
                     <div className="rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-fg-primary">
@@ -1447,28 +1448,66 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                 </section>
               ) : null}
 
+              {!creating && effective && !isClosedEvent(effective.status) ? (
+                <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
+                  <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Actions</p>
+                  <div className="mt-4 flex flex-col gap-3">
+                    {isDraftEvent(effective.status) && dirty ? <p className="text-sm text-status-warning">Save your changes before publishing.</p> : null}
+                    {isDraftEvent(effective.status) ? (
+                      <button className="btn-primary door-action px-4 text-left justify-start" type="button" onClick={handlePublish} disabled={actioning || saving || dirty}>
+                        Publish public page
+                      </button>
+                    ) : null}
+
+                    {effective.publicUrl ? (
+                      <a className="btn-secondary door-action px-4 text-left justify-start" href={effective.publicUrl}>
+                        Open public URL
+                      </a>
+                    ) : null}
+
+                    <a className="btn-secondary door-action px-4 text-left justify-start" href={`/door/${effective.id}`}>
+                      Open Door
+                    </a>
+                  </div>
+                </section>
+              ) : null}
+
+              {creating && hasWorkspace ? (
+                <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
+                  <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Workspace link</p>
+                  <p className="mt-2 text-sm leading-6 text-fg-secondary">Finish the draft here, then return to the workspace to publish or share it.</p>
+                  <a className="btn-secondary mt-4 inline-flex px-4 text-sm" href="/workspace">
+                    Back to workspace
+                  </a>
+                </section>
+              ) : null}
+            </aside>
+          </div>
+
+          {/* Operational panels get full width so their forms and lists stay readable. */}
+          <div className="gap-6 lg:columns-2 [&>*]:mb-6 [&>*]:break-inside-avoid">
               {report ? (
-                <section className="rounded-panel border border-status-info/20 bg-surface-panel p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Report summary</p>
+                <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
+                  <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Report summary</p>
                   <h2 className="mt-2 text-2xl font-bold text-fg-primary">{report.title}</h2>
                   <p className="mt-2 text-sm text-fg-secondary">Generated {formatDateTime(report.generatedAt)} by {report.generatedByMemberEmail}</p>
                   <p className="mt-3 text-sm leading-6 text-fg-secondary">{reportEndOfNightCopy()}</p>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                       <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Reserved</p>
-                      <p className="mt-2 text-lg font-semibold text-fg-primary">{report.ticketsReserved}</p>
+                      <p className="mt-2 text-lg font-bold text-fg-primary">{report.ticketsReserved}</p>
                     </div>
                     <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                       <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Checked in</p>
-                      <p className="mt-2 text-lg font-semibold text-fg-primary">{report.ticketsCheckedIn}</p>
+                      <p className="mt-2 text-lg font-bold text-fg-primary">{report.ticketsCheckedIn}</p>
                     </div>
                     <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                       <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">No-shows</p>
-                      <p className="mt-2 text-lg font-semibold text-fg-primary">{report.noShows}</p>
+                      <p className="mt-2 text-lg font-bold text-fg-primary">{report.noShows}</p>
                     </div>
                     <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                       <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Allocation</p>
-                      <p className="mt-2 text-lg font-semibold text-fg-primary">{report.ticketAllocation}</p>
+                      <p className="mt-2 text-lg font-bold text-fg-primary">{report.ticketAllocation}</p>
                     </div>
                   </div>
                   {report.settlementSummary?.currency ? (
@@ -1477,29 +1516,29 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                       <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                         <div>
                           <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Gross paid revenue</p>
-                          <p className="mt-2 text-lg font-semibold text-fg-primary">
+                          <p className="mt-2 text-lg font-bold text-fg-primary">
                             {formatMoney(report.settlementSummary.grossPaidRevenueCents, report.settlementSummary.currency)}
                           </p>
                         </div>
                         <div>
                           <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Paid tickets</p>
-                          <p className="mt-2 text-lg font-semibold text-fg-primary">{report.settlementSummary.paidTicketCount}</p>
+                          <p className="mt-2 text-lg font-bold text-fg-primary">{report.settlementSummary.paidTicketCount}</p>
                         </div>
                         <div>
                           <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Pending tickets</p>
-                          <p className="mt-2 text-lg font-semibold text-fg-primary">{report.settlementSummary.pendingTicketCount}</p>
+                          <p className="mt-2 text-lg font-bold text-fg-primary">{report.settlementSummary.pendingTicketCount}</p>
                         </div>
                         <div>
                           <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Cancelled tickets</p>
-                          <p className="mt-2 text-lg font-semibold text-fg-primary">{report.settlementSummary.cancelledTicketCount}</p>
+                          <p className="mt-2 text-lg font-bold text-fg-primary">{report.settlementSummary.cancelledTicketCount}</p>
                         </div>
                         <div>
                           <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Free tickets</p>
-                          <p className="mt-2 text-lg font-semibold text-fg-primary">{report.settlementSummary.freeTicketCount}</p>
+                          <p className="mt-2 text-lg font-bold text-fg-primary">{report.settlementSummary.freeTicketCount}</p>
                         </div>
                         <div>
                           <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Reserved total</p>
-                          <p className="mt-2 text-lg font-semibold text-fg-primary">{report.settlementSummary.reservedCount}</p>
+                          <p className="mt-2 text-lg font-bold text-fg-primary">{report.settlementSummary.reservedCount}</p>
                         </div>
                       </div>
                     </div>
@@ -1518,8 +1557,8 @@ export function EventEditorView({ eventId }: { eventId: string }) {
               {effective ? <EventFinanceLinesPanel eventId={effective.id} allowed={canManageFinance} /> : null}
 
               {settlement ? (
-                <section className="rounded-panel border border-status-info/20 bg-surface-panel p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Settlement closeout</p>
+                <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
+                  <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Settlement closeout</p>
                   <h2 className="mt-2 text-2xl font-bold text-fg-primary">Review adjustments</h2>
                   <p className="mt-2 text-sm text-fg-secondary">Status: {settlementStatusLabel(settlementFinalized ? 'finalized' : 'open')}</p>
 
@@ -1562,15 +1601,15 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                   <div className="mt-4 grid gap-3 sm:grid-cols-3">
                     <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                       <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Gross revenue</p>
-                      <p className="mt-2 text-lg font-semibold text-fg-primary">{formatMoney(settlement.grossPaidRevenueCents, settlement.currency)}</p>
+                      <p className="mt-2 text-lg font-bold text-fg-primary">{formatMoney(settlement.grossPaidRevenueCents, settlement.currency)}</p>
                     </div>
                     <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                       <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Adjustment total</p>
-                      <p className="mt-2 text-lg font-semibold text-fg-primary">{formatSignedMoney(settlement.adjustmentTotalCents, settlement.currency)}</p>
+                      <p className="mt-2 text-lg font-bold text-fg-primary">{formatSignedMoney(settlement.adjustmentTotalCents, settlement.currency)}</p>
                     </div>
                     <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                       <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Net total</p>
-                      <p className="mt-2 text-lg font-semibold text-fg-primary">{formatMoney(settlement.netTotalCents, settlement.currency)}</p>
+                      <p className="mt-2 text-lg font-bold text-fg-primary">{formatMoney(settlement.netTotalCents, settlement.currency)}</p>
                     </div>
                   </div>
 
@@ -1662,8 +1701,8 @@ export function EventEditorView({ eventId }: { eventId: string }) {
               ) : null}
 
               {applicationsReady && event ? (
-                <section className="rounded-panel border border-status-success/20 bg-surface-panel p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-status-success">Applications</p>
+                <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
+                  <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Applications</p>
                   <h2 className="mt-2 text-2xl font-bold text-fg-primary">Private review</h2>
                   <p className="mt-2 text-sm leading-6 text-fg-secondary">Owners and members can read submitted role applications. Owners can move each application through review.</p>
 
@@ -1680,7 +1719,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                                 <p className="text-sm font-semibold text-fg-primary">{application.applicantName}</p>
                                 <p className="mt-1 text-sm text-fg-secondary">{application.applicantEmail}</p>
                               </div>
-                              <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-fg-primary">
+                              <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-fg-primary">
                                 {application.status}
                               </span>
                             </div>
@@ -1742,8 +1781,8 @@ export function EventEditorView({ eventId }: { eventId: string }) {
               ) : null}
 
               {participantsReady && event ? (
-                <section className="rounded-panel border border-status-info/20 bg-surface-panel p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Participant roster</p>
+                <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
+                  <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Participant roster</p>
                   <h2 className="mt-2 text-2xl font-bold text-fg-primary">Accepted participants</h2>
                   <p className="mt-2 text-sm leading-6 text-fg-secondary">Accepted and confirmed applications stay visible here for the private operator team.</p>
 
@@ -1756,7 +1795,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                               <p className="text-sm font-semibold text-fg-primary">{participant.applicantName}</p>
                               <p className="mt-1 text-sm text-fg-secondary">{participant.applicantEmail}</p>
                             </div>
-                            <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-fg-primary">
+                            <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-fg-primary">
                               {participant.status}
                             </span>
                           </div>
@@ -1775,12 +1814,12 @@ export function EventEditorView({ eventId }: { eventId: string }) {
               ) : null}
 
               {staffingReady && event ? (
-                <section className="rounded-panel border border-status-info/20 bg-surface-panel p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Staffing</p>
+                <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
+                  <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Staffing</p>
                   <h2 className="mt-2 text-2xl font-bold text-fg-primary">Staffing board</h2>
                   <p className="mt-2 text-sm leading-6 text-fg-secondary">Track tasks and shifts, then assign them to workspace members or accepted participants.</p>
 
-                  <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))] gap-3">
+                  <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(7.5rem,100%),1fr))] gap-3">
                     {([
                       ['open', 'Open'],
                       ['assigned', 'Assigned'],
@@ -1789,7 +1828,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                     ] as const).map(([status, label]) => (
                       <div key={status} className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                         <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">{label}</p>
-                        <p className="mt-2 text-lg font-semibold text-fg-primary">{staffingCounts[status]}</p>
+                        <p className="mt-2 text-lg font-bold text-fg-primary">{staffingCounts[status]}</p>
                       </div>
                     ))}
                   </div>
@@ -1843,7 +1882,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                         <span className="block text-xs leading-5 text-fg-muted">Shared with the assigned person through their participant portal. Keep operator notes separate.</span>
                       </label>
 
-                      <div className="grid grid-cols-[repeat(auto-fit,minmax(15rem,1fr))] gap-4">
+                      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(15rem,100%),1fr))] gap-4">
                         <label className="block space-y-2 text-sm">
                           <span className="text-fg-secondary">Starts at</span>
                           <input
@@ -1889,7 +1928,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                                       <p className="text-sm font-semibold text-fg-primary">{item.title}</p>
 									  <p className="mt-1 text-sm leading-6 text-fg-secondary">{item.notes || 'No operator notes yet.'}</p>
                                     </div>
-                                    <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-fg-primary">
+                                    <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-fg-primary">
                                       {staffingStatusLabel(item.status)}
                                     </span>
                                   </div>
@@ -1998,8 +2037,8 @@ export function EventEditorView({ eventId }: { eventId: string }) {
               ) : null}
 
               {canViewNotificationActivity && event && notifications !== null ? (
-                <section className="rounded-panel border border-status-warning/20 bg-surface-panel p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Notification activity</p>
+                <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
+                  <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Notification activity</p>
                   <h2 className="mt-2 text-2xl font-bold text-fg-primary">
                     {loadedNotificationActivity === null ? 'Loading notifications…' : `${loadedNotificationActivity.length} queued notification${loadedNotificationActivity.length === 1 ? '' : 's'}`}
                   </h2>
@@ -2016,7 +2055,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                               <p className="text-sm font-semibold text-fg-primary">{notification.subject}</p>
                               <p className="mt-1 text-sm text-fg-secondary">{notification.recipientEmail}</p>
                             </div>
-                            <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-fg-primary">
+                            <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-fg-primary">
                               {notification.status}
                             </span>
                           </div>
@@ -2036,8 +2075,8 @@ export function EventEditorView({ eventId }: { eventId: string }) {
               ) : null}
 
               {canViewReminderActivity && event && reminders !== null ? (
-                <section className="rounded-panel border border-status-info/20 bg-surface-panel p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Reminder activity</p>
+                <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
+                  <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Reminder activity</p>
                   <h2 className="mt-2 text-2xl font-bold text-fg-primary">
                     {loadedReminderActivity === null ? 'Loading reminders…' : `${loadedReminderActivity.length} queued reminder${loadedReminderActivity.length === 1 ? '' : 's'}`}
                   </h2>
@@ -2054,7 +2093,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                               <p className="text-sm font-semibold text-fg-primary">{reminder.subject}</p>
                               <p className="mt-1 text-sm text-fg-secondary">{reminder.recipientEmail}</p>
                             </div>
-                            <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-fg-primary">
+                            <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-fg-primary">
                               {reminder.status}
                             </span>
                           </div>
@@ -2074,8 +2113,8 @@ export function EventEditorView({ eventId }: { eventId: string }) {
               ) : null}
 
               {archiveLoading || archive ? (
-                <section className="rounded-panel border border-status-info/20 bg-surface-panel p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Private archive</p>
+                <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
+                  <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Private archive</p>
                   <h2 className="mt-2 text-2xl font-bold text-fg-primary">Lessons learned</h2>
 
                   {archiveLoading && !archive ? (
@@ -2124,7 +2163,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                                     <p className="text-sm font-semibold text-fg-primary">{participant.participantName}</p>
                                     <p className="mt-1 text-sm text-fg-secondary">Role {participant.roleName}</p>
                                   </div>
-                                  <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-fg-primary">
+                                  <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-fg-primary">
                                     {participant.status}
                                   </span>
                                 </div>
@@ -2148,7 +2187,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                                     <p className="text-sm font-semibold text-fg-primary">{item.title}</p>
                                     <p className="mt-1 text-sm text-fg-secondary">{staffingKindLabel(item.kind)}</p>
                                   </div>
-                                  <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-fg-primary">
+                                  <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-fg-primary">
                                     {staffingStatusLabel(item.status)}
                                   </span>
                                 </div>
@@ -2219,46 +2258,22 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                 </section>
               ) : null}
 
-              {!creating && effective && !isClosedEvent(effective.status) ? (
-                <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Actions</p>
-                  <div className="mt-4 flex flex-col gap-3">
-                    {isDraftEvent(effective.status) && dirty ? <p className="text-sm text-status-warning">Save your changes before publishing.</p> : null}
-                    {isDraftEvent(effective.status) ? (
-                      <button className="btn-primary door-action px-4 text-left justify-start" type="button" onClick={handlePublish} disabled={actioning || saving || dirty}>
-                        Publish public page
-                      </button>
-                    ) : null}
-
-                    {effective.publicUrl ? (
-                      <a className="btn-secondary door-action px-4 text-left justify-start" href={effective.publicUrl}>
-                        Open public URL
-                      </a>
-                    ) : null}
-
-                    <a className="btn-secondary door-action px-4 text-left justify-start" href={`/door/${effective.id}`}>
-                      Open Door
-                    </a>
-                  </div>
-                </section>
-              ) : null}
-
               {!creating && effective && currentWorkspace?.id === effective.workspaceId && !commitmentsDenied ? (
                 commitments === null ? (
                   <section className="space-y-4 rounded-panel border border-stroke-subtle bg-surface-panel p-6">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Event commitments</p>
+                      <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Event commitments</p>
                       <p className="mt-2 text-sm leading-6 text-fg-secondary">Loading commitments…</p>
                     </div>
                   </section>
                 ) : (
                 <section className="space-y-4 rounded-panel border border-stroke-subtle bg-surface-panel p-6">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Event commitments</p>
+                    <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Event commitments</p>
                     <p className="mt-2 text-sm leading-6 text-fg-secondary">Private promises for {effective.title} stay tied to this workspace only.</p>
                   </div>
 
-                  <div className="grid grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))] gap-3 text-sm">
+                  <div className="grid grid-cols-[repeat(auto-fit,minmax(min(7.5rem,100%),1fr))] gap-3 text-sm">
                     <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                       <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Open</p>
                       <p className="mt-2 text-2xl font-semibold text-fg-primary">{commitmentCounts.open}</p>
@@ -2283,13 +2298,13 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                         <article key={commitment.id} className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
-                              <p className="text-lg font-medium text-fg-primary">{commitment.title}</p>
+                              <p className="text-lg font-bold text-fg-primary">{commitment.title}</p>
                               <p className="mt-1 text-sm text-fg-secondary">
                                 {commitment.dueAt ? `Due ${formatDateTime(commitment.dueAt)}` : 'No due date'}
                                 {commitment.ownerPersonId ? ' · Owner assigned' : ''}
                               </p>
                             </div>
-                            <span className={`border px-3 py-1 text-xs uppercase tracking-[0.25em] ${commitmentStatusTone(commitment.status)}`}>
+                            <span className={`border px-3 py-1 text-xs uppercase tracking-[0.2em] ${commitmentStatusTone(commitment.status)}`}>
                               {commitmentStatusLabel(commitment.status)}
                             </span>
                           </div>
@@ -2331,7 +2346,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
 
                   {currentWorkspace?.role === 'owner' ? (
                     <form className="space-y-4 rounded-2xl border border-stroke-subtle bg-surface-inset p-4" onSubmit={handleCommitmentCreate}>
-                      <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Add commitment</p>
+                      <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Add commitment</p>
                       <label className="block space-y-2 text-sm">
                         <span className="text-fg-secondary">Title</span>
                         <input
@@ -2366,18 +2381,8 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                 </section>
                 )
               ) : null}
-
-              {creating && hasWorkspace ? (
-                <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-fg-muted">Workspace link</p>
-                  <p className="mt-2 text-sm leading-6 text-fg-secondary">Finish the draft here, then return to the workspace to publish or share it.</p>
-                  <a className="btn-secondary mt-4 inline-flex px-4 text-sm" href="/workspace">
-                    Back to workspace
-                  </a>
-                </section>
-              ) : null}
-            </aside>
           </div>
+          </>
         ) : null}
       </section>
     </main>
