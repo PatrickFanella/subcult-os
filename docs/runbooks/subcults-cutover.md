@@ -1,6 +1,6 @@
 # Legacy Subcults replacement runbook
 
-Status: approved cutover target; not approved to execute until all pre-cutover gates pass.
+Status: historical. The cutover ran on 2026-09-30. On 2026-10-02 the canonical origin moved to `https://os.subcult.tv`; `subcults.subcult.tv` now proxies `/api` and health and 301-redirects pages there. This runbook records the original plan and evidence.
 
 The [2026-09-24 legacy restore rehearsal](../qa/legacy-backup-restore-2026-09-24.md)
 reconfirmed the recorded topology and image identities, then restored a fresh

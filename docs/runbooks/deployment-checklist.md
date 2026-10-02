@@ -82,4 +82,4 @@ Before any non-additive schema change:
 
 The current alpha uses a single Go API and static web build. Rollback means redeploying the previous API/web image or artifact. If schema changed, rollback may require restoring a database backup unless the change was additive and backward-compatible.
 
-Replacing the existing app at `subcults.subcult.tv` has a separate [cutover runbook](subcults-cutover.md). Do not stop or overwrite the legacy service as a staging mechanism.
+Production serves `https://os.subcult.tv`; `subcults.subcult.tv` redirects pages there. The original replacement of the legacy app followed the [cutover runbook](subcults-cutover.md). Do not stop or overwrite the legacy service as a staging mechanism.

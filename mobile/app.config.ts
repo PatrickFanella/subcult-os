@@ -12,7 +12,7 @@ export function withIdentityAppLinks(config: ExpoConfig, rawHost: string | undef
 	const host = rawHost?.trim().toLowerCase();
 	if (!host) return config;
 	if (!hostnamePattern.test(host)) {
-		throw new Error(`SUBCULT_APP_LINK_HOST must be a hostname such as subcults.subcult.tv, got "${rawHost}"`);
+		throw new Error(`SUBCULT_APP_LINK_HOST must be a hostname such as os.subcult.tv, got "${rawHost}"`);
 	}
 	return {
 		...config,

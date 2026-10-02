@@ -218,7 +218,7 @@ Event image uploads are backend-proxied to S3-compatible storage such as MinIO. 
 - Review `docs/runbooks/database-migrations.md` before changing persisted schema.
 - Keep applied migrations immutable. `schema.sql` is version 1; add later gap-free files under `backend/internal/app/migrations/` and use `make migrate` so the checksum ledger and startup compatibility gate are enforced.
 - Review `docs/runbooks/deployment-checklist.md` before running outside local development.
-- Use `docs/runbooks/subcults-cutover.md` before replacing the legacy service at `subcults.subcult.tv`.
+- Use `docs/runbooks/subcults-cutover.md` for the original replacement of the legacy service at `subcults.subcult.tv` (now redirected to `os.subcult.tv`).
 
 ## AT OAuth revocation worker
 
