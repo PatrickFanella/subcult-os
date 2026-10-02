@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { Brand } from '../ui/Brand';
 import type { FormEvent } from 'react';
 
 import { postJSON } from '../api';
@@ -57,7 +58,7 @@ export function IdentityActionView({ action }: { action: IdentityAction }) {
   return (
     <main className="min-h-screen px-4 py-6 text-fg-primary sm:px-6 lg:px-8">
       <section className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-md flex-col justify-center">
-        <p className="mb-4 text-xs uppercase tracking-[0.2em] text-fg-secondary">subcult-os</p>
+        <Brand className="mb-4" />
         <div className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
           <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Account security</p>
           <h1 className="mt-3 text-3xl font-bold text-fg-primary">{title}</h1>

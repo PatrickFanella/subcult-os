@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Brand } from '../ui/Brand';
 import type { FormEvent } from 'react';
 import { postJSON } from '../api';
 import { Button } from '../ui/Button';
@@ -95,8 +96,8 @@ export function AuthView() {
   return (
     <main className="min-h-screen px-4 py-6 text-fg-primary sm:px-6 lg:px-8">
       <section className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-md flex-col justify-center">
-        <div className="mb-4 flex items-center justify-between text-xs uppercase tracking-[0.2em] text-fg-secondary">
-          <span>subcult-os</span>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-xs uppercase tracking-[0.2em] text-fg-secondary">
+          <Brand />
           <a className="text-fg-primary underline underline-offset-4" href="/">
             Workspace
           </a>

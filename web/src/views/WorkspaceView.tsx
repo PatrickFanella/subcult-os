@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Brand } from '../ui/Brand';
 import type { FormEvent } from 'react';
 import { api, deleteJSON, patchJSON, postJSON } from '../api';
 import { ATProtoIdentityPanel } from '../components/ATProtoIdentityPanel';
@@ -855,8 +856,8 @@ export function WorkspaceView() {
       <section className="mx-auto w-full max-w-6xl space-y-6">
         <header className="flex flex-col gap-4 rounded-panel border border-stroke-subtle bg-surface-panel p-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">subcult-os</p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight text-fg-primary">Operator home</h1>
+            <Brand />
+            <h1 className="mt-4 text-3xl font-bold tracking-tight text-fg-primary">Operator home</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-fg-secondary">
               Run the room from one place: create the next event, invite help, and keep the Door moving.
             </p>

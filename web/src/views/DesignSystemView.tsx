@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Brand } from '../ui/Brand';
 import { Button } from '../ui/Button';
 import { Notice } from '../ui/Notice';
 import { publicCardClass, publicEyebrowClass, publicPageInnerClass, publicPageShellClass, publicStatusPillClass } from '../modules/publicUi/publicUi';
@@ -9,7 +10,7 @@ export function DesignSystemView() {
     <main className={publicPageShellClass}>
       <div className={`${publicPageInnerClass} max-w-6xl`}>
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-stroke-subtle pb-5">
-          <a href="/discover" className="text-lg font-bold tracking-tight">subcult</a>
+          <a href="/discover"><Brand /></a>
           <span className={publicEyebrowClass}>Design system · Terminal</span>
         </header>
         <section className="grid items-end gap-6 py-6 md:grid-cols-[2fr_1fr]">
@@ -34,6 +35,11 @@ export function DesignSystemView() {
         <section className="grid gap-6 md:grid-cols-2" aria-label="Type and feedback">
           <div className={publicCardClass}><p className={publicEyebrowClass}>Type & spacing</p><h2 className="heading-2 mt-3">A room for everyone</h2><p className="body-copy mt-4">Heavy headings establish the event. Plain, readable body text carries times, places, and instructions.</p><p className="body-small mt-3">Use the 4, 8, 12, 16, 24, 32, 48 spacing scale. Keep labels close to the controls they describe.</p><div className="mt-6 flex flex-wrap gap-2">{(['neutral', 'success', 'warning', 'danger'] as const).map((tone) => <span key={tone} className={publicStatusPillClass(tone)}>{tone === 'neutral' ? 'Draft' : tone === 'success' ? 'Ready' : tone === 'warning' ? 'Needs attention' : 'Unavailable'}</span>)}</div></div>
           <div className={`${publicCardClass} space-y-3`}><p className={publicEyebrowClass}>Feedback</p><Notice tone="success">Check-in complete. You’re ready to enter.</Notice><Notice tone="warning">You’re offline. Keep this screen open until sync completes.</Notice><Notice tone="danger">This ticket cannot be admitted. Ask the door lead for help.</Notice><Notice tone="info">No events yet. Published events will appear here.</Notice></div>
+        </section>
+        <section className={publicCardClass} aria-labelledby="brand-title">
+          <p className={publicEyebrowClass}>Brand</p><h2 id="brand-title" className="heading-2 mt-3">One mark, live wordmark</h2>
+          <div className="mt-6 flex flex-wrap items-center gap-6"><Brand /><img src="/brand/mark.svg" alt="Subcult OS mark at its 32 px minimum" width={32} height={32} /><img className="border border-stroke-subtle" src="/apple-touch-icon.png" alt="Subcult OS home-screen icon: the mark on black" width={90} height={90} /></div>
+          <p className="body-small mt-4">The lettermark comes from the Studio pack and keeps its dark panel in both themes. The wordmark is live Space Mono bold. Keep a quarter of the mark height clear around it and never show it below 32 px.</p>
         </section>
         <footer className="body-small border-t border-stroke-subtle py-5">Subcult · Subcults terminal foundations, shared across web and native.</footer>
       </div>
