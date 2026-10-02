@@ -67,3 +67,24 @@ func TestBrevoCredentialsAndMessageIDs(t *testing.T) {
 		t.Fatal("weak webhook token allowed")
 	}
 }
+
+func TestBrevoOmitsEmptyDisplayNames(t *testing.T) {
+	message := testMessage()
+	message.From = "notify@example.test"
+	message.ReplyTo = "replies@example.test"
+	c, _ := NewBrevo("synthetic-key")
+	c.client.Transport = transportFunc(func(r *http.Request) (*http.Response, error) {
+		var v map[string]json.RawMessage
+		if err := json.NewDecoder(r.Body).Decode(&v); err != nil {
+			t.Fatal(err)
+		}
+		// Brevo answers 400 missing_parameter for "name": "".
+		if string(v["sender"]) != `{"email":"notify@example.test"}` || string(v["replyTo"]) != `{"email":"replies@example.test"}` {
+			t.Fatalf("sender=%s replyTo=%s", v["sender"], v["replyTo"])
+		}
+		return &http.Response{StatusCode: 201, Body: io.NopCloser(strings.NewReader(`{"messageId":"<1@relay.test>"}`)), Header: http.Header{}}, nil
+	})
+	if _, err := c.Send(t.Context(), message); err != nil {
+		t.Fatal(err)
+	}
+}

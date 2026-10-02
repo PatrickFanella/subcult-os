@@ -45,12 +45,12 @@ func (c *Brevo) Send(ctx context.Context, message Message) (string, error) {
 		(message.ReplyTo != "" && !ValidAddress(message.ReplyTo)) || strings.TrimSpace(message.Subject) == "" || len(message.Subject) > 998 || strings.ContainsAny(message.Subject, "\r\n") || message.Text == "" || len(message.Text) > 256*1024 {
 		return "", &Failure{Code: "invalid_message"}
 	}
-	payload := map[string]any{"sender": map[string]string{"email": from.Address, "name": from.Name}, "subject": message.Subject, "textContent": message.Text,
+	payload := map[string]any{"sender": brevoContact(from), "subject": message.Subject, "textContent": message.Text,
 		"messageVersions": []any{map[string]any{"to": []any{map[string]string{"email": message.To}}}},
 		"headers":         map[string]string{"idempotencyKey": message.ID}, "tags": []string{"subcult-os"}}
 	if message.ReplyTo != "" {
 		reply, _ := stdmail.ParseAddress(message.ReplyTo)
-		payload["replyTo"] = map[string]string{"email": reply.Address, "name": reply.Name}
+		payload["replyTo"] = brevoContact(reply)
 	}
 	body, _ := json.Marshal(payload)
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.brevo.com/v3/smtp/email", bytes.NewReader(body))
@@ -95,4 +95,15 @@ func (c *Brevo) Send(ctx context.Context, message Message) (string, error) {
 	}
 	temporary := response.StatusCode == 408 || response.StatusCode == 429 || response.StatusCode >= 500
 	return "", &Failure{Code: "provider_rejected", Temporary: temporary, RetryAfter: retryAfter(response.Header.Get("Retry-After"), time.Now())}
+}
+
+// brevoContact omits an empty display name: Brevo rejects "name": "" with
+// missing_parameter, so a bare address such as MAIL_REPLY_TO=info@subcult.tv
+// would otherwise fail every send.
+func brevoContact(address *stdmail.Address) map[string]string {
+	contact := map[string]string{"email": address.Address}
+	if address.Name != "" {
+		contact["name"] = address.Name
+	}
+	return contact
 }
