@@ -931,7 +931,7 @@ export function WorkspaceView() {
         ) : workspace ? (
           <>
             <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-              <div className="space-y-6">
+              <div className="min-w-0 space-y-6">
                 <div className="grid gap-4 xl:grid-cols-[1.08fr_0.92fr]">
                   <div className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
                     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -950,7 +950,7 @@ export function WorkspaceView() {
                       </nav>
                     ) : null}
 
-                    <div className="mt-6 grid grid-cols-3 gap-2 sm:gap-3">
+                    <div className="mt-6 grid grid-cols-[repeat(auto-fit,minmax(min(7.5rem,100%),1fr))] gap-2 sm:gap-3">
                       <div className="min-w-0 border border-stroke-subtle bg-surface-inset p-3 sm:p-4">
                         <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Members</p>
                         <p className="mt-2 text-2xl font-semibold text-fg-primary">{workspace.members.length}</p>
@@ -965,7 +965,7 @@ export function WorkspaceView() {
                       </div>
                     </div>
 
-                    <div className="mt-6 grid grid-cols-3 gap-2 sm:gap-3">
+                    <div className="mt-6 grid grid-cols-[repeat(auto-fit,minmax(min(7.5rem,100%),1fr))] gap-2 sm:gap-3">
                       <div className="min-w-0 border border-stroke-subtle bg-surface-inset p-3 sm:p-4">
                         <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Draft</p>
                         <p className="mt-2 text-2xl font-semibold text-fg-primary">{statusCounts.draft}</p>
