@@ -2091,3 +2091,22 @@ The owner moved the canonical origin from `subcults.subcult.tv` to `os.subcult.t
 ## Brevo empty display-name rejection — 2026-10-02
 
 The first controlled production delivery (a signup verification to the approved `info@subcult.tv`) failed terminally. A Brevo sandbox request (`X-Sib-Sandbox: drop`, nothing delivered) reproduced the adapter's payload and returned `400 missing_parameter: name is missing in replyTo`. Production sets `MAIL_REPLY_TO` to a bare address, so every Subcult OS message had been rejected. The adapter now omits empty sender and reply-to names, and a regression test checks the payload. Other projects on the same Brevo account were unaffected.
+||||||| parent of da9aaaa (docs: record parked options, ADR 0008 and maintenance policy for issue closure)
+
+## Issue closure documentation — 2026-10-02
+
+Documentation only; no code, schema or contract changed.
+- [ADR 0008](../adr/0008-excluded-social-ranking-reputation.md) records the
+  excluded alliance, social-post, feed, ranking, streaming and reputation
+  concepts for SOCIAL-01 (#72). The ADR index now also lists ADR 0007.
+- The [backlog](backlog.md#parked-options) gains a "Parked options" section
+  for #48, #59, #60, #62–#66 and #69–#71. Each entry names its reopening
+  evidence and source material. A "Portfolio items outside Subcult OS"
+  section points #73–#82 to their Funding Kit proposals.
+- [Project maintenance](../project-maintenance.md) documents the current
+  pnpm build-script state, the owner-only trusted-package rule and Indigo and
+  TypeScript bump procedures for MAINT-01 (#84).
+- [Event exports](event-exports.md) records that no accounting format is
+  currently required for EXPORT-01 (#54). It also records a local Print/Save
+  as PDF check: a synthetic event's settlement print HTML, opened in headless
+  Chromium, produced a 2-page A4 PDF with the expected headings.
