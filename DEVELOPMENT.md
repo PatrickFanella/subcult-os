@@ -54,8 +54,10 @@ bash scripts/dev-env.sh watch
 Start prints the actual loopback preview URL. The frontend reloads on edits;
 Watch Backend restarts the Go service on backend changes while that terminal
 remains open. Stop the watcher with Ctrl-C. Use `bash scripts/dev-env.sh stop`
-to stop only this worktree's containers, retaining its database and build caches.
-Start resumes it. Docker-assigned ports may change after a stop or recreation;
+to remove only this worktree's containers and network, retaining its database and
+build-cache volumes. Each idle network holds one of the host's Docker address
+pools, so stop previews you are not using. A DB test run in a worktree with no
+preview releases its network the same way. Start recreates the environment. Docker-assigned ports may change after a stop or recreation;
 use Preview URL again. These URLs are local to the machine running T3.
 
 Seed Demo Data creates `dev@example.test` with password `local-development-only`,
