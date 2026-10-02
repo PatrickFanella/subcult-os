@@ -88,3 +88,21 @@ merged as `4fd09e7704ef2e7a2b12d55db99c3f457504d3cc`.
 [Hosted run 9903](https://git.subcult.tv/subculture-collective/subcult-os/actions/runs/9903)
 passed on that merge commit. Those source checks do not qualify a deployed
 candidate or close BACKUP-01.
+
+## Update 2026-10-02: candidate recovery and rollback evidence
+
+The cutover release recorded the remaining recovery evidence on Dozor, under `/srv/apps/subcult-os/releases/abda8c3…/evidence/`. Only sanitized fields are reproduced here.
+
+- **Candidate** (`candidate-backup/receipt.json`):
+  - The restore of a 245,118-byte dump matched all six source counts (`counts_match: true`).
+  - Login with the restored identity key succeeded (200), and a wrong key was refused (401).
+  - The protected configuration was backed up to `/etc/subcult-os/backups/20261001/`.
+  - The rehearsal services were removed.
+- **Legacy** (`legacy-backup/receipt.json`):
+  - The final 83,667,514-byte dump restored at migration 46 (not dirty), with zero users, events, profiles and OAuth rows.
+  - Counts matched (`counts_match: true`) and owner ACLs matched (`owner_effective_acl_match: true`).
+  - The restore container was removed.
+- **Rollback:**
+  - The legacy database, images and containers are retained on Dozor (`/srv/containers/subcults`).
+  - No byte-exact copy of the pre-cutover Almaz proxy file was kept. The legacy route is the one documented in the cutover runbook: `/api/*` and `/health/*` to Dozor `:3025`, all other paths to `:3024`.
+  - Later proxy backups are under `/opt/server/management/backups/` and `umami-sites/edge-before/` on Almaz.
