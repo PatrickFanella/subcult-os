@@ -51,6 +51,10 @@ cleanup_test_db() {
     echo 'Could not remove the disposable test database container.' >&2
     if [[ "$result" == 0 ]]; then result=1; fi
   fi
+  # An idle project network still holds one of the host's Docker address pools.
+  if [[ -z "$(dc ps -aq 2>/dev/null)" ]]; then
+    dc down >/dev/null 2>&1 || echo 'Could not release the idle dev network.' >&2
+  fi
   return "$result"
 }
 
@@ -95,7 +99,8 @@ case "${1:-help}" in
   url) url ;;
   status) dc ps ;;
   logs) dc logs --tail 100 -f api web ;;
-  stop) dc stop ;;
+  # Named volumes keep the data; the containers and network are recreated by start.
+  stop) dc down ;;
   *)
     echo 'Usage: bash scripts/dev-env.sh {setup|start|watch|seed|test|test-db|verify|url|status|logs|stop}'
     [[ "${1:-help}" == help ]]

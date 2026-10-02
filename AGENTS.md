@@ -32,7 +32,8 @@ The optional `announcement-workers` profile runs `email-deliver -announce -watch
 
 For isolated T3 development, use `bash scripts/dev-env.sh start` and the printed
 preview URL. `seed` creates synthetic demo data through normal signup/verification;
-`watch` restarts the backend on edits. `stop` retains the worktree's data.
+`watch` restarts the backend on edits. `stop` removes the worktree's containers and
+network and retains its data volumes.
 Use `bash scripts/dev-env.sh verify` to run the required verification and a
 separate disposable DB gate with pinned toolchains. Never substitute the dev
 database for the disposable test database. The repository disposable test DB
