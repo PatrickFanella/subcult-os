@@ -46,19 +46,25 @@ The Subcult OS pack in the private `subcult-studio` repository
 owns the marks. Its colors and type restate this repository's dark tokens, so
 `contracts/design/tokens.json` remains the source for interface color.
 
-`python3 scripts/brand-assets.py --studio-root <subcult-studio checkout>` exports
-the web selection and writes `docs/brand-provenance.json` with the Studio
-revision, each source hash, the derivation and the exported hash. Exporting
-needs Pillow and `rsvg-convert`. `make check-contracts` runs the script with
-`--check`, which compares the committed files with that record and needs
-neither Studio nor the render tools.
+The pack's `product/` folder holds each file at its final size.
+`python3 scripts/brand-assets.py --studio-root <subcult-studio checkout>` copies
+the selection unchanged and writes `docs/brand-provenance.json` with the Studio
+revision and each file's hash. `make check-contracts` runs the script with
+`--check`, which compares the committed files with that record and does not
+need Studio. Change an asset in Studio and re-export; do not crop, resize or
+recolor it here.
 
-| File | Source in the pack | Use |
+| File | Pack source (`product/`) | Use |
 | --- | --- | --- |
-| `web/public/brand/mark.svg` | `logos/mark-primary-outlined.svg`, viewBox cropped to the frame | SVG favicon and the mark in the `Brand` lockup |
-| `web/public/favicon-32.png` | render of the cropped mark | Favicon for browsers without SVG icon support |
-| `web/public/apple-touch-icon.png` | `social/avatar.png` at 180 px | Home-screen icon |
-| `web/public/og-image.png` | `social/banner-x-bluesky.png` centered on a 1200×630 black canvas | Link preview image |
+| `web/public/brand/mark.svg` | `mark-tight-outlined.svg` | SVG favicon and the mark in the `Brand` lockup |
+| `web/public/favicon-32.png` | `favicon-32.png` | Favicon for browsers without SVG icon support |
+| `web/public/apple-touch-icon.png` | `apple-touch-icon.png` | Home-screen icon |
+| `web/public/og-image.png` | `og.png` | Link preview image |
+| `mobile/assets/icon.png` | `app-icon.png` | iOS and store icon |
+| `mobile/assets/android-icon-foreground.png` | `android-adaptive-foreground.png` | Android adaptive icon over the `#000000` background set in `mobile/app.json` |
+| `mobile/assets/android-icon-monochrome.png` | `android-adaptive-monochrome.png` | Android themed icon |
+| `mobile/assets/splash-icon.png` | `splash-icon.png` | Splash mark; `mobile/app.json` configures no splash screen yet |
+| `mobile/assets/favicon.png` | `favicon-48.png` | Expo web favicon |
 
 `Brand` in `web/src/ui/Brand.tsx` sets the mark beside the wordmark "Subcult OS"
 in live Space Mono bold, so the wordmark follows the theme and stays selectable
@@ -71,8 +77,8 @@ event, ticket and door screens keep event identity first and carry no lockup.
 The link preview image is the same for every URL because the web client renders
 routes in the browser. Crawlers need an absolute address, so the web build
 writes `PUBLIC_WEB_URL` into `og:image` and falls back to
-`https://os.subcult.tv` when it is unset. The mobile app still ships the Expo placeholder icons;
-the pack has no approved app-icon export yet.
+`https://os.subcult.tv` when it is unset. The mobile icons have not been
+reviewed on a device or simulator.
 
 ## Components and adoption
 

@@ -1,37 +1,54 @@
 {
   "repository": "https://git.subcult.tv/subculture-collective/subcult-studio",
-  "revision": "38b41c003b634fde7c79df042dab68580e28379f",
+  "revision": "0d3dc02d7d63f34376a1a0c4118214378a3ccbbe",
   "brand": "Subcult OS",
   "direction": "The terminal ledger",
   "status": "local production pack v1",
   "files": [
     {
-      "source": "branding/2026-10-01-packs/brands/subcult-os/logos/mark-primary-outlined.svg",
-      "sourceSha256": "bba63acf3dce3adfc4cd330e001941832ab82b779a4360354a8116f42bd191b1",
+      "source": "branding/2026-10-01-packs/brands/subcult-os/product/mark-tight-outlined.svg",
       "target": "web/public/brand/mark.svg",
-      "derivation": "viewBox cropped to the mark frame; paths unchanged",
-      "sha256": "4c201cd7960fb805617e28f137b2da0bec584ae2f5cdb4b2ffc452fd74892f88"
+      "sha256": "c2b95c9de6593206ee4ab57a718220d8fe07af9fc9dce03c48fa8cb78da00de7"
     },
     {
-      "source": "branding/2026-10-01-packs/brands/subcult-os/logos/mark-primary-outlined.svg",
-      "sourceSha256": "bba63acf3dce3adfc4cd330e001941832ab82b779a4360354a8116f42bd191b1",
+      "source": "branding/2026-10-01-packs/brands/subcult-os/product/favicon-32.png",
       "target": "web/public/favicon-32.png",
-      "derivation": "rsvg-convert render of web/public/brand/mark.svg at 32x32",
       "sha256": "1359e297b34e710c9c3fe2e44dc1db92086d88a04764dd4f5587828e6d5385a4"
     },
     {
-      "source": "branding/2026-10-01-packs/brands/subcult-os/social/avatar.png",
-      "sourceSha256": "1f19244be038fa8fa4a8541c80579ad6dd9aee221cd33354ec07c52db53fb6bb",
+      "source": "branding/2026-10-01-packs/brands/subcult-os/product/apple-touch-icon.png",
       "target": "web/public/apple-touch-icon.png",
-      "derivation": "resized to 180x180",
-      "sha256": "0e08aced81d0cb24a7cb05e30dddaf10381ac70219ed50a999b3ac30db6f16a7"
+      "sha256": "48ba800ca57459346d7e4e2451eee020bfcaee99f3f4d42758a7767dc467a900"
     },
     {
-      "source": "branding/2026-10-01-packs/brands/subcult-os/social/banner-x-bluesky.png",
-      "sourceSha256": "ad8ee7c09dd232828ca26d723173aa53658e71513eab901e2d2e91c57e5bc183",
+      "source": "branding/2026-10-01-packs/brands/subcult-os/product/og.png",
       "target": "web/public/og-image.png",
-      "derivation": "scaled to 1200 px wide and centered on a 1200x630 #000000 canvas",
-      "sha256": "9d07c3fb950f72511bf247074a4df128e33f340846f6126a47d62b44da679338"
+      "sha256": "1c386f4760fff46d3b3cba4e7ddb82a0c02dea7cb8f646686d3445bc96e63177"
+    },
+    {
+      "source": "branding/2026-10-01-packs/brands/subcult-os/product/app-icon.png",
+      "target": "mobile/assets/icon.png",
+      "sha256": "bc6ae94014fb82d329530cb2a0e3c5093153f350652f3e458511e4de59f06786"
+    },
+    {
+      "source": "branding/2026-10-01-packs/brands/subcult-os/product/android-adaptive-foreground.png",
+      "target": "mobile/assets/android-icon-foreground.png",
+      "sha256": "f5830d996c5377edee71a7c302a968bfba92674eea40cc4638f09d6333327233"
+    },
+    {
+      "source": "branding/2026-10-01-packs/brands/subcult-os/product/android-adaptive-monochrome.png",
+      "target": "mobile/assets/android-icon-monochrome.png",
+      "sha256": "03bf266041b088a953cefe022746cb893ea98c92a11ddc369615d8361cfd9356"
+    },
+    {
+      "source": "branding/2026-10-01-packs/brands/subcult-os/product/splash-icon.png",
+      "target": "mobile/assets/splash-icon.png",
+      "sha256": "a2b0b09320fb5065d0b7d05ad97ab610694309ab539a4c76dbee8244d9d28492"
+    },
+    {
+      "source": "branding/2026-10-01-packs/brands/subcult-os/product/favicon-48.png",
+      "target": "mobile/assets/favicon.png",
+      "sha256": "43b640f6ebd929c790aa7855d6bc4e04a3e6ffb1e7a65e717aefbca35cf3cbfe"
     }
   ]
 }
