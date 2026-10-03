@@ -25,7 +25,7 @@ describe('publicUi', () => {
 			'btn-secondary inline-flex items-center justify-center px-5 py-3 text-sm transition',
 		);
 		expect(publicMutedTextClass).toBe('text-sm text-fg-secondary');
-		expect(publicEyebrowClass).toBe('text-xs font-bold uppercase tracking-[0.2em] text-fg-muted');
+		expect(publicEyebrowClass).toBe('text-xs font-bold uppercase tracking-[0.2em] text-fg-label');
 	});
 
 	it('provides stable status pill tones', () => {

@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
+import { TicketStub } from '../ui/TicketStub';
 import { api } from '../api';
 import type { TicketDTO } from '../domain';
 import {
   publicCardClass,
   publicEyebrowClass,
+  publicFieldLabelClass,
   publicMutedTextClass,
   publicPageInnerClass,
   publicPageShellClass,
@@ -153,7 +155,7 @@ export function TicketView({ code }: { code: string }) {
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className={publicEyebrowClass}>Ticket</p>
-            <h1 className="mt-2 text-3xl font-bold tracking-[-0.04em] text-fg-primary sm:text-4xl">Your ticket</h1>
+            <h1 className="mt-2 text-3xl font-bold text-fg-primary sm:text-4xl">Your ticket</h1>
           </div>
           <a className={publicSecondaryButtonClass} href="/">
             Workspace
@@ -174,26 +176,23 @@ export function TicketView({ code }: { code: string }) {
 
           {ticket ? (
             <>
-              <div className="overflow-hidden rounded-hero border border-stroke-subtle bg-surface-panel p-6">
-                <div className="flex items-start justify-between gap-3">
-                  <span className={publicStatusPillClass(ticketStatusTone(ticket))}>{ticketJourneyStatusBadge(ticket)}</span>
-                  <span className="bg-surface-panel p-3 text-xl" aria-hidden="true">
-                    ↗
-                  </span>
-                </div>
+              <div className="overflow-hidden rounded-hero border border-stroke-subtle bg-surface-panel">
+                <TicketStub kicker="Subcult OS / Admit one" className="rounded-b-none">
+                  <div className="mt-4 flex items-start justify-between gap-3">
+                    <h2 className="min-w-0 break-all font-display text-3xl uppercase leading-none sm:text-4xl">Ticket {ticket.code}</h2>
+                    <span className={`${publicStatusPillClass(ticketStatusTone(ticket))} shrink-0`}>{ticketJourneyStatusBadge(ticket)}</span>
+                  </div>
+                  <p className="mb-4 mt-2 text-sm">{ticketJourneyDisplayName(ticket)}</p>
+                </TicketStub>
 
-                <div className="mt-5">
-                  <h2 className="break-all text-2xl font-bold text-fg-primary">Ticket {ticket.code}</h2>
-                  <p className="mt-1 text-sm text-fg-muted">{ticketJourneyDisplayName(ticket)}</p>
-                </div>
+                <div className="ticket-perforation" aria-hidden="true" />
 
-                <div className="mt-5 grid gap-3 text-sm font-semibold text-fg-secondary sm:grid-cols-2">
+                <div className="grid gap-3 px-6 pt-5 text-sm font-semibold text-fg-secondary sm:grid-cols-2">
                   <p>Payment: {ticket.paymentStatus}</p>
                   <p>Status: {ticket.status}</p>
                 </div>
 
-                <div className="my-6 border-t-2 border-dashed border-stroke-subtle" />
-
+                <div className="p-6">
                 <div className="flex flex-col items-center text-center">
 				<div className="flex h-56 w-56 items-center justify-center border border-stroke-subtle bg-surface-panel p-4" aria-label="Ticket QR code">
 					{qr?.code === ticket.code ? (
@@ -206,6 +205,7 @@ export function TicketView({ code }: { code: string }) {
                   </div>
                   <p className="mt-4 max-w-full break-all text-center font-mono text-sm tracking-[0.12em] text-fg-secondary">{ticket.code}</p>
                   <p className="mt-2 text-sm text-fg-muted">{ticketJourneyCodeCopy(ticket)}</p>
+                </div>
                 </div>
               </div>
 
@@ -241,20 +241,20 @@ export function TicketView({ code }: { code: string }) {
                 <p className="text-xl font-bold tracking-[-0.03em] text-fg-primary">Arrival notes</p>
                 <p className="mt-2 text-sm leading-6 text-fg-secondary">{ticketArrivalNotes(ticket.paymentStatus)}</p>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
-                    <p className={publicEyebrowClass}>Name</p>
+                  <div className="border border-stroke-subtle bg-surface-inset p-4">
+                    <p className={publicFieldLabelClass}>Name</p>
                     <p className="mt-2 text-sm font-bold text-fg-primary">{ticketJourneyDisplayName(ticket)}</p>
                   </div>
-                  <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
-                    <p className={publicEyebrowClass}>Email</p>
+                  <div className="border border-stroke-subtle bg-surface-inset p-4">
+                    <p className={publicFieldLabelClass}>Email</p>
                     <p className="mt-2 break-words text-sm font-bold text-fg-primary">{ticket.email}</p>
                   </div>
-                  <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
-                    <p className={publicEyebrowClass}>Checked in</p>
+                  <div className="border border-stroke-subtle bg-surface-inset p-4">
+                    <p className={publicFieldLabelClass}>Checked in</p>
                     <p className="mt-2 text-sm font-bold text-fg-primary">{formatHumanTime(ticket.checkedInAt)}</p>
                   </div>
-                  <div className="rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
-                    <p className={publicEyebrowClass}>Ticket code</p>
+                  <div className="border border-stroke-subtle bg-surface-inset p-4">
+                    <p className={publicFieldLabelClass}>Ticket code</p>
                     <p className="mt-2 text-sm font-bold text-fg-primary">{formatTicketCode(ticket.code)}</p>
                   </div>
                 </div>

@@ -2,14 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { terminalStyles } from './terminal';
 
 describe('terminalStyles', () => {
-  it('squares every corner except avatars', () => {
+  it('gives every rounded corner the shared radius except avatars', () => {
     const styles = terminalStyles({
       card: { borderRadius: 24 },
       corner: { borderTopLeftRadius: 40, borderBottomEndRadius: 12 },
       avatar: { borderRadius: 38 },
     }, 'android');
-    expect(styles.card.borderRadius).toBe(0);
-    expect(styles.corner).toEqual({ borderTopLeftRadius: 0, borderBottomEndRadius: 0 });
+    expect(styles.card.borderRadius).toBe(8);
+    expect(styles.corner).toEqual({ borderTopLeftRadius: 8, borderBottomEndRadius: 8 });
     expect(styles.avatar.borderRadius).toBe(38);
   });
 

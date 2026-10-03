@@ -857,7 +857,7 @@ export function WorkspaceView() {
         <header className="flex flex-col gap-4 rounded-panel border border-stroke-subtle bg-surface-panel p-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <Brand />
-            <h1 className="mt-4 text-3xl font-bold tracking-tight text-fg-primary">Operator home</h1>
+            <h1 className="mt-4 text-3xl font-bold text-fg-primary">Operator home</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-fg-secondary">
               What is on, who is working it, and what still needs closing out.
             </p>
@@ -890,7 +890,7 @@ export function WorkspaceView() {
           <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
             <div className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
               <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Loading workspace</p>
-              <h2 className="mt-2 text-3xl font-bold tracking-tight text-fg-primary">Stand by</h2>
+              <h2 className="mt-2 text-3xl font-bold text-fg-primary">Stand by</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-fg-secondary">Checking your access and loading the events.</p>
             </div>
 
@@ -937,7 +937,7 @@ export function WorkspaceView() {
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Current workspace</p>
-                        <h2 className="mt-2 text-3xl font-bold tracking-tight text-fg-primary">{workspace.name}</h2>
+                        <h2 className="mt-2 text-3xl font-bold text-fg-primary">{workspace.name}</h2>
                         <p className="mt-2 text-sm text-fg-secondary">You are signed in as {me?.email ?? 'a member'}.</p>
                       </div>
                       <span className="border border-stroke-subtle bg-surface-inset px-3 py-1 text-xs uppercase tracking-[0.2em] text-fg-secondary">{roleLabel(workspace.role)}</span>
@@ -983,7 +983,7 @@ export function WorkspaceView() {
 
                   <div className={`rounded-panel border p-6 ${toneSurface(guidance.tone)}`}>
                     <p className={`text-xs uppercase tracking-[0.2em] ${toneLabel(guidance.tone)}`}>{guidance.eyebrow}</p>
-                    <h3 className="mt-2 text-2xl font-semibold tracking-tight text-fg-primary">{guidance.title}</h3>
+                    <h3 className="mt-2 text-2xl font-semibold text-fg-primary">{guidance.title}</h3>
                     <p className="mt-3 max-w-xl text-sm leading-6 text-fg-secondary">{guidance.body}</p>
                     <div className="mt-6 flex flex-wrap gap-2 text-sm">
                       {guidance.actions.map((action) =>

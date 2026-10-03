@@ -2,7 +2,7 @@
 
 > Alpha development. Real-event operation has not been verified.
 
-![Subcult OS: From the plan to the last ticket. Terminal-style event workflow artwork.](https://git.subcult.tv/api/v1/repos/subculture-collective/subcult-os/raw/docs/assets/readme/banner.png?ref=3bea810ec052532e5bf812e02e9225cfcf23adb5)
+![Subcult OS: a tilted purple ticket stub reads Admit one, From the plan to the last ticket, beside a numbered run of plan, coordinate, run door, settle and archive.](https://git.subcult.tv/api/v1/repos/subculture-collective/subcult-os/raw/docs/assets/readme/banner.png?ref=b73e424ce3b0d06c5fd25f3cda5885e5747ba0ff)
 
 **19:00 doors, and the whole team on one sheet.**
 
