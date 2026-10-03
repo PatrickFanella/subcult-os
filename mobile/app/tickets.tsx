@@ -69,7 +69,7 @@ export default function TicketsScreen() {
             <View style={styles.emptyCard}>
               <View style={styles.emptyIcon}><Ticket size={30} color={tokens.color.text.primary} /></View>
               <Text style={styles.emptyTitle}>{ticketWalletEmptyCopy(loaded)}</Text>
-              <Text style={styles.emptyBody}>{loaded ? 'Reserve or look up a ticket and it will stay here for fast access.' : 'Loading saved tickets…'}</Text>
+              <Text style={styles.emptyBody}>{loaded ? 'Tickets you reserve or look up on this phone are kept here.' : 'Loading saved tickets…'}</Text>
             </View>
           ) : savedTickets.map((ticket) => (
             <Pressable key={ticket.code} onPress={() => router.push({ pathname: '/ticket', params: { code: ticket.code } })} style={styles.savedTicketCard}>

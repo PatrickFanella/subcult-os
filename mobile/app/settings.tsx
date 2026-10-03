@@ -113,7 +113,7 @@ export default function SettingsScreen() {
 
         <View style={styles.panel}>
           <Text style={styles.panelTitle}>Testing notes</Text>
-          <Text style={styles.body}>This app is pinned to Expo SDK 54 for App Store / Play Store Expo Go compatibility during rehearsal.</Text>
+          <Text style={styles.body}>This build is pinned to Expo SDK 54 so it runs in Expo Go during rehearsal. It is not an app-store release.</Text>
           <Link href="/profile" style={styles.linkText}>Back to profile</Link>
         </View>
       </ScrollView>

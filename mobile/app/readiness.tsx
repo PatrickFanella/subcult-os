@@ -96,7 +96,7 @@ export default function ReadinessScreen() {
           <ChevronLeft size={24} color={tokens.color.text.primary} />
         </Pressable>
         <View style={styles.headerCopy}>
-          <Text style={styles.kicker}>Fake event setup</Text>
+          <Text style={styles.kicker}>Rehearsal setup</Text>
           <Text style={styles.title}>Readiness</Text>
           <Text style={styles.subtitle}>{event ? `${formatDate(event.startsAt)} • ${formatTime(event.startsAt)}` : 'Organizer checklist'}</Text>
         </View>
@@ -133,7 +133,7 @@ export default function ReadinessScreen() {
 
         <View style={styles.panel}>
           <Text style={styles.sectionTitle}>Rehearsal notes</Text>
-          <Text style={styles.bodyText}>For the fake event, aim to finish setup, reserve one test ticket, open its QR pass, and confirm staff can find it from Door or Scanner.</Text>
+          <Text style={styles.bodyText}>Rehearsal: finish setup, reserve one test ticket, open its QR pass, then confirm staff can find it from Door or Scanner.</Text>
         </View>
       </ScrollView>
     </View>
@@ -194,7 +194,7 @@ function buildChecklist(event: EventDTO | null, roles: EventRoleDTO[], staffing:
     {
       key: 'image',
       label: 'Hero image uploaded',
-      detail: hasHero ? 'Public event cards have an image.' : 'Upload or paste a hero image URL for attendee confidence.',
+      detail: hasHero ? 'Public event cards have an image.' : 'Upload an image or paste an image URL. Public event cards show it.',
       done: hasHero,
       actionLabel: 'Manage image',
       href: editHref,
@@ -212,7 +212,7 @@ function buildChecklist(event: EventDTO | null, roles: EventRoleDTO[], staffing:
     {
       key: 'published',
       label: 'Public page published',
-      detail: published ? 'The public event page is available.' : 'Publish when the fake event is ready for attendee testing.',
+      detail: published ? 'The public event page is available.' : 'Publish when the rehearsal event is ready for attendee testing.',
       done: published,
       actionLabel: published ? 'Open public page' : 'Publish event',
       href: published && event?.publicSlug ? { pathname: '/event-detail', params: { slug: event.publicSlug } } : editHref,
@@ -231,7 +231,7 @@ function buildChecklist(event: EventDTO | null, roles: EventRoleDTO[], staffing:
     {
       key: 'roles',
       label: 'Roles configured',
-      detail: hasRoles ? `${roles.length} role(s) configured.` : 'Create at least one role if this fake event includes collaborators/applicants.',
+      detail: hasRoles ? `${roles.length} role(s) configured.` : 'Create at least one role if this event has collaborators or applicants.',
       done: hasRoles,
       actionLabel: 'Manage roles',
       href: rolesHref,

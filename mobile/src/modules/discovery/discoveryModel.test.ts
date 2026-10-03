@@ -14,15 +14,15 @@ import {
 
 describe('discoveryModel', () => {
 	it('exposes stable copy', () => {
-		expect(discoveryLoadingCopy).toBe('Loading published Events…');
-		expect(discoverySearchLabel).toBe('Search published Events');
-		expect(discoverySearchPlaceholder).toBe('Search published Events');
-		expect(discoveryViewEventLabel).toBe('View Event');
-		expect(discoveryEmptyTitle('')).toBe('No published Events yet');
-		expect(discoveryEmptyTitle('noise')).toBe('No Events match that search yet');
-		expect(discoveryEmptyBody('')).toBe('Published Events will appear here when Hosts share them.');
-		expect(discoveryEmptyBody('noise')).toBe('No published Events matched “noise”. Try another search.');
-		expect(discoveryErrorCopy('offline')).toBe('Could not load published Events: offline');
+		expect(discoveryLoadingCopy).toBe('Loading published events…');
+		expect(discoverySearchLabel).toBe('Search published events');
+		expect(discoverySearchPlaceholder).toBe('Title, description or place');
+		expect(discoveryViewEventLabel).toBe('View event');
+		expect(discoveryEmptyTitle('')).toBe('No published events yet');
+		expect(discoveryEmptyTitle('noise')).toBe('No events match that search');
+		expect(discoveryEmptyBody('')).toBe('Nothing on the board. Events show here when a host publishes one.');
+		expect(discoveryEmptyBody('noise')).toBe('No published events matched “noise”. Try another search.');
+		expect(discoveryErrorCopy('offline')).toBe('Could not load published events: offline');
 	});
 
 	it('formats pricing and subtitles', () => {
