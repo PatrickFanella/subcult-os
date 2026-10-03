@@ -1,7 +1,7 @@
 import type { PublicDiscoveryHandoffDTO, PublicDiscoveryLocationDTO, PublicDiscoveryOccurrenceDTO } from '../../domain';
 
 export const discoveryOccurrencesTitle = 'Cultural discovery';
-export const discoveryOccurrencesDescription = 'Explore public cultural events and their locations. Open an event to check its details and reservation availability.';
+export const discoveryOccurrencesDescription = 'Public cultural events and where they are. Open one for its details and whether it can be reserved here.';
 export const discoveryOccurrencesLoadingCopy = 'Loading discovery occurrences…';
 export const discoveryOccurrencesEmptyTitle = 'No discovery occurrences yet';
 export const discoveryOccurrencesEmptyBody = 'Public cultural events will appear here when they are shared.';

@@ -1,14 +1,14 @@
 import type { PublicEventSummaryDTO } from '../../domain';
 
-export const discoveryBrowseLabel = 'Public browse';
-export const discoveryBadgeLabel = 'Discover events';
+export const discoveryBrowseLabel = 'Public listings';
+export const discoveryBadgeLabel = 'Public';
 export const discoveryScopeLabel = 'Published only';
-export const discoveryTitle = 'Discover events';
-export const discoveryDescription = 'Browse published events without opening private workspace pages.';
-export const discoverySearchLabel = 'Search published Events';
-export const discoverySearchPlaceholder = 'Search published Events';
-export const discoveryLoadingCopy = 'Loading published Events…';
-export const discoveryViewEventLabel = 'View Event';
+export const discoveryTitle = 'What’s on';
+export const discoveryDescription = 'Events that hosts have published. Open one for the details and its tickets.';
+export const discoverySearchLabel = 'Search published events';
+export const discoverySearchPlaceholder = 'Title, description or place';
+export const discoveryLoadingCopy = 'Loading published events…';
+export const discoveryViewEventLabel = 'View event';
 
 export function getRequestedDiscoveryQuery() {
 	if (typeof window === 'undefined') {
@@ -44,14 +44,14 @@ export function discoveryEmptyStateCopy(searchQuery: string) {
 }
 
 export function discoveryEmptyTitle(searchQuery: string) {
-	return searchQuery.trim() ? 'No Events match that search yet' : 'No published Events yet';
+	return searchQuery.trim() ? 'No events match that search' : 'No published events yet';
 }
 
 export function discoveryEmptyBody(searchQuery: string) {
 	const query = searchQuery.trim();
-	return query ? `No published Events matched “${query}”. Try another search.` : 'Published Events will appear here when Hosts share them.';
+	return query ? `No published events matched “${query}”. Try another search.` : 'Nothing on the board. Events show here when a host publishes one.';
 }
 
 export function discoveryErrorCopy(error?: string | null) {
-	return error ? `Could not load published Events: ${error}` : 'Could not load published Events.';
+	return error ? `Could not load published events: ${error}` : 'Could not load published events.';
 }

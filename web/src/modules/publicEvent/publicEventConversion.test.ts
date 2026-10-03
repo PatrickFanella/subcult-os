@@ -25,14 +25,14 @@ describe('publicEventConversion', () => {
 			'1 spot remains. Email is required for the ticket link.',
 		);
 		expect(publicEventConversionSummary({ pricingMode: 'free', isFull: true, remainingTickets: 0, ticketPriceCents: 0, ticketCurrency: 'usd' }, 'Free')).toBe(
-			'This Event is sold out. Check back with the Host for returns or future dates.',
+			'Sold out. Ask the host about returns or future dates.',
 		);
 	});
 
 	it('describes success and public role section state', () => {
 		expect(publicEventReservationSuccessCopy({ code: 'ABCD1234' })).toBe('Ticket reserved. Save code ABCD1234 and show it at the door.');
-		expect(publicEventRoleSectionIntro(null)).toBe('Checking public roles for this Event.');
+		expect(publicEventRoleSectionIntro(null)).toBe('Checking public roles for this event.');
 		expect(publicEventRoleSectionIntro(0)).toBe('No public roles are open right now.');
-		expect(publicEventRoleSectionIntro(2)).toBe('Apply for public roles without changing your ticket flow.');
+		expect(publicEventRoleSectionIntro(2)).toBe('Applying for a role does not affect your ticket.');
 	});
 });

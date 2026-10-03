@@ -28,8 +28,8 @@ describe('eventLifecycle', () => {
 		expect(eventLifecycleSurface('draft')).toBe('border-status-warning/20 bg-status-surface-warning');
 		expect(eventLifecycleSurface('published')).toBe('border-status-success/20 bg-status-surface-success');
 		expect(eventLifecycleSurface('end_of_night')).toBe('border-status-info/20 bg-status-surface-info');
-		expect(eventLifecycleSummary('draft')).toBe('Private until the checklist is complete and the public page goes live.');
-		expect(eventLifecycleSummary('published')).toBe('Live now. Keep the public page handy and end the night when the door closes.');
-		expect(eventLifecycleSummary('end_of_night')).toBe('Closed out. Review the report and jump back to the workspace when you are done.');
+		expect(eventLifecycleSummary('draft')).toBe('Private until you publish. Work through the checklist first.');
+		expect(eventLifecycleSummary('published')).toBe('Live. The public page is up. Run End of Night when the door closes.');
+		expect(eventLifecycleSummary('end_of_night')).toBe('Closed out. The report is on this page.');
 	});
 });

@@ -90,7 +90,7 @@ export function InviteView({ token }: { token: string }) {
           <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Invitation</p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-fg-primary">Accept your invite</h1>
           <p className="mt-2 text-sm leading-6 text-fg-secondary">
-            We&apos;re checking this invitation, then linking it to the right account path.
+            Checking the invitation against the account you are signed in with.
           </p>
 
           <details className="mt-6 rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-xs text-fg-muted">
@@ -132,7 +132,7 @@ export function InviteView({ token }: { token: string }) {
           <div className="mt-6 border border-stroke-subtle bg-surface-inset p-4">
             <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Next steps</p>
             <p className="mt-2 text-sm leading-6 text-fg-secondary">
-              Keep moving with the workspace, or return here after signing in with the invited email.
+              Go to the workspace. If the invite went to a different email, sign in with that one and open this link again.
             </p>
             <div className="mt-4 flex flex-wrap gap-3 text-sm">
               <a

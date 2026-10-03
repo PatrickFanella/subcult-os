@@ -52,10 +52,10 @@ export function eventLifecycleSurface(status: EventStatus) {
 export function eventLifecycleSummary(status: EventStatus) {
 	switch (status) {
 		case EVENT_STATUS_DRAFT:
-			return 'Private until the checklist is complete and the public page goes live.';
+			return 'Private until you publish. Work through the checklist first.';
 		case EVENT_STATUS_PUBLISHED:
-			return 'Live now. Keep the public page handy and end the night when the door closes.';
+			return 'Live. The public page is up. Run End of Night when the door closes.';
 		case EVENT_STATUS_END_OF_NIGHT:
-			return 'Closed out. Review the report and jump back to the workspace when you are done.';
+			return 'Closed out. The report is on this page.';
 	}
 }

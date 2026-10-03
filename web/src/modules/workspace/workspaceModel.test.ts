@@ -52,9 +52,9 @@ describe('workspace model helpers', () => {
 		expect(eventCountLabel({ reservedCount: 7, checkedInCount: 3 } as never)).toBe('Reserved 7 / Checked in 3');
 		expect(eventStatusLabel('published')).toBe('Live');
 		expect(eventStatusLabel('end_of_night')).toBe('Closed');
-		expect(eventStatusSummary('draft')).toBe('Keep shaping the page, then publish when it is ready.');
-		expect(eventStatusSummary('published')).toBe('Live now. Keep the Door open and wrap when the room closes.');
-		expect(eventStatusSummary('end_of_night')).toBe('Closed out. Review the report and prep the next one.');
+		expect(eventStatusSummary('draft')).toBe('Draft. Not public until you publish.');
+		expect(eventStatusSummary('published')).toBe('Live. Door is open. Run End of Night when the room clears.');
+		expect(eventStatusSummary('end_of_night')).toBe('Closed out. The report is ready.');
 		expect(eventStatusTone('published')).toBe('border-status-success/25 bg-status-surface-success text-status-success');
 		expect(eventStatusSurface('end_of_night')).toBe('border-status-info/20 bg-status-surface-info');
 		expect(staffingStatusCopy({ staffingOpenCount: 0, staffingAssignedCount: 0, staffingCompletedCount: 0, staffingCancelledCount: 0 } as never)).toBe('No staffing items yet.');
@@ -62,7 +62,7 @@ describe('workspace model helpers', () => {
 		expect(staffingStatusCopy({ staffingOpenCount: 0, staffingAssignedCount: 0, staffingCompletedCount: 2, staffingCancelledCount: 1 } as never)).toBe('All staffing complete.');
 		expect(commitmentStatusLabel('open')).toBe('Open');
 		expect(commitmentStatusTone('done')).toContain('status-success');
-		expect(archiveLearningLoopCopy([])).toBe('Closed events will become private workspace memory here.');
+		expect(archiveLearningLoopCopy([])).toBe('Closed events are archived here, private to the workspace.');
 	});
 
 	it('reads workspace and archive query params', () => {

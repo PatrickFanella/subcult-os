@@ -161,7 +161,7 @@ export function TicketView({ code }: { code: string }) {
         </div>
 
         <div className="space-y-4">
-          <p className={`${publicMutedTextClass} leading-6`}>Your reservation lives here. Keep this page open or save the code for arrival.</p>
+          <p className={`${publicMutedTextClass} leading-6`}>Your reservation is on this page. Keep it open or save the code for the door.</p>
 
           {loading ? <div className={`${publicCardClass} ${publicMutedTextClass}`}>Loading ticket…</div> : null}
           {error ? <div role="alert" className="border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm font-bold text-status-danger">

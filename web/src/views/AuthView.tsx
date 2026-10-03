@@ -45,13 +45,13 @@ export function AuthView() {
 
   const nextPath = useMemo(getNextPath, []);
   const title = useMemo(() => (mode === 'signup' ? 'Create account' : 'Sign in'), [mode]);
-  const eyebrow = mode === 'signup' ? 'Join the room' : 'Operator access';
+  const eyebrow = mode === 'signup' ? 'New account' : 'Operator access';
   const description =
     mode === 'signup'
-      ? 'Create your account, keep the invited email if you arrived from a handoff, and step into the workspace.'
-      : 'Sign in to resume the workspace. If you were sent here from an invite, use the same email that received it.';
+      ? 'One account works across every workspace you join. If an invite sent you here, use the email it went to.'
+      : 'Back on shift. If an invite sent you here, sign in with the email it went to.';
   const invitePrompt = nextPath.startsWith('/invite/')
-    ? 'Accepting an invitation? Sign in/sign up with the invited email.'
+    ? 'Accepting an invitation? Sign in or create an account with the invited email.'
     : null;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
