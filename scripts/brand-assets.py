@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Export the Subcult OS brand assets from a subcult-studio checkout.
+"""Export the Subcult OS brand assets from a subcult-tv checkout.
+
+Studio sources moved into subcult-tv under studio/ on October 2, 2026.
 
 The Studio pack owns the masters and exports each file at its final size, so
 this script only copies bytes and records their hashes in
@@ -17,8 +19,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PROVENANCE = ROOT / "docs/brand-provenance.json"
-PACK = "branding/2026-10-01-packs/brands/subcult-os"
-REPOSITORY = "https://git.subcult.tv/subculture-collective/subcult-studio"
+PACK = "studio/branding/library/brands/subcult-os"
+REPOSITORY = "https://git.subcult.tv/subculture-collective/subcult-tv"
 
 # target in this repository -> source in the pack
 SELECTION = {
@@ -84,7 +86,7 @@ def check():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--studio-root", type=Path, help="subcult-studio checkout to export from")
+    group.add_argument("--studio-root", type=Path, help="subcult-tv checkout to export from (its studio/ directory holds the pack)")
     group.add_argument("--check", action="store_true", help="verify committed assets against the provenance record")
     args = parser.parse_args()
     check() if args.check else export(args.studio_root)

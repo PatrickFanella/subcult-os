@@ -63,13 +63,16 @@ below it.
 
 ## Brand assets
 
-The Subcult OS pack in the private `subcult-studio` repository
-(`branding/2026-10-01-packs/brands/subcult-os`, direction "The terminal ledger")
-owns the marks. Its colors and type restate this repository's dark tokens, so
-`contracts/design/tokens.json` remains the source for interface color.
+The Subcult OS pack owns the marks and promotional artwork. Studio sources moved
+into the private `subcult-tv` repository on October 2, 2026; the pack is
+`studio/branding/library/brands/subcult-os` (direction "The terminal ledger").
+Its colors and type restate this repository's dark tokens and the display
+layer above, so `contracts/design/tokens.json` remains the source for interface
+color. Its banner, square post, story and link preview use the tilted ticket
+stub, cyan index labels and Oswald capitals; its marks are unchanged.
 
 The pack's `product/` folder holds each file at its final size.
-`python3 scripts/brand-assets.py --studio-root <subcult-studio checkout>` copies
+`python3 scripts/brand-assets.py --studio-root <subcult-tv checkout>` copies
 the selection unchanged and writes `docs/brand-provenance.json` with the Studio
 revision and each file's hash. `make check-contracts` runs the script with
 `--check`, which compares the committed files with that record and does not
@@ -156,8 +159,8 @@ event starts a draft."
 - Do not promise paid ticketing, payouts, app-store availability or a
   production service. Free reservations are the documented path.
 
-The shared SUBCULT voice guide lives in the private `subcult-studio` repository
-(`content/VOICE.md`, section "Subcult OS").
+The shared SUBCULT voice guide lives in the private `subcult-tv` repository
+(`studio/content/VOICE.md`, section "Subcult OS").
 
 ## Appearance
 
@@ -202,7 +205,7 @@ Build and unit-test results are separate from browser and device evidence.
 
 Web Latin Space Mono 400/700 WOFF2 files and the SIL Open Font License are vendored
 from the existing Subcults `@fontsource/space-mono` 5.2.9 package. Oswald 700 is
-a Latin WOFF2 subset of the `subcult-studio` pack copy of Google Fonts Oswald
+a Latin WOFF2 subset of the Studio pack copy of Google Fonts Oswald
 v57, with its OFL as `Oswald-LICENSE`.
 `web/src/assets/fonts/provenance.json` records source filenames and SHA-256 hashes. They load locally
 without a runtime font-provider request. Other scripts fall back to the installed
