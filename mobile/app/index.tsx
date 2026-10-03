@@ -92,7 +92,7 @@ export default function DiscoveryFeedScreen() {
 			<AppChrome>
 				{searchBar}
 				<View style={styles.centerState}>
-					<Text style={styles.centerTitle}>Could not load Events</Text>
+					<Text style={styles.centerTitle}>Could not load events</Text>
 					<Text style={styles.centerBody}>{discoveryErrorCopy(error)}</Text>
 				</View>
 			</AppChrome>

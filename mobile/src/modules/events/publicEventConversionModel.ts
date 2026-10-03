@@ -13,7 +13,7 @@ export function publicEventPrimaryActionLabel(event: PublicEventConversionState,
 }
 
 export function publicEventStickyCtaHint(event: PublicEventConversionState, priceLabel: string) {
-	if (event.isFull) return 'No tickets remain for this Event.';
+	if (event.isFull) return 'No tickets remain for this event.';
 	if (event.pricingMode === 'fixed') return `${priceLabel} · secure checkout`;
 	return `${event.remainingTickets} ${event.remainingTickets === 1 ? 'spot' : 'spots'} left`;
 }

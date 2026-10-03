@@ -133,7 +133,7 @@ export function buildOperatorGuidance(events: EventDTO[], workspaceId: string, r
     return {
       eyebrow: 'Start here',
       title: 'Create the first event',
-      body: 'Shape the room, publish the page, and get the door ready for the first wave of guests.',
+      body: 'Nothing on the sheet yet. Draft an event, then publish its page once the details hold.',
       tone: 'amber',
       actions: [
         { label: 'Create event', href: `/events/new?workspaceId=${workspaceId}`, variant: 'primary' },
@@ -146,9 +146,9 @@ export function buildOperatorGuidance(events: EventDTO[], workspaceId: string, r
 
   if (newestDraft) {
     return {
-      eyebrow: 'Draft ready',
+      eyebrow: 'In draft',
       title: `Finish ${newestDraft.title}`,
-      body: 'Polish the checklist, then publish when the page feels right.',
+      body: 'Not public yet. Work through the publish checklist, then put the page up.',
       tone: 'amber',
       actions: [
         { label: 'Continue editing', href: `/events/${newestDraft.id}`, variant: 'primary' },
@@ -160,8 +160,8 @@ export function buildOperatorGuidance(events: EventDTO[], workspaceId: string, r
   if (newestPublished) {
     return {
       eyebrow: 'Live now',
-      title: `${newestPublished.title} is on the floor`,
-      body: 'Open the Door, share the public page, and end the night when the room quiets down.',
+      title: `${newestPublished.title} is live`,
+      body: 'Check guests in at the Door. Run End of Night once the room has cleared.',
       tone: 'emerald',
       actions: [
         { label: 'Open Door', href: `/door/${newestPublished.id}`, variant: 'primary' },
@@ -175,7 +175,7 @@ export function buildOperatorGuidance(events: EventDTO[], workspaceId: string, r
     return {
       eyebrow: 'Wrapped',
       title: `Review ${newestClosed.title}`,
-      body: 'Read the report, reset the room, and set up the next event slice.',
+      body: 'The report is in. Read it before you draft the next one.',
       tone: 'fuchsia',
       actions: [
         { label: 'View report', href: `/events/${newestClosed.id}`, variant: 'primary' },
@@ -186,8 +186,8 @@ export function buildOperatorGuidance(events: EventDTO[], workspaceId: string, r
 
   return {
     eyebrow: 'Ready',
-    title: 'Run the room from here',
-    body: 'Use the workspace to keep the door moving: publish the next event, invite help, and close out cleanly.',
+    title: 'Ready for the next one',
+    body: 'No draft and nothing live. Start the next event from here.',
     tone: 'zinc',
     actions: [{ label: 'Create event', href: `/events/new?workspaceId=${workspaceId}`, variant: 'primary' }],
   };
@@ -291,7 +291,7 @@ export function WorkspaceView() {
   const archiveByEventId = useMemo(() => new Map(archives.map((archive) => [archive.eventId, archive] as const)), [archives]);
   const eventTitleById = useMemo(() => new Map(orderedEvents.map((event) => [event.id, event.title] as const)), [orderedEvents]);
   const archiveLearningLoop = useMemo(
-    () => (normalizedArchiveQuery ? 'Search results are filtered. Reset to see the full workspace learning loop.' : archiveLearningLoopCopy(orderedArchives)),
+    () => (normalizedArchiveQuery ? 'Showing search results only. Reset to see every archive.' : archiveLearningLoopCopy(orderedArchives)),
     [normalizedArchiveQuery, orderedArchives],
   );
   const visibleContacts = useMemo(() => (contacts ? sortContacts(contacts) : []), [contacts]);
@@ -859,7 +859,7 @@ export function WorkspaceView() {
             <Brand />
             <h1 className="mt-4 text-3xl font-bold tracking-tight text-fg-primary">Operator home</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-fg-secondary">
-              Run the room from one place: create the next event, invite help, and keep the Door moving.
+              What is on, who is working it, and what still needs closing out.
             </p>
           </div>
 
@@ -868,7 +868,7 @@ export function WorkspaceView() {
 			  My assignments
 			</a> : null}
             <a className="btn-secondary px-4 text-sm" href="/login">
-              Auth
+              Sign in
             </a>
             <a className="btn-secondary px-4 text-sm" href="/discover">
               Public discovery
@@ -890,13 +890,13 @@ export function WorkspaceView() {
           <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
             <div className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
               <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Loading workspace</p>
-              <h2 className="mt-2 text-3xl font-bold tracking-tight text-fg-primary">Finding the right room</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-fg-secondary">We are checking your current Workspace, loading its events, and preparing the operator dashboard.</p>
+              <h2 className="mt-2 text-3xl font-bold tracking-tight text-fg-primary">Stand by</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-fg-secondary">Checking your access and loading the events.</p>
             </div>
 
             <aside className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
               <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Workspace access</p>
-              <p className="mt-2 text-sm leading-6 text-fg-secondary">One person can operate multiple Workspaces. Use this switcher to jump between them.</p>
+              <p className="mt-2 text-sm leading-6 text-fg-secondary">You can work in more than one workspace. Switch here.</p>
               <a className="btn-secondary mt-4 inline-flex px-4 text-sm" href="/discover">
                 Public discovery
               </a>
@@ -910,7 +910,7 @@ export function WorkspaceView() {
             <div className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
               <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">No workspace yet</p>
               <h2 className="mt-2 text-2xl font-bold text-fg-primary">Create one to start</h2>
-              <p className="mt-2 text-sm leading-6 text-fg-secondary">You need a workspace before you can invite members or publish events.</p>
+              <p className="mt-2 text-sm leading-6 text-fg-secondary">A workspace holds the events, the crew and the reports. Nothing can be invited or published without one.</p>
             </div>
 
             <form className="rounded-panel border border-stroke-subtle bg-surface-panel p-6" onSubmit={handleCreateWorkspace}>
@@ -1011,7 +1011,7 @@ export function WorkspaceView() {
                     {workspace.members.length === 0 ? (
                       <div className="rounded-2xl border border-dashed border-stroke-subtle bg-surface-inset p-5 text-sm text-fg-secondary">
                         <p className="font-medium text-fg-primary">No members yet</p>
-                        <p className="mt-1 leading-6">Invite the first operator and this roster will populate automatically.</p>
+                        <p className="mt-1 leading-6">People you invite appear here once they accept.</p>
                       </div>
                     ) : null}
                     {workspace.members.map((member) => (
@@ -1041,7 +1041,7 @@ export function WorkspaceView() {
                     {events.length === 0 ? (
                       <div className="rounded-2xl border border-dashed border-stroke-subtle bg-surface-inset p-5 text-sm text-fg-secondary">
                         <p className="font-medium text-fg-primary">No events yet</p>
-                        <p className="mt-1 leading-6">Create the first event to turn this workspace into a live operator home.</p>
+                        <p className="mt-1 leading-6">Nothing on the sheet. New event starts a draft.</p>
                       </div>
                     ) : null}
                     {orderedEvents.map((event) => {
@@ -1118,7 +1118,7 @@ export function WorkspaceView() {
                 <section className="space-y-3 rounded-panel border border-stroke-subtle bg-surface-panel p-6">
                   <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Workspace archive</p>
                   <div className="rounded-2xl border border-status-info/20 bg-status-surface-info p-4 text-sm leading-6 text-status-info">
-                    <p className="text-[11px] uppercase tracking-[0.2em] text-status-info">Operator learning loop</p>
+                    <p className="text-[11px] uppercase tracking-[0.2em] text-status-info">Notes from past events</p>
                     <p className="mt-2">{archiveLearningLoop}</p>
                   </div>
 
@@ -1200,7 +1200,7 @@ export function WorkspaceView() {
                   <section className="space-y-4 rounded-panel border border-stroke-subtle bg-surface-panel p-6">
                     <div>
                       <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Event templates</p>
-                      <p className="mt-2 text-sm leading-6 text-fg-secondary">Private planning memory for repeatable event setup.</p>
+                      <p className="mt-2 text-sm leading-6 text-fg-secondary">Saved setups for events you run more than once. Private to the workspace.</p>
                     </div>
 
                     {templates.length === 0 ? (
@@ -1396,12 +1396,12 @@ export function WorkspaceView() {
                   <section className="space-y-4 rounded-panel border border-stroke-subtle bg-surface-panel p-6">
                     <div>
                       <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Contacts</p>
-                      <p className="mt-2 text-sm leading-6 text-fg-secondary">Private memory for people you want to remember across events.</p>
+                      <p className="mt-2 text-sm leading-6 text-fg-secondary">People you work with from one event to the next. Private to the workspace.</p>
                     </div>
 
                     {visibleContacts.length === 0 ? (
                       <div className="rounded-2xl border border-dashed border-stroke-subtle bg-surface-inset p-5 text-sm text-fg-secondary">
-                        <p className="font-medium text-fg-primary">No contacts yet. Add people you want to remember across events.</p>
+                        <p className="font-medium text-fg-primary">No contacts yet. Add the people you would call again.</p>
                       </div>
                     ) : (
                       <div className="space-y-3">
@@ -1448,7 +1448,7 @@ export function WorkspaceView() {
                               {reminders === undefined ? 'Loading reminders…' : `${visibleReminders.length} reminder${visibleReminders.length === 1 ? '' : 's'}`}
                             </h3>
                             <p className="mt-2 text-sm leading-6 text-fg-secondary">
-                              Private reminder sweeps stay here for operators without exposing commitment descriptions, staffing notes, or public event copy.
+                              Reminder sweeps are logged here. The log leaves out commitment descriptions, staffing notes and public event text.
                             </p>
                           </div>
 
@@ -1561,7 +1561,7 @@ export function WorkspaceView() {
                   <section className="space-y-4 rounded-panel border border-stroke-subtle bg-surface-panel p-6">
                     <div>
                       <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Commitments</p>
-                      <p className="mt-2 text-sm leading-6 text-fg-secondary">Track private promises, due dates, and follow-up status across the workspace.</p>
+                      <p className="mt-2 text-sm leading-6 text-fg-secondary">Who promised what, and by when. Private to the workspace.</p>
                     </div>
 
                     <div className="grid grid-cols-[repeat(auto-fit,minmax(min(7.5rem,100%),1fr))] gap-3 text-sm">
@@ -1699,12 +1699,12 @@ export function WorkspaceView() {
 
                 <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
                   <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Invitations</p>
-                  <p className="mt-2 text-sm leading-6 text-fg-secondary">Pending vs accepted, with open links when the token is available.</p>
+                  <p className="mt-2 text-sm leading-6 text-fg-secondary">Pending and accepted invites. A link shows while its token is available.</p>
 
                   <div className="mt-4 space-y-3 text-sm">
                     {workspace.invitations.length === 0 ? (
                       <div className="rounded-2xl border border-dashed border-stroke-subtle bg-surface-inset p-4 text-fg-secondary">
-                        No invitations yet. Send one above to start building the crew list.
+                        No invitations yet. Create one above.
                       </div>
                     ) : null}
 
@@ -1723,7 +1723,7 @@ export function WorkspaceView() {
                             </span>
                           </div>
 
-                          {invitation.acceptedAt ? <p className="mt-3 text-fg-secondary">Accepted {formatShortDateTime(invitation.acceptedAt)}</p> : <p className="mt-3 text-fg-muted">Waiting for the invite to be accepted.</p>}
+                          {invitation.acceptedAt ? <p className="mt-3 text-fg-secondary">Accepted {formatShortDateTime(invitation.acceptedAt)}</p> : <p className="mt-3 text-fg-muted">Not accepted yet.</p>}
 
                           {invitation.token ? (
                             <a className="btn-primary mt-3 inline-flex px-3 text-xs" href={`/invite/${invitation.token}`}>
@@ -1738,7 +1738,7 @@ export function WorkspaceView() {
 
                 <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
                   <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Workspace access</p>
-                  <p className="mt-2 text-sm leading-6 text-fg-secondary">One person can operate multiple Workspaces. Use this switcher to jump between them.</p>
+                  <p className="mt-2 text-sm leading-6 text-fg-secondary">You can work in more than one workspace. Switch here.</p>
                   <div className="mt-4 space-y-2 text-sm text-fg-secondary">
                     {workspaceSummaries.map((summary) => (
                       <a
@@ -1768,14 +1768,14 @@ export function WorkspaceView() {
                     ))}
                   </div>
                   <p className="mt-4 text-xs leading-6 text-fg-muted">
-                    The active Workspace is highlighted so you can move between rooms without losing your place.
+                    The highlighted workspace is the one on screen.
                   </p>
                 </section>
 
                 {emailOutbox && emailOutbox.length > 0 ? (
                   <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
                     <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Dev email outbox</p>
-                    <p className="mt-2 text-sm leading-6 text-fg-secondary">Development-only mailbox. It surfaces recent invite and ticket emails with quick links when available.</p>
+                    <p className="mt-2 text-sm leading-6 text-fg-secondary">Development-only mailbox. Shows recent invite and ticket emails, with links where available.</p>
 
                     <div className="mt-4 space-y-3">
                       {emailOutbox.map((email) => {

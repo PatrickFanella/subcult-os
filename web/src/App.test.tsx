@@ -223,43 +223,43 @@ describe('App routes', () => {
   it('renders the workspace route by default', () => {
     const rendered = renderAt('/');
     expect(rendered).toContain('Operator home');
-    expect(rendered).toContain('Run the room from one place');
+    expect(rendered).toContain('What is on, who is working it');
     expect(rendered).toContain('Public discovery');
   });
 
   it('renders the workspace route with a selected workspace', () => {
     const rendered = renderAt('/workspace?workspaceId=workspace-1');
     expect(rendered).toContain('Workspace access');
-    expect(rendered).toContain('One person can operate multiple Workspaces. Use this switcher to jump between them.');
+    expect(rendered).toContain('You can work in more than one workspace. Switch here.');
   });
 
   it('renders the auth route', () => {
     const rendered = renderAt('/login');
     expect(rendered).toContain('Operator access');
     expect(rendered).toContain('Sign in');
-    expect(rendered).toContain('Sign in to resume the workspace');
+    expect(rendered).toContain('Back on shift.');
     expect(rendered).toContain('8+ characters');
   });
 
   it('renders the signup auth route', () => {
     const rendered = renderAt('/signup');
-    expect(rendered).toContain('Join the room');
+    expect(rendered).toContain('New account');
     expect(rendered).toContain('Create account');
   });
 
   it('preserves auth next links', () => {
     const rendered = renderAt('/login?next=/invite/test-token');
     expect(rendered).toContain('?next=%2Finvite%2Ftest-token');
-    expect(rendered).toContain('Accepting an invitation? Sign in/sign up with the invited email.');
+    expect(rendered).toContain('Accepting an invitation? Sign in or create an account with the invited email.');
   });
 
   it('renders the discover loading state', () => {
     const rendered = renderAt('/discover');
-		expect(rendered).toContain('Discover events');
-		expect(rendered).toContain('Search published Events');
+		expect(rendered).toContain('What’s on');
+		expect(rendered).toContain('Search published events');
 		expect(rendered).toContain('Search');
 		expect(rendered).toContain('Reset');
-		expect(rendered).toContain('Loading published Events…');
+		expect(rendered).toContain('Loading published events…');
     expect(rendered).not.toContain('Private note:');
     expect(rendered).not.toContain('Keep private');
     expect(rendered).not.toContain(REMINDER_PRIVATE_SUBJECT);
@@ -268,7 +268,7 @@ describe('App routes', () => {
 
 	it('syncs the discover search query from the url', () => {
 		const rendered = renderAt('/discover?q=Market');
-		expect(rendered).toContain('Search published Events');
+		expect(rendered).toContain('Search published events');
 		expect(rendered).toContain('value="Market"');
 	});
 
@@ -314,7 +314,7 @@ describe('App routes', () => {
       null,
     ]);
 
-    expect(rendered).toContain('Discover events');
+    expect(rendered).toContain('What’s on');
     expect(rendered).toContain('Night Market');
     expect(rendered).toContain('Hosted by');
     expect(rendered).toContain('Signal Collective');
@@ -325,7 +325,7 @@ describe('App routes', () => {
     expect(rendered).toContain('Free');
     expect(rendered).toContain('Sold out');
     expect(rendered).toContain('The Hall');
-		expect(rendered).toContain('View Event');
+		expect(rendered).toContain('View event');
     expect(rendered).toContain('2026');
     expect(rendered).not.toContain('Private note:');
     expect(rendered).not.toContain('Keep private');
@@ -335,18 +335,18 @@ describe('App routes', () => {
 
 	it('renders the discover empty state', () => {
 		const rendered = renderWithState('/discover', <App />, [[], false, null]);
-		expect(rendered).toContain('Published Events will appear here when Hosts share them.');
+		expect(rendered).toContain('Nothing on the board. Events show here when a host publishes one.');
 	});
 
 	it('renders the discover search empty state', () => {
 		const rendered = renderWithState('/discover?q=market', <App />, [[], false, null, 'market']);
-		expect(rendered).toContain('No published Events matched “market”. Try another search.');
+		expect(rendered).toContain('No published events matched “market”. Try another search.');
 		expect(rendered).toContain('Reset');
 	});
 
 	it('renders the discover error state', () => {
 		const rendered = renderWithState('/discover', <App />, [[], false, 'Network down']);
-		expect(rendered).toContain('Could not load published Events: Network down');
+		expect(rendered).toContain('Could not load published events: Network down');
 		expect(rendered).toContain('Network down');
 	});
 
@@ -2161,9 +2161,9 @@ describe('App routes', () => {
     expect(rendered).toContain('report-1');
     expect(rendered).toContain('Settlement');
     expect(rendered).toContain('settlement-1');
-    expect(rendered).toContain('Staffing memory');
+    expect(rendered).toContain('Staffing record');
     expect(rendered).toContain('Door shift');
-    expect(rendered).toContain('Unresolved staffing should inform next draft planning.');
+    expect(rendered).toContain('Unresolved staffing. Check it before planning the next draft.');
     expect(rendered).toContain('Back to workspace archive');
     expect(rendered).toContain('Private notes stay in the archive. The next draft starts clean.');
     expect(rendered).toContain('Use these notes while planning the next event.');
@@ -2435,7 +2435,7 @@ describe('App routes', () => {
       },
     ]);
 
-    expect(rendered).toContain('Participant memory');
+    expect(rendered).toContain('Participant record');
     expect(rendered).toContain('Alex');
     expect(rendered).toContain('Blair');
     expect(rendered).toContain('accepted');
@@ -2534,7 +2534,7 @@ describe('App routes', () => {
     const rendered = renderWithState('/e/community-jam', <PublicEventView slug="community-jam" />, [event, '', '', false, false, null, null, [], {}]);
 
     expect(rendered).toContain('Sold out');
-    expect(rendered).toContain('This Event is sold out. Check back with the Host for returns or future dates.');
+    expect(rendered).toContain('Sold out. Ask the host about returns or future dates.');
   });
 
   it('renders public role application forms alongside ticket flow', () => {
@@ -2588,7 +2588,7 @@ describe('App routes', () => {
     expect(rendered).toContain('Applicant email');
 		expect(rendered).toContain('Message');
 		expect(rendered).toContain('Submit application');
-		expect(rendered).toContain('Apply for public roles without changing your ticket flow.');
+		expect(rendered).toContain('Applying for a role does not affect your ticket.');
 		expect(rendered).toContain('Buy ticket');
 		expect(rendered).toContain('Secure checkout');
 		expect(rendered).not.toContain('Stripe Checkout');
@@ -2604,7 +2604,7 @@ describe('App routes', () => {
 		const rendered = renderAt('/door/event-1');
 		expect(rendered).toContain('Guest List');
 		expect(rendered).toContain('Door Mode');
-		expect(rendered).toContain('Exact code works');
+		expect(rendered).toContain('A full ticket code returns one guest');
 		expect(rendered).toContain('Reset');
 	});
 
@@ -2632,7 +2632,7 @@ describe('App routes', () => {
 	it('renders the ticket route', () => {
     const rendered = renderAt('/tickets/ticket-123');
     expect(rendered).toContain('Your ticket');
-    expect(rendered).toContain('Your reservation lives here');
+    expect(rendered).toContain('Your reservation is on this page');
     expect(rendered).not.toContain('Private note:');
     expect(rendered).not.toContain('Keep private');
   });

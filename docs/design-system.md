@@ -112,6 +112,31 @@ For new work, use semantic roles rather than adding another literal palette.
 Extract a component when interaction or structure is repeated; do not build a
 second router, form framework, or token package around these foundations.
 
+## Words
+
+Working screens (door, scanner, staffing, close-out) use short literal labels.
+Door staff read them one-handed in poor light, so a label names the thing or the
+action and nothing else. Errors say what happened and what to do next.
+
+Headings, empty states and onboarding may sound like a run sheet: clipped,
+role-first, dry. Example: an empty event list reads "Nothing on the sheet. New
+event starts a draft."
+
+- Sentence case in body text and headings. Buttons are uppercased by style, not
+  in the source string.
+- Public pages write "event" and "host" in lower case. "Door" and "End of
+  Night" keep their capitals where they name the tool or the action.
+- Say "archive" or "record", not "memory" (`CONTEXT.md` lists Memory under
+  Avoid for Archive).
+- Example times such as "19:00 doors" belong only where the screen labels them
+  as examples. A fallback for a missing value says the value is missing
+  ("Time to be announced"); it never invents one.
+- Do not promise paid ticketing, payouts, app-store availability or a
+  production service. Free reservations are the documented path.
+
+The shared SUBCULT voice guide lives in the private `subcult-studio` repository
+(`content/VOICE.md`, section "Subcult OS").
+
 ## Appearance
 
 Both clients default to the system setting and offer Light, Dark, and System.

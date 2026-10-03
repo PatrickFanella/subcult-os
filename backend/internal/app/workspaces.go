@@ -372,7 +372,7 @@ func (a *App) handleCreateInvitation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body := "You're invited to Signal Collective on subcult-os\n\nAccept your invitation here: /invite/" + token
+	body := "You're invited to a workspace on Subcult OS\n\nAccept your invitation here: /invite/" + token
 	txCtx := context.WithValue(r.Context(), txContextKey{}, tx)
 	if err := a.audit(txCtx, personID, "workspace.invitation.created", "workspace_invitation", invitationID, map[string]any{
 		"workspaceId": workspaceID,
@@ -381,7 +381,7 @@ func (a *App) handleCreateInvitation(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not record audit")
 		return
 	}
-	if err := a.enqueueEmail(txCtx, email, "You're invited to Signal Collective on subcult-os", body, "workspace_invitation", invitationID); err != nil {
+	if err := a.enqueueEmail(txCtx, email, "You're invited to a workspace on Subcult OS", body, "workspace_invitation", invitationID); err != nil {
 		writeError(w, http.StatusInternalServerError, "could not enqueue invitation email")
 		return
 	}

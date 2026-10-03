@@ -181,11 +181,11 @@ export function eventStatusSurface(status: EventStatus) {
 export function eventStatusSummary(status: EventStatus) {
 	switch (status) {
 		case 'draft':
-			return 'Keep shaping the page, then publish when it is ready.';
+			return 'Draft. Not public until you publish.';
 		case 'published':
-			return 'Live now. Keep the Door open and wrap when the room closes.';
+			return 'Live. Door is open. Run End of Night when the room clears.';
 		case 'end_of_night':
-			return 'Closed out. Review the report and prep the next one.';
+			return 'Closed out. The report is ready.';
 	}
 }
 
@@ -210,11 +210,11 @@ export function archiveLearningLoopCopy(archives: WorkspaceArchiveSummaryDTO[]) 
 	const hasSeededDraft = archives.some((archive) => Boolean(archive.seededEventId));
 
 	if (!hasArchives) {
-		return 'Closed events will become private workspace memory here.';
+		return 'Closed events are archived here, private to the workspace.';
 	}
 
 	if (!hasNotes) {
-		return 'Open an archive and capture the first lesson.';
+		return 'Open an archive and write down the first lesson.';
 	}
 
 	if (!hasSeededDraft) {

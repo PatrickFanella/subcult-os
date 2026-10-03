@@ -69,7 +69,7 @@ export function DoorView({ eventId }: { eventId: string }) {
     setLoading(false);
     setCheckingIn(null);
     setError(null);
-    setNotice({ kind: 'neutral', text: 'Ready for a new lookup.' });
+    setNotice({ kind: 'neutral', text: 'Ready for the next guest.' });
   }
 
   async function handleSearch(event: FormEvent<HTMLFormElement>) {
@@ -139,7 +139,7 @@ export function DoorView({ eventId }: { eventId: string }) {
         <header className="rounded-hero border border-stroke-subtle bg-surface-panel p-6">
           <p className={publicEyebrowClass}>Door Mode</p>
           <h1 className="mt-2 text-4xl font-bold tracking-[-0.04em] text-fg-primary">Guest List</h1>
-          <p className={`mt-2 ${publicMutedTextClass}`}>Search by name, email, or exact ticket code. Paste a full code and press Search to jump straight to check-in.</p>
+          <p className={`mt-2 ${publicMutedTextClass}`}>Search by name, email or ticket code. A full code goes straight to check-in.</p>
 
           <div className="mt-4 rounded-2xl bg-surface-inset px-4 py-3 text-sm font-medium text-fg-secondary">Event ID: {eventId || 'Missing'}</div>
         </header>
@@ -174,7 +174,7 @@ export function DoorView({ eventId }: { eventId: string }) {
             </button>
           </div>
 
-          <p className="mt-3 text-xs leading-5 text-fg-muted">Exact code works. Search by email, name, or the full ticket code to pull up a single result.</p>
+          <p className="mt-3 text-xs leading-5 text-fg-muted">A full ticket code returns one guest. A name or email may return several.</p>
         </form>
 
         {error ? <p className="border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm font-bold text-status-danger">{error}</p> : null}
@@ -185,7 +185,7 @@ export function DoorView({ eventId }: { eventId: string }) {
         ) : null}
 
         <div className="space-y-3">
-          {results.length === 0 ? <p className={`${publicCardClass} ${publicMutedTextClass}`}>Search results will appear here.</p> : null}
+          {results.length === 0 ? <p className={`${publicCardClass} ${publicMutedTextClass}`}>Results show here.</p> : null}
 
           {results.map((ticket) => (
             <article key={ticket.id} className={publicCardClass}>

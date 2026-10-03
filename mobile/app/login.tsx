@@ -59,7 +59,7 @@ export default function LoginScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={styles.kicker}>Operator access</Text>
       <Text style={styles.title}>{mode === 'signup' ? 'Create account' : 'Sign in'}</Text>
-      <Text style={styles.body}>Sign in to unlock staff mode, door lookup, and live check-in tools.</Text>
+      <Text style={styles.body}>Staff mode, door search and check-in need a workspace account.</Text>
 
       <View style={styles.tabs}>
         <Pressable onPress={() => setMode('login')} style={[styles.tab, mode === 'login' && styles.tabActive]}>

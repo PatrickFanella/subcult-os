@@ -425,7 +425,7 @@ function PublicEventPage({ slug }: { slug: string }) {
                   {event.isFull ? (
                     <p className="mt-3 text-sm text-status-danger">This event is sold out. {event?.pricingMode === 'fixed' ? 'Paid checkout is closed.' : 'Reservations are closed.'}</p>
                   ) : (
-                    <p className="mt-3 text-sm text-fg-secondary">No account needed — just your email.</p>
+                    <p className="mt-3 text-sm text-fg-secondary">No account needed, just your email.</p>
                   )}
                 </form>
               )}
@@ -515,7 +515,7 @@ function PublicEventPage({ slug }: { slug: string }) {
                         </div>
 
                         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                          <p className="text-xs font-bold uppercase tracking-[0.2em] text-fg-muted">Max 2000 runes</p>
+                          <p className="text-xs font-bold uppercase tracking-[0.2em] text-fg-muted">Up to 2000 characters</p>
                           <button className={publicSecondaryButtonClass} type="submit" disabled={draft.submitting || draft.submitted}>
                             {draft.submitted ? 'Submitted' : draft.submitting ? 'Submitting…' : 'Submit application'}
                           </button>

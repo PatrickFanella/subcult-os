@@ -250,8 +250,8 @@ export default function EventDetailScreen() {
             <Text style={styles.subtitle}>{event.publicDescription || 'Published event'}</Text>
           </View>
           <View style={styles.infoList}>
-            <InfoRow icon={<Calendar size={20} color={tokens.color.text.primary} />} title={formatDate(event.startsAt)} detail={formatTime(event.startsAt) || 'Doors soon'} />
-            <InfoRow icon={<MapPin size={20} color={tokens.color.text.primary} />} title={event.locationDisplay.split(',')[0] || 'Venue'} detail={event.locationDisplay.split(',')[1]?.trim() || 'Local Venue'} />
+            <InfoRow icon={<Calendar size={20} color={tokens.color.text.primary} />} title={formatDate(event.startsAt)} detail={formatTime(event.startsAt) || 'Time to be announced'} />
+            <InfoRow icon={<MapPin size={20} color={tokens.color.text.primary} />} title={event.locationDisplay.split(',')[0] || 'Location to be announced'} detail={event.locationDisplay.split(',')[1]?.trim() || 'No further address listed'} />
           </View>
           <View style={styles.aboutBlock}>
             <Text style={styles.aboutTitle}>About</Text>
@@ -259,7 +259,7 @@ export default function EventDetailScreen() {
           </View>
           <View style={styles.participationCard}>
             <Text style={styles.aboutTitle}>Participation</Text>
-            <Text style={styles.formHelp}>Public roles are open for short applications. Your ticket flow stays the same.</Text>
+            <Text style={styles.formHelp}>Public roles are open for applications. Applying does not affect your ticket.</Text>
             {roleError ? <Text style={styles.errorText}>{roleError}</Text> : null}
             {roles === null ? (
               <Text style={styles.formHelp}>Loading participation roles…</Text>

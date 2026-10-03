@@ -11,7 +11,7 @@ export function publicEventConversionSummary(
 	priceLabel: string,
 ) {
 	if (!event) return 'Email required to send the ticket. Display name optional. No account needed.';
-	if (event.isFull) return 'This Event is sold out. Check back with the Host for returns or future dates.';
+	if (event.isFull) return 'Sold out. Ask the host about returns or future dates.';
 	if (event.pricingMode === 'fixed') return `Secure checkout for ${priceLabel}. Email is required for the ticket link.`;
 	return `${event.remainingTickets} ${event.remainingTickets === 1 ? 'spot remains' : 'spots remain'}. Email is required for the ticket link.`;
 }
@@ -21,7 +21,7 @@ export function publicEventReservationSuccessCopy(ticket: Pick<TicketReservation
 }
 
 export function publicEventRoleSectionIntro(roleCount: number | null) {
-	if (roleCount === null) return 'Checking public roles for this Event.';
+	if (roleCount === null) return 'Checking public roles for this event.';
 	if (roleCount === 0) return 'No public roles are open right now.';
-	return 'Apply for public roles without changing your ticket flow.';
+	return 'Applying for a role does not affect your ticket.';
 }

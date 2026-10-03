@@ -123,7 +123,7 @@ export default function StaffScreen() {
       <AppChrome>
         <View style={styles.authGate}>
           <Text style={styles.emptyTitle}>No workspace found</Text>
-          <Text style={styles.emptyBody}>Create a workspace to start drafting fake events, roles, and run-of-show items.</Text>
+          <Text style={styles.emptyBody}>Create a workspace to draft events, roles and a run of show.</Text>
           <Link href={{ pathname: '/workspace-create', params: { next: '/staff' } }} style={styles.authButton}>Create workspace</Link>
           <Text onPress={() => void signOut()} style={styles.signOut}>Sign out {user.email}</Text>
         </View>

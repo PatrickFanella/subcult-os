@@ -37,7 +37,7 @@ export function publicRoleApplicationButtonLabel(submitting: boolean, submitted:
 
 export function publicRoleApplicationStatusCopy(submitted: boolean, error: string | null) {
 	if (error) return error;
-	return submitted ? 'Application sent. The Host can review it from the Workspace.' : 'Tell the Host why you are a fit.';
+	return submitted ? 'Application sent. The host reviews it from their workspace.' : 'Tell the host what you would bring.';
 }
 
 export function publicRoleCanSubmit(submitting: boolean, submitted: boolean) {

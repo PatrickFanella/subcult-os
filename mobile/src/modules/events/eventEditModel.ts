@@ -118,7 +118,7 @@ export function eventEditPublishHintTitle(warnings: string[]) {
 }
 
 export function eventEditPublishHintBody(warnings: string[]) {
-	return warnings.length === 0 ? ['This event has the core fields needed for the fake-event rehearsal.'] : warnings.map((warning) => `• ${warning}`);
+	return warnings.length === 0 ? ['This event has the fields the rehearsal needs.'] : warnings.map((warning) => `• ${warning}`);
 }
 
 export function isEventEditSaveDisabled(saving: boolean, publishing: boolean) {

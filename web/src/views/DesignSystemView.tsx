@@ -14,8 +14,8 @@ export function DesignSystemView() {
           <span className={publicEyebrowClass}>Design system · Terminal</span>
         </header>
         <section className="grid items-end gap-6 py-6 md:grid-cols-[2fr_1fr]">
-          <div><p className={publicEyebrowClass}>Built around the room</p><h1 className="heading-1 mt-4 max-w-3xl">The artwork speaks.<br />The interface works.</h1></div>
-          <p className="body-copy max-w-sm">Sharp frames. Purple actions. Monospace type. A shared foundation for finding an event, joining the crew, and running the door.</p>
+          <div><p className={publicEyebrowClass}>Built around the room</p><h1 className="heading-1 mt-4 max-w-3xl">Event artwork on top, working controls underneath.</h1></div>
+          <p className="body-copy max-w-sm">Square frames, purple actions, monospace type. The same parts on web and native, for the event page, the crew and the door.</p>
         </section>
         <section className="grid gap-6 md:grid-cols-2" aria-label="Event and controls">
           <article className="overflow-hidden rounded-hero border border-stroke-subtle bg-surface-immersive text-fg-on-immersive">

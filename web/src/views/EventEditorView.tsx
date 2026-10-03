@@ -92,11 +92,11 @@ function statusTone(status: EventDTO['status']) {
 function statusSummary(status: EventDTO['status']) {
   switch (status) {
     case 'draft':
-      return 'Private until the checklist is complete and the public page goes live.';
+      return 'Private until you publish. Work through the checklist first.';
     case 'published':
-      return 'Live now. Keep the public page handy and end the night when the door closes.';
+      return 'Live. The public page is up. Run End of Night when the door closes.';
     case 'end_of_night':
-      return 'Closed out. Review the report and jump back to the workspace when you are done.';
+      return 'Closed out. The report is on this page.';
   }
 }
 
@@ -1081,7 +1081,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Event editor</p>
               <h1 className="mt-2 text-3xl font-bold tracking-tight text-fg-primary">{creating ? 'New event' : effective?.title ?? 'Loading event'}</h1>
-              <p className="mt-2 text-sm leading-6 text-fg-secondary">Set the public page, ticket pricing, and door flow from one mobile-friendly editor.</p>
+              <p className="mt-2 text-sm leading-6 text-fg-secondary">Public page, tickets and door for one event.</p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -1164,7 +1164,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                 <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Create from workspace</p>
                 <h2 className="text-2xl font-bold text-fg-primary">Events start inside a workspace</h2>
                 <p className="max-w-xl text-sm leading-6 text-fg-secondary">
-                  Open the workspace first, then use its New event button so this event can inherit the right workspace context.
+                  Open the workspace first, then use its New event button. Every event belongs to a workspace.
                 </p>
                 <div className="flex flex-wrap gap-3 text-sm">
                   <a className="btn-primary px-4" href="/workspace">
@@ -1263,7 +1263,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                       <div className="flex flex-col-reverse items-start gap-2">
                         <div>
                           <p className="text-sm font-semibold">Free reservation</p>
-                          <p className="mt-1 text-sm leading-6 text-current/70">Guests reserve without paying. Keep the old no-cost flow.</p>
+                          <p className="mt-1 text-sm leading-6 text-current/70">Guests reserve without paying.</p>
                         </div>
                         <span className="border border-current/15 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.2em]">Free</span>
                       </div>
@@ -1306,7 +1306,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                       <p className="text-xs leading-5 text-fg-muted">Enter dollars; we convert to cents for checkout. Minimum recommended price is $0.50.</p>
                     </label>
                   ) : (
-                    <p className="mt-4 text-sm leading-6 text-fg-secondary">Free events keep the existing reservation flow and do not send guests to Stripe.</p>
+                    <p className="mt-4 text-sm leading-6 text-fg-secondary">Free events never send guests to Stripe.</p>
                   )}
 
                   {pricingLocked ? <p className="mt-4 text-sm leading-6 text-fg-secondary">Pricing is locked once tickets exist or after the event closes.</p> : null}
@@ -2042,7 +2042,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                   <h2 className="mt-2 text-2xl font-bold text-fg-primary">
                     {loadedNotificationActivity === null ? 'Loading notifications…' : `${loadedNotificationActivity.length} queued notification${loadedNotificationActivity.length === 1 ? '' : 's'}`}
                   </h2>
-                  <p className="mt-2 text-sm leading-6 text-fg-secondary">Recent operator-visible notifications stay here without application messages, staffing notes, or full email bodies.</p>
+                  <p className="mt-2 text-sm leading-6 text-fg-secondary">Recent notifications, logged without application messages, staffing notes or full email bodies.</p>
 
                   {loadedNotificationActivity === null ? (
                     <p className="mt-4 text-sm leading-6 text-fg-secondary">Loading notification activity…</p>
@@ -2080,7 +2080,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                   <h2 className="mt-2 text-2xl font-bold text-fg-primary">
                     {loadedReminderActivity === null ? 'Loading reminders…' : `${loadedReminderActivity.length} queued reminder${loadedReminderActivity.length === 1 ? '' : 's'}`}
                   </h2>
-                  <p className="mt-2 text-sm leading-6 text-fg-secondary">Event reminder sweeps stay here without private commit text, staffing notes, or public copy.</p>
+                  <p className="mt-2 text-sm leading-6 text-fg-secondary">Reminder sweeps for this event, logged without commitment text, staffing notes or public copy.</p>
 
                   {loadedReminderActivity === null ? (
                     <p className="mt-4 text-sm leading-6 text-fg-secondary">Loading reminder activity…</p>
@@ -2121,7 +2121,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                     <p className="mt-4 text-sm leading-6 text-fg-secondary">Loading private archive…</p>
                   ) : archive ? (
                     <>
-                      <p className="mt-2 text-sm text-fg-secondary">Status: private workspace memory</p>
+                      <p className="mt-2 text-sm text-fg-secondary">Status: private to the workspace</p>
                       <p className="mt-2 rounded-2xl border border-stroke-subtle bg-surface-inset p-4 text-sm leading-6 text-fg-secondary">
                         Private notes stay in the archive. The next draft starts clean.
                       </p>
@@ -2152,7 +2152,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                       </div>
 
                       <div className="mt-4 rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
-                        <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Participant memory</p>
+                        <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Participant record</p>
                         <p className="mt-2 text-sm leading-6 text-fg-secondary">Accepted and confirmed participants are preserved here without private emails or messages.</p>
                         {archive.participants.length > 0 ? (
                           <div className="mt-3 space-y-3">
@@ -2171,12 +2171,12 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                             ))}
                           </div>
                         ) : (
-                          <p className="mt-3 rounded-2xl border border-dashed border-stroke-subtle bg-surface-inset p-4 text-sm leading-6 text-fg-secondary">No participant memory yet.</p>
+                          <p className="mt-3 rounded-2xl border border-dashed border-stroke-subtle bg-surface-inset p-4 text-sm leading-6 text-fg-secondary">No participants recorded.</p>
                         )}
                       </div>
 
                       <div className="mt-4 rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
-                        <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Staffing memory</p>
+                        <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Staffing record</p>
                         <p className="mt-2 text-sm leading-6 text-fg-secondary">Non-cancelled staffing items are preserved here without private notes.</p>
                         {archive.staffingItems.length > 0 ? (
                           <div className="mt-3 space-y-3">
@@ -2198,15 +2198,15 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                             ))}
                           </div>
                         ) : (
-                          <p className="mt-3 rounded-2xl border border-dashed border-stroke-subtle bg-surface-inset p-4 text-sm leading-6 text-fg-secondary">No staffing memory yet.</p>
+                          <p className="mt-3 rounded-2xl border border-dashed border-stroke-subtle bg-surface-inset p-4 text-sm leading-6 text-fg-secondary">No staffing recorded.</p>
                         )}
                         {archive.staffingItems.some((item) => item.status !== 'completed') ? (
                           <p className="mt-3 rounded-2xl border border-status-info/20 bg-status-surface-info p-4 text-sm leading-6 text-status-info">
-                            Unresolved staffing should inform next draft planning.
+                            Unresolved staffing. Check it before planning the next draft.
                           </p>
                         ) : (
                           <p className="mt-3 rounded-2xl border border-stroke-subtle bg-surface-inset p-4 text-sm leading-6 text-fg-secondary">
-                            Staffing memory is ready for the next draft.
+                            Staffing record is ready for the next draft.
                           </p>
                         )}
                       </div>
@@ -2215,7 +2215,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                         <>
                           <div className="mt-4 rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                             <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Workspace archive</p>
-                            <p className="mt-2 text-sm leading-6 text-fg-secondary">Review closed-event notes, then jump back to the workspace archive or continue with the next draft.</p>
+                            <p className="mt-2 text-sm leading-6 text-fg-secondary">Read the notes from this event, then go back to the archive or on to the next draft.</p>
                             <div className="mt-3 flex flex-wrap gap-3 text-sm">
                               <a className="btn-secondary px-4" href={`/workspace?workspaceId=${event.workspaceId}`}>
                                 Back to workspace archive

@@ -16,6 +16,6 @@ describe('publicEventConversionModel', () => {
 		expect(publicEventStickyCtaHint({ pricingMode: 'free', isFull: false, remainingTickets: 1 }, 'Free')).toBe('1 spot left');
 		expect(publicEventStickyCtaHint({ pricingMode: 'fixed', isFull: false, remainingTickets: 0 }, '$18.00')).toBe('$18.00 · secure checkout');
 		expect(publicEventStickyCtaHint({ pricingMode: 'fixed', isFull: false, remainingTickets: 5 }, '$18.00')).toBe('$18.00 · secure checkout');
-		expect(publicEventStickyCtaHint({ pricingMode: 'free', isFull: true, remainingTickets: 0 }, 'Free')).toBe('No tickets remain for this Event.');
+		expect(publicEventStickyCtaHint({ pricingMode: 'free', isFull: true, remainingTickets: 0 }, 'Free')).toBe('No tickets remain for this event.');
 	});
 });

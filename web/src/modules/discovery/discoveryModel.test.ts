@@ -24,11 +24,11 @@ describe('discovery model helpers', () => {
 		vi.stubGlobal('window', { location: { search: '?q=Market' } });
 
 		expect(getRequestedDiscoveryQuery()).toBe('Market');
-		expect(discoverySearchLabel).toBe('Search published Events');
-		expect(discoverySearchPlaceholder).toBe('Search published Events');
-		expect(discoveryLoadingCopy).toBe('Loading published Events…');
-		expect(discoveryViewEventLabel).toBe('View Event');
-		expect(discoveryDescription).toBe('Browse published events without opening private workspace pages.');
+		expect(discoverySearchLabel).toBe('Search published events');
+		expect(discoverySearchPlaceholder).toBe('Title, description or place');
+		expect(discoveryLoadingCopy).toBe('Loading published events…');
+		expect(discoveryViewEventLabel).toBe('View event');
+		expect(discoveryDescription).toBe('Events that hosts have published. Open one for the details and its tickets.');
 	});
 
 	it('formats discovery result labels without drifting copy', () => {
@@ -39,12 +39,12 @@ describe('discovery model helpers', () => {
 		);
 		expect(discoveryRemainingLabel({ isFull: false, remainingTickets: 1 } as never)).toBe('1 ticket left');
 		expect(discoveryRemainingLabel({ isFull: true, remainingTickets: 0 } as never)).toBe('Sold out');
-		expect(discoveryEmptyTitle('')).toBe('No published Events yet');
-		expect(discoveryEmptyTitle('market')).toBe('No Events match that search yet');
-		expect(discoveryEmptyBody('')).toBe('Published Events will appear here when Hosts share them.');
-		expect(discoveryEmptyBody('market')).toBe('No published Events matched “market”. Try another search.');
-		expect(discoveryEmptyStateCopy('')).toBe('Published Events will appear here when Hosts share them.');
-		expect(discoveryEmptyStateCopy('market')).toBe('No published Events matched “market”. Try another search.');
-		expect(discoveryErrorCopy('offline')).toBe('Could not load published Events: offline');
+		expect(discoveryEmptyTitle('')).toBe('No published events yet');
+		expect(discoveryEmptyTitle('market')).toBe('No events match that search');
+		expect(discoveryEmptyBody('')).toBe('Nothing on the board. Events show here when a host publishes one.');
+		expect(discoveryEmptyBody('market')).toBe('No published events matched “market”. Try another search.');
+		expect(discoveryEmptyStateCopy('')).toBe('Nothing on the board. Events show here when a host publishes one.');
+		expect(discoveryEmptyStateCopy('market')).toBe('No published events matched “market”. Try another search.');
+		expect(discoveryErrorCopy('offline')).toBe('Could not load published events: offline');
 	});
 });

@@ -28,7 +28,7 @@ describe('publicEventRolesModel', () => {
 		expect(publicRoleAvailabilityLabel(2)).toBe('2 spots total');
 		expect(publicRoleAvailabilityLabel(2, 1)).toBe('1 spot open');
 		expect(publicRoleAvailabilityLabel(2, 2)).toBe('Role full');
-		expect(publicRoleApplicationStatusCopy(true, null)).toBe('Application sent. The Host can review it from the Workspace.');
+		expect(publicRoleApplicationStatusCopy(true, null)).toBe('Application sent. The host reviews it from their workspace.');
 		expect(publicRoleApplicationStatusCopy(false, 'Please enter your name.')).toBe('Please enter your name.');
 		expect(publicRoleCanSubmit(false, false)).toBe(true);
 		expect(publicRoleCanSubmit(true, false)).toBe(false);
