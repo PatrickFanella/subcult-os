@@ -1080,7 +1080,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Event editor</p>
-              <h1 className="mt-2 text-3xl font-bold tracking-tight text-fg-primary">{creating ? 'New event' : effective?.title ?? 'Loading event'}</h1>
+              <h1 className="mt-2 text-3xl font-bold text-fg-primary">{creating ? 'New event' : effective?.title ?? 'Loading event'}</h1>
               <p className="mt-2 text-sm leading-6 text-fg-secondary">Public page, tickets and door for one event.</p>
             </div>
 

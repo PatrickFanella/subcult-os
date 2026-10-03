@@ -57,7 +57,7 @@ export function ParticipantPortalView() {
         <header className="flex flex-wrap items-start justify-between gap-4 rounded-hero border border-stroke-subtle bg-surface-panel p-6">
           <div>
             <p className={publicEyebrowClass}>Participant portal</p>
-            <h1 className="mt-2 text-3xl font-bold tracking-[-0.04em] text-fg-primary sm:text-4xl">Your event work</h1>
+            <h1 className="mt-2 text-3xl font-bold text-fg-primary sm:text-4xl">Your event work</h1>
             <p className={`mt-2 max-w-2xl ${publicMutedTextClass}`}>This page shows assignments and commitments linked to your signed-in account.</p>
           </div>
           <a className={publicSecondaryButtonClass} href="/">Workspace</a>

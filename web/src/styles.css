@@ -4,18 +4,21 @@
 
 @font-face { font-family: "Space Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("./assets/fonts/space-mono-latin-400.woff2") format("woff2"); }
 @font-face { font-family: "Space Mono"; font-style: normal; font-weight: 700; font-display: swap; src: url("./assets/fonts/space-mono-latin-700.woff2") format("woff2"); }
+@font-face { font-family: "Oswald"; font-style: normal; font-weight: 700; font-display: swap; src: url("./assets/fonts/oswald-latin-700.woff2") format("woff2"); }
 
 @theme {
   --font-sans: "Space Mono", "Cascadia Code", "Liberation Mono", monospace;
-  --radius-xs: 0px;
-  --radius-sm: 0px;
-  --radius-md: 0px;
-  --radius-lg: 0px;
-  --radius-xl: 0px;
-  --radius-2xl: 0px;
-  --radius-3xl: 0px;
-  --radius-4xl: 0px;
-  --font-display: "Space Mono", "Cascadia Code", "Liberation Mono", monospace;
+  /* One small corner everywhere: Tailwind rounded-* utilities match the token radius. */
+  --radius-xs: 8px;
+  --radius-sm: 8px;
+  --radius-md: 8px;
+  --radius-lg: 8px;
+  --radius-xl: 8px;
+  --radius-2xl: 8px;
+  --radius-3xl: 8px;
+  --radius-4xl: 8px;
+  /* Condensed display face for headlines only; Space Mono carries everything else. */
+  --font-display: "Oswald", "Arial Narrow", "Liberation Sans Narrow", Impact, sans-serif;
   --font-body: "Space Mono", "Cascadia Code", "Liberation Mono", monospace;
   --font-mono: "Space Mono", "Cascadia Code", "Liberation Mono", monospace;
   /* Terminal frames separate with borders, not soft shadows. */
@@ -52,6 +55,16 @@ body {
 
 @layer base {
   a { color: inherit; text-decoration: none; text-underline-offset: 0.25em; }
+}
+
+@layer base {
+  /* Every framed or filled box gets the shared corner, including markup that never named a
+     radius. :where() keeps this at zero specificity so an explicit rounded-* utility wins. */
+  :where([class~="border"], [class~="border-2"], [class*="bg-surface-panel"], [class*="bg-surface-inset"],
+    [class*="bg-surface-elevated"], [class*="bg-surface-immersive"], [class*="bg-status-surface"],
+    [class*="bg-action-"], [class*="notice-"]) {
+    border-radius: var(--radius-card);
+  }
 }
 
 @layer base {
@@ -177,29 +190,31 @@ button {
 }
 
 @utility kicker {
-  color: var(--color-fg-muted);
+  color: var(--color-fg-label);
   font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
 }
 
 @utility heading-1 {
   color: var(--color-fg-primary);
   font-family: var(--font-display);
-  font-size: clamp(2.25rem, 9vw, 4.5rem);
+  font-size: clamp(3rem, 11vw, 6rem);
   font-weight: 700;
-  letter-spacing: -0.04em;
-  line-height: 1.05;
+  letter-spacing: -0.01em;
+  line-height: 0.95;
+  text-transform: uppercase;
 }
 
 @utility heading-2 {
   color: var(--color-fg-primary);
   font-family: var(--font-display);
-  font-size: clamp(1.75rem, 6vw, 3rem);
+  font-size: clamp(1.75rem, 5vw, 2.75rem);
   font-weight: 700;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.01em;
   line-height: 1;
+  text-transform: uppercase;
 }
 
 @utility body-copy {
@@ -275,6 +290,70 @@ button:disabled { cursor: not-allowed; }
 :where(button, a).bg-action-primary:disabled { color: var(--color-fg-muted); }
 
 @layer base {
-  h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 700; }
+  /* Oswald is tall and narrow: open the tracking Space Mono needed tightened, and set the top two levels in capitals. */
+  h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 700; letter-spacing: 0; }
+  h1, h2 { text-transform: uppercase; line-height: 1; }
   button { text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
+}
+
+/* Ticket stub: the purple admit-one slab from the Subcult OS artwork. Event identity still comes from
+   event artwork; the stub frames a headline or a ticket, never a status. */
+@utility ticket-stub {
+  position: relative;
+  display: block;
+  background: var(--color-action-primary);
+  color: var(--color-fg-inverse);
+  padding: 1.5rem 1.5rem 1.25rem;
+  border-radius: var(--radius-card);
+}
+
+@utility ticket-stub-tilt {
+  transform: rotate(-3deg);
+}
+
+@utility ticket-stub-kicker {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+@utility ticket-stub-title {
+  display: block;
+  margin-block: 1rem;
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 9vw, 4.75rem);
+  font-weight: 700;
+  line-height: 0.98;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+/* Decorative barcode; always aria-hidden. */
+@utility ticket-bars {
+  display: block;
+  height: 2.25rem;
+  background: repeating-linear-gradient(90deg, currentColor 0 2px, transparent 2px 5px, currentColor 5px 6px, transparent 6px 10px, currentColor 10px 13px, transparent 13px 15px);
+}
+
+/* Perforation between a stub and its body: dashed rule with punched notches. */
+@utility ticket-perforation {
+  position: relative;
+  height: 0;
+  border-top: 2px dashed var(--color-stroke-subtle);
+}
+
+/* "01 / PLAN" index labels for numbered sections and stages. */
+@utility index-label {
+  color: var(--color-fg-label);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ticket-stub-tilt { transition: transform 200ms ease-out; }
+  .ticket-stub-tilt:hover { transform: rotate(-1.5deg); }
 }

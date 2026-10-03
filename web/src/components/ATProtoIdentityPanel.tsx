@@ -99,7 +99,7 @@ export function ATProtoIdentityPanel() {
       <div className="grid gap-6 p-6 lg:grid-cols-[0.9fr_1.1fr]">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Portable identity</p>
-          <h2 id="atproto-identity-title" className="mt-2 text-2xl font-bold tracking-tight text-fg-primary">Link an AT Protocol account</h2>
+          <h2 id="atproto-identity-title" className="mt-2 text-2xl font-bold text-fg-primary">Link an AT Protocol account</h2>
           <p className="mt-3 max-w-xl text-sm leading-6 text-fg-secondary">
             Prove control of a handle or DID without handing Subcult OS repository permissions. A link identifies you; it never adds workspace membership or publishing authority.
           </p>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Brand } from '../ui/Brand';
 import { Button } from '../ui/Button';
 import { Notice } from '../ui/Notice';
+import { IndexList, TicketStub } from '../ui/TicketStub';
 import { publicCardClass, publicEyebrowClass, publicPageInnerClass, publicPageShellClass, publicStatusPillClass } from '../modules/publicUi/publicUi';
 
 export function DesignSystemView() {
@@ -11,16 +12,19 @@ export function DesignSystemView() {
       <div className={`${publicPageInnerClass} max-w-6xl`}>
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-stroke-subtle pb-5">
           <a href="/discover"><Brand /></a>
-          <span className={publicEyebrowClass}>Design system · Terminal</span>
+          <span className={publicEyebrowClass}>Design system · Ticket stub</span>
         </header>
-        <section className="grid items-end gap-6 py-6 md:grid-cols-[2fr_1fr]">
-          <div><p className={publicEyebrowClass}>Built around the room</p><h1 className="heading-1 mt-4 max-w-3xl">Event artwork on top, working controls underneath.</h1></div>
-          <p className="body-copy max-w-sm">Square frames, purple actions, monospace type. The same parts on web and native, for the event page, the crew and the door.</p>
+        <section className="grid items-center gap-10 py-8 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] md:gap-12" aria-label="Ticket stub">
+          <TicketStub kicker="Subcult OS / Admit one" tilt className="mx-2 md:mx-0"><h1 className="ticket-stub-title">The night is yours.</h1></TicketStub>
+          <div>
+            <IndexList items={['Plan', 'Doors', 'Show']} />
+            <p className="body-copy mt-6 max-w-sm">Oswald for headlines, Space Mono for everything you read and press. The purple stub frames a page title or a ticket; numbered labels mark stages and sections.</p>
+          </div>
         </section>
         <section className="grid gap-6 md:grid-cols-2" aria-label="Event and controls">
           <article className="overflow-hidden rounded-hero border border-stroke-subtle bg-surface-immersive text-fg-on-immersive">
             <img className="h-64 w-full object-cover" src="https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1080&q=80" alt="Stage lights above a crowd at a concert" />
-            <div className="space-y-4 p-6"><p className="text-xs font-bold uppercase tracking-[0.2em]">Friday · Doors at 8 PM</p><h2 className="text-4xl font-bold tracking-tight">A night together</h2><p className="text-sm">Example event · Main room</p><a href="/discover" className="inline-flex min-h-touch items-center rounded-control border border-stroke-strong bg-surface-panel px-5 text-sm font-bold uppercase tracking-[0.05em] text-fg-primary">Find your next event</a></div>
+            <div className="space-y-4 p-6"><p className="text-xs font-bold uppercase tracking-[0.2em]">Friday · Doors at 8 PM</p><h2 className="text-5xl">A night together</h2><p className="text-sm">Example event · Main room</p><a href="/discover" className="inline-flex min-h-touch items-center rounded-control border border-stroke-strong bg-surface-panel px-5 text-sm font-bold uppercase tracking-[0.05em] text-fg-primary">Find your next event</a></div>
           </article>
           <section className={publicCardClass} aria-labelledby="controls-title">
             <p className={publicEyebrowClass}>Controls</p><h2 id="controls-title" className="heading-2 mt-3">Clear next steps</h2>
@@ -33,7 +37,7 @@ export function DesignSystemView() {
           </section>
         </section>
         <section className="grid gap-6 md:grid-cols-2" aria-label="Type and feedback">
-          <div className={publicCardClass}><p className={publicEyebrowClass}>Type & spacing</p><h2 className="heading-2 mt-3">A room for everyone</h2><p className="body-copy mt-4">Heavy headings establish the event. Plain, readable body text carries times, places, and instructions.</p><p className="body-small mt-3">Use the 4, 8, 12, 16, 24, 32, 48 spacing scale. Keep labels close to the controls they describe.</p><div className="mt-6 flex flex-wrap gap-2">{(['neutral', 'success', 'warning', 'danger'] as const).map((tone) => <span key={tone} className={publicStatusPillClass(tone)}>{tone === 'neutral' ? 'Draft' : tone === 'success' ? 'Ready' : tone === 'warning' ? 'Needs attention' : 'Unavailable'}</span>)}</div></div>
+          <div className={publicCardClass}><p className={publicEyebrowClass}>Type & spacing</p><h2 className="heading-2 mt-3">A room for everyone</h2><p className="body-copy mt-4">Condensed capitals establish the event. Plain, readable monospace body text carries times, places and instructions.</p><p className="index-label mt-4">01 / Index label</p><p className="body-small mt-3">Use the 4, 8, 12, 16, 24, 32, 48 spacing scale. Keep labels close to the controls they describe.</p><div className="mt-6 flex flex-wrap gap-2">{(['neutral', 'success', 'warning', 'danger'] as const).map((tone) => <span key={tone} className={publicStatusPillClass(tone)}>{tone === 'neutral' ? 'Draft' : tone === 'success' ? 'Ready' : tone === 'warning' ? 'Needs attention' : 'Unavailable'}</span>)}</div></div>
           <div className={`${publicCardClass} space-y-3`}><p className={publicEyebrowClass}>Feedback</p><Notice tone="success">Check-in complete. You’re ready to enter.</Notice><Notice tone="warning">You’re offline. Keep this screen open until sync completes.</Notice><Notice tone="danger">This ticket cannot be admitted. Ask the door lead for help.</Notice><Notice tone="info">No events yet. Published events will appear here.</Notice></div>
         </section>
         <section className={publicCardClass} aria-labelledby="brand-title">
@@ -41,7 +45,7 @@ export function DesignSystemView() {
           <div className="mt-6 flex flex-wrap items-center gap-6"><Brand /><img src="/brand/mark.svg" alt="Subcult OS mark at its 32 px minimum" width={32} height={32} /><img className="border border-stroke-subtle" src="/apple-touch-icon.png" alt="Subcult OS home-screen icon: the mark on black" width={90} height={90} /></div>
           <p className="body-small mt-4">The lettermark comes from the Studio pack and keeps its dark panel in both themes. The wordmark is live Space Mono bold. Keep a quarter of the mark height clear around it and never show it below 32 px.</p>
         </section>
-        <footer className="body-small border-t border-stroke-subtle py-5">Subcult · Subcults terminal foundations, shared across web and native.</footer>
+        <footer className="body-small border-t border-stroke-subtle py-5">Subcult · Terminal foundations with a ticket-stub display layer, shared across web and native.</footer>
       </div>
     </main>
   );

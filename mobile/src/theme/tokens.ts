@@ -2,11 +2,11 @@
 export const tokens = {
   "color": {
     "surface": {
-      "canvas": "#f4f2f8",
-      "default": "#ffffff",
-      "panel": "#ffffff",
-      "elevated": "#ede9f4",
-      "inset": "#ede9f4",
+      "canvas": "#eeebf3",
+      "default": "#f8f6fa",
+      "panel": "#f8f6fa",
+      "elevated": "#e7e3ee",
+      "inset": "#e7e3ee",
       "immersive": "#000000",
       "scrim": "rgba(0, 0, 0, 0.72)"
     },
@@ -15,7 +15,8 @@ export const tokens = {
       "secondary": "#40364f",
       "muted": "#655773",
       "inverse": "#ffffff",
-      "onImmersive": "#ffffff"
+      "onImmersive": "#ffffff",
+      "label": "#5b21b6"
     },
     "border": {
       "subtle": "#b6a9c8",
@@ -52,11 +53,11 @@ export const tokens = {
     "7": 48
   },
   "radius": {
-    "control": 0,
-    "card": 0,
-    "panel": 0,
-    "hero": 0,
-    "pill": 0
+    "control": 8,
+    "card": 8,
+    "panel": 8,
+    "hero": 8,
+    "pill": 8
   },
   "size": {
     "tap": 48,
@@ -88,7 +89,8 @@ export const darkTokens: Tokens = { ...tokens, color: {
     "secondary": "#e2e8f0",
     "muted": "#a0aec0",
     "inverse": "#ffffff",
-    "onImmersive": "#ffffff"
+    "onImmersive": "#ffffff",
+    "label": "#00ffff"
   },
   "border": {
     "subtle": "#465264",

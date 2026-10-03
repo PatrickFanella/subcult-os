@@ -14,7 +14,10 @@ export const publicSecondaryButtonClass =
 
 export const publicMutedTextClass = 'text-sm text-fg-secondary';
 
-export const publicEyebrowClass = 'text-xs font-bold uppercase tracking-[0.2em] text-fg-muted';
+export const publicEyebrowClass = 'text-xs font-bold uppercase tracking-[0.2em] text-fg-label';
+
+// Names a value inside a card; stays muted so section eyebrows carry the accent.
+export const publicFieldLabelClass = 'text-xs font-bold uppercase tracking-[0.2em] text-fg-muted';
 
 export function publicStatusPillClass(tone: 'neutral' | 'success' | 'warning' | 'danger' = 'neutral') {
 	switch (tone) {

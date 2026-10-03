@@ -88,7 +88,7 @@ export function InviteView({ token }: { token: string }) {
 
         <div className="rounded-panel border border-stroke-subtle bg-surface-panel p-6 sm:p-8">
           <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Invitation</p>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight text-fg-primary">Accept your invite</h1>
+          <h1 className="mt-3 text-3xl font-bold text-fg-primary">Accept your invite</h1>
           <p className="mt-2 text-sm leading-6 text-fg-secondary">
             Checking the invitation against the account you are signed in with.
           </p>

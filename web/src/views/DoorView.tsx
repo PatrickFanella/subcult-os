@@ -138,7 +138,7 @@ export function DoorView({ eventId }: { eventId: string }) {
       <section className={`${publicPageInnerClass} max-w-3xl`}>
         <header className="rounded-hero border border-stroke-subtle bg-surface-panel p-6">
           <p className={publicEyebrowClass}>Door Mode</p>
-          <h1 className="mt-2 text-4xl font-bold tracking-[-0.04em] text-fg-primary">Guest List</h1>
+          <h1 className="mt-2 text-4xl font-bold text-fg-primary">Guest List</h1>
           <p className={`mt-2 ${publicMutedTextClass}`}>Search by name, email or ticket code. A full code goes straight to check-in.</p>
 
           <div className="mt-4 rounded-2xl bg-surface-inset px-4 py-3 text-sm font-medium text-fg-secondary">Event ID: {eventId || 'Missing'}</div>

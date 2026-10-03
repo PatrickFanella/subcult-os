@@ -1,5 +1,7 @@
-// Subcults terminal treatment for native StyleSheet factories: square frames and
-// monospace text. Exact Space Mono loading is a separate device task.
+// Subcults terminal treatment for native StyleSheet factories: one small corner radius
+// on every frame and monospace text. Exact Space Mono loading is a separate device task.
+import { tokens } from './tokens';
+
 export const terminalFontFamily = (os: string) => (os === 'ios' ? 'Courier' : 'monospace');
 
 const radiusKeys = [
@@ -21,9 +23,9 @@ export function terminalStyles<T>(styles: T, os: string): T {
   const entries = Object.entries(styles).map(([name, value]) => {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return [name, value];
     const style = { ...value } as Record<string, unknown>;
-    // Avatars keep their portrait shape; every other frame is square.
+    // Avatars keep their portrait shape; every other rounded frame uses the shared corner.
     if (!name.toLowerCase().includes('avatar')) {
-      for (const key of radiusKeys) if (key in style) style[key] = 0;
+      for (const key of radiusKeys) if (key in style) style[key] = tokens.radius.card;
     }
     if (textKeys.some((key) => key in style)) {
       style.fontFamily = terminalFontFamily(os);

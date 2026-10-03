@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { api } from '../api';
+import { TicketStub, indexLabel } from '../ui/TicketStub';
 import type { PublicDiscoveryOccurrenceDTO, PublicEventSummaryDTO } from '../domain';
 import {
 	discoveryBadgeLabel,
@@ -40,6 +41,7 @@ import {
 import {
 	publicCardClass,
 	publicEyebrowClass,
+	publicFieldLabelClass,
 	publicMutedTextClass,
 	publicPageInnerClass,
 	publicPageShellClass,
@@ -128,8 +130,8 @@ export function DiscoveryOccurrencesSection() {
 
 	return (
 		<section aria-label={discoveryOccurrencesTitle} className="flex min-w-0 flex-col gap-4 [overflow-wrap:anywhere]">
-			<header className="rounded-hero border border-stroke-subtle bg-surface-panel p-6 sm:p-8">
-				<p className={publicEyebrowClass}>{discoveryOccurrencesTitle}</p>
+			<header id="discovery" className="scroll-mt-6 border-t border-stroke-subtle pt-8">
+				<p className="index-label">{indexLabel(2, discoveryOccurrencesTitle)}</p>
 				<p className="mt-3 max-w-2xl text-base leading-7 text-fg-secondary">{discoveryOccurrencesDescription}</p>
 			</header>
 
@@ -319,17 +321,26 @@ export function DiscoverView() {
 	return (
 		<main className={publicPageShellClass}>
 			<section className={`${publicPageInnerClass} min-w-0 max-w-6xl [overflow-wrap:anywhere]`}>
-				<header className="rounded-hero border border-stroke-subtle bg-surface-panel p-6 sm:p-8">
-					<p className={publicEyebrowClass}>{discoveryBrowseLabel}</p>
-					<div className="mt-3 flex flex-wrap items-center gap-2">
-						<span className={publicStatusPillClass('success')}>{discoveryBadgeLabel}</span>
-						<span className={publicStatusPillClass()}>{discoveryScopeLabel}</span>
+				<header className="grid min-w-0 gap-10 pt-4 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] md:items-center md:gap-12 md:pt-10">
+					<TicketStub kicker={`Subcult OS / ${discoveryBrowseLabel}`} tilt className="mx-2 md:mx-0">
+						<h1 className="ticket-stub-title">{discoveryTitle}</h1>
+					</TicketStub>
+
+					<div className="min-w-0">
+						<div className="flex flex-wrap items-center gap-2">
+							<span className={publicStatusPillClass('success')}>{discoveryBadgeLabel}</span>
+							<span className={publicStatusPillClass()}>{discoveryScopeLabel}</span>
+						</div>
+						<p className="mt-5 max-w-md text-base leading-7 text-fg-secondary">{discoveryDescription}</p>
+						<nav aria-label="Sections" className="mt-6">
+							<ol className="flex flex-col gap-3">
+								<li><a className="index-label underline-offset-4 hover:underline" href="#listings">{indexLabel(1, 'Listings')}</a></li>
+								<li><a className="index-label underline-offset-4 hover:underline" href="#discovery">{indexLabel(2, 'Discovery')}</a></li>
+							</ol>
+						</nav>
 					</div>
 
-					<h1 className="mt-5 text-4xl font-bold tracking-tight text-fg-primary sm:text-5xl">{discoveryTitle}</h1>
-					<p className="mt-3 max-w-2xl text-base leading-7 text-fg-secondary">{discoveryDescription}</p>
-
-					<form className="mt-6 flex flex-col gap-3 border border-stroke-subtle bg-surface-inset p-4 sm:flex-row sm:items-end" onSubmit={handleSubmit}>
+					<form className="flex flex-col gap-3 border-y border-stroke-subtle py-5 sm:flex-row sm:items-end md:col-span-2" onSubmit={handleSubmit}>
 						<label className="flex-1 space-y-2">
 							<span className={publicEyebrowClass}>{discoverySearchLabel}</span>
 							<input
@@ -350,6 +361,8 @@ export function DiscoverView() {
 						</div>
 					</form>
 				</header>
+
+				<p id="listings" className="index-label scroll-mt-6 pt-4">{indexLabel(1, 'Listings')}</p>
 
 				<p role="status" aria-atomic="true" className="sr-only">
 					{loading ? discoveryLoadingCopy : error ? discoveryErrorCopy(error) : events ? `${events.length} published ${events.length === 1 ? 'event' : 'events'} found.` : ''}
@@ -376,34 +389,32 @@ export function DiscoverView() {
 								{event.imageUrl ? <img className="h-48 w-full object-cover" src={event.imageUrl} alt="" /> : null}
 
 								<div className="flex h-full flex-col p-5">
-									<div className="flex items-start justify-between gap-3">
-										<div className="min-w-0 flex-1">
-											<p className={publicEyebrowClass}>{formatDiscoveryDateTime(event.startsAt)}</p>
-											<h2 className="mt-2 text-2xl font-bold leading-tight text-fg-primary">{event.title}</h2>
-										</div>
+									<div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+										<p className={publicEyebrowClass}>{formatDiscoveryDateTime(event.startsAt)}</p>
 										<span className={`${publicStatusPillClass(event.isFull ? 'danger' : 'neutral')} shrink-0`}>{discoveryRemainingLabel(event)}</span>
 									</div>
+									<h2 className="mt-3 text-3xl leading-none text-fg-primary [overflow-wrap:break-word]">{event.title}</h2>
 
-									<div className="mt-4 grid gap-3 text-sm text-fg-secondary">
-										<div className="bg-surface-inset p-4">
-											<p className={publicEyebrowClass}>Hosted by</p>
-											<p className="mt-2 font-bold text-fg-primary">{event.workspaceName}</p>
+									<div className="mt-4 grid text-sm text-fg-secondary [&>div]:border-t [&>div]:border-dashed [&>div]:border-stroke-subtle [&>div]:py-3">
+										<div>
+											<p className={publicFieldLabelClass}>Hosted by</p>
+											<p className="mt-1 font-bold text-fg-primary">{event.workspaceName}</p>
 										</div>
-										<div className="bg-surface-inset p-4">
-											<p className={publicEyebrowClass}>Location</p>
-											<p className="mt-2 font-bold text-fg-primary">{event.locationDisplay}</p>
+										<div>
+											<p className={publicFieldLabelClass}>Location</p>
+											<p className="mt-1 font-bold text-fg-primary">{event.locationDisplay}</p>
 										</div>
-										<div className="bg-surface-inset p-4">
-											<p className={publicEyebrowClass}>Description</p>
+										<div>
+											<p className={publicFieldLabelClass}>Description</p>
 											<p className="mt-2 leading-6 text-fg-secondary">{event.publicDescription || 'No public description provided.'}</p>
 										</div>
 										<div className="grid gap-3 sm:grid-cols-2">
-											<div className="bg-surface-inset p-4">
-												<p className={publicEyebrowClass}>Pricing</p>
-												<p className="mt-2 font-bold text-fg-primary">{discoveryPricingLabel(event)}</p>
+											<div>
+												<p className={publicFieldLabelClass}>Pricing</p>
+												<p className="mt-1 font-bold text-fg-primary">{discoveryPricingLabel(event)}</p>
 											</div>
-											<div className="bg-surface-inset p-4">
-												<p className={publicEyebrowClass}>Remaining tickets</p>
+											<div>
+												<p className={publicFieldLabelClass}>Remaining tickets</p>
 												<p className={`mt-2 font-bold ${event.isFull ? 'text-status-danger' : 'text-fg-primary'}`}>{event.remainingTickets}</p>
 											</div>
 										</div>

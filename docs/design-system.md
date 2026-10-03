@@ -1,7 +1,10 @@
 # Subcult design system
 
-Subcult uses the original Subcults terminal CSS as its visual foundation: sharp
-corners, visible borders, monospace type, purple actions and cyan focus. The user
+Subcult uses the original Subcults terminal CSS as its visual foundation: small
+rounded corners, visible borders, monospace type, purple actions and cyan focus. On
+October 3, 2026 the user asked for a display layer taken from the Subcult OS
+illustration on subcult.tv: condensed Oswald capitals, the purple admit-one
+ticket stub and numbered "01 / PLAN" labels. The user
 selected this direction on September 30, 2026, replacing the September 29
 mobile-derived monochrome direction. Reference: `subcults` revision `93a13af`,
 `web/src/index.css`; the newer three-font styling is a separate revision.
@@ -22,13 +25,14 @@ pairs in both themes. Generated files stay committed so either app can build ind
 
 | Foundation | Rule |
 | --- | --- |
-| Surfaces | Light: pale lavender-neutral canvas and white panels. Dark: black canvas and charcoal panels. Immersive artwork and scanner surfaces stay black in both modes. |
+| Surfaces | Light: muted lavender-grey canvas (`#eeebf3`) and off-white panels (`#f8f6fa`), not pure white. Dark: black canvas and charcoal panels. Immersive artwork and scanner surfaces stay black in both modes. QR codes keep a pure-white quiet zone. |
 | Text | Foreground roles adapt to the theme. Inverse text follows the primary action; on-immersive text stays white for artwork and scanner surfaces. |
 | Actions | Purple primary with white text in both modes, outlined secondary, quiet ghost. Use the outlined variant when a control needs a visible boundary. Every action needs a clear verb and a visible focus state. |
 | Status | Green success, amber attention, red failure, cyan information. Always include words; color alone cannot describe a state. |
-| Typography | Self-hosted Space Mono 400/700 on web. Platform monospace (Courier on iOS) in native themed working-screen styles. Bold (700) is the heaviest weight. Body copy retains ordinary case and readable line height; buttons and button-styled links use uppercase labels. Exact native Space Mono loading remains a follow-up. |
+| Typography | Self-hosted Oswald 700 for `h1`–`h4` on web; `h1` and `h2` are uppercase by style. Self-hosted Space Mono 400/700 for body copy, labels, controls and the wordmark. Platform monospace (Courier on iOS) in native themed working-screen styles; native has no display face yet. Bold (700) is the heaviest weight. Body copy retains ordinary case and readable line height; buttons and button-styled links use uppercase labels. Exact native Space Mono loading remains a follow-up. |
+| Labels | Page eyebrows, kickers and index labels use the `label` text role: cyan in dark mode, deep purple in light mode. Field labels inside cards (`publicFieldLabelClass`) and dense operator screens stay muted. |
 | Spacing | 4, 8, 12, 16, 24, 32, 48 px. Use 16 px page gutters on small screens and 24–32 px on wider screens. |
-| Corners | Square controls, cards, panels, badges and artwork frames. Native avatars retain their existing circular shape. |
+| Corners | One 8 px radius on controls, cards, panels, badges, artwork frames and the ticket stub (`radius` tokens; Tailwind `rounded-*` sizes resolve to the same value). A zero-specificity base rule in `web/src/styles.css` rounds any element with a `border` utility or a surface/status/action fill, so an explicit `rounded-*` utility still wins. A stub attached to a panel drops its bottom corners (`rounded-b-none`) to meet the perforation. Native `terminalStyles()` gives every rounded frame the same radius; avatars keep their circle. |
 | Depth | Borders separate surfaces; panels have no soft shadows. |
 | Targets | 48 px minimum for primary controls; 56 px fields and door controls. Keep scanner, navigation, and compact icon targets independently reviewable on devices. |
 | Motion | Functional state transitions; web respects reduced-motion preference. Do not animate information required to operate the door. |
@@ -38,6 +42,24 @@ retained; the gallery uses one of the mobile app's existing fallback images.
 Keep type on a solid area or a sufficiently dark scrim, and provide descriptive
 alt text for meaningful web images. Do not use gradients or colored glass as a
 replacement for event identity.
+
+## Ticket stub and index labels
+
+`TicketStub` in `web/src/ui/TicketStub.tsx` renders the purple slab: a
+Space Mono kicker in the "Subcult OS / …" form, the heading element passed as
+children, and a decorative barcode marked `aria-hidden`. The page keeps its
+own heading level. `ticket-stub-title` sets the display size;
+`ticket-perforation` draws the dashed tear line between a stub and the body
+below it.
+
+- Use the stub for a page title on public and entry screens (Discover, sign-in)
+  and as the header of an issued ticket. Do not use it for status or for
+  operator working screens.
+- `tilt` rotates the stub by 3 degrees. Use it only for display titles. Ticket
+  stubs, QR codes and anything staff scan or read stay upright.
+- `IndexList` and `indexLabel()` produce numbered labels such as "01 / Listings".
+  Use them for ordered stages and page sections; they are not decoration on
+  unordered content.
 
 ## Brand assets
 
@@ -98,7 +120,7 @@ Native foundations live in `mobile/src/theme/` and `mobile/src/global.css`.
 Screen components read `useThemeTokens()` and `useThemedStyles()` so common
 colors and corner sizes update when appearance changes. `useThemedStyles()`
 applies `terminalStyles()` from `mobile/src/theme/terminal.ts`: every corner
-radius becomes square except styles named `avatar`, and text styles get the
+radius becomes the shared 8 px token except styles named `avatar`, and text styles get the
 platform monospace font capped at bold. Placeholder and icon colors come from
 tokens; Uniwind
 components use the generated theme. `PrimaryButton` exposes disabled and busy
@@ -179,11 +201,13 @@ Build and unit-test results are separate from browser and device evidence.
 ## Font provenance and remaining qualification
 
 Web Latin Space Mono 400/700 WOFF2 files and the SIL Open Font License are vendored
-from the existing Subcults `@fontsource/space-mono` 5.2.9 package.
+from the existing Subcults `@fontsource/space-mono` 5.2.9 package. Oswald 700 is
+a Latin WOFF2 subset of the `subcult-studio` pack copy of Google Fonts Oswald
+v57, with its OFL as `Oswald-LICENSE`.
 `web/src/assets/fonts/provenance.json` records source filenames and SHA-256 hashes. They load locally
 without a runtime font-provider request. Other scripts fall back to the installed
 monospace font. Native themed StyleSheet factories apply monospace typography and
-square corners centrally; isolated inline styles and native font loading still
+the shared corner radius centrally; isolated inline styles and native font loading still
 need device review. Existing interaction and data contracts remain unchanged.
 
 The token generator computes contrast from actual color values. The historical

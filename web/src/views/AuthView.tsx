@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Brand } from '../ui/Brand';
+import { TicketStub } from '../ui/TicketStub';
 import type { FormEvent } from 'react';
 import { postJSON } from '../api';
 import { Button } from '../ui/Button';
@@ -103,96 +104,100 @@ export function AuthView() {
           </a>
         </div>
 
-        <div className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
-          <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">{eyebrow}</p>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight text-fg-primary">{title}</h1>
-          <p className="mt-2 text-sm leading-6 text-fg-secondary">{description}</p>
+        <div className="rounded-panel border border-stroke-subtle bg-surface-panel">
+          <TicketStub kicker={`Subcult OS / ${eyebrow}`} className="rounded-b-none">
+            <h1 className="ticket-stub-title text-5xl">{title}</h1>
+          </TicketStub>
+          <div className="ticket-perforation" aria-hidden="true" />
+          <div className="p-6">
+            <p className="text-sm leading-6 text-fg-secondary">{description}</p>
 
-          {invitePrompt ? (
-            <div className="mt-5 rounded-2xl border border-status-warning/20 bg-status-surface-warning px-4 py-3 text-sm leading-6 text-status-warning">
-              {invitePrompt}
-            </div>
-          ) : null}
-
-          <div className="mt-6 flex gap-2 text-sm">
-            <a
-              className={`px-3 py-2 font-bold uppercase tracking-[0.05em] transition ${mode === 'login' ? 'bg-action-primary text-fg-inverse' : 'bg-surface-inset text-fg-secondary hover:border-stroke-strong'}`}
-              href={authHref('login')}
-              onClick={(event) => {
-                event.preventDefault();
-                setMode('login');
-              }}
-            >
-              Sign in
-            </a>
-            <a
-              className={`px-3 py-2 font-bold uppercase tracking-[0.05em] transition ${mode === 'signup' ? 'bg-action-primary text-fg-inverse' : 'bg-surface-inset text-fg-secondary hover:border-stroke-strong'}`}
-              href={authHref('signup')}
-              onClick={(event) => {
-                event.preventDefault();
-                setMode('signup');
-              }}
-            >
-              Create account
-            </a>
-          </div>
-
-          <form className="mt-6 space-y-4" noValidate onSubmit={handleSubmit}>
-            <label className="block space-y-2 text-sm">
-              <span className="text-fg-secondary">Email</span>
-              <input
-                className="field py-3"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-              />
-            </label>
-
-            {mode === 'signup' ? (
-              <label className="block space-y-2 text-sm">
-                <span className="text-fg-secondary">Display name</span>
-                <input
-                  className="field py-3"
-                  type="text"
-                  autoComplete="name"
-                  value={displayName}
-                  onChange={(event) => setDisplayName(event.target.value)}
-                  placeholder="Optional"
-                />
-              </label>
+            {invitePrompt ? (
+              <div className="mt-5 rounded-2xl border border-status-warning/20 bg-status-surface-warning px-4 py-3 text-sm leading-6 text-status-warning">
+                {invitePrompt}
+              </div>
             ) : null}
 
-            <label className="block space-y-2 text-sm">
-              <span className="text-fg-secondary">Password</span>
-              <input
-                className="field py-3"
-                type="password"
-                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                minLength={8}
-                required
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                aria-describedby="password-rules"
-              />
-              <span id="password-rules" className="block text-xs text-fg-muted">
-                8+ characters
-              </span>
-            </label>
+            <div className="mt-6 flex gap-2 text-sm">
+              <a
+                className={`px-3 py-2 font-bold uppercase tracking-[0.05em] transition ${mode === 'login' ? 'bg-action-primary text-fg-inverse' : 'bg-surface-inset text-fg-secondary hover:border-stroke-strong'}`}
+                href={authHref('login')}
+                onClick={(event) => {
+                  event.preventDefault();
+                  setMode('login');
+                }}
+              >
+                Sign in
+              </a>
+              <a
+                className={`px-3 py-2 font-bold uppercase tracking-[0.05em] transition ${mode === 'signup' ? 'bg-action-primary text-fg-inverse' : 'bg-surface-inset text-fg-secondary hover:border-stroke-strong'}`}
+                href={authHref('signup')}
+                onClick={(event) => {
+                  event.preventDefault();
+                  setMode('signup');
+                }}
+              >
+                Create account
+              </a>
+            </div>
 
-            {error ? <Notice tone="danger">{error}</Notice> : null}
-            {notice ? <Notice tone="success">{notice}</Notice> : null}
+            <form className="mt-6 space-y-4" noValidate onSubmit={handleSubmit}>
+              <label className="block space-y-2 text-sm">
+                <span className="text-fg-secondary">Email</span>
+                <input
+                  className="field py-3"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                />
+              </label>
 
-            <Button
-              className="w-full"
-              type="submit"
-              busy={loading}
-            >
-              {loading ? 'Working…' : title}
-            </Button>
-            {mode === 'login' ? <a className="block text-center text-sm text-fg-primary underline underline-offset-4" href="/recover">Forgot your password?</a> : null}
-          </form>
+              {mode === 'signup' ? (
+                <label className="block space-y-2 text-sm">
+                  <span className="text-fg-secondary">Display name</span>
+                  <input
+                    className="field py-3"
+                    type="text"
+                    autoComplete="name"
+                    value={displayName}
+                    onChange={(event) => setDisplayName(event.target.value)}
+                    placeholder="Optional"
+                  />
+                </label>
+              ) : null}
+
+              <label className="block space-y-2 text-sm">
+                <span className="text-fg-secondary">Password</span>
+                <input
+                  className="field py-3"
+                  type="password"
+                  autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                  minLength={8}
+                  required
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  aria-describedby="password-rules"
+                />
+                <span id="password-rules" className="block text-xs text-fg-muted">
+                  8+ characters
+                </span>
+              </label>
+
+              {error ? <Notice tone="danger">{error}</Notice> : null}
+              {notice ? <Notice tone="success">{notice}</Notice> : null}
+
+              <Button
+                className="w-full"
+                type="submit"
+                busy={loading}
+              >
+                {loading ? 'Working…' : title}
+              </Button>
+              {mode === 'login' ? <a className="block text-center text-sm text-fg-primary underline underline-offset-4" href="/recover">Forgot your password?</a> : null}
+            </form>
+          </div>
         </div>
       </section>
     </main>

@@ -321,7 +321,7 @@ function PublicEventPage({ slug }: { slug: string }) {
             <div className="mt-5 grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
               <div>
                 <p className={publicEyebrowClass}>{event ? pricingLabel(event) : 'Event details'}</p>
-                <h1 className="mt-3 text-4xl font-bold tracking-tight text-fg-primary sm:text-5xl">{event?.title ?? (loading ? 'Loading event…' : 'Event unavailable')}</h1>
+                <h1 className="mt-3 text-4xl font-bold text-fg-primary sm:text-5xl">{event?.title ?? (loading ? 'Loading event…' : 'Event unavailable')}</h1>
                 <p className="mt-3 max-w-2xl text-base leading-7 text-fg-secondary">{!event ? (loading ? 'Loading event details and availability.' : 'Return to Discover to choose an available event.') : availabilityKnown ? publicEventConversionSummary(event, pricingLabel(event)) : 'Your ticket is reserved. Current availability could not be refreshed.'}</p>
               </div>
 
