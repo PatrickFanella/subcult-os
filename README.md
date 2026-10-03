@@ -1,5 +1,11 @@
 # Subcult OS
 
+> Alpha development. Real-event operation has not been verified.
+
+![Subcult OS: From the plan to the last ticket. Terminal-style event workflow artwork.](docs/assets/readme/banner.png)
+
+**19:00 doors, and the whole team on one sheet.**
+
 Subcult OS is software for the people running a small event: independent
 venues, collectives and crews. The plan, the staffing, the guest list and the
 end-of-night report sit on one sheet that the whole team reads. It is in alpha
@@ -45,8 +51,7 @@ setup, integration limits, and production readiness checklist.
 
 ## Development
 
-The project includes a Go backend, PostgreSQL database, React web client, and
-Expo React Native app. Start with the [local setup](DEVELOPMENT.md#quick-start)
+To run a rehearsal or contribute, start with the [local setup](DEVELOPMENT.md#quick-start)
 and run `make verify` before proposing a change.
 
 - [Platform development](docs/development/README.md)
