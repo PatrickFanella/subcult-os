@@ -18,7 +18,7 @@ deps-web: ## Install web dependencies
 deps-mobile: ## Install mobile dependencies
 	pnpm --dir mobile install --frozen-lockfile
 
-verify: deps fmt lint check-contracts test build compose-config open-pilot-check ## Run all checks
+verify: deps fmt-check lint check-contracts test build compose-config open-pilot-check ## Run all checks
 
 quick: fmt lint test ## Run fast local checks without Docker config or production builds
 
@@ -181,3 +181,9 @@ clean: ## Remove local build outputs
 open-pilot-check: ## Verify Open Pilot issue template exists
 	@test -f .gitea/ISSUE_TEMPLATE/open-pilot-task.yaml
 	@grep -q 'Test Command' .gitea/ISSUE_TEMPLATE/open-pilot-task.yaml
+
+.PHONY: fmt-check
+fmt-check: ## Check formatting without changing sources
+	@set -e; unformatted=$$(git ls-files -z --cached --others --exclude-standard 'backend/**/*.go' 'backend/*.go' | xargs -0 -r gofmt -l); \
+	if [ -n "$$unformatted" ]; then printf '%s\n' "$$unformatted"; exit 1; fi
+	pnpm --dir web run format
