@@ -59,3 +59,8 @@ and run `make verify` before proposing a change.
 - [Deployment checklist](docs/runbooks/deployment-checklist.md)
 
 Built by [Subcult](https://subcult.tv). Licensed under [GPL-3.0-only](LICENSE).
+
+The web build renders the public discovery introduction into HTML and emits its
+canonical URL, robots file, and sitemap using `PUBLIC_WEB_URL`. Published event
+metadata is filled from the public API response. Private workspace, account, and
+ticket pages emit `noindex`; unknown static routes return HTTP 404.

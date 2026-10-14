@@ -6,6 +6,7 @@ import tailwindcss from '@tailwindcss/vite';
 const publicWebURL = (process.env.PUBLIC_WEB_URL || 'https://os.subcult.tv').replace(/\/+$/, '');
 
 export default defineConfig({
+  define: { "import.meta.env.VITE_PUBLIC_WEB_URL": JSON.stringify(publicWebURL) },
   plugins: [
     react(),
     tailwindcss(),
