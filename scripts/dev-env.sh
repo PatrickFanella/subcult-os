@@ -10,6 +10,8 @@ export DEV_UID DEV_GID
 DEV_UID=$(id -u)
 DEV_GID=$(id -g)
 unset DEV_WEB_URL
+# Records which checkout owns each stack so `gc` can find stacks left by removed worktrees.
+registry="${XDG_STATE_HOME:-$HOME/.local/state}/subcult-os/dev-env/projects"
 
 dc() {
   docker compose --project-directory "$root" --env-file /dev/null \
@@ -75,6 +77,8 @@ case "${1:-help}" in
   setup) setup ;;
   start)
     setup
+    mkdir -p "$registry"
+    printf '%s\n' "$root" > "$registry/$project"
     dc up -d --wait --wait-timeout 120 postgres web
     DEV_WEB_URL=$(url)
     export DEV_WEB_URL
@@ -101,8 +105,15 @@ case "${1:-help}" in
   logs) dc logs --tail 100 -f api web ;;
   # Named volumes keep the data; the containers and network are recreated by start.
   stop) dc down ;;
+  # Deletes this worktree's stack including its development database.
+  down)
+    dc --profile test down -v --remove-orphans
+    rm -f "$registry/$project"
+    ;;
+  # Reports (or with --apply removes) dev stacks whose checkout no longer exists.
+  gc) shift; python3 "$root/scripts/dev-stack-gc.py" --repo "$root" --registry "$registry" "$@" ;;
   *)
-    echo 'Usage: bash scripts/dev-env.sh {setup|start|watch|seed|test|test-db|verify|url|status|logs|stop}'
+    echo 'Usage: bash scripts/dev-env.sh {setup|start|watch|seed|test|test-db|verify|url|status|logs|stop|down|gc}'
     [[ "${1:-help}" == help ]]
     ;;
 esac
