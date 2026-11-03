@@ -35,6 +35,15 @@ For isolated T3 development, use `bash scripts/dev-env.sh start` and the printed
 preview URL. `seed` creates synthetic demo data through normal signup/verification;
 `watch` restarts the backend on edits. `stop` removes the worktree's containers and
 network and retains its data volumes.
+`down` also deletes the worktree's volumes, including its development database.
+`gc` lists development stacks whose checkout no longer exists; `gc --apply`
+removes them. It never touches the deployment `subcult-os` project, projects using
+`docker-compose.yml` or stacks with running containers. Volume-only stacks with
+an unknown owner need `--orphans`; a named disposable stack whose checkout still
+exists needs `--project <name>`. Remove any disposable stack you start by hand
+(`docker compose -p <name> -f compose.dev.yml ...`) with
+`docker compose -p <name> -f compose.dev.yml --profile test down -v --remove-orphans`
+once its receipts are saved.
 Use `bash scripts/dev-env.sh verify` to run the required verification and a
 separate disposable DB gate with pinned toolchains. Never substitute the dev
 database for the disposable test database. The repository disposable test DB
