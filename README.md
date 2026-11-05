@@ -57,6 +57,7 @@ and run `make verify` before proposing a change.
 - [Platform development](docs/development/README.md)
 - [Design system](docs/design-system.md)
 - [Deployment checklist](docs/runbooks/deployment-checklist.md)
+- [Web CI deployment](docs/runbooks/web-ci-deployment.md)
 
 Built by [Subcult](https://subcult.tv). Licensed under [GPL-3.0-only](LICENSE).
 
