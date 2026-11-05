@@ -2,6 +2,10 @@
 
 Use this checklist before running `subcult-os` outside local development.
 
+The existing Kvant web service has a [CI deployment lane for verified main commits](web-ci-deployment.md).
+This checklist continues to govern API/database releases and optional worker
+qualification.
+
 ## Required verification
 
 Run from the repository root:
