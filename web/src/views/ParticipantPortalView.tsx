@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import type { ParticipantPortalDTO } from '../domain';
+import { OpenShiftsSection } from '../components/OpenShiftsPanel';
 import { downloadShiftCalendar } from '../modules/participantPortal/shiftCalendarExport';
 import {
   publicCardClass,
@@ -115,6 +116,8 @@ export function ParticipantPortalView() {
             </ul>}
           </section>
         </div> : null}
+
+        {error ? null : <div className="mt-5"><OpenShiftsSection refreshKey={refreshTick} onChanged={() => setRefreshTick((value) => value + 1)} /></div>}
       </section>
     </main>
   );

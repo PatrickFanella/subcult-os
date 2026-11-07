@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestParticipantPortalShowsOnlyCurrentPersonAssignmentsAndCommitments(t *testing.T) {
@@ -253,4 +254,87 @@ func getParticipantShiftCalendar(t *testing.T, app *App, cookie *http.Cookie, wa
 		t.Fatalf("content disposition = %q", got)
 	}
 	return response.Body.String()
+}
+
+// A self-claimed place appears in the calendar with its shift times and the
+// event location, drops out after release and comes back with a later
+// revision when it is claimed again. A legacy single assignee stays listed.
+func TestParticipantShiftCalendarIncludesClaimedPlaces(t *testing.T) {
+	fx := newClaimFixture(t)
+	participant := addClaimParticipant(t, fx, "calendar", fx.roleID, "accepted")
+	starts := claimClock.Add(48 * time.Hour)
+	claimedID := createClaimShift(t, fx, "Bar shift", starts, starts.Add(3*time.Hour), 2, 6)
+	legacy := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+fx.eventID+"/staffing", map[string]any{
+		"title": "Load-in", "kind": "shift",
+		"startsAt": starts.Add(5 * time.Hour).Format(time.RFC3339), "endsAt": starts.Add(6 * time.Hour).Format(time.RFC3339),
+	}, http.StatusOK)
+	legacyID := mustString(t, legacy.JSON, "id")
+	patchJSON(t, fx.app, fx.ownerCookie, staffingPath(fx, legacyID), map[string]any{"assignedPersonId": participant.personID}, http.StatusOK)
+	if _, err := fx.app.db.Exec(t.Context(), `update events set location_display = 'Back room, 12 Example St' where id = $1`, fx.eventID); err != nil {
+		t.Fatal(err)
+	}
+	postJSON(t, fx.app, participant.cookie, claimPath(claimedID, "claim"), nil, http.StatusOK)
+
+	// Age the shift and event revisions so only the claim time can advance
+	// the claimed entry below.
+	backdate := func() {
+		t.Helper()
+		if _, err := fx.app.db.Exec(t.Context(), `update event_staffing_items set updated_at = now() - interval '3 hours' where event_id = $1`, fx.eventID); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := fx.app.db.Exec(t.Context(), `update events set updated_at = now() - interval '3 hours' where id = $1`, fx.eventID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := fx.app.db.Exec(t.Context(), `update event_staffing_claims set created_at = now() - interval '1 hour' where staffing_item_id = $1 and status = 'active'`, claimedID); err != nil {
+		t.Fatal(err)
+	}
+	backdate()
+
+	byUID := func(events []parsedICalEvent) map[string]parsedICalEvent {
+		indexed := make(map[string]parsedICalEvent, len(events))
+		for _, event := range events {
+			indexed[event["UID"]] = event
+		}
+		return indexed
+	}
+	claimedUID := "staffing-" + claimedID + "@os.subcult.tv"
+	legacyUID := "staffing-" + legacyID + "@os.subcult.tv"
+	before := byUID(parseICalendar(t, getParticipantShiftCalendar(t, fx.app, participant.cookie, http.StatusOK)))
+	claimed, ok := before[claimedUID]
+	if len(before) != 2 || !ok || before[legacyUID] == nil {
+		t.Fatalf("calendar = %#v, want the claimed and the legacy shift", before)
+	}
+	if claimed["DTSTART"] != "20260603T120000Z" || claimed["DTEND"] != "20260603T150000Z" ||
+		claimed["LOCATION"] != "Back room, 12 Example St" || !strings.HasPrefix(claimed["SUMMARY"], "Bar shift") {
+		t.Fatalf("claimed calendar entry = %#v", claimed)
+	}
+	if before[legacyUID]["DTSTART"] != "20260603T170000Z" {
+		t.Fatalf("legacy calendar entry = %#v", before[legacyUID])
+	}
+	portal := getParticipantPortal(t, fx.app, participant.cookie, http.StatusOK)
+	if len(portal.Assignments) != 2 {
+		t.Fatalf("portal assignments = %#v, want the claimed and the legacy shift", portal.Assignments)
+	}
+
+	postJSON(t, fx.app, participant.cookie, claimPath(claimedID, "release"), nil, http.StatusOK)
+	released := byUID(parseICalendar(t, getParticipantShiftCalendar(t, fx.app, participant.cookie, http.StatusOK)))
+	if len(released) != 1 || released[legacyUID] == nil {
+		t.Fatalf("calendar after release = %#v, want only the legacy shift", released)
+	}
+
+	postJSON(t, fx.app, participant.cookie, claimPath(claimedID, "claim"), nil, http.StatusOK)
+	backdate()
+	reclaimed := byUID(parseICalendar(t, getParticipantShiftCalendar(t, fx.app, participant.cookie, http.StatusOK)))[claimedUID]
+	beforeSequence, _ := strconv.Atoi(claimed["SEQUENCE"])
+	afterSequence, _ := strconv.Atoi(reclaimed["SEQUENCE"])
+	if reclaimed == nil || afterSequence <= beforeSequence || reclaimed["LAST-MODIFIED"] <= claimed["LAST-MODIFIED"] {
+		t.Fatalf("reclaim before=%#v after=%#v, want a later revision", claimed, reclaimed)
+	}
+
+	patchJSON(t, fx.app, fx.ownerCookie, staffingPath(fx, claimedID), map[string]any{"status": "cancelled"}, http.StatusOK)
+	cancelled := byUID(parseICalendar(t, getParticipantShiftCalendar(t, fx.app, participant.cookie, http.StatusOK)))
+	if len(cancelled) != 1 || cancelled[legacyUID] == nil {
+		t.Fatalf("calendar after cancel = %#v, want only the legacy shift", cancelled)
+	}
 }
