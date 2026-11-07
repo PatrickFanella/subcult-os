@@ -76,9 +76,11 @@ The helpers pin Node 24.18.0, pnpm 10.33.0, and Go 1.26.6. Each worktree has
 its own Compose project, network, development database, and Go caches. Test DB
 containers use temporary storage and are removed after the run, including failed
 runs. Test database logs are retained in ignored `.cache/dev-env/test-db.log`;
-the container uses a 1 GiB limit. The growing migration suite exhausted the
-previous 768 MiB limit and killed a PostgreSQL checkpointer; this repository
-limit is independent of the installed shared T3 test recipe.
+the container uses a 2 GiB limit and caps `max_wal_size` at 128 MB. Its data
+directory is tmpfs, which counts against the limit: with the default 1 GB WAL
+ceiling the suite outgrew 768 MiB and later 1 GiB and PostgreSQL was
+OOM-killed. This repository limit is independent of the installed shared T3
+test recipe.
 Test, Test Database and Verify share the installed T3 launcher's host test
 lock, so verification does not overlap another worktree's checks. The API mounts
 the current Lexicon contracts read-only for cultural record validation.

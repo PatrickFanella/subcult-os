@@ -47,7 +47,7 @@ once its receipts are saved.
 Use `bash scripts/dev-env.sh verify` to run the required verification and a
 separate disposable DB gate with pinned toolchains. Never substitute the dev
 database for the disposable test database. The repository disposable test DB
-has a 1 GiB cap for the complete migration suite; keep it separate from the
+has a 2 GiB cap and bounded WAL for the complete migration suite; keep it separate from the
 retained development database and from the installed shared T3 recipe.
 The standalone `compose.dev.yml`
 must not be merged with deployment Compose files or given production credentials.
