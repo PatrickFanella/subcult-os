@@ -444,7 +444,7 @@ func (a *App) handleAcceptInvitation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if invitation.AcceptedAt.Valid {
-		writeError(w, http.StatusConflict, "invitation already accepted")
+		a.writeInvitationAlreadyAccepted(w, r, invitation.ID, personID)
 		return
 	}
 
@@ -479,6 +479,10 @@ func (a *App) handleAcceptInvitation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err == nil && !existingMembership.RemovedAt.Valid {
+		if a.invitationAcceptedBy(r.Context(), invitation.ID, personID) {
+			writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+			return
+		}
 		writeError(w, http.StatusConflict, "user is already a workspace member")
 		return
 	}
@@ -492,7 +496,8 @@ func (a *App) handleAcceptInvitation(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not accept invitation")
 		return
 	} else if result.RowsAffected() == 0 {
-		writeError(w, http.StatusConflict, "invitation already accepted")
+		_ = tx.Rollback(r.Context())
+		a.writeInvitationAlreadyAccepted(w, r, invitation.ID, personID)
 		return
 	}
 	if existingMembership.ID != "" {
@@ -527,6 +532,40 @@ func (a *App) handleAcceptInvitation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// writeInvitationAlreadyAccepted answers a repeat acceptance. Reloading the
+// invite page, or two requests racing from one browser, must not show the
+// person who accepted an error, so it succeeds when that person is the
+// invitee and still an active member. Anyone else gets the conflict.
+func (a *App) writeInvitationAlreadyAccepted(w http.ResponseWriter, r *http.Request, invitationID, personID string) {
+	if a.invitationAcceptedBy(r.Context(), invitationID, personID) {
+		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+		return
+	}
+	writeError(w, http.StatusConflict, "invitation already accepted")
+}
+
+// invitationAcceptedBy reports whether the invitation has been accepted and
+// the person is its invitee (by email) with a current membership in the
+// invitation's workspace. It reads committed state outside any transaction.
+func (a *App) invitationAcceptedBy(ctx context.Context, invitationID, personID string) bool {
+	var accepted bool
+	err := a.db.QueryRow(ctx, `
+		select exists(
+			select 1
+			from workspace_invitations i
+			join people p on p.id = $2
+			join workspace_members wm on wm.workspace_id = i.workspace_id and wm.person_id = p.id
+			where i.id = $1
+			  and i.accepted_at is not null
+			  and lower(trim(p.email)) = lower(trim(i.email))
+			  and wm.removed_at is null
+			  and wm.revoked_at is null
+			  and (wm.expires_at is null or wm.expires_at > now())
+		)
+	`, invitationID, personID).Scan(&accepted)
+	return err == nil && accepted
 }
 
 func (a *App) handleRemoveMember(w http.ResponseWriter, r *http.Request) {
