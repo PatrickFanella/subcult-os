@@ -4,6 +4,7 @@ import { Link } from 'expo-router';
 import { Calendar, MapPin } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { listPublicEvents } from '@/api/events';
 import type { PublicEventSummaryDTO } from '@/api/types';
@@ -63,8 +64,9 @@ export default function DiscoveryFeedScreen() {
 		};
 	}, [searchQuery]);
 
+	const insets = useSafeAreaInsets();
 	const searchBar = (
-		<View style={styles.searchWrap}>
+		<View style={[styles.searchWrap, { top: insets.top + 16 }]}>
 			<TextInput
 				value={searchQuery}
 				onChangeText={setSearchQuery}

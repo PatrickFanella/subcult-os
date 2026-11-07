@@ -19,6 +19,7 @@ import {
 	isRunOfShowTimeRangeValid,
 	parseOptionalDateTime,
 	sortRunOfShowItems,
+	staffingHolderLabel,
 	toRunOfShowInputValue,
 } from '@/modules/runOfShow/runOfShowModel';
 
@@ -194,7 +195,7 @@ export default function RunOfShowScreen() {
             <View style={styles.iconWrap}>{statusIcon(task.status, tokens)}</View>
             <View style={[styles.taskBody, task.status === 'completed' && styles.completed]}>
               <Text style={styles.taskTitle}>{task.title}</Text>
-              <Text style={styles.assignee}>{task.assigneeName ?? task.kind}</Text>
+              <Text style={styles.assignee}>{staffingHolderLabel(task)}</Text>
               {task.notes ? <Text style={styles.notes}>{task.notes}</Text> : null}
               <View style={styles.actionsRow}>
                 {task.status !== 'completed' ? (
