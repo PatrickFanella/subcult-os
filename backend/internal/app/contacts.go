@@ -61,7 +61,7 @@ func (a *App) handleListContacts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	workspaceID := r.PathValue("workspaceID")
-	if _, _, ok := a.requireWorkspaceRole(r, workspaceID, "owner", "member"); !ok {
+	if _, _, ok := a.requireCoordinator(r, workspaceID); !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}

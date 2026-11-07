@@ -304,7 +304,13 @@ func TestPromotedRolesKeepBaselineAccessOnLegacyRoutes(t *testing.T) {
 		patchJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/members/"+memberRowID, map[string]any{"role": role}, http.StatusOK)
 		getJSON(t, fx.app, fx.memberCookie, "/api/workspaces/"+fx.workspaceID+"/events", http.StatusOK)
 		getJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/roles", http.StatusOK)
-		getJSON(t, fx.app, fx.memberCookie, "/api/workspaces/"+fx.workspaceID+"/contacts", http.StatusOK)
+		// Contacts are coordination data: organizers keep them, the
+		// roles that work an event do not.
+		contactsStatus := http.StatusForbidden
+		if role == roleOrganizer {
+			contactsStatus = http.StatusOK
+		}
+		getJSON(t, fx.app, fx.memberCookie, "/api/workspaces/"+fx.workspaceID+"/contacts", contactsStatus)
 		// Owner-only surface stays closed to every non-owner role.
 		postJSON(t, fx.app, fx.memberCookie, "/api/workspaces/"+fx.workspaceID+"/invitations", map[string]any{"email": fx.email("nobody-" + role)}, http.StatusForbidden)
 	}

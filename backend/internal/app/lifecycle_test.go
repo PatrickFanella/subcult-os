@@ -113,6 +113,8 @@ func TestFirstEventLifecycleSettlementAPI(t *testing.T) {
 
 func TestWorkspaceContactsListAPI(t *testing.T) {
 	fx := newLifecycleFixture(t)
+	// Coordination data: an organizer reads it, crew does not (see crew_scope_integration_test.go).
+	promoteFixtureMember(t, fx, roleOrganizer)
 	workspaceID := fx.workspaceID
 
 	empty := getJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+workspaceID+"/contacts", http.StatusOK)
@@ -229,6 +231,8 @@ func TestWorkspaceContactsMutationAPI(t *testing.T) {
 
 func TestEventTemplatesListAPI(t *testing.T) {
 	fx := newLifecycleFixture(t)
+	// Coordination data: an organizer reads it, crew does not (see crew_scope_integration_test.go).
+	promoteFixtureMember(t, fx, roleOrganizer)
 
 	empty := getJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/event-templates", http.StatusOK)
 	if got := empty.JSON.([]any); len(got) != 0 {
@@ -435,6 +439,8 @@ func TestEventTemplateApplyToDraftAPI(t *testing.T) {
 
 func TestCommitmentsAPI(t *testing.T) {
 	fx := newLifecycleFixture(t)
+	// Coordination data: an organizer reads it, crew does not (see crew_scope_integration_test.go).
+	promoteFixtureMember(t, fx, roleOrganizer)
 	event := createEvent(t, fx, "Benefit Show", 20)
 	eventID := mustString(t, event, "id")
 	dueAt := time.Now().UTC().Add(24 * time.Hour).Format(time.RFC3339)
@@ -538,6 +544,8 @@ func TestCommitmentsAPI(t *testing.T) {
 
 func TestFirstEventLifecycleArchiveAPI(t *testing.T) {
 	fx := newLifecycleFixture(t)
+	// Coordination data: an organizer reads it, crew does not (see crew_scope_integration_test.go).
+	promoteFixtureMember(t, fx, roleOrganizer)
 	event := createEvent(t, fx, "Night Market", 4)
 	eventID := mustString(t, event, "id")
 
@@ -690,6 +698,8 @@ func TestArchiveSnapshotStaysImmutableAfterCreation(t *testing.T) {
 
 func TestNotificationLedgerAPI(t *testing.T) {
 	fx := newLifecycleFixture(t)
+	// Coordination data: an organizer reads it, crew does not (see crew_scope_integration_test.go).
+	promoteFixtureMember(t, fx, roleOrganizer)
 	event := createEvent(t, fx, "Night Market", 4)
 	eventID := mustString(t, event, "id")
 	ownerID := ownerPersonID(t, fx)
@@ -751,6 +761,8 @@ func TestNotificationLedgerAPI(t *testing.T) {
 
 func TestReminderLedgerAPI(t *testing.T) {
 	fx := newLifecycleFixture(t)
+	// Coordination data: an organizer reads it, crew does not (see crew_scope_integration_test.go).
+	promoteFixtureMember(t, fx, roleOrganizer)
 	event := createEvent(t, fx, "Benefit Show", 20)
 	eventID := mustString(t, event, "id")
 	commitment := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/commitments", map[string]any{"title": "Seed reminder source"}, http.StatusOK)
@@ -1554,8 +1566,16 @@ func TestEventStaffingCreateAPI(t *testing.T) {
 
 	ownerAfter := getJSON(t, fx.app, fx.ownerCookie, "/api/events/"+eventID+"/staffing", http.StatusOK)
 	memberAfter := getJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/staffing", http.StatusOK)
-	if !reflect.DeepEqual(ownerAfter.JSON, memberAfter.JSON) {
-		t.Fatalf("expected owner/member staffing lists to match after creation: owner=%#v member=%#v", ownerAfter.JSON, memberAfter.JSON)
+	// Crew see the same run of show without the operator notes.
+	var withoutNotes []any
+	if err := json.Unmarshal([]byte(ownerAfter.Body), &withoutNotes); err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range withoutNotes {
+		item.(map[string]any)["notes"] = ""
+	}
+	if !reflect.DeepEqual(withoutNotes, memberAfter.JSON) {
+		t.Fatalf("expected crew staffing list to match the owner's without notes: owner=%#v member=%#v", ownerAfter.JSON, memberAfter.JSON)
 	}
 	items := ownerAfter.JSON.([]any)
 	if len(items) != 2 {
@@ -2260,6 +2280,8 @@ func TestPublicRoleApplicationsAPI(t *testing.T) {
 
 func TestEventRoleApplicationReviewAPI(t *testing.T) {
 	fx := newLifecycleFixture(t)
+	// Coordination data: an organizer reads it, crew does not (see crew_scope_integration_test.go).
+	promoteFixtureMember(t, fx, roleOrganizer)
 	event := createEvent(t, fx, "Night Market", 4)
 	eventID := mustString(t, event, "id")
 	published := publishEvent(t, fx, eventID)
@@ -2583,6 +2605,8 @@ func assertStaffingReminderNotificationRecord(t *testing.T, fx lifecycleFixture,
 
 func TestEventParticipantRosterAPI(t *testing.T) {
 	fx := newLifecycleFixture(t)
+	// Coordination data: an organizer reads it, crew does not (see crew_scope_integration_test.go).
+	promoteFixtureMember(t, fx, roleOrganizer)
 	event := createEvent(t, fx, "Night Market", 4)
 	eventID := mustString(t, event, "id")
 	published := publishEvent(t, fx, eventID)
@@ -2669,6 +2693,8 @@ func TestEventParticipantRosterAPI(t *testing.T) {
 
 func TestWorkspaceArchiveIndexAPI(t *testing.T) {
 	fx := newLifecycleFixture(t)
+	// Coordination data: an organizer reads it, crew does not (see crew_scope_integration_test.go).
+	promoteFixtureMember(t, fx, roleOrganizer)
 	firstEvent := createEvent(t, fx, "Night Market", 4)
 	firstEventID := mustString(t, firstEvent, "id")
 	publishEvent(t, fx, firstEventID)
@@ -3575,6 +3601,8 @@ func TestFirstEventLifecyclePermissions(t *testing.T) {
 	event := createEvent(t, fx, "Night Market", 1)
 	eventID := mustString(t, event, "id")
 
+	patchJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID, map[string]any{"title": "Crew rename"}, http.StatusForbidden)
+	promoteFixtureMember(t, fx, roleOrganizer)
 	updated := patchJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID, map[string]any{"title": "Night Market Updated"}, http.StatusOK)
 	if mustString(t, updated.JSON, "title") != "Night Market Updated" {
 		t.Fatalf("member update did not persist: %#v", updated.JSON)
@@ -3697,6 +3725,21 @@ type lifecycleFixture struct {
 
 func (f lifecycleFixture) email(prefix string) string {
 	return prefix + "+" + f.suffix + "@example.test"
+}
+
+// promoteFixtureMember changes the fixture's second member from crew to
+// another role, for tests that read coordination data (contacts,
+// applications, archives, templates, outreach) only coordinators may see.
+func promoteFixtureMember(t *testing.T, fx lifecycleFixture, role string) {
+	t.Helper()
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update workspace_members
+		set role = $3
+		where workspace_id = $1
+		  and person_id = (select id from people where email = $2)
+	`, fx.workspaceID, fx.email("member"), role); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func grantFixtureDoorPermission(t *testing.T, fx lifecycleFixture) {

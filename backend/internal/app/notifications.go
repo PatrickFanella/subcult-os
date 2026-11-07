@@ -113,7 +113,7 @@ func (a *App) handleListEventNotifications(w http.ResponseWriter, r *http.Reques
 		writeError(w, http.StatusInternalServerError, "could not load event")
 		return
 	}
-	if _, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner", "member"); !ok {
+	if _, _, ok := a.requireCoordinator(r, event.WorkspaceID); !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}

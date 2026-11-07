@@ -171,6 +171,8 @@ func TestEventPublicLinkCrossWorkspaceAccessDenied(t *testing.T) {
 
 func TestEventPublicLinkListAndDetach(t *testing.T) {
 	fx, fetcher := newPublicLinkFixture(t)
+	// Coordination data: an organizer reads it, crew does not (see crew_scope_integration_test.go).
+	promoteFixtureMember(t, fx, roleOrganizer)
 	event := createEvent(t, fx, "Signal Night", 100)
 	eventID := mustString(t, event, "id")
 	fetcher.setRecord(testPublicLinkURI, testPublicLinkDID, "creator.example.test", "bafyreicidone")

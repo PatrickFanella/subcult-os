@@ -48,8 +48,13 @@ func isAssignableRole(role string) bool {
 // capability, a role is a named bundle of capabilities. See
 // docs/development/authority-model.md for the full matrix and rationale.
 const (
-	permOperate             = "operate"              // baseline day-to-day operator access
-	permParticipate         = "participate"          // own schedule, eligible open shifts and calendar only
+	permOperate     = "operate"     // baseline day-to-day operator access
+	permParticipate = "participate" // own schedule, eligible open shifts and calendar only
+	// plan and edit events and read the workspace's private coordination
+	// data: contacts, applications, outreach activity, listings, archives,
+	// templates, members and staffing notes. Crew, door and finance work an
+	// event without it.
+	permCoordinate          = "coordinate"
 	permManageMembers       = "manage_members"       // change a member's role/expiry, revoke membership
 	permManageDelegations   = "manage_delegations"   // create/revoke creator delegations
 	permPublish             = "publish"              // authorize a public write on behalf of a profile
@@ -69,6 +74,7 @@ const (
 var rolePermissions = map[string]map[string]bool{
 	roleOwner: {
 		permOperate:               true,
+		permCoordinate:            true,
 		permManageMembers:         true,
 		permManageDelegations:     true,
 		permPublish:               true,
@@ -81,6 +87,7 @@ var rolePermissions = map[string]map[string]bool{
 	},
 	roleOrganizer: {
 		permOperate:               true,
+		permCoordinate:            true,
 		permManageDelegations:     true,
 		permPublish:               true,
 		permManageConsent:         true,
@@ -206,6 +213,17 @@ func (a *App) requireWorkspaceRole(r *http.Request, workspaceID string, allowed 
 		}
 	}
 	return "", "", false
+}
+
+// requireCoordinator admits owners and organizers: the roles that plan
+// events and may read the workspace's private coordination data. It returns
+// the same values as requireWorkspaceRole.
+func (a *App) requireCoordinator(r *http.Request, workspaceID string) (personID string, role string, ok bool) {
+	personID, role, ok = a.requireWorkspaceRole(r, workspaceID)
+	if !ok || !roleHasPermission(role, permCoordinate) {
+		return "", "", false
+	}
+	return personID, role, true
 }
 
 // requirePermission is a permission-based sibling of requireWorkspaceRole

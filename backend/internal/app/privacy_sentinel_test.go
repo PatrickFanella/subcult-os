@@ -228,6 +228,8 @@ func TestPrivacySentinelsNeverLeakIntoAnonymousRoutes(t *testing.T) {
 // "member" are the full set of appropriate roles today).
 func TestCulturalPlaceProtectedDetailsRequireWorkspaceMembership(t *testing.T) {
 	fx := newCulturalFixture(t)
+	// Coordination data: an organizer reads it, crew does not (see crew_scope_integration_test.go).
+	promoteFixtureMember(t, fx, roleOrganizer)
 	sentinels := plantPrivacySentinels(t, fx)
 
 	// A person authenticated in a different workspace must not be able to

@@ -75,7 +75,13 @@ export async function loadWorkspaceOverview(workspaceID: string, query: string) 
 
 export async function loadWorkspaceArchives(workspaceID: string, query: string) {
 	const path = query ? `/api/workspaces/${workspaceID}/archives?q=${encodeURIComponent(query)}` : `/api/workspaces/${workspaceID}/archives`;
-	return api<WorkspaceArchiveSummaryDTO[]>(path);
+	try {
+		return await api<WorkspaceArchiveSummaryDTO[]>(path);
+	} catch (caught) {
+		// Archives are coordinator-only; crew, door and finance get none.
+		if (caught instanceof ApiError && caught.status === 403) return [];
+		throw caught;
+	}
 }
 
 export async function loadWorkspaceContacts(workspaceID: string) {

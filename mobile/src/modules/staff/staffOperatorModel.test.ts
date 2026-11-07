@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { nextSelectedEvent, operatorWorkspaces, selectedEventLabel, selectedWorkspaceLabel, staffSelectionEmptyCopy, staffSelectionReady } from './staffOperatorModel';
+import { canCoordinate, nextSelectedEvent, operatorWorkspaces, selectedEventLabel, selectedWorkspaceLabel, staffSelectionEmptyCopy, staffSelectionReady } from './staffOperatorModel';
 
 describe('staffOperatorModel', () => {
 	const workspace = { id: 'workspace-1', name: 'Main Workspace', role: 'owner' } as const;
@@ -34,5 +34,10 @@ describe('staffOperatorModel', () => {
 		const crew = { id: 'w1', name: 'Main', role: 'crew' as const };
 		const participant = { id: 'w2', name: 'Guest', role: 'participant' as const };
 		expect(operatorWorkspaces([participant, crew])).toEqual([crew]);
+	});
+	it('offers planning screens only to owners and organizers', () => {
+		for (const role of ['owner', 'organizer'] as const) expect(canCoordinate({ id: 'w', name: 'W', role })).toBe(true);
+		for (const role of ['crew', 'member', 'door', 'finance', 'participant'] as const) expect(canCoordinate({ id: 'w', name: 'W', role })).toBe(false);
+		expect(canCoordinate(null)).toBe(false);
 	});
 });

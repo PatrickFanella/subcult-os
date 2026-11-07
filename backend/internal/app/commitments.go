@@ -79,9 +79,16 @@ func (a *App) handleListWorkspaceCommitments(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	workspaceID := r.PathValue("workspaceID")
-	if _, _, ok := a.requireWorkspaceRole(r, workspaceID, "owner", "member"); !ok {
+	personID, role, ok := a.requireWorkspaceRole(r, workspaceID, "owner", "member")
+	if !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
+	}
+	// Coordinators see every commitment; crew, door and finance see only the
+	// ones they own.
+	ownerFilter := ""
+	if !roleHasPermission(role, permCoordinate) {
+		ownerFilter = personID
 	}
 
 	rows, err := a.db.Query(r.Context(), `
@@ -89,9 +96,10 @@ func (a *App) handleListWorkspaceCommitments(w http.ResponseWriter, r *http.Requ
 		       owner_person_id, created_by_person_id, completed_at, completed_by_person_id, created_at, updated_at
 		from commitments
 		where workspace_id = $1
+		  and ($2 = '' or owner_person_id::text = $2)
 		order by case status when 'open' then 0 when 'done' then 1 when 'cancelled' then 2 else 3 end,
 		         due_at nulls last, created_at desc, id
-	`, workspaceID)
+	`, workspaceID, ownerFilter)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not load commitments")
 		return
@@ -129,9 +137,16 @@ func (a *App) handleListEventCommitments(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusInternalServerError, "could not load event")
 		return
 	}
-	if _, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner", "member"); !ok {
+	personID, role, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner", "member")
+	if !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
+	}
+	// Coordinators see every commitment; crew, door and finance see only the
+	// ones they own.
+	ownerFilter := ""
+	if !roleHasPermission(role, permCoordinate) {
+		ownerFilter = personID
 	}
 
 	rows, err := a.db.Query(r.Context(), `
@@ -139,9 +154,10 @@ func (a *App) handleListEventCommitments(w http.ResponseWriter, r *http.Request)
 		       owner_person_id, created_by_person_id, completed_at, completed_by_person_id, created_at, updated_at
 		from commitments
 		where event_id = $1
+		  and ($2 = '' or owner_person_id::text = $2)
 		order by case status when 'open' then 0 when 'done' then 1 when 'cancelled' then 2 else 3 end,
 		         due_at nulls last, created_at desc, id
-	`, event.ID)
+	`, event.ID, ownerFilter)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not load commitments")
 		return

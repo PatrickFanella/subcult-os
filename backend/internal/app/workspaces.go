@@ -202,7 +202,7 @@ func (a *App) handleListWorkspaceArchives(w http.ResponseWriter, r *http.Request
 		return
 	}
 	workspaceID := r.PathValue("workspaceID")
-	_, _, ok := a.requireWorkspaceRole(r, workspaceID, "owner", "member")
+	_, _, ok := a.requireCoordinator(r, workspaceID)
 	if !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
@@ -260,9 +260,10 @@ func (a *App) loadWorkspace(ctx context.Context, personID string, workspaceID st
 }
 
 func (a *App) hydrateWorkspace(ctx context.Context, workspace currentWorkspaceDTO) (currentWorkspaceDTO, error) {
-	// A participant sees the workspace name and their own role, never the
-	// member list (names, emails, roles) or pending invitations.
-	if !roleHasPermission(workspace.Role, permOperate) {
+	// Only coordinators (owner, organizer) see the member list (names, emails,
+	// roles) and pending invitations. Crew, door, finance and participants see
+	// the workspace name and their own role.
+	if !roleHasPermission(workspace.Role, permCoordinate) {
 		workspace.Members = []memberDTO{}
 		workspace.Invitations = []invitationDTO{}
 		return workspace, nil

@@ -6,6 +6,12 @@ export function operatorWorkspaces(workspaces: WorkspaceSummaryDTO[]) {
 	return workspaces.filter((workspace) => workspace.role !== 'participant');
 }
 
+// Owners and organizers plan events; crew, door and finance work them, so
+// the planning screens (create/edit, readiness, applicants) are theirs only.
+export function canCoordinate(workspace: WorkspaceSummaryDTO | null) {
+	return workspace?.role === 'owner' || workspace?.role === 'organizer';
+}
+
 export function selectedWorkspaceLabel(workspace: WorkspaceSummaryDTO | null) {
 	return workspace?.name ?? 'Select a Workspace';
 }
