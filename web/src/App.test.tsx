@@ -127,6 +127,7 @@ describe('participant portal', () => {
     expect(rendered).toContain('Bring cables');
     expect(rendered).toContain('Download shifts (.ics)');
     expect(rendered).toContain('cannot be revoked remotely');
+    expect(rendered).toContain('Shifts you can claim');
     expect(rendered).not.toContain('operator-only staffing note');
     expect(rendered).not.toContain('application-private-message');
   });
@@ -135,6 +136,7 @@ describe('participant portal', () => {
     const rendered = renderWithState('/participant', <ParticipantPortalView />, [null, false, 'forbidden', 1]);
 
     expect(rendered).toContain('forbidden');
+    expect(rendered).not.toContain('Shifts you can claim');
     expect(rendered).not.toContain('Soundcheck');
     expect(rendered).not.toContain('Bring cables');
   });
