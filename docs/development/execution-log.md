@@ -2091,7 +2091,6 @@ The owner moved the canonical origin from `subcults.subcult.tv` to `os.subcult.t
 ## Brevo empty display-name rejection — 2026-10-02
 
 The first controlled production delivery (a signup verification to the approved `info@subcult.tv`) failed terminally. A Brevo sandbox request (`X-Sib-Sandbox: drop`, nothing delivered) reproduced the adapter's payload and returned `400 missing_parameter: name is missing in replyTo`. Production sets `MAIL_REPLY_TO` to a bare address, so every Subcult OS message had been rejected. The adapter now omits empty sender and reply-to names, and a regression test checks the payload. Other projects on the same Brevo account were unaffected.
-||||||| parent of da9aaaa (docs: record parked options, ADR 0008 and maintenance policy for issue closure)
 
 ## Issue closure documentation — 2026-10-02
 
