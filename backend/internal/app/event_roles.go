@@ -308,7 +308,10 @@ func (a *App) handleUpdateEventRole(w http.ResponseWriter, r *http.Request) {
 		nextActive = *req.Active
 	}
 
-	if nextCapacity < role.Capacity {
+	// Zero means no limit. Check the accepted count whenever the new
+	// capacity is a real limit that is tighter than before, including a
+	// change from no limit to a limit.
+	if nextCapacity > 0 && (role.Capacity == 0 || nextCapacity < role.Capacity) {
 		var activeCount int
 		if err := tx.QueryRow(r.Context(), `
 			select count(*)
@@ -530,7 +533,7 @@ func (a *App) handleReviewEventRoleApplication(w http.ResponseWriter, r *http.Re
 			writeError(w, http.StatusInternalServerError, "could not count applications")
 			return
 		}
-		if activeCount+1 > capacity {
+		if capacity > 0 && activeCount+1 > capacity {
 			writeError(w, http.StatusConflict, "role capacity reached")
 			return
 		}
