@@ -33,5 +33,6 @@ describe('scoped member role writes', () => {
   it('maps the legacy alias to crew without making it an assignable server value', () => {
     expect(editableMemberRole('member')).toBe('crew');
     expect(editableMemberRole('finance')).toBe('finance');
+    expect(editableMemberRole('participant')).toBe('participant');
   });
 });

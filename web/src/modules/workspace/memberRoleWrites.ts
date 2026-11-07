@@ -1,7 +1,7 @@
 import { api, patchJSON } from '../../api';
 import type { CurrentWorkspaceDTO, WorkspaceRole } from '../../domain';
 
-export const assignableMemberRoles = ['owner', 'organizer', 'finance', 'door', 'crew'] as const;
+export const assignableMemberRoles = ['owner', 'organizer', 'finance', 'door', 'crew', 'participant'] as const;
 export type AssignableMemberRole = typeof assignableMemberRoles[number];
 export interface MemberRoleReceipt {
   id: string;

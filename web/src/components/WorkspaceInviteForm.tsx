@@ -2,9 +2,13 @@ import type { FormEvent } from 'react';
 import type { WorkspaceRole } from '../domain';
 import { Button } from '../ui/Button';
 
-export function WorkspaceInviteForm({ role, email, busy, notice, onEmailChange, onSubmit }: {
+export type InviteRole = 'participant' | 'crew';
+
+export function WorkspaceInviteForm({ role, email, inviteRole, onInviteRoleChange, busy, notice, onEmailChange, onSubmit }: {
   role: WorkspaceRole | undefined;
   email: string;
+  inviteRole: InviteRole;
+  onInviteRoleChange: (role: InviteRole) => void;
   busy: boolean;
   notice: string | null;
   onEmailChange: (email: string) => void;
@@ -16,6 +20,17 @@ export function WorkspaceInviteForm({ role, email, busy, notice, onEmailChange, 
     <form id="invite-member" className="rounded-panel border border-stroke-subtle bg-surface-panel p-6" onSubmit={onSubmit}>
       <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Invite member</p>
       <p className="mt-2 text-sm leading-6 text-fg-secondary">Create a member invitation and queue its email. The invitation appears below; email delivery is a separate step.</p>
+      <fieldset className="mt-4 space-y-2 text-sm" disabled={busy}>
+        <legend className="text-fg-secondary">Access</legend>
+        <label className="flex items-start gap-3">
+          <input type="radio" name="invite-role" value="participant" checked={inviteRole === 'participant'} onChange={() => onInviteRoleChange('participant')} />
+          <span><span className="text-fg-primary">Participant</span><span className="block text-fg-muted">Their own shifts and open places only.</span></span>
+        </label>
+        <label className="flex items-start gap-3">
+          <input type="radio" name="invite-role" value="crew" checked={inviteRole === 'crew'} onChange={() => onInviteRoleChange('crew')} />
+          <span><span className="text-fg-primary">Crew</span><span className="block text-fg-muted">Events, staffing, contacts and notes.</span></span>
+        </label>
+      </fieldset>
       <label className="mt-4 block space-y-2 text-sm">
         <span className="text-fg-secondary">Email</span>
         <input

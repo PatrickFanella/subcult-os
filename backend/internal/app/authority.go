@@ -20,17 +20,24 @@ const (
 	roleDoor      = "door"
 	roleCrew      = "crew"
 	roleMember    = "member" // legacy alias for roleCrew
+	// roleParticipant is the tier below crew: a volunteer, performer or
+	// vendor who works shifts but is not an operator. It carries
+	// permParticipate and deliberately not permOperate, so every operator
+	// route (which checks permOperate, or the legacy "member" spelling of it)
+	// refuses it.
+	roleParticipant = "participant"
 )
 
 // assignableRoles are the roles a caller may set via the member-role-change
 // endpoint. "member" is deliberately excluded: it is only read, never
 // written, by new code.
 var assignableRoles = map[string]bool{
-	roleOwner:     true,
-	roleOrganizer: true,
-	roleFinance:   true,
-	roleDoor:      true,
-	roleCrew:      true,
+	roleOwner:       true,
+	roleOrganizer:   true,
+	roleFinance:     true,
+	roleDoor:        true,
+	roleCrew:        true,
+	roleParticipant: true,
 }
 
 func isAssignableRole(role string) bool {
@@ -41,7 +48,8 @@ func isAssignableRole(role string) bool {
 // capability, a role is a named bundle of capabilities. See
 // docs/development/authority-model.md for the full matrix and rationale.
 const (
-	permOperate             = "operate"              // baseline day-to-day workspace access
+	permOperate             = "operate"              // baseline day-to-day operator access
+	permParticipate         = "participate"          // own schedule, eligible open shifts and calendar only
 	permManageMembers       = "manage_members"       // change a member's role/expiry, revoke membership
 	permManageDelegations   = "manage_delegations"   // create/revoke creator delegations
 	permPublish             = "publish"              // authorize a public write on behalf of a profile
@@ -54,9 +62,10 @@ const (
 	permManageChannelBindings = "manage_channel_bindings"
 )
 
-// rolePermissions is the least-privilege permission matrix. Every role
-// includes permOperate: baseline read/day-to-day access is what makes a
-// role a workspace member at all. Everything else is additive per role.
+// rolePermissions is the least-privilege permission matrix. Every operator
+// role includes permOperate, the baseline read/day-to-day access to the
+// workspace's events and operations. roleParticipant is the one non-operator
+// tier: it carries only permParticipate. Everything else is additive per role.
 var rolePermissions = map[string]map[string]bool{
 	roleOwner: {
 		permOperate:               true,
@@ -92,6 +101,9 @@ var rolePermissions = map[string]map[string]bool{
 	},
 	roleMember: { // legacy alias for roleCrew
 		permOperate: true,
+	},
+	roleParticipant: {
+		permParticipate: true,
 	},
 }
 
@@ -183,11 +195,12 @@ func (a *App) requireWorkspaceRole(r *http.Request, workspaceID string, allowed 
 		if membershipRole == want {
 			return personID, membershipRole, true
 		}
-		// Legacy call sites spell "any workspace member" as the literal
-		// "member" role. Every role in the matrix carries permOperate, so
-		// an organizer, finance, door or crew member satisfies that
-		// baseline check exactly as a legacy member does. Owner-only call
-		// sites are unaffected because they never list "member".
+		// Legacy call sites spell "any operator" as the literal "member"
+		// role. Every operator role carries permOperate, so an organizer,
+		// finance, door or crew member satisfies that baseline check
+		// exactly as a legacy member does, while a participant does not.
+		// Owner-only call sites are unaffected because they never list
+		// "member".
 		if want == roleMember && roleHasPermission(membershipRole, permOperate) {
 			return personID, membershipRole, true
 		}

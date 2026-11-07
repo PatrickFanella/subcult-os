@@ -38,8 +38,8 @@ separate so that having one never silently implies another:
 
 ## Workspace permission roles
 
-`workspace_members.role` (migration 000010) allows five roles plus one
-legacy alias:
+`workspace_members.role` (migration 000010, widened by 000034) allows six
+roles plus one legacy alias:
 
 | Role | Intent |
 | --- | --- |
@@ -47,15 +47,18 @@ legacy alias:
 | `organizer` | Day-to-day event operations and creator delegation management, not membership or finance. |
 | `finance` | Settlement and payment operations, not membership, delegation or publish. |
 | `door` | Door check-in operations only. |
-| `crew` | Baseline operate-only access: the floor for every active membership. |
+| `crew` | Baseline operate-only access: the floor for every operator role. |
+| `participant` | Not an operator. A volunteer, performer or vendor who works shifts: their own participant portal, the open shifts their accepted applications make them eligible for, and their `.ics` download. No events, staffing board, notes, contacts, applications, members, tickets or finance. |
 | `member` | Legacy alias for `crew`, kept so every pre-AUTH-01 row and every existing literal `"member"` call site in `backend/internal/app` keeps working unmodified. New code assigns `crew`, never `member`; the role-change endpoint's assignable set excludes `member` for the same reason. |
 
 ### Least-privilege permission matrix
 
 Permissions are capabilities; roles are named bundles of them
-(`backend/internal/app/authority.go`, `rolePermissions`). Every role
-includes `operate` (baseline access — anything less isn't membership at
-all); everything else is additive per role, not subtractive from `owner`:
+(`backend/internal/app/authority.go`, `rolePermissions`). Every operator
+role includes `operate`, the baseline read and day-to-day access to the
+workspace's events. `participant` is the one role without it. Everything else
+is additive per role, not subtractive from `owner`. A participant holds none
+of the permissions below; it carries only `participate`:
 
 | Permission | owner | organizer | finance | door | crew / member |
 | --- | --- | --- | --- | --- | --- |
@@ -99,6 +102,32 @@ choose an external destination can later be narrowed without changing who
 drafts announcements. Handing off still requires `manage_announcements` and an
 already scheduled announcement. See
 [`backline-handoff.md`](backline-handoff.md).
+
+## Participant tier
+
+Migration 000034 adds `participant`. Because it lacks `operate`, every route
+that checks `operate`, or the legacy `"member"` spelling of it in
+`requireWorkspaceRole`, refuses it with 403. Participant routes
+(`/api/me/participant-portal`, its `shifts.ics`, `/api/me/open-shifts` and
+claim/release) check only for a current membership, so they work for every
+role. `GET /api/workspaces/{workspaceID}` and `GET /api/workspaces/current`
+return a participant the workspace name and their own role, with empty
+`members` and `invitations`.
+
+An owner invites at a tier: `POST /api/workspaces/{workspaceID}/invitations`
+accepts `role` of `participant` or `crew`. Omitting it keeps the original
+legacy `member` (crew) invitation. Other roles are refused with 400; an owner
+grants them afterwards through the member-role endpoint, which also moves a
+person between `participant` and `crew` in either direction. The web invite
+form defaults to Participant. A participant sees a landing page that links to
+the participant portal instead of the operator home, and the mobile staff
+screens leave participant workspaces out of their picker.
+
+`participant_tier_integration_test.go` invites a participant, has them claim a
+shift and download the calendar, and checks that 31 operator read routes
+(event, staffing, applications, contacts, settlement, announcements and
+others) refuse them while crew keeps access. It also covers invitation tiers,
+promotion and demotion, and that a participant cannot invite or change roles.
 
 ## Expiry, revocation, owner departure and recovery
 

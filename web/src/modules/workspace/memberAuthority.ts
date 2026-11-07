@@ -1,7 +1,7 @@
 import type { WorkspaceRole } from '../../domain';
 
 const labels: Record<WorkspaceRole, string> = {
-  owner: 'Owner', organizer: 'Organizer', finance: 'Finance', door: 'Door', crew: 'Crew', member: 'Crew',
+  owner: 'Owner', organizer: 'Organizer', finance: 'Finance', door: 'Door', crew: 'Crew', member: 'Crew', participant: 'Participant',
 };
 const hints: Record<WorkspaceRole, string> = {
   owner: 'Manage members, events, door operations and finances.',
@@ -10,6 +10,7 @@ const hints: Record<WorkspaceRole, string> = {
   door: 'Look up tickets and check in guests.',
   crew: 'Help with event work; no door or finance permissions.',
   member: 'Help with event work; no door or finance permissions.',
+  participant: 'See their own shifts and claim open places; no event, crew or contact data.',
 };
 export function roleLabel(role: string) {
   return Object.hasOwn(labels, role) ? labels[role as WorkspaceRole] : 'Unknown role';

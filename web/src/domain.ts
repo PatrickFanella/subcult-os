@@ -1,4 +1,4 @@
-export type WorkspaceRole = 'owner' | 'organizer' | 'finance' | 'door' | 'crew' | 'member';
+export type WorkspaceRole = 'owner' | 'organizer' | 'finance' | 'door' | 'crew' | 'member' | 'participant';
 
 export type EventStatus = 'draft' | 'published' | 'end_of_night';
 

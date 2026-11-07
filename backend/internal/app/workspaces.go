@@ -66,6 +66,24 @@ type createWorkspaceRequest struct {
 
 type createInvitationRequest struct {
 	Email string `json:"email"`
+	// Role is the tier the invitation grants: "participant" or "crew".
+	// Empty keeps the original behavior, the legacy "member" (crew) role.
+	Role string `json:"role"`
+}
+
+// invitationRole maps a requested invitation tier to the stored role. Higher
+// roles are granted afterwards through the member-role endpoint, not by email.
+func invitationRole(requested string) (string, bool) {
+	switch strings.TrimSpace(requested) {
+	case "", roleMember:
+		return roleMember, true
+	case roleCrew:
+		return roleCrew, true
+	case roleParticipant:
+		return roleParticipant, true
+	default:
+		return "", false
+	}
 }
 
 func (a *App) handleCreateWorkspace(w http.ResponseWriter, r *http.Request) {
@@ -242,6 +260,13 @@ func (a *App) loadWorkspace(ctx context.Context, personID string, workspaceID st
 }
 
 func (a *App) hydrateWorkspace(ctx context.Context, workspace currentWorkspaceDTO) (currentWorkspaceDTO, error) {
+	// A participant sees the workspace name and their own role, never the
+	// member list (names, emails, roles) or pending invitations.
+	if !roleHasPermission(workspace.Role, permOperate) {
+		workspace.Members = []memberDTO{}
+		workspace.Invitations = []invitationDTO{}
+		return workspace, nil
+	}
 	members, err := a.listWorkspaceMembers(ctx, workspace.ID)
 	if err != nil {
 		return currentWorkspaceDTO{}, err
@@ -345,6 +370,11 @@ func (a *App) handleCreateInvitation(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid email")
 		return
 	}
+	role, ok := invitationRole(req.Role)
+	if !ok {
+		writeError(w, http.StatusBadRequest, "invitation role must be participant or crew")
+		return
+	}
 
 	token, tokenHash, err := newToken()
 	if err != nil {
@@ -361,9 +391,9 @@ func (a *App) handleCreateInvitation(w http.ResponseWriter, r *http.Request) {
 	var invitationID string
 	if err := tx.QueryRow(r.Context(), `
 		insert into workspace_invitations (workspace_id, email, role, token_hash, invited_by_person_id)
-		values ($1, $2, 'member', $3, $4)
+		values ($1, $2, $3, $4, $5)
 		returning id
-	`, workspaceID, email, tokenHash, personID).Scan(&invitationID); err != nil {
+	`, workspaceID, email, role, tokenHash, personID).Scan(&invitationID); err != nil {
 		if isUniqueViolation(err) {
 			writeError(w, http.StatusConflict, "invitation already exists")
 			return
@@ -377,6 +407,7 @@ func (a *App) handleCreateInvitation(w http.ResponseWriter, r *http.Request) {
 	if err := a.audit(txCtx, personID, "workspace.invitation.created", "workspace_invitation", invitationID, map[string]any{
 		"workspaceId": workspaceID,
 		"email":       email,
+		"role":        role,
 	}); err != nil {
 		writeError(w, http.StatusInternalServerError, "could not record audit")
 		return
@@ -395,7 +426,7 @@ func (a *App) handleCreateInvitation(w http.ResponseWriter, r *http.Request) {
 		"id":          invitationID,
 		"workspaceId": workspaceID,
 		"email":       email,
-		"role":        "member",
+		"role":        role,
 		"token":       token,
 	})
 }
