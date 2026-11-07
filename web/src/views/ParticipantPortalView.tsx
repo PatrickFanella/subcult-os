@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import type { ParticipantPortalDTO } from '../domain';
+import { downloadShiftCalendar } from '../modules/participantPortal/shiftCalendarExport';
 import {
   publicCardClass,
   publicEyebrowClass,
@@ -28,6 +29,20 @@ export function ParticipantPortalView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshTick, setRefreshTick] = useState(0);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  async function downloadCalendar() {
+    setDownloading(true);
+    setDownloadError(null);
+    try {
+      await downloadShiftCalendar();
+    } catch (caught) {
+      setDownloadError(caught instanceof Error ? caught.message : 'Unable to download your shifts');
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -67,7 +82,12 @@ export function ParticipantPortalView() {
           <button className={publicSecondaryButtonClass} type="button" disabled={loading} onClick={() => setRefreshTick((value) => value + 1)}>
             {loading ? 'Refreshing…' : 'Refresh'}
           </button>
+          <button className={publicSecondaryButtonClass} type="button" disabled={loading || downloading || !portal} onClick={() => void downloadCalendar()}>
+            {downloading ? 'Preparing calendar…' : 'Download shifts (.ics)'}
+          </button>
         </div>
+        <p className={`mt-3 max-w-2xl text-sm ${publicMutedTextClass}`}>The calendar file includes your timed assignments. Once downloaded, the file and anything imported from it stay on your device or calendar and cannot be revoked remotely. Cancelled shifts are left out of later downloads but are not removed from a calendar you already imported into.</p>
+        {downloadError ? <div role="alert" className="mt-3 border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm font-bold text-status-danger">{downloadError}</div> : null}
 
         {loading ? <p className={`mt-5 ${publicMutedTextClass}`}>Loading your assignments…</p> : null}
         {error ? <div role="alert" className="mt-5 border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm font-bold text-status-danger">{error}</div> : null}

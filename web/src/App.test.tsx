@@ -125,6 +125,8 @@ describe('participant portal', () => {
     expect(rendered).toContain('Soundcheck');
 		expect(rendered).toContain('Bring a DI and arrive early.');
     expect(rendered).toContain('Bring cables');
+    expect(rendered).toContain('Download shifts (.ics)');
+    expect(rendered).toContain('cannot be revoked remotely');
     expect(rendered).not.toContain('operator-only staffing note');
     expect(rendered).not.toContain('application-private-message');
   });

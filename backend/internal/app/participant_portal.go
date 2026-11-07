@@ -3,7 +3,9 @@ package app
 import (
 	"context"
 	"database/sql"
+	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -25,6 +27,12 @@ type participantAssignmentDTO struct {
 	EndsAt                  *string `json:"endsAt,omitempty"`
 	Status                  string  `json:"status"`
 	ParticipantRequirements string  `json:"participantRequirements"`
+
+	// Calendar export fields. Unexported fields are never in the JSON body.
+	locationDisplay string
+	startsAt        sql.NullTime
+	endsAt          sql.NullTime
+	revisedAt       time.Time
 }
 
 type participantCommitmentDTO struct {
@@ -46,31 +54,58 @@ type participantPortalLoad struct {
 // emails as an account identity, and it does not expose operator notes,
 // contacts, finance, or payout data.
 func (a *App) handleGetParticipantPortal(w http.ResponseWriter, r *http.Request) {
+	loaded, ok := a.loadAuthorizedParticipantPortal(w, r)
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, loaded.portal)
+}
+
+// handleGetParticipantShiftCalendar downloads the same assignments as the
+// portal as an iCalendar attachment. Untimed assignments are omitted. A file
+// already saved or imported by the participant cannot be revoked remotely.
+func (a *App) handleGetParticipantShiftCalendar(w http.ResponseWriter, r *http.Request) {
+	loaded, ok := a.loadAuthorizedParticipantPortal(w, r)
+	if !ok {
+		return
+	}
+	body := participantShiftCalendar(loaded.portal.Assignments)
+	w.Header().Set("Content-Type", "text/calendar; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+participantShiftCalendarFilename+`"`)
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(http.StatusOK)
+	_, _ = io.WriteString(w, body)
+}
+
+// loadAuthorizedParticipantPortal sets private/no-store caching, requires an
+// authenticated person and rechecks every contributing membership before the
+// caller writes schedule bytes. It writes the error response when it fails.
+func (a *App) loadAuthorizedParticipantPortal(w http.ResponseWriter, r *http.Request) (participantPortalLoad, bool) {
 	w.Header().Set("Cache-Control", "private, no-store")
 	if a.db == nil {
 		writeError(w, http.StatusInternalServerError, "database unavailable")
-		return
+		return participantPortalLoad{}, false
 	}
 	personID, ok := a.requirePersonID(r)
 	if !ok {
 		writeError(w, http.StatusUnauthorized, "unauthorized")
-		return
+		return participantPortalLoad{}, false
 	}
 
 	loaded, err := a.loadParticipantPortal(r.Context(), personID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not load participant portal")
-		return
+		return participantPortalLoad{}, false
 	}
 	// The loader joins active membership. Recheck immediately before emitting
 	// private schedule bytes so a revocation during the queries is denied.
 	for workspaceID := range loaded.workspaceIDs {
 		if _, err := a.activeMembership(r.Context(), personID, workspaceID); err != nil {
 			writeError(w, http.StatusForbidden, "forbidden")
-			return
+			return participantPortalLoad{}, false
 		}
 	}
-	writeJSON(w, http.StatusOK, loaded.portal)
+	return loaded, true
 }
 
 func (a *App) loadParticipantPortal(ctx context.Context, personID string) (participantPortalLoad, error) {
@@ -83,7 +118,8 @@ func (a *App) loadParticipantPortal(ctx context.Context, personID string) (parti
 	}
 	assignments, err := a.db.Query(ctx, `
 		select e.workspace_id, e.id, e.title, esi.id, esi.title, esi.kind,
-		       esi.starts_at, esi.ends_at, esi.status, esi.participant_requirements
+		       esi.starts_at, esi.ends_at, esi.status, esi.participant_requirements,
+		       e.location_display, greatest(esi.updated_at, e.updated_at)
 		from event_staffing_items esi
 		join events e on e.id = esi.event_id
 		join workspace_members wm on wm.workspace_id = e.workspace_id
@@ -104,11 +140,14 @@ func (a *App) loadParticipantPortal(ctx context.Context, personID string) (parti
 		var assignment participantAssignmentDTO
 		var startsAt, endsAt sql.NullTime
 		if err := assignments.Scan(&workspaceID, &assignment.EventID, &assignment.EventTitle, &assignment.StaffingItemID,
-			&assignment.Title, &assignment.Kind, &startsAt, &endsAt, &assignment.Status, &assignment.ParticipantRequirements); err != nil {
+			&assignment.Title, &assignment.Kind, &startsAt, &endsAt, &assignment.Status, &assignment.ParticipantRequirements,
+			&assignment.locationDisplay, &assignment.revisedAt); err != nil {
 			return participantPortalLoad{}, err
 		}
 		assignment.StartsAt = participantPortalTime(startsAt)
 		assignment.EndsAt = participantPortalTime(endsAt)
+		assignment.startsAt = startsAt
+		assignment.endsAt = endsAt
 		loaded.workspaceIDs[workspaceID] = struct{}{}
 		loaded.portal.Assignments = append(loaded.portal.Assignments, assignment)
 	}
@@ -163,4 +202,43 @@ func participantPortalTime(value sql.NullTime) *string {
 	}
 	formatted := value.Time.UTC().Format(time.RFC3339Nano)
 	return &formatted
+}
+
+const (
+	participantShiftCalendarFilename = "subcult-os-shifts.ics"
+	participantShiftCalendarProdID   = "-//Subcult//Subcult OS participant shifts//EN"
+	// participantShiftUIDDomain is fixed so UIDs stay stable across hosts and
+	// configuration changes.
+	participantShiftUIDDomain = "os.subcult.tv"
+)
+
+// participantShiftCalendar converts portal assignments into calendar events.
+// The UID is derived from the staffing item, so a later download with a new
+// time updates the same calendar entry. It includes only fields the portal
+// already shows, plus the event's public location display.
+func participantShiftCalendar(assignments []participantAssignmentDTO) string {
+	events := make([]icalEvent, 0, len(assignments))
+	for _, assignment := range assignments {
+		if !assignment.startsAt.Valid {
+			continue
+		}
+		event := icalEvent{
+			UID:      "staffing-" + assignment.StaffingItemID + "@" + participantShiftUIDDomain,
+			Revised:  assignment.revisedAt,
+			Start:    assignment.startsAt.Time,
+			Summary:  assignment.Title + " · " + assignment.EventTitle,
+			Location: assignment.locationDisplay,
+		}
+		if assignment.endsAt.Valid {
+			end := assignment.endsAt.Time
+			event.End = &end
+		}
+		description := []string{"Event: " + assignment.EventTitle, "Assignment: " + assignment.Kind}
+		if requirements := strings.TrimSpace(assignment.ParticipantRequirements); requirements != "" {
+			description = append(description, "", "Requirements:", requirements)
+		}
+		event.Description = strings.Join(description, "\n")
+		events = append(events, event)
+	}
+	return writeICalendar(participantShiftCalendarProdID, events)
 }

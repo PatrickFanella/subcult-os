@@ -145,6 +145,7 @@ func (a *App) routes() {
 	a.mux.HandleFunc("POST /api/mobile/auth/recovery/complete", a.handleCompleteRecovery)
 	a.mux.HandleFunc("GET /api/me", a.handleMe)
 	a.mux.HandleFunc("GET /api/me/participant-portal", a.handleGetParticipantPortal)
+	a.mux.HandleFunc("GET /api/me/participant-portal/shifts.ics", a.handleGetParticipantShiftCalendar)
 	a.mux.HandleFunc("GET /api/debug/mobile-auth", a.handleMobileAuthDebug)
 	a.mux.HandleFunc("GET /api/dev/email-outbox", a.handleDevEmailOutbox)
 	a.mux.HandleFunc("GET /api/v1/auth/atproto/client-metadata", a.handleATProtoClientMetadata)
