@@ -49,17 +49,22 @@ an RFC 5545 calendar attachment (`text/calendar; charset=utf-8`,
 `Content-Disposition: attachment`, `Cache-Control: private, no-store`). It uses
 the same loader, session check and membership recheck as the JSON route, so it
 contains exactly the assignments the portal shows: person-backed, not
-cancelled, in a workspace where the person has an active membership.
-Application-only and other people's assignments never appear. A missing session
-returns 401 with no calendar body. Assignments that become visible in the portal
-through a later assignment path appear in the download without further changes.
+cancelled, in a workspace where the person has an active membership. That
+covers both the legacy single assignee and a place the person holds through an
+active claim (see open-shift self-claim below). A released or removed claim, or
+a cancelled shift, drops out of the next download. Application-only and other
+people's assignments never appear. A missing session returns 401 with no
+calendar body.
 
 Each timed assignment becomes one `VEVENT`:
 
 - `UID` is `staffing-<staffing item ID>@os.subcult.tv`, so a fresh download
-  with a changed time updates the same entry when imported again.
-- `DTSTAMP` and `LAST-MODIFIED` are the later of the staffing item's and the
-  event's `updated_at`. `SEQUENCE` is that time in whole seconds since
+  with a changed time updates the same entry when imported again. A person
+  holds at most one place per shift, so the UID is unique within their file.
+- `DTSTAMP` and `LAST-MODIFIED` are the latest of the staffing item's and the
+  event's `updated_at` and, for a claimed place, the time the person's active
+  claim was made. Releasing and claiming again therefore advances them, as does
+  a reschedule. `SEQUENCE` is that time in whole seconds since
   2026-01-01 UTC, so any later revision has a higher sequence. Two edits within
   the same second share a sequence. Edits that change only private fields, such
   as operator notes, also advance these values without revealing the change.
@@ -109,7 +114,9 @@ the registered HTTP route, session middleware, and cache control. The calendar
 integration test parses the download and covers owner isolation, untimed and
 cancelled exclusion, a reschedule that keeps the UID and advances `SEQUENCE`
 and `LAST-MODIFIED`, revoked membership, response headers, and 401 without a
-session. Unit tests cover escaping, folding with multibyte text and open-ended
+session. A second calendar test covers a self-claimed place with its times and
+location next to a legacy assignment, its removal after release, a later
+revision after claiming again, and removal when the shift is cancelled. Unit tests cover escaping, folding with multibyte text and open-ended
 shifts. The web render test includes populated and denied states and the
 download action and revocation note. A separate synthetic browser journey verified populated desktop and mobile
 layouts, membership revocation and refresh, and logout and refresh in the
