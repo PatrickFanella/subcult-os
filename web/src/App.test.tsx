@@ -784,6 +784,29 @@ describe('App routes', () => {
     expect(rendered).toContain('Add commitment');
   });
 
+  it('shows a participant only their landing page, without operator data or controls', () => {
+    const rendered = renderWithState('/workspace?workspaceId=workspace-1', <WorkspaceView />, [
+      {
+        id: 'person-1',
+        email: 'helper@example.com',
+        displayName: 'Helper',
+        workspaces: [{ id: 'workspace-1', name: 'Main Room', role: 'participant' }, { id: 'workspace-2', name: 'Back Room', role: 'crew' }],
+      },
+      { id: 'workspace-1', name: 'Main Room', role: 'participant', members: [], invitations: [] },
+      [],
+      [],
+      false,
+    ]);
+    expect(rendered).toContain('Open my shifts');
+    expect(rendered).toContain('href="/participant"');
+    expect(rendered).toContain('Participant');
+    expect(rendered).toContain('Back Room');
+    expect(rendered).not.toContain('Operator home');
+    for (const operatorOnly of ['Add contact', 'Add commitment', 'Invite member', 'Manage member roles', 'Add template']) {
+      expect(rendered).not.toContain(operatorOnly);
+    }
+  });
+
   it('hides owner-only workspace controls for members', () => {
     const event = {
       id: 'event-1',

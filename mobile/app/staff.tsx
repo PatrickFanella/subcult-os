@@ -11,7 +11,7 @@ import type { EventDTO, WorkspaceSummaryDTO } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { eventArtwork } from '@/data/eventArtwork';
 import { clearSelectedEventID, loadStaffSelection, storeSelectedEventID, storeSelectedWorkspaceID } from '@/staff/selectionStore';
-import { nextSelectedEvent, selectedEventLabel, selectedWorkspaceLabel, staffSelectionEmptyCopy, staffSelectionReady } from '@/modules/staff/staffOperatorModel';
+import { nextSelectedEvent, operatorWorkspaces, selectedEventLabel, selectedWorkspaceLabel, staffSelectionEmptyCopy, staffSelectionReady } from '@/modules/staff/staffOperatorModel';
 import { AppChrome } from '@/ui/AppChrome';
 
 export default function StaffScreen() {
@@ -26,8 +26,9 @@ export default function StaffScreen() {
   const [hydratingSelection, setHydratingSelection] = useState(true);
   const [eventError, setEventError] = useState<string | null>(null);
 
-  const workspaceKey = user?.workspaces.map((workspace) => workspace.id).join('|') ?? '';
-  const workspace = selectedWorkspaceID ? user?.workspaces.find((candidate) => candidate.id === selectedWorkspaceID) ?? null : null;
+  const staffWorkspaces = operatorWorkspaces(user?.workspaces ?? []);
+  const workspaceKey = staffWorkspaces.map((workspace) => workspace.id).join('|');
+  const workspace = selectedWorkspaceID ? staffWorkspaces.find((candidate) => candidate.id === selectedWorkspaceID) ?? null : null;
 
   useEffect(() => {
     if (!user) {
@@ -39,7 +40,7 @@ export default function StaffScreen() {
     }
 
     let cancelled = false;
-    const workspaces = user.workspaces;
+    const workspaces = operatorWorkspaces(user.workspaces);
 
     async function hydrateSelection() {
       setHydratingSelection(true);
@@ -151,7 +152,7 @@ export default function StaffScreen() {
         <View style={styles.selectorSection}>
           <Text style={styles.sectionLabel}>Workspace</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectorRow}>
-            {user.workspaces.map((candidate) => (
+            {staffWorkspaces.map((candidate) => (
               <WorkspaceChip
                 key={candidate.id}
                 workspace={candidate}
@@ -199,7 +200,7 @@ export default function StaffScreen() {
                 </Pressable>
               );
             })}
-            {!loadingEvents && events.length === 0 ? <Text style={styles.emptyInline}>{staffSelectionEmptyCopy(user.workspaces, events)}</Text> : null}
+            {!loadingEvents && events.length === 0 ? <Text style={styles.emptyInline}>{staffSelectionEmptyCopy(staffWorkspaces, events)}</Text> : null}
           </ScrollView>
         </View>
 

@@ -110,7 +110,7 @@ export interface PaidReservationDTO {
   checkoutStatus: 'ready' | 'paid' | 'pending_reconciliation' | 'expired' | 'reconciliation_required';
 }
 
-export type WorkspaceRole = 'owner' | 'organizer' | 'finance' | 'door' | 'crew' | 'member';
+export type WorkspaceRole = 'owner' | 'organizer' | 'finance' | 'door' | 'crew' | 'member' | 'participant';
 
 export interface MemberDTO {
   personId?: string;

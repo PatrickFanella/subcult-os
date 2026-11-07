@@ -1,5 +1,11 @@
 import type { EventDTO, WorkspaceSummaryDTO } from '@/api/types';
 
+// Participants have no operator access, so their workspaces are not offered
+// in the staff screens (every operator read would be refused).
+export function operatorWorkspaces(workspaces: WorkspaceSummaryDTO[]) {
+	return workspaces.filter((workspace) => workspace.role !== 'participant');
+}
+
 export function selectedWorkspaceLabel(workspace: WorkspaceSummaryDTO | null) {
 	return workspace?.name ?? 'Select a Workspace';
 }

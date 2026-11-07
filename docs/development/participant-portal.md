@@ -148,8 +148,8 @@ Reducing capacity below the places held returns 409.
 
 A person can claim when all of these hold inside the claim transaction:
 
-- They are signed in and hold a current workspace membership: not removed,
-  revoked or expired. The membership row is share-locked, so a revocation
+- They are signed in and hold a current workspace membership of any role,
+  including `participant`: not removed, revoked or expired. The membership row is share-locked, so a revocation
   either commits first and denies the claim, or waits for it.
 - Their application for an eligible role is `accepted` or `confirmed` and is
   bound to their account. Submitted, under-review and waitlisted applications

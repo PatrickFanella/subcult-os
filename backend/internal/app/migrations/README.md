@@ -128,3 +128,28 @@ create unique index consent_grants_active_idx
 
 The migration-rollback tests use the same steps, deleting the Kork rows. Retain the binding and
 delivery rows for audit.
+
+Version 34 adds the `participant` workspace role (see
+`docs/development/authority-model.md`, participant tier). It widens the
+`workspace_members` role check to include `participant` and lets
+`workspace_invitations.role` be `member`, `crew` or `participant` instead of
+only `member`. Existing rows are unchanged.
+
+The previous binary rejects version 34. To roll back by hand, first move every
+participant to a role the older binary knows (or remove them), and delete or
+re-role pending non-`member` invitations, then restore both checks:
+
+```sql
+update workspace_members set role = 'crew' where role = 'participant';
+delete from workspace_invitations where role <> 'member' and accepted_at is null;
+update workspace_invitations set role = 'member' where role <> 'member';
+alter table workspace_members drop constraint workspace_members_role_check;
+alter table workspace_members add constraint workspace_members_role_check
+  check (role in ('owner', 'organizer', 'finance', 'door', 'crew', 'member'));
+alter table workspace_invitations drop constraint workspace_invitations_role_check;
+alter table workspace_invitations add constraint workspace_invitations_role_check
+  check (role = 'member');
+```
+
+Moving participants to `crew` grants them operator access, so prefer removing
+them unless they should become crew.

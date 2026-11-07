@@ -3,7 +3,8 @@ import { Brand } from '../ui/Brand';
 import type { FormEvent } from 'react';
 import { api, deleteJSON, patchJSON, postJSON } from '../api';
 import { ATProtoIdentityPanel } from '../components/ATProtoIdentityPanel';
-import { WorkspaceInviteForm } from '../components/WorkspaceInviteForm';
+import { WorkspaceInviteForm, type InviteRole } from '../components/WorkspaceInviteForm';
+import { ParticipantWorkspaceHome } from '../components/ParticipantWorkspaceHome';
 import { MembershipAccess } from '../components/MembershipAccess';
 import { roleLabel } from '../modules/workspace/memberAuthority';
 import { isClosedEvent, isDraftEvent, isPublishedEvent } from '../modules/eventLifecycle/eventLifecycle';
@@ -261,6 +262,7 @@ export function WorkspaceView() {
   const [reminders, setReminders] = useState<ReminderEventDTO[] | null | undefined>(undefined);
   const [reminderSweepRunning, setReminderSweepRunning] = useState(false);
   const [remindersRefreshTick, setRemindersRefreshTick] = useState(0);
+  const [inviteRole, setInviteRole] = useState<InviteRole>('participant');
   const requestedWorkspaceId = useMemo(() => getRequestedWorkspaceId(), []);
 
   function resetPrivateWorkspaceState() {
@@ -358,7 +360,14 @@ export function WorkspaceView() {
         const fallback = await selectWorkspace(user, requestedWorkspaceId);
         if (cancelled) return;
 
-        if (fallback) {
+        if (fallback && fallback.workspace.role === 'participant') {
+          // Participants have no operator access: show their landing page only.
+          resetPrivateWorkspaceState();
+          setWorkspace(fallback.workspace);
+          setEvents([]);
+          setArchives([]);
+          setWorkspaceNotice(fallback.notice);
+        } else if (fallback) {
           await loadWorkspaceData(fallback.workspace);
           if (!cancelled) setWorkspaceNotice(fallback.notice);
         } else {
@@ -388,7 +397,7 @@ export function WorkspaceView() {
     let cancelled = false;
 
     async function loadReminders() {
-      if (!workspace) {
+      if (!workspace || workspace.role === 'participant') {
         setReminders(undefined);
         return;
       }
@@ -413,7 +422,7 @@ export function WorkspaceView() {
     return () => {
       cancelled = true;
     };
-  }, [remindersRefreshTick, workspace?.id]);
+  }, [remindersRefreshTick, workspace?.id, workspace?.role]);
 
   useEffect(() => {
     let cancelled = false;
@@ -441,7 +450,7 @@ export function WorkspaceView() {
     let cancelled = false;
 
     async function loadTemplates() {
-      if (!workspace) {
+      if (!workspace || workspace.role === 'participant') {
         setTemplates(null);
         setTemplateForm(emptyTemplateForm());
         setEditingTemplateId(null);
@@ -469,7 +478,7 @@ export function WorkspaceView() {
     return () => {
       cancelled = true;
     };
-  }, [workspace?.id]);
+  }, [workspace?.id, workspace?.role]);
 
   async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -528,7 +537,7 @@ export function WorkspaceView() {
     setInviteNotice(null);
 
     try {
-      const created = await postJSON<InvitationCreatedDTO>(`/api/workspaces/${workspace.id}/invitations`, { email });
+      const created = await postJSON<InvitationCreatedDTO>(`/api/workspaces/${workspace.id}/invitations`, { email, role: inviteRole });
       setInviteEmail('');
       setWorkspace((current) =>
         current
@@ -857,9 +866,9 @@ export function WorkspaceView() {
         <header className="flex flex-col gap-4 rounded-panel border border-stroke-subtle bg-surface-panel p-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <Brand />
-            <h1 className="mt-4 text-3xl font-bold text-fg-primary">Operator home</h1>
+            <h1 className="mt-4 text-3xl font-bold text-fg-primary">{workspace?.role === 'participant' ? 'Workspace' : 'Operator home'}</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-fg-secondary">
-              What is on, who is working it, and what still needs closing out.
+              {workspace?.role === 'participant' ? 'Your shifts and the places you can still claim.' : 'What is on, who is working it, and what still needs closing out.'}
             </p>
           </div>
 
@@ -928,6 +937,8 @@ export function WorkspaceView() {
               </button>
             </form>
           </section>
+        ) : workspace && workspace.role === 'participant' ? (
+          <ParticipantWorkspaceHome workspace={workspace} workspaces={workspaceSummaries} email={me?.email} />
         ) : workspace ? (
           <>
             <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
@@ -1689,6 +1700,8 @@ export function WorkspaceView() {
                 <WorkspaceInviteForm
                   role={workspace.role}
                   email={inviteEmail}
+                  inviteRole={inviteRole}
+                  onInviteRoleChange={setInviteRole}
                   busy={sendingInvite}
                   notice={inviteNotice}
                   onEmailChange={(email) => {

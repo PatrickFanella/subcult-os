@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { nextSelectedEvent, selectedEventLabel, selectedWorkspaceLabel, staffSelectionEmptyCopy, staffSelectionReady } from './staffOperatorModel';
+import { nextSelectedEvent, operatorWorkspaces, selectedEventLabel, selectedWorkspaceLabel, staffSelectionEmptyCopy, staffSelectionReady } from './staffOperatorModel';
 
 describe('staffOperatorModel', () => {
 	const workspace = { id: 'workspace-1', name: 'Main Workspace', role: 'owner' } as const;
@@ -29,5 +29,10 @@ describe('staffOperatorModel', () => {
 	it('keeps empty-state copy stable', () => {
 		expect(staffSelectionEmptyCopy([], [])).toBe('No Workspaces available for this account.');
 		expect(staffSelectionEmptyCopy([workspace], [])).toBe('No Events available in this Workspace yet.');
+	});
+	it('leaves participant workspaces out of the operator picker', () => {
+		const crew = { id: 'w1', name: 'Main', role: 'crew' as const };
+		const participant = { id: 'w2', name: 'Guest', role: 'participant' as const };
+		expect(operatorWorkspaces([participant, crew])).toEqual([crew]);
 	});
 });
