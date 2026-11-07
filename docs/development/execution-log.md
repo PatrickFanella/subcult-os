@@ -2125,3 +2125,27 @@ The contract is in [backline-handoff.md](backline-handoff.md) and
 disposable PostgreSQL and an `httptest` receiver, plus web component tests. No
 real Backline receiver or Discord channel was contacted. Backline #88 owns the
 receiver.
+
+## listmonk announcement relay (#220) — 2026-11-07
+
+Migration 000033 lets a workspace bind one listmonk list, transactional
+template and sender, with a consent-receiver policy: native grants count only
+under the bound disclosure version, and Kork sign-up receipts count only when
+their list, sender, purpose and disclosure match the binding exactly. Dispatch
+records one delivery path per occurrence, enforced by foreign keys, and the
+opt-in `listmonk-relay` worker (`listmonk-workers` profile) upserts each
+subscriber without undoing an unsubscribe or blocklist, re-checks consent and
+suppression, and sends one `POST /api/tx` per recipient. Uncertain and failed
+results are held. Evidence is synthetic: Go tests against disposable PostgreSQL
+and an `httptest` listmonk, plus web component tests. No real listmonk was
+contacted. See [listmonk-relay.md](listmonk-relay.md).
+
+Review fixes (PR #234): a Kork receipt now only supports a grant, and
+listmonk's confirmed membership of the bound list is the authority, checked at
+import and before every send. The relay never adds anyone to a list (native
+recipients get a list-less subscriber for `/api/tx`), stops at send time while
+`MAIL_DELIVERY_ENABLED` is off, writes outcomes per claim token, and treats a
+`disabled` subscriber as suppressed. Kork grants left the native active-grant
+index, are withdrawn on binding revoke, and an OS withdrawal withdraws all of
+an address's announcement grants in the workspace. An `email_outbox` trigger
+refuses announcement rows for listmonk occurrences.
