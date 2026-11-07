@@ -77,3 +77,13 @@ null for every existing row. New tables `event_staffing_claim_roles` and
 claim and each eligible-role row to a shift and role of the same event. A version-30 binary rejects this schema;
 roll back from a pre-migration backup and do not discard claim rows that
 participants rely on. See `docs/development/participant-portal.md`.
+
+Version 32 adds `announcement_channel_bindings` and
+`announcement_channel_handoffs` for the Backline announcement handoff (see
+`docs/development/backline-handoff.md`), plus a `unique (id, workspace_id)`
+constraint on `announcements` for their composite foreign key. It is additive;
+no existing row or email behavior changes. The previous binary rejects version
+32, so keep a pre-migration backup. Before an application rollback, stop the
+`backline-workers` profile and unset `BACKLINE_HANDOFF_URL`/`BACKLINE_HANDOFF_SECRET`
+so no handoff is sent or acknowledged while the restored binary ignores the
+tables. Retain the binding and handoff rows for audit.
