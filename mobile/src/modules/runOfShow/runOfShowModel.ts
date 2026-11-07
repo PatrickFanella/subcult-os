@@ -139,3 +139,16 @@ export function buildUpdateRunOfShowPayload(form: Pick<RunOfShowFormState, 'titl
 		...(endsAt ? { endsAt } : { clearEndsAt: true }),
 	};
 }
+
+/**
+ * The pill under a run-of-show item: the single assignee's name, or for an
+ * item with more than one place how many are held (self-claimed places have
+ * no single name). Falls back to the kind.
+ */
+export function staffingHolderLabel(item: Pick<EventStaffingItemDTO, 'kind' | 'assigneeName' | 'capacity' | 'filledCount'>): string {
+	const capacity = item.capacity ?? 1;
+	if (capacity > 1) {
+		return `${item.filledCount ?? 0}/${capacity} places`;
+	}
+	return item.assigneeName ?? item.kind;
+}

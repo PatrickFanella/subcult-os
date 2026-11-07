@@ -8,6 +8,7 @@ import {
 	isRunOfShowTimeRangeValid,
 	parseOptionalDateTime,
 	sortRunOfShowItems,
+	staffingHolderLabel,
 	staffingKindLabel,
 	staffingStatusLabel,
 } from './runOfShowModel';
@@ -62,5 +63,17 @@ describe('runOfShowModel', () => {
 		expect(staffingKindLabel('shift')).toBe('Shift');
 		expect(isRunOfShowTimeRangeValid('2026-06-18T09:00:00.000Z', '2026-06-18T10:00:00.000Z')).toBe(true);
 		expect(isRunOfShowTimeRangeValid('2026-06-18T10:00:00.000Z', '2026-06-18T09:00:00.000Z')).toBe(false);
+	});
+});
+
+describe('staffingHolderLabel', () => {
+	it('names the single assignee or falls back to the kind', () => {
+		expect(staffingHolderLabel({ kind: 'shift', assigneeName: 'Sam', capacity: 1, filledCount: 1 })).toBe('Sam');
+		expect(staffingHolderLabel({ kind: 'task', assigneeName: null })).toBe('task');
+	});
+
+	it('counts held places on a multi-place shift', () => {
+		expect(staffingHolderLabel({ kind: 'shift', assigneeName: 'Sam', capacity: 3, filledCount: 2 })).toBe('2/3 places');
+		expect(staffingHolderLabel({ kind: 'shift', assigneeName: null, capacity: 2 })).toBe('0/2 places');
 	});
 });

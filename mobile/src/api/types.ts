@@ -248,6 +248,10 @@ export interface EventStaffingItemDTO {
   updatedAt: string;
   completedAt: string | null;
   completedByPersonId: string | null;
+  /** Places on the item; a single-assignee item has 1. */
+  capacity?: number;
+  /** Places held: the single assignee plus active claims. */
+  filledCount?: number;
 }
 
 export interface EventRoleDTO {
