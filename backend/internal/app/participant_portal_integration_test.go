@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -127,4 +128,129 @@ func getParticipantPortal(t *testing.T, app *App, cookie *http.Cookie, wantStatu
 		t.Fatal(err)
 	}
 	return portal
+}
+
+func TestParticipantShiftCalendarExportsOnlyCurrentPersonTimedAssignments(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	eventID := mustString(t, createEvent(t, fx, "Calendar Export Event", 10), "id")
+	memberPersonID, memberRowID := memberIdentity(t, fx)
+	ownerID := ownerPersonID(t, fx)
+
+	insertItem := func(title, status string, personID any, startsAt, endsAt any) string {
+		t.Helper()
+		var id string
+		if err := fx.app.db.QueryRow(t.Context(), `
+			insert into event_staffing_items (event_id, title, kind, notes, participant_requirements, starts_at, ends_at, assigned_person_id, status, created_by_person_id)
+			values ($1, $2, 'shift', 'operator-only staffing note', 'Bring earplugs; arrive early.', $3, $4, $5, $6, $7)
+			returning id
+		`, eventID, title, startsAt, endsAt, personID, status, ownerID).Scan(&id); err != nil {
+			t.Fatal(err)
+		}
+		return id
+	}
+	shiftID := insertItem("Door shift", "assigned", memberPersonID, "2026-07-01T18:00:00Z", "2026-07-01T19:00:00Z")
+	cancelledID := insertItem("Cancelled shift", "cancelled", memberPersonID, "2026-07-01T20:00:00Z", "2026-07-01T21:00:00Z")
+	untimedID := insertItem("Untimed task", "assigned", memberPersonID, nil, nil)
+	ownerShiftID := insertItem("Owner-only shift", "assigned", ownerID, "2026-07-01T18:00:00Z", "2026-07-01T19:00:00Z")
+	insertTicketWithPaymentStatus(t, fx, eventID, "ticket-private@example.test", "Ticket Private", "paid", 1500, "usd")
+
+	body := getParticipantShiftCalendar(t, fx.app, fx.memberCookie, http.StatusOK)
+	events := parseICalendar(t, body)
+	if len(events) != 1 {
+		t.Fatalf("calendar events = %#v, want only the timed member shift", events)
+	}
+	shiftUID := "staffing-" + shiftID + "@os.subcult.tv"
+	if events[0]["UID"] != shiftUID || events[0]["DTSTART"] != "20260701T180000Z" || events[0]["DTEND"] != "20260701T190000Z" {
+		t.Fatalf("calendar event = %#v", events[0])
+	}
+	if !strings.Contains(events[0]["DESCRIPTION"], "Bring earplugs; arrive early.") {
+		t.Fatalf("description lacks participant requirements: %q", events[0]["DESCRIPTION"])
+	}
+	for _, privateValue := range []string{
+		"operator-only staffing note", cancelledID, untimedID, ownerShiftID, "Owner-only shift",
+		"ticket-private@example.test", "Ticket Private", fx.email("owner"), fx.email("member"),
+	} {
+		if strings.Contains(body, privateValue) {
+			t.Fatalf("calendar exposed private value %q: %s", privateValue, body)
+		}
+	}
+
+	// Reschedule through the same columns the staffing update route writes.
+	if _, err := fx.app.db.Exec(t.Context(), `update event_staffing_items set updated_at = now() - interval '1 hour' where id = $1`, shiftID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fx.app.db.Exec(t.Context(), `update events set updated_at = now() - interval '1 hour' where id = $1`, eventID); err != nil {
+		t.Fatal(err)
+	}
+	before := parseICalendar(t, getParticipantShiftCalendar(t, fx.app, fx.memberCookie, http.StatusOK))[0]
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update event_staffing_items
+		set starts_at = '2026-07-01T20:00:00Z', ends_at = '2026-07-01T22:00:00Z', updated_at = now()
+		where id = $1
+	`, shiftID); err != nil {
+		t.Fatal(err)
+	}
+	after := parseICalendar(t, getParticipantShiftCalendar(t, fx.app, fx.memberCookie, http.StatusOK))[0]
+	beforeSequence, _ := strconv.Atoi(before["SEQUENCE"])
+	afterSequence, _ := strconv.Atoi(after["SEQUENCE"])
+	if after["UID"] != shiftUID || after["DTSTART"] != "20260701T200000Z" || after["DTEND"] != "20260701T220000Z" ||
+		afterSequence <= beforeSequence || after["LAST-MODIFIED"] <= before["LAST-MODIFIED"] {
+		t.Fatalf("reschedule before=%#v after=%#v", before, after)
+	}
+
+	if _, err := fx.app.db.Exec(t.Context(), `update event_staffing_items set status = 'cancelled' where id = $1`, shiftID); err != nil {
+		t.Fatal(err)
+	}
+	if cancelled := parseICalendar(t, getParticipantShiftCalendar(t, fx.app, fx.memberCookie, http.StatusOK)); len(cancelled) != 0 {
+		t.Fatalf("cancelled calendar = %#v, want empty", cancelled)
+	}
+
+	if _, err := fx.app.db.Exec(t.Context(), `update event_staffing_items set status = 'assigned' where id = $1`, shiftID); err != nil {
+		t.Fatal(err)
+	}
+	ownerEvents := parseICalendar(t, getParticipantShiftCalendar(t, fx.app, fx.ownerCookie, http.StatusOK))
+	if len(ownerEvents) != 1 || ownerEvents[0]["UID"] != "staffing-"+ownerShiftID+"@os.subcult.tv" {
+		t.Fatalf("owner calendar = %#v, want only the owner's shift", ownerEvents)
+	}
+
+	if _, err := fx.app.db.Exec(t.Context(), `update workspace_members set revoked_at = now() where id = $1`, memberRowID); err != nil {
+		t.Fatal(err)
+	}
+	if revoked := parseICalendar(t, getParticipantShiftCalendar(t, fx.app, fx.memberCookie, http.StatusOK)); len(revoked) != 0 {
+		t.Fatalf("revoked calendar = %#v, want empty", revoked)
+	}
+}
+
+func TestParticipantShiftCalendarRequiresAuthenticatedPerson(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	getParticipantShiftCalendar(t, fx.app, nil, http.StatusUnauthorized)
+}
+
+func getParticipantShiftCalendar(t *testing.T, app *App, cookie *http.Cookie, wantStatus int) string {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodGet, "/api/me/participant-portal/shifts.ics", nil)
+	if cookie != nil {
+		req.AddCookie(cookie)
+	}
+	response := httptest.NewRecorder()
+	app.Handler().ServeHTTP(response, req)
+	if response.Code != wantStatus {
+		t.Fatalf("shift calendar status=%d body=%s, want %d", response.Code, response.Body.String(), wantStatus)
+	}
+	if got := response.Header().Get("Cache-Control"); got != "private, no-store" {
+		t.Fatalf("cache control = %q", got)
+	}
+	if wantStatus != http.StatusOK {
+		if strings.Contains(response.Body.String(), "BEGIN:VCALENDAR") {
+			t.Fatalf("denied response contains calendar: %s", response.Body.String())
+		}
+		return ""
+	}
+	if got := response.Header().Get("Content-Type"); got != "text/calendar; charset=utf-8" {
+		t.Fatalf("content type = %q", got)
+	}
+	if got := response.Header().Get("Content-Disposition"); got != `attachment; filename="subcult-os-shifts.ics"` {
+		t.Fatalf("content disposition = %q", got)
+	}
+	return response.Body.String()
 }

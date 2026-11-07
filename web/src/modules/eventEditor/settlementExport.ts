@@ -9,7 +9,7 @@ const settlementReportExports = {
 
 export type SettlementReportExportKind = keyof typeof settlementReportExports;
 
-function downloadBlob(blob: Blob, filename: string) {
+export function downloadBlob(blob: Blob, filename: string) {
   const objectURL = URL.createObjectURL(blob);
   try {
     const link = document.createElement('a');
