@@ -31,9 +31,25 @@ services:
       interval: 2s
       timeout: 3s
       retries: 30
-    # Migration-suite tmpfs/WAL and shared buffers can exceed 768 MiB.
-    # Give the full suite room while keeping the test database bounded.
-    mem_limit: 1g
+    # Data lives on tmpfs, which counts against mem_limit. The default 1 GB
+    # max_wal_size let retained WAL alone reach the cap and get Postgres
+    # OOM-killed partway through the suite. Bound WAL and skip durability
+    # work that a throwaway database does not need.
+    command:
+      - postgres
+      - -c
+      - max_wal_size=128MB
+      - -c
+      - min_wal_size=32MB
+      - -c
+      - full_page_writes=off
+      - -c
+      - fsync=off
+      - -c
+      - synchronous_commit=off
+    # With WAL bounded the full suite peaked at about 1005 MiB on
+    # 2026-11-07, so 2 GiB leaves room for suite growth.
+    mem_limit: 2g
     cpus: 1
 
   api:
