@@ -628,6 +628,7 @@ func (a *App) dispatchListmonkRecipients(ctx context.Context, tx pgx.Tx, binding
 		where g.workspace_id = $1 and g.channel = 'email' and g.purpose = $2 and g.verified_at is not null
 		order by g.recipient_address, (g.withdrawn_at is null) desc,
 		         (g.listmonk_binding_id = $3 or (g.listmonk_binding_id is null and g.disclosure_version = $4)) desc nulls last,
+		         (g.listmonk_binding_id is null) desc,
 		         g.granted_at desc, g.id
 	`, workspaceID, consentPurposeAnnouncement, binding.ID, binding.DisclosureVersion)
 	if err != nil {

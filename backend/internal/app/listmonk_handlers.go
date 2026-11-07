@@ -394,9 +394,9 @@ func (a *App) handleImportKorkGrant(w http.ResponseWriter, r *http.Request) {
 	if err := tx.QueryRow(r.Context(), `
 		select exists(select 1 from email_suppressions where recipient_email = $1),
 		       exists(select 1 from consent_grants where workspace_id = $2 and channel = 'email' and recipient_address = $1
-		              and purpose = $3 and withdrawn_at is not null and withdrawal_reason is distinct from $6
-		              and (withdrawn_at >= $4 or withdrawn_at >= $5))
-	`, recipient, workspaceID, consentPurposeAnnouncement, receipt.At, binding.CreatedAt, korkBindingRevokedReason).Scan(&suppressed, &withdrawnLater); err != nil {
+		              and purpose = $3 and withdrawn_at is not null
+		              and coalesce(withdrawal_reason, '') not in ($4, 'listmonk_rollback'))
+	`, recipient, workspaceID, consentPurposeAnnouncement, korkBindingRevokedReason).Scan(&suppressed, &withdrawnLater); err != nil {
 		writeError(w, http.StatusInternalServerError, "could not record consent grant")
 		return
 	}
@@ -404,8 +404,11 @@ func (a *App) handleImportKorkGrant(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, "recipient_suppressed")
 		return
 	}
-	// A withdrawal after the receipt time or after the binding was created
-	// is never undone by a receipt.
+	// A receipt never undoes a withdrawal. The receipt time is chosen by the
+	// importer and a new binding has a fresh creation time, so any recorded
+	// announcement withdrawal in this workspace blocks the import; only the
+	// system withdrawals from a binding revoke or a rollback do not. The
+	// person can still re-consent through the native confirmation flow.
 	if withdrawnLater {
 		writeError(w, http.StatusConflict, "grant_withdrawn")
 		return

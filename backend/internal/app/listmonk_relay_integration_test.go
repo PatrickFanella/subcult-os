@@ -769,6 +769,16 @@ func TestListmonkKorkImportNeedsConfirmedListmonkMembership(t *testing.T) {
 	later := fx.receipt(map[string]any{"at": time.Now().Add(2 * time.Minute).UTC().Format(time.RFC3339Nano)})
 	refuse("withdrawn after binding", withdrew, later, http.StatusConflict, "grant_withdrawn")
 
+	// A withdrawal recorded long before this binding existed also wins: a new
+	// binding and a freshly stamped receipt must not undo it.
+	longAgo := fx.email("kork-withdrew-before-binding")
+	fx.fake.subscribe(longAgo, "enabled", "confirmed")
+	oldGrantID := fx.grant(t, longAgo, syntheticDisclosure)
+	if _, err := fx.app.db.Exec(t.Context(), `update consent_grants set granted_at = now() - interval '60 days', withdrawn_at = now() - interval '30 days', withdrawal_reason = 'recipient_requested' where id = $1`, oldGrantID); err != nil {
+		t.Fatal(err)
+	}
+	refuse("withdrawn before binding", longAgo, fresh, http.StatusConflict, "grant_withdrawn")
+
 	var stored int
 	if err := fx.app.db.QueryRow(t.Context(), `select count(*) from consent_grants where workspace_id = $1 and source = 'kork_receipt'`, fx.workspaceID).Scan(&stored); err != nil || stored != 0 {
 		t.Fatalf("refused imports stored %d Kork grants (%v)", stored, err)
@@ -776,6 +786,16 @@ func TestListmonkKorkImportNeedsConfirmedListmonkMembership(t *testing.T) {
 	if fx.fake.creates != 0 || fx.fake.listChanges != 0 || fx.fake.totalSends() != 0 {
 		t.Fatal("an import changed listmonk")
 	}
+
+	// A system withdrawal from a binding revoke is not the person's own and
+	// does not block a later import.
+	revoked := fx.email("kork-binding-revoked")
+	fx.fake.subscribe(revoked, "enabled", "confirmed")
+	revokedGrantID := fx.grant(t, revoked, syntheticDisclosure)
+	if _, err := fx.app.db.Exec(t.Context(), `update consent_grants set withdrawn_at = now(), withdrawal_reason = $2 where id = $1`, revokedGrantID, korkBindingRevokedReason); err != nil {
+		t.Fatal(err)
+	}
+	fx.importKork(t, fx.bindingID, revoked, fresh, http.StatusOK)
 }
 
 // Finding 1 at send time: a Kork grant whose listmonk membership is no longer
@@ -1002,4 +1022,28 @@ func TestListmonkKorkPolicyURLMatchesKorkNormalization(t *testing.T) {
 	fx.fake.subscribe(recipient, "enabled", "confirmed")
 	receipt := fx.receipt(map[string]any{"list": "listmonk:https://lists.example.test/Newsletter#" + strconv.Itoa(syntheticListmonkList)})
 	fx.importKork(t, bindingID, recipient, receipt, http.StatusOK)
+}
+
+// An address holding both a native grant and a newer Kork grant is relayed
+// on the native grant when the Kork grant no longer qualifies, instead of
+// being withheld because the newer Kork grant was picked.
+func TestListmonkNativeGrantPreferredOverKorkGrant(t *testing.T) {
+	fx := newListmonkFixture(t)
+	both := fx.email("kork-and-native")
+	fx.grant(t, both, syntheticDisclosure)
+	fx.fake.subscribe(both, "enabled", "confirmed")
+	fx.importKork(t, fx.bindingID, both, fx.receipt(map[string]any{"at": time.Now().UTC().Format(time.RFC3339Nano)}), http.StatusOK)
+	// The list owner later demotes the list membership; the native OS grant
+	// does not depend on it.
+	fx.fake.subscribe(both, "enabled", "unconfirmed")
+	id, report := fx.dispatch(t)
+	if report.RecipientsEnqueued != 1 {
+		t.Fatalf("dispatch = %+v", report)
+	}
+	if relay := fx.relay(t); relay.Accepted != 1 || relay.Withheld != 0 {
+		t.Fatalf("relay = %+v", relay)
+	}
+	if status, _ := fx.deliveryState(t, id, both); status != listmonkStatusAccepted || fx.fake.sends(both) != 1 {
+		t.Fatalf("delivery status = %q, sends = %d", status, fx.fake.sends(both))
+	}
 }
