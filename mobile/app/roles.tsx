@@ -185,7 +185,7 @@ export default function RolesScreen() {
               <View style={styles.roleIcon}><Users size={18} color={tokens.color.text.primary} /></View>
               <View style={styles.roleCopy}>
                 <Text style={styles.roleName}>{role.name}</Text>
-                <Text style={styles.roleMeta}>{role.capacity} spots · {role.public ? 'public' : 'private'} · {role.active ? 'active' : 'inactive'}</Text>
+                <Text style={styles.roleMeta}>{role.capacity > 0 ? `${role.capacity} spots` : 'No limit'} · {role.public ? 'public' : 'private'} · {role.active ? 'active' : 'inactive'}</Text>
                 {role.description ? <Text style={styles.roleDescription}>{role.description}</Text> : null}
                 <PrimaryButton variant="secondary" onPress={() => startEditingRole(role)} style={styles.editRoleButton} label="Edit role" />
               </View>
