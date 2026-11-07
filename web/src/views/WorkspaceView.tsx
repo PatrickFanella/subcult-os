@@ -321,6 +321,9 @@ export function WorkspaceView() {
       ),
     [orderedEvents],
   );
+  // Owners and organizers plan events and see the workspace's coordination
+  // data; crew, door and finance see the events they work and their own tasks.
+  const coordinator = workspace?.role === 'owner' || workspace?.role === 'organizer';
   const guidance = useMemo(() => buildOperatorGuidance(orderedEvents, workspace?.id ?? '', workspace?.role), [orderedEvents, workspace?.id, workspace?.role]);
 
   useEffect(() => {
@@ -397,7 +400,11 @@ export function WorkspaceView() {
     let cancelled = false;
 
     async function loadReminders() {
-      if (!workspace || workspace.role === 'participant') {
+      if (workspace && workspace.role !== 'owner' && workspace.role !== 'organizer') {
+        setReminders(null);
+        return;
+      }
+      if (!workspace) {
         setReminders(undefined);
         return;
       }
@@ -963,14 +970,18 @@ export function WorkspaceView() {
                     ) : null}
 
                     <div className="mt-6 grid grid-cols-[repeat(auto-fit,minmax(min(7.5rem,100%),1fr))] gap-2 sm:gap-3">
+                      {coordinator ? (
                       <div className="min-w-0 border border-stroke-subtle bg-surface-inset p-3 sm:p-4">
                         <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Members</p>
                         <p className="mt-2 text-2xl font-semibold text-fg-primary">{workspace.members.length}</p>
                       </div>
+                      ) : null}
+                      {coordinator ? (
                       <div className="min-w-0 border border-stroke-subtle bg-surface-inset p-3 sm:p-4">
                         <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Invites</p>
                         <p className="mt-2 text-2xl font-semibold text-fg-primary">{workspace.invitations.length}</p>
                       </div>
+                      ) : null}
                       <div className="min-w-0 border border-stroke-subtle bg-surface-inset p-3 sm:p-4">
                         <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Events</p>
                         <p className="mt-2 text-2xl font-semibold text-fg-primary">{events.length}</p>
@@ -1017,6 +1028,7 @@ export function WorkspaceView() {
                   </div>
                 </div>
 
+                {coordinator ? (
                 <div className="mt-6 space-y-3">
                   <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Members</p>
                   <div className="space-y-2">
@@ -1040,6 +1052,7 @@ export function WorkspaceView() {
                     ))}
                   </div>
                 </div>
+                ) : null}
 
                 <div className="mt-6 space-y-3">
                   <div className="flex items-center justify-between gap-3">
@@ -1127,6 +1140,7 @@ export function WorkspaceView() {
                   </div>
                 </div>
 
+                {coordinator ? (
                 <section className="space-y-3 rounded-panel border border-stroke-subtle bg-surface-panel p-6">
                   <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Workspace archive</p>
                   <div className="rounded-2xl border border-status-info/20 bg-status-surface-info p-4 text-sm leading-6 text-status-info">
@@ -1207,6 +1221,7 @@ export function WorkspaceView() {
                     ))}
                   </div>
                 </section>
+                ) : null}
 
                 {templates !== null ? (
                   <section className="space-y-4 rounded-panel border border-stroke-subtle bg-surface-panel p-6">
@@ -1711,6 +1726,7 @@ export function WorkspaceView() {
                   onSubmit={handleInvite}
                 />
 
+                {coordinator ? (
                 <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
                   <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Invitations</p>
                   <p className="mt-2 text-sm leading-6 text-fg-secondary">Pending and accepted invites. A link shows while its token is available.</p>
@@ -1749,6 +1765,7 @@ export function WorkspaceView() {
                     })}
                   </div>
                 </section>
+                ) : null}
 
                 <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
                   <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Workspace access</p>

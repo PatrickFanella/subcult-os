@@ -238,7 +238,7 @@ func (a *App) handleOccurrencePublicPreview(w http.ResponseWriter, r *http.Reque
 		writeError(w, http.StatusInternalServerError, "could not load occurrence")
 		return
 	}
-	if _, _, ok := a.requireWorkspaceRole(r, occurrence.WorkspaceID, "owner", "member"); !ok {
+	if _, _, ok := a.requireCoordinator(r, occurrence.WorkspaceID); !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}

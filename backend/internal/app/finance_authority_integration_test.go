@@ -37,6 +37,10 @@ func TestOperationalPatchDoesNotRestoreStalePricingAfterFinanceCommit(t *testing
 	fx := newLifecycleFixture(t)
 	event := createEvent(t, fx, "Race Night", 2)
 	eventID := mustString(t, event, "id")
+	// Operational edits belong to coordinators; an organizer has no finance.
+	if _, err := fx.app.db.Exec(t.Context(), `update workspace_members set role = 'organizer' where id = $1`, memberRowIDOnly(t, fx)); err != nil {
+		t.Fatal(err)
+	}
 	blocker, err := fx.app.db.Begin(t.Context())
 	if err != nil {
 		t.Fatal(err)
@@ -99,6 +103,13 @@ func TestPricingWritesRequireFinanceButFreeOperationalEditsRemainAvailable(t *te
 	fx := newLifecycleFixture(t)
 	event := createEvent(t, fx, "Free Night", 2)
 	eventID := mustString(t, event, "id")
+	// Crew cannot create or edit events at all.
+	postJSON(t, fx.app, fx.memberCookie, "/api/workspaces/"+fx.workspaceID+"/events", map[string]any{"title": "Crew free", "startsAt": "2026-07-01T20:00:00Z", "publicDescription": "Free.", "locationDisplay": "Warehouse", "ticketAllocation": 2, "pricingMode": "free"}, http.StatusForbidden)
+	patchJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID, map[string]any{"locationDisplay": "Crew room"}, http.StatusForbidden)
+	// An organizer edits events but not pricing.
+	if _, err := fx.app.db.Exec(t.Context(), `update workspace_members set role = 'organizer' where id = $1`, memberRowIDOnly(t, fx)); err != nil {
+		t.Fatal(err)
+	}
 	postJSON(t, fx.app, fx.memberCookie, "/api/workspaces/"+fx.workspaceID+"/events", map[string]any{"title": "Member free", "startsAt": "2026-07-01T20:00:00Z", "publicDescription": "Free.", "locationDisplay": "Warehouse", "ticketAllocation": 2, "pricingMode": "free"}, http.StatusOK)
 	postJSON(t, fx.app, fx.memberCookie, "/api/workspaces/"+fx.workspaceID+"/events", map[string]any{"title": "Member paid", "startsAt": "2026-07-01T20:00:00Z", "publicDescription": "Paid.", "locationDisplay": "Warehouse", "ticketAllocation": 2, "pricingMode": "fixed", "ticketPriceCents": 1500, "ticketCurrency": "usd"}, http.StatusForbidden)
 	patchJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID, map[string]any{"locationDisplay": "New room"}, http.StatusOK)
@@ -108,8 +119,9 @@ func TestPricingWritesRequireFinanceButFreeOperationalEditsRemainAvailable(t *te
 		t.Fatal(err)
 	}
 	patchJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID, map[string]any{"pricingMode": "fixed", "ticketPriceCents": 1500, "ticketCurrency": "usd"}, http.StatusOK)
-
-	postJSON(t, fx.app, fx.memberCookie, "/api/workspaces/"+fx.workspaceID+"/events", map[string]any{"title": "Paid by finance", "startsAt": "2026-07-01T20:00:00Z", "publicDescription": "Paid.", "locationDisplay": "Warehouse", "ticketAllocation": 2, "pricingMode": "fixed", "ticketPriceCents": 1500, "ticketCurrency": "usd"}, http.StatusOK)
+	// Finance prices events; planning them stays with coordinators.
+	patchJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID, map[string]any{"locationDisplay": "Finance room"}, http.StatusForbidden)
+	postJSON(t, fx.app, fx.memberCookie, "/api/workspaces/"+fx.workspaceID+"/events", map[string]any{"title": "Paid by finance", "startsAt": "2026-07-01T20:00:00Z", "publicDescription": "Paid.", "locationDisplay": "Warehouse", "ticketAllocation": 2, "pricingMode": "fixed", "ticketPriceCents": 1500, "ticketCurrency": "usd"}, http.StatusForbidden)
 }
 
 func TestFinanceBoundaryDeniesEveryNonFinanceRoleAndInactiveMembership(t *testing.T) {

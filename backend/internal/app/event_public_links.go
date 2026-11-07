@@ -253,7 +253,7 @@ func (a *App) handlePreviewEventPublicLink(w http.ResponseWriter, r *http.Reques
 		writeError(w, http.StatusInternalServerError, "could not load event")
 		return
 	}
-	if _, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner", "member"); !ok {
+	if _, _, ok := a.requireCoordinator(r, event.WorkspaceID); !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
@@ -285,7 +285,7 @@ func (a *App) handleListEventPublicLinks(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusInternalServerError, "could not load event")
 		return
 	}
-	if _, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner", "member"); !ok {
+	if _, _, ok := a.requireCoordinator(r, event.WorkspaceID); !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
@@ -336,7 +336,7 @@ func (a *App) handleAttachEventPublicLink(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusInternalServerError, "could not load event")
 		return
 	}
-	actorID, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner", "member")
+	actorID, _, ok := a.requireCoordinator(r, event.WorkspaceID)
 	if !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
@@ -388,7 +388,7 @@ func (a *App) handleDetachEventPublicLink(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusInternalServerError, "could not load event")
 		return
 	}
-	actorID, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner", "member")
+	actorID, _, ok := a.requireCoordinator(r, event.WorkspaceID)
 	if !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
@@ -437,7 +437,7 @@ func (a *App) handleRefreshEventPublicLink(w http.ResponseWriter, r *http.Reques
 		writeError(w, http.StatusInternalServerError, "could not load event")
 		return
 	}
-	actorID, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner", "member")
+	actorID, _, ok := a.requireCoordinator(r, event.WorkspaceID)
 	if !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return

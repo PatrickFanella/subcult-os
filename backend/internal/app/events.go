@@ -359,7 +359,7 @@ func (a *App) handleCreateEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	workspaceID := r.PathValue("workspaceID")
-	actorID, _, ok := a.requireWorkspaceRole(r, workspaceID, "owner", "member")
+	actorID, _, ok := a.requireCoordinator(r, workspaceID)
 	if !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
@@ -483,8 +483,16 @@ func (a *App) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not load event")
 		return
 	}
-	actorID, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner", "member")
+	actorID, role, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner", "member")
 	if !ok {
+		writeError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+	// Coordinators edit events. Finance keeps setting prices, so a finance
+	// member who is not a coordinator may change only the pricing fields
+	// (the pricing check below still requires the finance permission).
+	coordinator := roleHasPermission(role, permCoordinate)
+	if !coordinator && !roleHasPermission(role, permFinance) {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
@@ -497,6 +505,10 @@ func (a *App) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Title == nil && req.StartsAt == nil && req.PublicDescription == nil && req.LocationDisplay == nil && req.ImageURL == nil && req.TicketAllocation == nil && req.PricingMode == nil && req.TicketPriceCents == nil && req.TicketCurrency == nil {
 		writeError(w, http.StatusBadRequest, "no changes provided")
+		return
+	}
+	if !coordinator && (req.Title != nil || req.StartsAt != nil || req.PublicDescription != nil || req.LocationDisplay != nil || req.ImageURL != nil || req.TicketAllocation != nil) {
+		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
 	if !lifecycle.CanEdit() {
@@ -1078,7 +1090,7 @@ func (a *App) handleGetArchive(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not load event")
 		return
 	}
-	if _, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner", "member"); !ok {
+	if _, _, ok := a.requireCoordinator(r, event.WorkspaceID); !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}

@@ -47,7 +47,7 @@ roles plus one legacy alias:
 | `organizer` | Day-to-day event operations and creator delegation management, not membership or finance. |
 | `finance` | Settlement and payment operations, not membership, delegation or publish. |
 | `door` | Door check-in operations only. |
-| `crew` | Baseline operate-only access: the floor for every operator role. |
+| `crew` | Works events: the events list and details, the run of show (names and participant requirements, no operator notes or emails), roles, and their own commitments. The floor for every operator role. |
 | `participant` | Not an operator. A volunteer, performer or vendor who works shifts: their own participant portal, the open shifts their accepted applications make them eligible for, and their `.ics` download. No events, staffing board, notes, contacts, applications, members, tickets or finance. |
 | `member` | Legacy alias for `crew`, kept so every pre-AUTH-01 row and every existing literal `"member"` call site in `backend/internal/app` keeps working unmodified. New code assigns `crew`, never `member`; the role-change endpoint's assignable set excludes `member` for the same reason. |
 
@@ -63,6 +63,7 @@ of the permissions below; it carries only `participate`:
 | Permission | owner | organizer | finance | door | crew / member |
 | --- | --- | --- | --- | --- | --- |
 | `operate` (baseline access) | yes | yes | yes | yes | yes |
+| `coordinate` (plan and edit events, read coordination data) | yes | yes | no | no | no |
 | `manage_members` (role/expiry/revocation) | yes | no | no | no | no |
 | `manage_delegations` (create/revoke delegation) | yes | yes | no | no | no |
 | `publish` (authorize a public write) | yes | yes | no | no | no |
@@ -102,6 +103,36 @@ choose an external destination can later be narrowed without changing who
 drafts announcements. Handing off still requires `manage_announcements` and an
 already scheduled announcement. See
 [`backline-handoff.md`](backline-handoff.md).
+
+## Crew scope
+
+Crew, door and finance work events; owners and organizers plan them. The
+`coordinate` permission (owner, organizer) separates the two. Crew, door and
+finance keep:
+
+- the workspace's events and each event's details;
+- the run of show, where a shift shows its holder by display name (or
+  "Assigned") and its participant requirements, but not operator notes or
+  email addresses;
+- the event's roles (names and capacity);
+- commitments they own, from both the workspace and event lists;
+- the workspace name and their own role, without the member list or
+  invitations.
+
+Coordinator-only, refused with 403 for crew, door and finance: creating and
+editing events, event images and test tickets; role applications and the
+participant roster; notification and reminder activity; public links,
+occurrences, cultural places and profiles; event templates; workspace and
+event archives; contacts. Door and finance keep their own permissions, and
+finance may still change an event's pricing fields through
+`PATCH /api/events/{eventID}`; any other field in that request is refused.
+
+The web shows crew a read-only event form, with no member, invitation or
+archive panels and no notification or reminder activity. The mobile staff
+dashboard hides Create Event, Edit Event, Readiness and Roles from them.
+`crew_scope_integration_test.go` covers the run-of-show redaction, own-only
+commitments, the hidden member list, 12 coordinator-only reads (crew 403,
+organizer 200) and the event create/edit refusals.
 
 ## Participant tier
 

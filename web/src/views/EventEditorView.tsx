@@ -167,8 +167,11 @@ export function EventEditorView({ eventId }: { eventId: string }) {
   const financeAccessDenied = reportAccessDenied || settlementAccessDenied;
   const canManageArchive = isClosedEvent(event?.status) && currentWorkspace?.role === 'owner' && currentWorkspace?.id === event?.workspaceId;
   const canReviewApplications = currentWorkspace?.role === 'owner' && currentWorkspace?.id === event?.workspaceId;
-  const canViewNotificationActivity = currentWorkspace?.id === event?.workspaceId && (currentWorkspace?.role === 'owner' || currentWorkspace?.role === 'member');
-  const canViewReminderActivity = currentWorkspace?.id === event?.workspaceId && (currentWorkspace?.role === 'owner' || currentWorkspace?.role === 'member');
+  // Owners and organizers edit event details; finance may change pricing only.
+  // Crew and door see the event read-only.
+  const canEditEventDetails = !currentWorkspace || currentWorkspace.role === 'owner' || currentWorkspace.role === 'organizer' || canManageFinance;
+  const canViewNotificationActivity = currentWorkspace?.id === event?.workspaceId && (currentWorkspace?.role === 'owner' || currentWorkspace?.role === 'organizer');
+  const canViewReminderActivity = currentWorkspace?.id === event?.workspaceId && (currentWorkspace?.role === 'owner' || currentWorkspace?.role === 'organizer');
   const loadedNotificationActivity = Array.isArray(notifications) ? notifications : null;
   const loadedReminderActivity = Array.isArray(reminders) ? reminders : null;
   const applicationsReady = roles !== null && applications !== null;
@@ -1178,7 +1181,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
               </section>
             ) : (
               <form className="space-y-4 rounded-panel border border-stroke-subtle bg-surface-panel p-6" onSubmit={handleSubmit}>
-                <fieldset className="min-w-0 space-y-4 border-0 p-0" disabled={saving || actioning}>
+                <fieldset className="min-w-0 space-y-4 border-0 p-0" disabled={saving || actioning || !canEditEventDetails}>
                 <legend className="sr-only">Event details</legend>
                 <label className="block space-y-2 text-sm">
                   <span className="text-fg-secondary">Title</span>
@@ -1314,7 +1317,9 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                   {!canEditPricing ? <p className="mt-4 text-sm leading-6 text-fg-secondary">Fixed paid pricing requires an owner or finance workspace role. Free events can still be created.</p> : null}
                 </fieldset>
 
-                {!closed ? (
+                {!canEditEventDetails ? (
+                  <p className="rounded-2xl border border-stroke-subtle bg-surface-inset px-4 py-3 text-sm text-fg-secondary">Owners and organizers edit event details.</p>
+                ) : !closed ? (
                   <button className="btn-primary w-full px-4" type="submit" disabled={saving || actioning || !dirty}>
                     {saving ? 'Saving…' : dirty ? (creating ? 'Create event' : 'Save event') : creating ? 'Fill in details' : 'No changes'}
                   </button>

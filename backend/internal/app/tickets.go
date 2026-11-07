@@ -580,7 +580,7 @@ func (a *App) handleCreateTestTicket(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not load ticket capacity")
 		return
 	}
-	actorID, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner", "member")
+	actorID, _, ok := a.requireCoordinator(r, event.WorkspaceID)
 	if !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return

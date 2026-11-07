@@ -207,7 +207,7 @@ func (a *App) handleListEventOccurrences(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusInternalServerError, "could not load event")
 		return
 	}
-	if _, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner", "member"); !ok {
+	if _, _, ok := a.requireCoordinator(r, event.WorkspaceID); !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
@@ -254,7 +254,7 @@ func (a *App) handleCreateEventOccurrence(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusInternalServerError, "could not load event")
 		return
 	}
-	actorID, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner", "member")
+	actorID, _, ok := a.requireCoordinator(r, event.WorkspaceID)
 	if !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
@@ -377,7 +377,7 @@ func (a *App) handleUpdateEventOccurrence(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusInternalServerError, "could not load occurrence")
 		return
 	}
-	actorID, _, ok := a.requireWorkspaceRole(r, occurrence.WorkspaceID, "owner", "member")
+	actorID, _, ok := a.requireCoordinator(r, occurrence.WorkspaceID)
 	if !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
@@ -551,7 +551,7 @@ func (a *App) handleAttachOccurrenceCredit(w http.ResponseWriter, r *http.Reques
 		writeError(w, http.StatusInternalServerError, "could not load occurrence")
 		return
 	}
-	actorID, _, ok := a.requireWorkspaceRole(r, occurrence.WorkspaceID, "owner", "member")
+	actorID, _, ok := a.requireCoordinator(r, occurrence.WorkspaceID)
 	if !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
@@ -632,7 +632,7 @@ func (a *App) handleDetachOccurrenceCredit(w http.ResponseWriter, r *http.Reques
 		writeError(w, http.StatusInternalServerError, "could not load occurrence")
 		return
 	}
-	actorID, _, ok := a.requireWorkspaceRole(r, occurrence.WorkspaceID, "owner", "member")
+	actorID, _, ok := a.requireCoordinator(r, occurrence.WorkspaceID)
 	if !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return

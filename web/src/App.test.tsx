@@ -807,6 +807,21 @@ describe('App routes', () => {
     }
   });
 
+  it('shows crew the events they work without member, invitation or archive panels', () => {
+    const rendered = renderWithState('/workspace?workspaceId=workspace-1', <WorkspaceView />, [
+      { id: 'person-1', email: 'crew@example.com', displayName: 'Crew', workspaces: [{ id: 'workspace-1', name: 'Main Room', role: 'crew' }] },
+      { id: 'workspace-1', name: 'Main Room', role: 'crew', members: [], invitations: [] },
+      [],
+      [],
+      false,
+    ]);
+    expect(rendered).toContain('Operator home');
+    expect(rendered).toContain('Main Room');
+    for (const coordinatorOnly of ['Workspace archive', 'Invitations', 'Manage member roles', 'Invite member']) {
+      expect(rendered).not.toContain(coordinatorOnly);
+    }
+  });
+
   it('hides owner-only workspace controls for members', () => {
     const event = {
       id: 'event-1',
@@ -1808,7 +1823,7 @@ describe('App routes', () => {
     expect(rendered).not.toContain('Reopen');
   });
 
-  it('renders notification activity for member views without private body text', () => {
+  it('renders notification activity for organizer views without private body text', () => {
     const event = {
       id: 'event-1',
       workspaceId: 'workspace-1',
@@ -1919,7 +1934,7 @@ describe('App routes', () => {
       {
         id: 'workspace-1',
         name: 'Main Room',
-        role: 'member',
+        role: 'organizer',
         members: [{ id: 'member-1', email: 'morgan@example.com', displayName: 'Morgan', role: 'member' }],
         invitations: [],
       },

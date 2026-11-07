@@ -115,6 +115,7 @@ func (a *App) handleListEventStaffing(w http.ResponseWriter, r *http.Request) {
 		select esi.id, esi.event_id, esi.title, esi.kind, esi.notes, esi.participant_requirements, esi.starts_at, esi.ends_at,
 		       esi.assigned_person_id, esi.assigned_application_id,
 		       coalesce(nullif(trim(p.display_name), ''), p.email, era.applicant_name) as assignee_name,
+		       coalesce(nullif(trim(p.display_name), ''), nullif(trim(era.applicant_name), '')) as assignee_display_name,
 		       esi.status, esi.created_at, esi.updated_at, esi.completed_at, esi.completed_by_person_id,
 		       esi.capacity, esi.claims_open, esi.release_cutoff_hours
 		from event_staffing_items esi
@@ -135,12 +136,26 @@ func (a *App) handleListEventStaffing(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
+	coordinator := roleHasPermission(role, permCoordinate)
 	items := make([]eventStaffingItemDTO, 0)
 	for rows.Next() {
 		var row eventStaffingItemRow
-		if err := rows.Scan(&row.ID, &row.EventID, &row.Title, &row.Kind, &row.Notes, &row.ParticipantRequirements, &row.StartsAt, &row.EndsAt, &row.AssignedPersonID, &row.AssignedApplicationID, &row.AssigneeName, &row.Status, &row.CreatedAt, &row.UpdatedAt, &row.CompletedAt, &row.CompletedByPersonID, &row.Capacity, &row.ClaimsOpen, &row.ReleaseCutoffHours); err != nil {
+		var assigneeDisplayName sql.NullString
+		if err := rows.Scan(&row.ID, &row.EventID, &row.Title, &row.Kind, &row.Notes, &row.ParticipantRequirements, &row.StartsAt, &row.EndsAt, &row.AssignedPersonID, &row.AssignedApplicationID, &row.AssigneeName, &assigneeDisplayName, &row.Status, &row.CreatedAt, &row.UpdatedAt, &row.CompletedAt, &row.CompletedByPersonID, &row.Capacity, &row.ClaimsOpen, &row.ReleaseCutoffHours); err != nil {
 			writeError(w, http.StatusInternalServerError, "could not load staffing")
 			return
+		}
+		if !coordinator {
+			// Crew, door and finance see who is working, by name only, and
+			// the participant requirements; operator notes and email
+			// addresses stay with coordinators.
+			row.Notes = ""
+			if row.AssigneeName.Valid {
+				row.AssigneeName = assigneeDisplayName
+				if !row.AssigneeName.Valid {
+					row.AssigneeName = sql.NullString{String: "Assigned", Valid: true}
+				}
+			}
 		}
 		items = append(items, eventStaffingItemDTOFromRow(row))
 	}

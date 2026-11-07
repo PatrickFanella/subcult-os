@@ -105,7 +105,7 @@ func (a *App) handleListCulturalProfiles(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	workspaceID := r.PathValue("workspaceID")
-	if _, _, ok := a.requireWorkspaceRole(r, workspaceID, "owner", "member"); !ok {
+	if _, _, ok := a.requireCoordinator(r, workspaceID); !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
@@ -146,7 +146,7 @@ func (a *App) handleCreateCulturalProfile(w http.ResponseWriter, r *http.Request
 		return
 	}
 	workspaceID := r.PathValue("workspaceID")
-	actorID, _, ok := a.requireWorkspaceRole(r, workspaceID, "owner", "member")
+	actorID, _, ok := a.requireCoordinator(r, workspaceID)
 	if !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
@@ -214,7 +214,7 @@ func (a *App) handleUpdateCulturalProfile(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusInternalServerError, "could not load profile")
 		return
 	}
-	actorID, _, ok := a.requireWorkspaceRole(r, profile.WorkspaceID, "owner", "member")
+	actorID, _, ok := a.requireCoordinator(r, profile.WorkspaceID)
 	if !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return

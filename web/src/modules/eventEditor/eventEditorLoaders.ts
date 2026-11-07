@@ -47,7 +47,8 @@ export async function loadEventEditorArchive(apiClient: ApiClient, eventId: stri
 	try {
 		return await apiClient<EventArchiveDTO>(`/api/events/${eventId}/archive`);
 	} catch (caught) {
-		if (caught instanceof ApiError && caught.status === 404) {
+		// 404: no archive yet. 403: archives are coordinator-only.
+		if (caught instanceof ApiError && (caught.status === 404 || caught.status === 403)) {
 			return null;
 		}
 
@@ -62,7 +63,11 @@ export async function loadEventEditorWorkspace(apiClient: ApiClient, workspaceId
 export async function loadEventEditorRoleApplications(apiClient: ApiClient, eventId: string) {
 	const [roles, applications] = await Promise.all([
 		apiClient<EventRoleDTO[]>(`/api/events/${eventId}/roles`),
-		apiClient<EventRoleApplicationDTO[]>(`/api/events/${eventId}/role-applications`),
+		// Applications hold applicants' contact details: coordinator-only.
+		apiClient<EventRoleApplicationDTO[]>(`/api/events/${eventId}/role-applications`).catch((caught: unknown) => {
+			if (caught instanceof ApiError && caught.status === 403) return [] as EventRoleApplicationDTO[];
+			throw caught;
+		}),
 	]);
 
 	return { roles, applications };
@@ -93,7 +98,13 @@ export async function loadEventEditorReminders(apiClient: ApiClient, eventId: st
 }
 
 export async function loadEventEditorParticipants(apiClient: ApiClient, eventId: string) {
-	return apiClient<EventParticipantDTO[]>(`/api/events/${eventId}/participants`);
+	try {
+		return await apiClient<EventParticipantDTO[]>(`/api/events/${eventId}/participants`);
+	} catch (caught) {
+		// The participant roster is coordinator-only.
+		if (caught instanceof ApiError && caught.status === 403) return [];
+		throw caught;
+	}
 }
 
 export async function loadEventEditorStaffing(apiClient: ApiClient, eventId: string) {

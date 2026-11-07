@@ -99,7 +99,7 @@ func (a *App) handleListWorkspaceReminders(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	workspaceID := r.PathValue("workspaceID")
-	if _, _, ok := a.requireWorkspaceRole(r, workspaceID, "owner", "member"); !ok {
+	if _, _, ok := a.requireCoordinator(r, workspaceID); !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
@@ -132,7 +132,7 @@ func (a *App) handleListEventReminders(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not load event")
 		return
 	}
-	if _, _, ok := a.requireWorkspaceRole(r, event.WorkspaceID, "owner", "member"); !ok {
+	if _, _, ok := a.requireCoordinator(r, event.WorkspaceID); !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}

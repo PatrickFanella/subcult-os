@@ -11,7 +11,7 @@ import type { EventDTO, WorkspaceSummaryDTO } from '@/api/types';
 import { useAuth } from '@/auth/AuthContext';
 import { eventArtwork } from '@/data/eventArtwork';
 import { clearSelectedEventID, loadStaffSelection, storeSelectedEventID, storeSelectedWorkspaceID } from '@/staff/selectionStore';
-import { nextSelectedEvent, operatorWorkspaces, selectedEventLabel, selectedWorkspaceLabel, staffSelectionEmptyCopy, staffSelectionReady } from '@/modules/staff/staffOperatorModel';
+import { canCoordinate, nextSelectedEvent, operatorWorkspaces, selectedEventLabel, selectedWorkspaceLabel, staffSelectionEmptyCopy, staffSelectionReady } from '@/modules/staff/staffOperatorModel';
 import { AppChrome } from '@/ui/AppChrome';
 
 export default function StaffScreen() {
@@ -29,6 +29,7 @@ export default function StaffScreen() {
   const staffWorkspaces = operatorWorkspaces(user?.workspaces ?? []);
   const workspaceKey = staffWorkspaces.map((workspace) => workspace.id).join('|');
   const workspace = selectedWorkspaceID ? staffWorkspaces.find((candidate) => candidate.id === selectedWorkspaceID) ?? null : null;
+  const coordinator = canCoordinate(workspace);
 
   useEffect(() => {
     if (!user) {
@@ -205,12 +206,12 @@ export default function StaffScreen() {
         </View>
 
         <View style={styles.grid}>
-          <DashboardCard to={{ pathname: '/event-edit', params: { workspaceId: workspace.id } }} icon={<CalendarPlus size={24} color={tokens.color.text.inverse} />} title="Create Event" subtitle="Draft & publish" primary />
-          <DashboardCard to={activeEvent ? { pathname: '/event-edit', params: { eventId: activeEvent.id, workspaceId: workspace.id } } : { pathname: '/event-edit', params: { workspaceId: workspace.id } }} icon={<Pencil size={24} color={tokens.color.text.primary} />} title="Edit Event" subtitle="Basics & tickets" />
-          <DashboardCard disabled={!selectionReady} to={activeEvent ? { pathname: '/readiness', params: { eventId: activeEvent.id } } : '/staff'} icon={<ClipboardCheck size={24} color={tokens.color.text.inverse} />} title="Readiness" subtitle="Setup checklist" primary />
+          {coordinator ? <DashboardCard to={{ pathname: '/event-edit', params: { workspaceId: workspace.id } }} icon={<CalendarPlus size={24} color={tokens.color.text.inverse} />} title="Create Event" subtitle="Draft & publish" primary /> : null}
+          {coordinator ? <DashboardCard to={activeEvent ? { pathname: '/event-edit', params: { eventId: activeEvent.id, workspaceId: workspace.id } } : { pathname: '/event-edit', params: { workspaceId: workspace.id } }} icon={<Pencil size={24} color={tokens.color.text.primary} />} title="Edit Event" subtitle="Basics & tickets" /> : null}
+          {coordinator ? <DashboardCard disabled={!selectionReady} to={activeEvent ? { pathname: '/readiness', params: { eventId: activeEvent.id } } : '/staff'} icon={<ClipboardCheck size={24} color={tokens.color.text.inverse} />} title="Readiness" subtitle="Setup checklist" primary /> : null}
           <DashboardCard disabled={!selectionReady} to={activeEvent ? { pathname: '/scanner', params: { eventId: activeEvent.id } } : '/staff'} icon={<QrCode size={24} color={tokens.color.text.inverse} />} title="Scan Tickets" subtitle="Run the door" primary />
           <DashboardCard disabled={!selectionReady} to={activeEvent ? { pathname: '/run-of-show', params: { eventId: activeEvent.id } } : '/staff'} icon={<ListChecks size={24} color={tokens.color.text.primary} />} title="Run of Show" subtitle="Event timeline" />
-          <DashboardCard disabled={!selectionReady} to={activeEvent ? { pathname: '/roles', params: { eventId: activeEvent.id } } : '/staff'} icon={<UserPlus size={24} color={tokens.color.text.primary} />} title="Roles" subtitle="Applicants" />
+          {coordinator ? <DashboardCard disabled={!selectionReady} to={activeEvent ? { pathname: '/roles', params: { eventId: activeEvent.id } } : '/staff'} icon={<UserPlus size={24} color={tokens.color.text.primary} />} title="Roles" subtitle="Applicants" /> : null}
           <DashboardCard disabled={!selectionReady} to={activeEvent ? { pathname: '/door', params: { eventId: activeEvent.id } } : '/staff'} icon={<Users size={24} color={tokens.color.text.primary} />} title="Guest List" subtitle="VIP & Comp" />
           <DashboardCard disabled={!selectionReady} to={activeEvent ? { pathname: '/event-dashboard', params: { eventId: activeEvent.id } } : '/staff'} icon={<Mic2 size={24} color={tokens.color.text.primary} />} title="Live Event" subtitle="Counters" />
         </View>
