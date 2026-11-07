@@ -436,3 +436,28 @@ func TestOperatorWithdrawConsentGrantIsScopedAndPermissioned(t *testing.T) {
 		t.Fatalf("GET withdraw status = %d, want %d", rec.Code, http.StatusMethodNotAllowed)
 	}
 }
+
+// TestAcceptInvitationIsIdempotentForTheInvitee covers a reload of the invite
+// page (or two racing requests from one browser): the person who accepted
+// gets success again, and loses it once their membership is revoked.
+func TestAcceptInvitationIsIdempotentForTheInvitee(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	address := "repeat-invitee+" + fx.suffix + "@example.test"
+	memberCookie := signupAndVerifyCookie(t, fx.app, address, "Repeat Invitee")
+	invite := postJSON(t, fx.app, fx.ownerCookie, "/api/workspaces/"+fx.workspaceID+"/invitations", map[string]any{"email": address}, http.StatusOK)
+	acceptPath := "/api/invitations/" + mustString(t, invite.JSON, "token") + "/accept"
+	postJSON(t, fx.app, memberCookie, acceptPath, map[string]any{}, http.StatusOK)
+	postJSON(t, fx.app, memberCookie, acceptPath, map[string]any{}, http.StatusOK)
+
+	// Someone else holding the link still gets the conflict.
+	otherCookie := signupAndVerifyCookie(t, fx.app, "other-invitee+"+fx.suffix+"@example.test", "Other Invitee")
+	postJSON(t, fx.app, otherCookie, acceptPath, map[string]any{}, http.StatusConflict)
+
+	if _, err := fx.app.db.Exec(t.Context(), `
+		update workspace_members set revoked_at = now()
+		where workspace_id = $1 and person_id = (select id from people where email = $2)
+	`, fx.workspaceID, address); err != nil {
+		t.Fatal(err)
+	}
+	postJSON(t, fx.app, memberCookie, acceptPath, map[string]any{}, http.StatusConflict)
+}
