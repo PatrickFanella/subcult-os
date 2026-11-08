@@ -24,6 +24,13 @@ The final pinned `bash scripts/dev-env.sh verify` passed with 420 web tests,
 removed. The permission regression separately passed with `go test -race`.
 Golangci reported zero new issues for that backend change.
 
+Hosted qualification exposed Go's default ten-minute package timeout: one run
+expired after 714 passing cases with no assertion failure, while a comparable
+passing run took 529 seconds for the application package. The CI database step
+now sets a fifteen-minute package budget within the existing twenty-minute job
+limit. Per-case concurrency deadlines and all assertions remain unchanged. The
+same setting passed the complete disposable local gate before it was pushed.
+
 A second, manually named disposable development stack used its own
 `subcult_qa_overnight_20261108` database. Mail delivery, AT OAuth and projection
 were disabled. Against that stack:
