@@ -4090,7 +4090,7 @@ func mustString(t *testing.T, value any, key string) string {
 func signupAndVerifyCookie(t *testing.T, app *App, email, displayName string) *http.Cookie {
 	t.Helper()
 	postJSON(t, app, nil, "/api/auth/signup", map[string]any{"email": email, "password": "secret1234", "displayName": displayName}, http.StatusAccepted)
-	token := latestIdentityToken(t, app, "identity_verification")
+	token := latestIdentityTokenForRecipient(t, app, "identity_verification", email)
 	result := postJSON(t, app, nil, "/api/auth/verify-email", map[string]any{"token": token}, http.StatusOK)
 	if result.Cookie == nil {
 		t.Fatal("expected verification to issue an access cookie")
