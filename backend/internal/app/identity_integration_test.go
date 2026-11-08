@@ -265,16 +265,23 @@ func signupAndVerifyIdentity(t *testing.T, app *App, email string) authTestResul
 	authJSON(t, app, http.MethodPost, "/api/auth/signup", map[string]any{
 		"email": email, "password": "secret1234", "displayName": "Identity Test",
 	}, nil, http.StatusAccepted)
-	token := latestIdentityToken(t, app, "identity_verification")
+	token := latestIdentityTokenForRecipient(t, app, "identity_verification", email)
 	return authJSON(t, app, http.MethodPost, "/api/auth/verify-email", map[string]any{"token": token}, nil, http.StatusOK)
 }
 
 func latestIdentityToken(t *testing.T, app *App, relatedType string) string {
 	t.Helper()
+	return latestIdentityTokenForRecipient(t, app, relatedType, "")
+}
+
+func latestIdentityTokenForRecipient(t *testing.T, app *App, relatedType, email string) string {
+	t.Helper()
 	var body string
 	if err := app.db.QueryRow(t.Context(), `
-		select body from email_outbox where related_type = $1 order by created_at desc limit 1
-	`, relatedType).Scan(&body); err != nil {
+		select body from email_outbox
+		where related_type = $1 and ($2 = '' or recipient_email = $2)
+		order by created_at desc limit 1
+	`, relatedType, normalizeEmail(email)).Scan(&body); err != nil {
 		t.Fatal(err)
 	}
 	fields := strings.Fields(body)
@@ -290,6 +297,24 @@ func latestIdentityToken(t *testing.T, app *App, relatedType string) string {
 		t.Fatalf("identity email URL has no token: %q", body)
 	}
 	return token
+}
+
+func TestSignupFixturesSelectRequestedRecipient(t *testing.T) {
+	app := newIdentityTestApp(t)
+	signupAndVerifyCookie(t, app, "earlier@example.test", "Earlier")
+	// A different recipient must not win a global timestamp sort, even if the
+	// database clock moved backwards between the two signup transactions.
+	if _, err := app.db.Exec(t.Context(), `update email_outbox set created_at = now() + interval '1 day'`); err != nil {
+		t.Fatal(err)
+	}
+	cookie := signupAndVerifyCookie(t, app, "cookie@example.test", "Cookie")
+	if email := mustString(t, getJSON(t, app, cookie, "/api/me", http.StatusOK).JSON, "email"); email != "cookie@example.test" {
+		t.Fatalf("cookie fixture signed in another recipient: %s", email)
+	}
+	identity := signupAndVerifyIdentity(t, app, "Identity@Example.TEST")
+	if email := mustString(t, identity.JSON, "email"); email != "identity@example.test" {
+		t.Fatalf("identity fixture signed in another recipient: %s", email)
+	}
 }
 
 func assertAccessStatus(t *testing.T, app *App, accessToken string, status int) {

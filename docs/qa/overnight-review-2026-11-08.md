@@ -2,8 +2,9 @@
 
 The overnight pass reviewed the event, admission and account paths alongside the
 new volunteer-door, availability-poll and act-tech-sheet work. It found and
-reproduced three defects. The source changes are locally qualified; hosted CI
-and merge state are separate from these receipts.
+reproduced four product defects and a timestamp-dependent test fixture. The source
+changes are locally qualified; hosted CI and merge state are separate from these
+receipts.
 
 ## Findings and repairs
 
@@ -12,12 +13,14 @@ and merge state are separate from these receipts.
 | Pricing could commit after an owner became an organizer | Pause an event UPDATE in a disposable PostgreSQL trigger after early finance checks, demote the actor, then resume. Both price-only and mixed price/location requests returned 200, changed the event and recorded success. | [PR #243](https://git.subcult.tv/subculture-collective/subcult-os/pulls/243) rechecks finance before commit. Both cases return 403, retain the old event fields and create no success audit entry. The focused test passes under the Go race detector. |
 | Auth form and URL could disagree | From `/login`, choose Create account. The form changes while the address stays on `/login`; reload opens Sign in. | [PR #244](https://git.subcult.tv/subculture-collective/subcult-os/pulls/244) uses the existing route links. Browser click opens `/signup?next=%2Fworkspace`, reload retains Create account, and Back returns to Sign in with `next` intact. |
 | Native Door advertised an admitted guest as ready | Admit a synthetic guest on Android. The card showed Checked in together with Ready for entry and an enabled Checked in action. | The native Door change in this branch shows Already admitted and disables the confirmed action. A fresh Metro bundle and process restart showed an admitted guest with the action disabled alongside an unadmitted guest with Check in enabled. |
+| Printable input list clipped the notes column | Render the server's three-act, 24-channel HTML to A4 PDF. Header widths total 100%, but cell padding and borders extended the table beyond the page. | Include cell padding and borders in the declared widths. WeasyPrint 70.0 produced one A4 page with all 24 rows and all three monitor/backline summaries. A rendered PNG showed the full notes column inside the page margins. |
+| Signup fixtures selected another recipient's verification | Move an earlier account's held email timestamp ahead of the next signup. The fixture picked its already consumed token and received 401. | Scope both signup fixture helpers to the requested normalized email. The deterministic database regression fails before the repair and passes after it. Hosted CI's original 401 occurred in this fixture; its original database state was unavailable, so the precise timestamp ordering was not recovered. |
 
 ## Automated verification
 
 The final pinned `bash scripts/dev-env.sh verify` passed with 420 web tests,
-46 mobile tests and the complete disposable database gate: 521 top-level cases,
-721 including nested cases, no failures or skips. Disposable test containers were
+46 mobile tests and the complete disposable database gate: 522 top-level cases,
+722 including nested cases, no failures or skips. Disposable test containers were
 removed. The permission regression separately passed with `go test -race`.
 Golangci reported zero new issues for that backend change.
 
@@ -57,6 +60,8 @@ The separate tech-sheet journey created two acts through operator controls,
 saved a shared input with distinct per-act notes, changed set order and opened
 the printable list. A three-act, 24-channel fixture measured about 917 CSS pixels
 inside a 1,032-pixel A4 content area after correcting the first oversized layout.
+A subsequent PDF render exposed horizontal clipping missed by that height check;
+the cell-sizing repair was checked in the rendered one-page A4 output.
 Removing an act excluded its eight inputs while retaining its sheet for review;
 reattaching it restored the 24-channel list. The browser had no horizontal
 overflow at 390 pixels in light and dark appearances. Native Run of Show opened
