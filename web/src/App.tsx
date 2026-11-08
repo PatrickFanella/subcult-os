@@ -1,3 +1,4 @@
+import { InputListView } from './views/InputListView';
 import { AvailabilityPollView } from './views/AvailabilityPollView';
 import { AuthView } from './views/AuthView';
 import { DiscoverView } from './views/DiscoverView';
@@ -78,6 +79,7 @@ export default function App() {
   }
 
   if (pathname.startsWith('/events/')) {
+    if (pathname.endsWith('/input-list')) return <InputListView eventId={getSegment(pathname, 2)} />;
     if (pathname.endsWith('/door-links')) return <DoorLinksView eventId={getSegment(pathname, 2)} />;
     if (pathname.endsWith('/access-info')) return <EventAccessView eventId={getSegment(pathname, 2)} />;
     if (pathname.endsWith('/public-archive')) return <PublicArchiveItemsPanel eventId={getSegment(pathname, 2)} />;

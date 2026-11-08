@@ -80,3 +80,19 @@ describe('api session refresh', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
+
+
+it('lets the browser set multipart boundaries for private stage plots, including after refresh', async () => {
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(new Response('{"error":"unauthorized"}', { status: 401 }))
+    .mockResolvedValueOnce(new Response('{}', { status: 200 }))
+    .mockResolvedValueOnce(new Response('{"version":2}', { status: 200 }));
+  vi.stubGlobal('fetch', fetchMock);
+  const body = new FormData(); body.set('expectedVersion', '1'); body.set('image', new Blob(['image'], { type: 'image/png' }), 'plot.png');
+  await expect(api('/api/events/e/tech-sheets/a/stage-plot', { method: 'POST', body })).resolves.toEqual({ version: 2 });
+  for (const index of [0, 2]) {
+    expect(fetchMock.mock.calls[index]?.[1].body).toBe(body);
+    expect(fetchMock.mock.calls[index]?.[1].headers.has('Content-Type')).toBe(false);
+    expect(fetchMock.mock.calls[index]?.[1].credentials).toBe('include');
+  }
+});

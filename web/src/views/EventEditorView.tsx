@@ -1,3 +1,4 @@
+import { TechSheetsPanel } from '../components/TechSheetsPanel';
 import { AvailabilityPollsPanel } from '../components/AvailabilityPollsPanel';
 import type { PollOption } from '../modules/availabilityPolls/model';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -1511,6 +1512,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
 
           {/* Operational panels get full width so their forms and lists stay readable. */}
           <div className="gap-6 lg:columns-2 [&>*]:mb-6 [&>*]:break-inside-avoid">
+              {event && currentWorkspace?.id === event.workspaceId && (currentWorkspace.role === 'owner' || currentWorkspace.role === 'organizer') ? <TechSheetsPanel key={event.id} eventId={event.id} event={event} /> : null}
               {event && currentWorkspace?.id === event.workspaceId && (currentWorkspace.role === 'owner' || currentWorkspace.role === 'organizer') ? <AvailabilityPollsPanel eventId={event.id} draft={isDraftEvent(event.status)} disabled={dirty || saving || actioning} onChoose={handleChoosePollOption} /> : null}
               {report ? (
                 <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
@@ -1844,6 +1846,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                 <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
                   <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Staffing</p>
                   <h2 className="mt-2 text-2xl font-bold text-fg-primary">Staffing board</h2>
+                  <a className="mt-2 inline-block text-sm underline underline-offset-4" href={`/events/${event.id}/input-list`}>Open private input list / tech sheets</a>
                   <p className="mt-2 text-sm leading-6 text-fg-secondary">Track tasks and shifts, then assign them to workspace members or accepted participants.</p>
 
                   <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(7.5rem,100%),1fr))] gap-3">

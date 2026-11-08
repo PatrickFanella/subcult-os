@@ -14,7 +14,7 @@ let refreshPromise: Promise<boolean> | null = null;
 
 async function request(path: string, options: RequestInit) {
   const headers = new Headers(options.headers);
-  if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  if (!headers.has('Content-Type') && !(options.body instanceof FormData)) headers.set('Content-Type', 'application/json');
   return fetch(path, { ...options, credentials: 'include', headers });
 }
 

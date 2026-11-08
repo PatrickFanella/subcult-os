@@ -1,6 +1,10 @@
 {
   "version": 1,
   "dtos": {
+    "ActInputDTO": {"required": ["id", "label", "sourceType", "micDi", "stand", "phantomPower", "notes", "sharedKey"]},
+    "ActTechSheetDTO": {"required": ["actId", "actName", "attached", "version", "monitorNotes", "backlineBrought", "backlineNeeded", "stagePlotUrl", "inputs"], "forbidden": ["plotObjectKey", "workspaceId", "updatedByPersonId"]},
+    "InputChannelDTO": {"required": ["number", "sharedKey", "uses"]},
+    "EventInputListDTO": {"required": ["eventId", "eventTitle", "canEdit", "orderVersion", "acts", "channels"], "forbidden": ["plotObjectKey", "updatedByPersonId"]},
     "MemberDTO": {
       "required": ["id", "email", "displayName", "role"]
     },
@@ -48,7 +52,7 @@
         "publicSlug",
         "publicUrl"
       ],
-      "forbidden": ["accessInfo", "accessRevisions", "accommodationRequests"]
+      "forbidden": ["accessInfo", "accessRevisions", "accommodationRequests", "techSheets", "inputList", "monitorNotes", "stagePlotUrl"]
     },
     "EventAccessRevisionDTO": {
       "required": ["topic", "scope", "revision", "value", "effectiveValue", "needsReview", "details", "sourceKind", "sourceReference", "correctionReason", "evaluatedAt"],
