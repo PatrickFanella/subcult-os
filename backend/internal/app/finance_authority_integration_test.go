@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
+	"strings"
+
+	"github.com/jackc/pgx/v5"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -152,4 +156,102 @@ func TestFinanceBoundaryDeniesEveryNonFinanceRoleAndInactiveMembership(t *testin
 	getJSON(t, fx.app, fx.memberCookie, "/api/events/"+eventID+"/report", http.StatusForbidden)
 	other := newLifecycleFixture(t, fx.app)
 	getJSON(t, fx.app, other.ownerCookie, "/api/events/"+eventID+"/settlement", http.StatusForbidden)
+}
+
+// Pause the UPDATE after its early permission checks, then change the member's
+// role before the final authorization check. The gate exists only in the
+// disposable test database and applies to this one event.
+func TestPricingPatchRechecksFinanceAfterOwnerDemotion(t *testing.T) {
+	for _, mixed := range []bool{false, true} {
+		t.Run(fmt.Sprintf("mixed_operational_edit_%t", mixed), func(t *testing.T) {
+			fx := newLifecycleFixture(t)
+			eventID := mustString(t, createEvent(t, fx, "Demotion window", 2), "id")
+			memberID := memberRowIDOnly(t, fx)
+			if _, err := fx.app.db.Exec(t.Context(), `update workspace_members set role='owner' where id=$1`, memberID); err != nil {
+				t.Fatal(err)
+			}
+			name := pgx.Identifier{"test_pricing_gate_" + strings.ReplaceAll(eventID, "-", "")}.Sanitize()
+			if _, err := fx.app.db.Exec(t.Context(), fmt.Sprintf(`create function %s() returns trigger language plpgsql as $$ begin perform pg_advisory_xact_lock(hashtextextended(NEW.id::text,42)); return NEW; end $$`, name)); err != nil {
+				t.Fatal(err)
+			}
+			defer func() {
+				if _, err := fx.app.db.Exec(context.Background(), fmt.Sprintf(`drop trigger if exists %s on events; drop function if exists %s()`, name, name)); err != nil {
+					t.Error(err)
+				}
+			}()
+			if _, err := fx.app.db.Exec(t.Context(), fmt.Sprintf(`create trigger %s before update on events for each row when (NEW.id='%s'::uuid) execute function %s()`, name, eventID, name)); err != nil {
+				t.Fatal(err)
+			}
+			blocker, err := fx.app.db.Begin(t.Context())
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = blocker.Rollback(context.Background()) }()
+			if _, err := blocker.Exec(t.Context(), `select pg_advisory_xact_lock(hashtextextended($1::text,42))`, eventID); err != nil {
+				t.Fatal(err)
+			}
+			var blockerPID int
+			if err := blocker.QueryRow(t.Context(), `select pg_backend_pid()`).Scan(&blockerPID); err != nil {
+				t.Fatal(err)
+			}
+			result := make(chan int, 1)
+			go func() {
+				body := map[string]any{"pricingMode": "fixed", "ticketPriceCents": 1500, "ticketCurrency": "usd"}
+				if mixed {
+					body["locationDisplay"] = "Updated by demoted owner"
+				}
+				payload, _ := json.Marshal(body)
+				req := httptest.NewRequest(http.MethodPatch, "/api/events/"+eventID, bytes.NewReader(payload))
+				req.Header.Set("Content-Type", "application/json")
+				req.AddCookie(fx.memberCookie)
+				rec := httptest.NewRecorder()
+				fx.app.Handler().ServeHTTP(rec, req)
+				result <- rec.Code
+			}()
+			deadline := time.Now().Add(10 * time.Second)
+			blocked := false
+			for time.Now().Before(deadline) {
+				var waiting int
+				if err := fx.app.db.QueryRow(t.Context(), `select count(*) from pg_stat_activity where datname=current_database() and $1=any(pg_blocking_pids(pid))`, blockerPID).Scan(&waiting); err != nil {
+					t.Fatal(err)
+				}
+				if waiting > 0 {
+					blocked = true
+					break
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+			if !blocked {
+				t.Fatal("pricing UPDATE did not reach the permission-check gate")
+			}
+			if _, err := fx.app.db.Exec(t.Context(), `update workspace_members set role='organizer' where id=$1`, memberID); err != nil {
+				t.Fatal(err)
+			}
+			if err := blocker.Commit(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			select {
+			case status := <-result:
+				if status != http.StatusForbidden {
+					t.Errorf("demoted pricing writer returned %d, want 403", status)
+				}
+			case <-time.After(10 * time.Second):
+				t.Fatal("pricing PATCH did not finish")
+			}
+			var mode, location string
+			var price, updates int
+			if err := fx.app.db.QueryRow(t.Context(), `select pricing_mode,ticket_price_cents,location_display from events where id=$1`, eventID).Scan(&mode, &price, &location); err != nil {
+				t.Fatal(err)
+			}
+			if mode != "free" || price != 0 || location == "Updated by demoted owner" {
+				t.Errorf("demoted writer committed event changes: mode=%s price=%d location=%s", mode, price, location)
+			}
+			if err := fx.app.db.QueryRow(t.Context(), `select count(*) from audit_entries where subject_id=$1 and action='event.updated'`, eventID).Scan(&updates); err != nil {
+				t.Fatal(err)
+			}
+			if updates != 0 {
+				t.Errorf("denied pricing write recorded %d success audits", updates)
+			}
+		})
+	}
 }
