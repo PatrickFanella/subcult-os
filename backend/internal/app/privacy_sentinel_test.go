@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"encoding/json"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -37,6 +38,11 @@ type privacySentinelFixture struct {
 	ticketDisplayName string
 	ticketCode        string
 
+	pollPrompt    string
+	pollToken     string
+	pollEditToken string
+	pollName      string
+	pollNote      string
 	doorLinkLabel string
 	doorLinkToken string
 	staffingNotes string
@@ -64,6 +70,7 @@ func (f privacySentinelFixture) sentinels() []string {
 		f.staffingNotes,
 		f.doorLinkLabel,
 		f.doorLinkToken,
+		f.pollPrompt, f.pollToken, f.pollEditToken, f.pollName, f.pollNote,
 	}
 }
 
@@ -96,6 +103,23 @@ func plantPrivacySentinels(t *testing.T, fx lifecycleFixture) privacySentinelFix
 
 	event := createEventWithPricing(t, fx, "Sentinel Benefit Show", 20, "fixed", 2500, "usd")
 	out.eventID = mustString(t, event, "id")
+	out.pollPrompt = "SENTINEL poll prompt " + tokenHash(fx.suffix)[:16]
+	body := pollCreateBody()
+	body["prompt"] = out.pollPrompt
+	createdPoll := postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+out.eventID+"/polls", body, http.StatusCreated)
+	pollID := mustString(t, createdPoll.JSON, "id")
+	pollURL := mustString(t, createdPoll.JSON, "url")
+	out.pollToken = strings.SplitN(pollURL, "#", 2)[1]
+	var poll availabilityPoll
+	response := assertAvailabilityStatus(t, fx.app, pollID, out.pollToken, "", nil, http.StatusOK)
+	if err := json.Unmarshal(response.Body.Bytes(), &poll); err != nil {
+		t.Fatal(err)
+	}
+	out.pollEditToken = tokenHash("poll-edit:" + fx.suffix)
+	out.pollName = "SENTINEL respondent " + tokenHash(fx.suffix)[:16]
+	out.pollNote = "SENTINEL private poll note " + fx.suffix
+	assertAvailabilityStatus(t, fx.app, pollID, out.pollToken, out.pollEditToken, availabilityResponse{DisplayName: out.pollName, PrivateNote: out.pollNote, Answers: availabilityAnswers(poll, "yes")}, http.StatusOK)
+
 	published := publishEvent(t, fx, out.eventID)
 	out.slug = mustString(t, published, "publicSlug")
 	out.doorLinkLabel = "SENTINEL door link " + tokenHash(fx.suffix)[:16]
@@ -342,4 +366,18 @@ func TestDoorLinkRequestsKeepCapabilitiesOutOfLogs(t *testing.T) {
 	assertLinkStatus(t, fx.app, eventID, token, "tickets?query=PRIVATE-QUERY", nil, 200)
 	assertLinkStatus(t, fx.app, eventID, token, "check-ins", map[string]string{"code": "PRIVATE-TICKET-CODE"}, 404)
 	assertNoSentinelLeak(t, "door request logs", captured.String(), []string{token, "PRIVATE-LINK-LABEL", "PRIVATE-QUERY", "PRIVATE-TICKET-CODE"})
+}
+
+func TestAvailabilityPollCapabilityAndAnswersStayOutOfLogs(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	eventID := mustString(t, createEvent(t, fx, "Poll Log Privacy", 3), "id")
+	id, token, poll := createAvailabilityPoll(t, fx, eventID, false)
+	edit := strings.Repeat("private-edit-token", 4)
+	var captured bytes.Buffer
+	previous := log.Writer()
+	log.SetOutput(&captured)
+	defer log.SetOutput(previous)
+	assertAvailabilityStatus(t, fx.app, id, token, edit, availabilityResponse{DisplayName: "PRIVATE-POLL-NAME", PrivateNote: "PRIVATE-POLL-NOTE", Answers: availabilityAnswers(poll, "yes")}, http.StatusOK)
+	assertAvailabilityStatus(t, fx.app, id, token, edit, nil, http.StatusOK)
+	assertNoSentinelLeak(t, "poll request log", captured.String(), []string{token, edit, "PRIVATE-POLL-NAME", "PRIVATE-POLL-NOTE"})
 }

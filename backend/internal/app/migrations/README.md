@@ -160,3 +160,10 @@ Existing person/unknown historical actors are retained. See
 [door-links.md](../../../../docs/development/door-links.md) for authority,
 retention and rollback. The older API refuses schema 35; use a backup restore
 or compatible forward fix, not a ledger downgrade.
+
+Version 36 adds optional event ends and the private availability-poll tables.
+Composite foreign keys keep responses/options inside one poll; deleting the
+poll or event cascades through answers. Tokens are hash-only. Existing events
+receive a null end, and no event time or private coordination row is copied
+into a poll automatically. Older binaries refuse schema 36. See
+[availability-polls.md](../../../../docs/development/availability-polls.md).

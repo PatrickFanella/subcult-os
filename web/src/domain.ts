@@ -215,6 +215,7 @@ export interface UpdateCommitmentRequestDTO {
 }
 
 export interface EventDTO {
+  endsAt?: string | null;
   id: string;
   workspaceId: string;
   title: string;
@@ -367,6 +368,7 @@ export interface CulturalImportActionDTO {
 }
 
 export interface PublicEventDTO {
+  endsAt?: string | null;
   id: string;
   title: string;
   startsAt: string;

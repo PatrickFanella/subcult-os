@@ -49,6 +49,10 @@ func TestOperationalPatchDoesNotRestoreStalePricingAfterFinanceCommit(t *testing
 	if _, err := blocker.Exec(t.Context(), `select id from events where id = $1 for update`, eventID); err != nil {
 		t.Fatal(err)
 	}
+	var blockerPID int
+	if err := blocker.QueryRow(t.Context(), `select pg_backend_pid()`).Scan(&blockerPID); err != nil {
+		t.Fatal(err)
+	}
 	result := make(chan int, 1)
 	go func() {
 		body, _ := json.Marshal(map[string]any{"locationDisplay": "Operational room"})
@@ -63,7 +67,7 @@ func TestOperationalPatchDoesNotRestoreStalePricingAfterFinanceCommit(t *testing
 	blocked := false
 	for time.Now().Before(deadline) {
 		var waiting int
-		if err := fx.app.db.QueryRow(t.Context(), `select count(*) from pg_stat_activity where datname=current_database() and wait_event_type='Lock' and query like '%update events%'`).Scan(&waiting); err != nil {
+		if err := fx.app.db.QueryRow(t.Context(), `select count(*) from pg_stat_activity where datname=current_database() and $1=any(pg_blocking_pids(pid))`, blockerPID).Scan(&waiting); err != nil {
 			t.Fatal(err)
 		}
 		if waiting > 0 {

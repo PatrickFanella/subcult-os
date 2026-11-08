@@ -61,3 +61,21 @@ What this system does instead, once the described pipeline exists:
 - `consent_grants` (migration 000013, `docs/development/consent.md`) defines grant/verification/suppression semantics and a send-time recheck, not export/deletion: a recipient's own grants are not yet included in the access export or account deletion behavior specified above, and no announcement send path exists yet to generate audience data beyond the grant itself.
 - The specific financial-record retention period is a jurisdiction- and operator-dependent legal question this codebase does not decide; whoever operates a deployment must set and document that figure.
 - No dedicated incident-note table exists; free-text fields (`contacts.notes`, `event_staffing.notes`) may incidentally contain incident-like content and are handled under those tables' rules above.
+
+
+## Availability polls
+
+Availability polls and their options, self-asserted names, private notes and
+answers remain private coordination data. Bearer and respondent edit tokens
+are stored only as hashes on the server. Names are hidden from other respondents
+unless the organizer enables sharing; private notes are never shared with other
+respondents. A shared link remains readable after closing, but cannot accept
+new answers or edits. Owners/organizers can delete a poll from a draft event;
+confirmation deletes its responses, answers and options through foreign-key
+cascades. Deleting the event also deletes all of its polls and responses.
+There is no separate automatic age-based expiry of closed results. Keep poll
+links private and delete a poll when its coordination purpose ends. Audit rows
+retain action/ID metadata without answers or token values. Templates and
+archive reuse do not copy polls. The browser retains only its random edit
+capability; clearing it loses edit access and does not delete the server response.
+See [availability polls](availability-polls.md).
