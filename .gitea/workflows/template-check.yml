@@ -55,6 +55,9 @@ jobs:
       - name: Verify persisted lifecycle and protocol boundaries
         env:
           TEST_DATABASE_RUN: ${{ github.run_id }}-${{ github.run_attempt }}
+          # The full suite takes about nine minutes on a two-CPU runner.
+          # Keep a bounded budget inside this job's twenty-minute limit.
+          GOFLAGS: -timeout=15m
         run: |
           # The runner may use a shared network: the generic postgres alias
           # can resolve to another job or a retained database. Use only this
