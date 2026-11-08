@@ -1,6 +1,6 @@
 import { useThemeTokens, useThemedStyles } from '@/theme/ThemeProvider';
 import type { Tokens } from '@/theme/tokens';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { CheckCircle2, ChevronLeft, Circle, Clock, Plus, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -27,6 +27,7 @@ export default function RunOfShowScreen() {
   const tokens = useThemeTokens();
   const styles = useThemedStyles(createStyles);
 
+  const router = useRouter();
   const params = useLocalSearchParams<{ eventId?: string }>();
   const eventID = typeof params.eventId === 'string' ? params.eventId : '';
   const [items, setItems] = useState<EventStaffingItemDTO[]>([]);
@@ -137,6 +138,7 @@ export default function RunOfShowScreen() {
         <Text style={styles.title}>Run of Show</Text>
       </View>
       <ScrollView style={styles.scroller} contentContainerStyle={styles.timeline}>
+        {eventID ? <Pressable accessibilityRole="link" onPress={() => router.push({ pathname: '/input-list', params: { eventId: eventID } })} style={styles.actionButton}><Text style={styles.actionButtonText}>Open private input list / tech sheets</Text></Pressable> : null}
         <View style={styles.createPanel}>
           <View style={styles.panelHeaderRow}>
             <Text style={styles.panelTitle}>{editingID ? 'Edit run-of-show item' : 'Add run-of-show item'}</Text>

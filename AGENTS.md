@@ -19,6 +19,12 @@ Change the mark in Studio, then re-export with `python3 scripts/brand-assets.py
 --studio-root <subcult-tv checkout>`; do not edit the exported files or
 `docs/brand-provenance.json` by hand.
 
+Private stage plots use a separate `MEDIA_S3_PRIVATE_BUCKET` whose policy denies
+anonymous reads and public ACLs. Never reuse the public artwork bucket or return
+object-store URLs. Keep tech sheets out of public DTOs, publication and projection;
+see `docs/development/tech-sheets.md`. Removing an act retains its sheet until
+confirmed deletion. Template/archive reuse does not copy sheets implicitly.
+
 The optional `atproto-workers` Compose profile runs the revocation command from the same API image against the shared database. Keep it opt-in, run migrations before processing, and preserve secret-free status/error output. It may drain existing revocations even when new OAuth links are disabled.
 
 The optional `mail-workers` profile runs `email-deliver -send -watch`. Sending additionally requires `MAIL_DELIVERY_ENABLED=true`, configured provider credentials and approved sender settings. Old/development outbox rows remain held. The default `email-deliver` command prints aggregate status only; never send live messages during automated qualification.

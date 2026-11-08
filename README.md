@@ -18,7 +18,7 @@ development, and no real-event operation has been verified on it.
 | Stage | What you can do |
 | --- | --- |
 | Plan | Create a workspace, draft an event, reuse event templates, and publish a public event page. |
-| Coordinate | Invite collaborators, assign staffing, keep private contacts and commitments, and prepare the run of show. |
+| Coordinate | Invite collaborators, assign staffing, keep private contacts and commitments, prepare the run of show, and collect private act tech sheets into one input list. |
 | Welcome guests | Let guests reserve free tickets, open their ticket links, and check them in by lookup or ticket code. |
 | Run the night | Use the mobile client for scanning, door search, the run of show, and the live dashboard. |
 | Close out | Run End of Night and review the private event report. |
@@ -35,6 +35,10 @@ availability is not promised.
 
 Private venue and event access worksheets let owners record observations,
 unknowns, and review dates without publishing unverified accessibility claims.
+
+The [private input list](docs/development/tech-sheets.md) combines act inputs,
+shared channels, monitor needs and backline. Operators can open it from the run of
+show; owners and organizers edit sheets and print them from the web.
 
 ## Current scope
 

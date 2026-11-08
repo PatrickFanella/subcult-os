@@ -46,6 +46,7 @@ type privacySentinelFixture struct {
 	doorLinkLabel string
 	doorLinkToken string
 	staffingNotes string
+	techSentinels []string
 
 	placeID           string
 	placeStreetSecret string
@@ -58,7 +59,7 @@ type privacySentinelFixture struct {
 // sentinels returns every planted private value in one slice, for a single
 // leak-scan pass over an arbitrary response or log body.
 func (f privacySentinelFixture) sentinels() []string {
-	return []string{
+	return append([]string{
 		f.contactEmail,
 		f.contactNotes,
 		f.applicationEmail,
@@ -71,7 +72,7 @@ func (f privacySentinelFixture) sentinels() []string {
 		f.doorLinkLabel,
 		f.doorLinkToken,
 		f.pollPrompt, f.pollToken, f.pollEditToken, f.pollName, f.pollNote,
-	}
+	}, f.techSentinels...)
 }
 
 // assertNoSentinelLeak fails the test if any planted private sentinel value
@@ -200,6 +201,19 @@ func plantPrivacySentinels(t *testing.T, fx lifecycleFixture) privacySentinelFix
 	postJSON(t, fx.app, fx.ownerCookie, "/api/events/"+out.eventID+"/occurrences/"+out.occurrenceID+"/credits", map[string]any{
 		"profileId": out.profileID,
 	}, http.StatusOK)
+
+	// Private tech fields must stay absent from public DTOs and AT previews.
+	actID := techAct(t, fx, out.eventID, out.occurrenceID, "Publicly fine act", 1)
+	bodyTech := techBody(0, "SENTINEL tech input "+fx.suffix, "private-shared")
+	bodyTech["monitorNotes"] = "SENTINEL monitor " + fx.suffix
+	bodyTech["backlineBrought"] = "SENTINEL brought " + fx.suffix
+	bodyTech["backlineNeeded"] = "SENTINEL needed " + fx.suffix
+	techStatus(t, fx.app, fx.ownerCookie, "PUT", "/api/events/"+out.eventID+"/tech-sheets/"+actID, bodyTech, 200)
+	plotKey := "events/" + out.eventID + "/tech/" + actID + "/SENTINEL-private-plot.png"
+	if _, err := fx.app.db.Exec(t.Context(), `update event_act_tech_sheets set plot_object_key=$2,plot_content_type='image/png' where event_id=$1`, out.eventID, plotKey); err != nil {
+		t.Fatal(err)
+	}
+	out.techSentinels = []string{bodyTech["monitorNotes"].(string), bodyTech["backlineBrought"].(string), bodyTech["backlineNeeded"].(string), "SENTINEL tech input " + fx.suffix, "PRIVATE INPUT NOTE", "private-shared", plotKey}
 
 	return out
 }

@@ -398,3 +398,39 @@ export interface OccurrenceAccessComparisonDTO {
   event: EventAccessWorksheetDTO;
   venue: VenueAccessWorksheetDTO | null;
 }
+
+export interface ActInputDTO {
+  id: string;
+  label: string;
+  sourceType: 'mic' | 'di' | 'line';
+  micDi: string;
+  stand: string;
+  phantomPower: boolean;
+  notes: string;
+  sharedKey: string;
+}
+export interface ActTechSheetDTO {
+  actId: string;
+  actName: string;
+  attached: boolean;
+  version: number;
+  monitorNotes: string;
+  backlineBrought: string;
+  backlineNeeded: string;
+  stagePlotUrl: string | null;
+  inputs: ActInputDTO[];
+}
+export interface InputChannelDTO {
+  number: number;
+  sharedKey: string;
+  uses: Array<ActInputDTO & { actName: string }>;
+}
+export interface EventInputListDTO {
+  eventId: string;
+  eventTitle: string;
+  canEdit: boolean;
+  orderVersion: number;
+  acts: ActTechSheetDTO[];
+  retained?: ActTechSheetDTO[];
+  channels: InputChannelDTO[];
+}

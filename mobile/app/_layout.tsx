@@ -28,6 +28,7 @@ export default function RootLayout() {
           <Stack.Screen name="event-detail" options={{ headerShown: false }} />
           <Stack.Screen name="staff" options={{ headerShown: false }} />
           <Stack.Screen name="run-of-show" options={{ headerShown: false }} />
+          <Stack.Screen name="input-list" options={{ headerShown: false }} />
           <Stack.Screen name="roles" options={{ headerShown: false }} />
           <Stack.Screen name="scanner" options={{ headerShown: false }} />
           <Stack.Screen name="event-dashboard" options={{ headerShown: false }} />

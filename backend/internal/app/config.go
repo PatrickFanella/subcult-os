@@ -35,6 +35,7 @@ type Config struct {
 	MediaS3AccessKey              string
 	MediaS3SecretKey              string
 	MediaS3Bucket                 string
+	MediaS3PrivateBucket          string
 	MediaS3Region                 string
 	MediaPublicBaseURL            string
 	MailDeliveryEnabled           bool
@@ -130,6 +131,7 @@ func LoadConfig() Config {
 		MediaS3AccessKey:              env("MEDIA_S3_ACCESS_KEY", ""),
 		MediaS3SecretKey:              env("MEDIA_S3_SECRET_KEY", ""),
 		MediaS3Bucket:                 env("MEDIA_S3_BUCKET", ""),
+		MediaS3PrivateBucket:          env("MEDIA_S3_PRIVATE_BUCKET", ""),
 		MediaS3Region:                 env("MEDIA_S3_REGION", "us-east-1"),
 		MediaPublicBaseURL:            env("MEDIA_PUBLIC_BASE_URL", ""),
 		LexiconContractDir:            env("LEXICON_CONTRACT_DIR", ""),
