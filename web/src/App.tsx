@@ -1,3 +1,4 @@
+import { AvailabilityPollView } from './views/AvailabilityPollView';
 import { AuthView } from './views/AuthView';
 import { DiscoverView } from './views/DiscoverView';
 import { DoorLinkView, DoorLinksView } from './views/DoorLinksView';
@@ -59,6 +60,8 @@ export default function App() {
   if (pathname.startsWith('/public/events/')) {
     return <PublicEventView slug={getSegment(pathname, 3)} />;
   }
+
+  if (pathname.startsWith('/poll/')) return <AvailabilityPollView pollId={getSegment(pathname, 2)} />;
 
   if (pathname.startsWith('/door-link/')) return <DoorLinkView eventId={getSegment(pathname, 2)} />;
 

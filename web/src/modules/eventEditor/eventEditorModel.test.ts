@@ -229,3 +229,14 @@ describe('staffing member identity', () => {
 		expect(buildStaffingMemberOptions([{ ...member, personId }])).toEqual([]);
 	});
 });
+
+
+describe('optional event end', () => {
+  it('retains the exact end instant through an unrelated edit', () => {
+    const event = { title: 'Night', startsAt: '2026-11-01T06:30:45.123456Z', endsAt: '2026-11-01T07:30:45.654321Z', publicDescription: 'Description', locationDisplay: 'Venue', ticketAllocation: 10, pricingMode: 'free', ticketPriceCents: 0 } as EventDTO;
+    const form = formFromEvent(event);
+    expect(buildPayload({ ...form, title: 'Updated' }).endsAt).toBe(event.endsAt);
+    expect(formsMatch(form, { ...form, endsAt: '' })).toBe(false);
+    expect(buildPayload({ ...form, endsAt: '' }).endsAt).toBe('');
+  });
+});

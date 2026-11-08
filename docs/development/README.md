@@ -42,3 +42,5 @@ The adjacent research/funding kits supply rationale, not production requirements
 BASE-01, API-01, DB-01, INV-01 and IDENT-01 are complete at their documented evidence levels. AT-01 has a verified cross-language syntax foundation, encrypted persistence, public confidential-client documents, hardened discovery policy, HTTP start/callback boundary, and browser-qualified link/list/local-unlink UI. Live interoperability, remote provider revocation and Lexicon slices remain open. Add publication only after authority and failure behavior are approved; replace the legacy host only after every pre-cutover gate in the runbook passes.
 
 - [Volunteer door links](door-links.md): owner-issued, time-limited admission without a workspace account (#222).
+
+- [Availability polls](availability-polls.md): private date and call-time coordination for draft events (#223).

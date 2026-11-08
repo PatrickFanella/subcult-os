@@ -17,6 +17,7 @@ import (
 )
 
 type publicEventDTO struct {
+	EndsAt            *string `json:"endsAt"`
 	ID                string  `json:"id"`
 	Title             string  `json:"title"`
 	StartsAt          string  `json:"startsAt"`
@@ -118,6 +119,7 @@ func (a *App) publicEventDTOFromRow(event eventRow) publicEventDTO {
 	remaining := ticketJourneyCapacity(event.TicketAllocation, event.ReservedCount)
 	slug := event.PublicSlug.String
 	return publicEventDTO{
+		EndsAt:            nullableTimeString(event.EndsAt),
 		ID:                event.ID,
 		Title:             event.Title,
 		StartsAt:          event.StartsAt.UTC().Format(time.RFC3339Nano),
@@ -162,7 +164,7 @@ func (a *App) handleReserveTicket(w http.ResponseWriter, r *http.Request) {
 
 	var event eventRow
 	err = tx.QueryRow(r.Context(), `
-		select e.id, e.workspace_id, e.title, e.starts_at, e.public_description, e.location_display,
+		select e.id, e.workspace_id, e.title, e.starts_at, e.ends_at, e.public_description, e.location_display,
 		       e.ticket_allocation, e.pricing_mode, e.ticket_price_cents, e.ticket_currency, e.status, e.public_slug,
 		       (select count(*) from tickets t where t.event_id = e.id and t.payment_status <> 'cancelled') as reserved_count,
 		       (select count(*) from tickets t where t.event_id = e.id and t.status = 'checked_in' and t.payment_status <> 'cancelled') as checked_in_count
@@ -170,7 +172,7 @@ func (a *App) handleReserveTicket(w http.ResponseWriter, r *http.Request) {
 		where e.public_slug = $1
 		  and e.status = 'published'
 		for update
-	`, r.PathValue("slug")).Scan(&event.ID, &event.WorkspaceID, &event.Title, &event.StartsAt, &event.PublicDescription, &event.LocationDisplay, &event.TicketAllocation, &event.PricingMode, &event.TicketPriceCents, &event.TicketCurrency, &event.Status, &event.PublicSlug, &event.ReservedCount, &event.CheckedInCount)
+	`, r.PathValue("slug")).Scan(&event.ID, &event.WorkspaceID, &event.Title, &event.StartsAt, &event.EndsAt, &event.PublicDescription, &event.LocationDisplay, &event.TicketAllocation, &event.PricingMode, &event.TicketPriceCents, &event.TicketCurrency, &event.Status, &event.PublicSlug, &event.ReservedCount, &event.CheckedInCount)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			writeError(w, http.StatusNotFound, "event not found")
@@ -279,7 +281,7 @@ func (a *App) handleCreatePaidReservation(w http.ResponseWriter, r *http.Request
 
 	var event eventRow
 	err = tx.QueryRow(r.Context(), `
-		select e.id, e.workspace_id, e.title, e.starts_at, e.public_description, e.location_display,
+		select e.id, e.workspace_id, e.title, e.starts_at, e.ends_at, e.public_description, e.location_display,
 		       e.ticket_allocation, e.pricing_mode, e.ticket_price_cents, e.ticket_currency, e.status, e.public_slug,
 		       (select count(*) from tickets t where t.event_id = e.id and t.payment_status <> 'cancelled') as reserved_count,
 		       (select count(*) from tickets t where t.event_id = e.id and t.status = 'checked_in' and t.payment_status <> 'cancelled') as checked_in_count
@@ -287,7 +289,7 @@ func (a *App) handleCreatePaidReservation(w http.ResponseWriter, r *http.Request
 		where e.public_slug = $1
 		  and e.status = 'published'
 		for update
-	`, r.PathValue("slug")).Scan(&event.ID, &event.WorkspaceID, &event.Title, &event.StartsAt, &event.PublicDescription, &event.LocationDisplay, &event.TicketAllocation, &event.PricingMode, &event.TicketPriceCents, &event.TicketCurrency, &event.Status, &event.PublicSlug, &event.ReservedCount, &event.CheckedInCount)
+	`, r.PathValue("slug")).Scan(&event.ID, &event.WorkspaceID, &event.Title, &event.StartsAt, &event.EndsAt, &event.PublicDescription, &event.LocationDisplay, &event.TicketAllocation, &event.PricingMode, &event.TicketPriceCents, &event.TicketCurrency, &event.Status, &event.PublicSlug, &event.ReservedCount, &event.CheckedInCount)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			writeError(w, http.StatusNotFound, "event not found")
@@ -560,14 +562,14 @@ func (a *App) handleCreateTestTicket(w http.ResponseWriter, r *http.Request) {
 
 	var event eventRow
 	err = tx.QueryRow(r.Context(), `
-		select e.id, e.workspace_id, e.title, e.starts_at, e.public_description, e.location_display,
+		select e.id, e.workspace_id, e.title, e.starts_at, e.ends_at, e.public_description, e.location_display,
 		       e.ticket_allocation, e.pricing_mode, e.ticket_price_cents, e.ticket_currency, e.status, e.public_slug,
 		       (select count(*) from tickets t where t.event_id = e.id and t.payment_status <> 'cancelled') as reserved_count,
 		       (select count(*) from tickets t where t.event_id = e.id and t.status = 'checked_in' and t.payment_status <> 'cancelled') as checked_in_count
 		from events e
 		where e.id = $1
 		for update
-	`, r.PathValue("eventID")).Scan(&event.ID, &event.WorkspaceID, &event.Title, &event.StartsAt, &event.PublicDescription, &event.LocationDisplay, &event.TicketAllocation, &event.PricingMode, &event.TicketPriceCents, &event.TicketCurrency, &event.Status, &event.PublicSlug, &event.ReservedCount, &event.CheckedInCount)
+	`, r.PathValue("eventID")).Scan(&event.ID, &event.WorkspaceID, &event.Title, &event.StartsAt, &event.EndsAt, &event.PublicDescription, &event.LocationDisplay, &event.TicketAllocation, &event.PricingMode, &event.TicketPriceCents, &event.TicketCurrency, &event.Status, &event.PublicSlug, &event.ReservedCount, &event.CheckedInCount)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			writeError(w, http.StatusNotFound, "event not found")
@@ -815,14 +817,14 @@ func (a *App) loadPublishedEventBySlug(ctx context.Context, slug string) (eventR
 		return row, pgx.ErrNoRows
 	}
 	if err := a.db.QueryRow(ctx, `
-		select e.id, e.workspace_id, e.title, e.starts_at, e.public_description, e.location_display, e.image_url,
+		select e.id, e.workspace_id, e.title, e.starts_at, e.ends_at, e.public_description, e.location_display, e.image_url,
 		       e.ticket_allocation, e.pricing_mode, e.ticket_price_cents, e.ticket_currency, e.status, e.public_slug,
 		       (select count(*) from tickets t where t.event_id = e.id and t.payment_status <> 'cancelled') as reserved_count,
 		       (select count(*) from tickets t where t.event_id = e.id and t.status = 'checked_in' and t.payment_status <> 'cancelled') as checked_in_count
 		from events e
 		where e.public_slug = $1
 		  and e.status = 'published'
-	`, slug).Scan(&row.ID, &row.WorkspaceID, &row.Title, &row.StartsAt, &row.PublicDescription, &row.LocationDisplay, &row.ImageURL, &row.TicketAllocation, &row.PricingMode, &row.TicketPriceCents, &row.TicketCurrency, &row.Status, &row.PublicSlug, &row.ReservedCount, &row.CheckedInCount); err != nil {
+	`, slug).Scan(&row.ID, &row.WorkspaceID, &row.Title, &row.StartsAt, &row.EndsAt, &row.PublicDescription, &row.LocationDisplay, &row.ImageURL, &row.TicketAllocation, &row.PricingMode, &row.TicketPriceCents, &row.TicketCurrency, &row.Status, &row.PublicSlug, &row.ReservedCount, &row.CheckedInCount); err != nil {
 		return eventRow{}, err
 	}
 	return row, nil

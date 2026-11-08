@@ -1,3 +1,5 @@
+import { AvailabilityPollsPanel } from '../components/AvailabilityPollsPanel';
+import type { PollOption } from '../modules/availabilityPolls/model';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ApiError, api, patchJSON, postJSON } from '../api';
@@ -652,6 +654,16 @@ export function EventEditorView({ eventId }: { eventId: string }) {
     setMessage('Saved');
   }
 
+  async function handleChoosePollOption(option: PollOption) {
+    if (dirty || saving || actioning || !event || !isDraftEvent(event.status)) throw new Error('Save event changes before choosing a poll option. Published events use the lifecycle/reschedule flow.');
+    setActioning(true); setError(null); setMessage(null);
+    try {
+      const updated = await patchJSON<EventDTO>(`/api/events/${event.id}`, { pollOptionId: option.id });
+      const updatedForm = formFromEvent(updated);
+      setEvent(updated); setForm(updatedForm); setInitialForm(updatedForm); setMessage('Poll option applied. Event times saved and poll closed.');
+    } finally { setActioning(false); }
+  }
+
   async function handleSubmit(formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault();
     if (saving || actioning) return;
@@ -1090,6 +1102,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
 
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <span className={`border px-4 py-2 text-xs uppercase tracking-[0.2em] ${lifecycleTone}`}>{lifecycleLabel}</span>
+              {effective && currentWorkspace?.id === effective.workspaceId && (currentWorkspace.role === 'owner' || currentWorkspace.role === 'organizer') && <a className="btn-secondary px-4 py-2" href="#availability-polls">Availability polls</a>}
               {effective && currentWorkspace?.id === effective.workspaceId && currentWorkspace.role === 'owner' && <a className="btn-secondary px-4 py-2" href={`/events/${effective.id}/door-links`}>Volunteer door links</a>}
               {effective && currentWorkspace?.id === effective.workspaceId && currentWorkspace.role === 'owner' && <a className="btn-secondary px-4 py-2" href={`/events/${effective.id}/access-info`}>Access worksheet</a>}
               {effective?.publicUrl ? (
@@ -1205,6 +1218,11 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                     required
                     disabled={closed}
                   />
+                </label>
+
+                <label className="block space-y-2 text-sm">
+                  <span className="text-fg-secondary">Ends at (optional)</span>
+                  <input className="field py-3" type="datetime-local" value={form.endsAt ?? ''} onChange={(e) => setForm((v) => ({ ...v, endsAt: e.target.value }))} disabled={closed || !isDraftEvent(event?.status ?? 'draft')} />
                 </label>
 
                 <label className="block space-y-2 text-sm">
@@ -1493,6 +1511,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
 
           {/* Operational panels get full width so their forms and lists stay readable. */}
           <div className="gap-6 lg:columns-2 [&>*]:mb-6 [&>*]:break-inside-avoid">
+              {event && currentWorkspace?.id === event.workspaceId && (currentWorkspace.role === 'owner' || currentWorkspace.role === 'organizer') ? <AvailabilityPollsPanel eventId={event.id} draft={isDraftEvent(event.status)} disabled={dirty || saving || actioning} onChoose={handleChoosePollOption} /> : null}
               {report ? (
                 <section className="rounded-panel border border-stroke-subtle bg-surface-panel p-6">
                   <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Report summary</p>

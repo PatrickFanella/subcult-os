@@ -13,6 +13,8 @@ export type FormState = {
 	title: string;
 	startsAt: string;
 	startsAtSource?: string;
+	endsAt?: string;
+	endsAtSource?: string;
 	publicDescription: string;
 	locationDisplay: string;
 	ticketAllocation: string;
@@ -94,6 +96,7 @@ export function formFromEvent(event: EventDTO): FormState {
 		title: event.title,
 		startsAt: toInputValue(event.startsAt),
 		startsAtSource: event.startsAt,
+		...(event.endsAt !== undefined ? { endsAt: event.endsAt ? toInputValue(event.endsAt) : '', endsAtSource: event.endsAt ?? undefined } : {}),
 		publicDescription: event.publicDescription,
 		locationDisplay: event.locationDisplay,
 		ticketAllocation: String(event.ticketAllocation),
@@ -106,6 +109,7 @@ export function formsMatch(left: FormState, right: FormState) {
 	return (
 		left.title === right.title &&
 		left.startsAt === right.startsAt &&
+		(left.endsAt ?? '') === (right.endsAt ?? '') &&
 		left.publicDescription === right.publicDescription &&
 		left.locationDisplay === right.locationDisplay &&
 		left.ticketAllocation === right.ticketAllocation &&
@@ -226,6 +230,7 @@ export function buildPayload(form: FormState) {
 	return {
 		title: form.title.trim(),
 		startsAt,
+		...(form.endsAt !== undefined ? { endsAt: form.endsAt ? (form.endsAtSource && toInputValue(form.endsAtSource) === form.endsAt ? form.endsAtSource : fromInputValue(form.endsAt)) : '' } : {}),
 		publicDescription: form.publicDescription.trim(),
 		locationDisplay: form.locationDisplay.trim(),
 		ticketAllocation: Number(form.ticketAllocation),

@@ -22,6 +22,7 @@ export interface PublicEventSummaryDTO {
 }
 
 export interface PublicEventDTO {
+  endsAt?: string | null;
   id: string;
   title: string;
   startsAt: string;
@@ -142,6 +143,7 @@ export interface SignupResultDTO {
 }
 
 export interface EventDTO {
+  endsAt?: string | null;
   id: string;
   workspaceId: string;
   title: string;
