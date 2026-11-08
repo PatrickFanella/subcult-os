@@ -123,10 +123,10 @@ export default function DoorScreen() {
               <Ticket size={20} color={tokens.color.text.muted} />
             </View>
             <Text style={styles.guestName}>{ticket.displayName ?? 'Guest'}</Text>
-            <Text style={styles.guestMeta}>{ticket.code} · {ticket.admissionEligible ? 'Ready for entry' : 'Not eligible'}</Text>
+            <Text style={styles.guestMeta}>{ticket.code} · {ticket.status === 'checked_in' ? 'Already admitted' : ticket.admissionEligible ? 'Ready for entry' : 'Not eligible'}</Text>
             <View style={styles.divider} />
             <PrimaryButton
-              disabled={!ticket.admissionEligible}
+              disabled={!ticket.admissionEligible || ticket.status === 'checked_in'}
               busy={checkingIn === ticket.code}
               onPress={() => void checkIn(ticket)}
               style={styles.doorButton}
