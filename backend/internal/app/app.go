@@ -299,6 +299,11 @@ func (a *App) routes() {
 	a.mux.HandleFunc("POST /api/brevo/webhook", a.handleBrevoWebhook)
 	a.mux.HandleFunc("POST /api/backline/receipts", a.handleBacklineReceipt)
 	a.mux.HandleFunc("GET /api/tickets/{code}", a.handleGetTicket)
+	a.mux.HandleFunc("GET /api/events/{eventID}/door-links", a.handleListDoorLinks)
+	a.mux.HandleFunc("POST /api/events/{eventID}/door-links", a.handleCreateDoorLink)
+	a.mux.HandleFunc("DELETE /api/events/{eventID}/door-links/{linkID}", a.handleRevokeDoorLink)
+	a.mux.HandleFunc("GET /api/door-links/{eventID}/tickets", a.withDoorLink(a.handleDoorTicketSearch))
+	a.mux.HandleFunc("POST /api/door-links/{eventID}/check-ins", a.withDoorLink(a.handleDoorCheckIn))
 	a.mux.HandleFunc("GET /api/events/{eventID}/door/tickets", a.handleDoorTicketSearch)
 	a.mux.HandleFunc("POST /api/events/{eventID}/door/check-ins", a.handleDoorCheckIn)
 }

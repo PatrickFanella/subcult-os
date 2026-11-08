@@ -636,29 +636,35 @@ func (a *App) handleDoorTicketSearch(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not load event")
 		return
 	}
-	if _, ok := a.requirePermission(r, event.WorkspaceID, permDoor); !ok {
+	if _, _, ok := a.doorActor(r, event, a.db); !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
 
 	query := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("query")))
-	if query == "" {
+	if query == "" && r.Context().Value(doorLinkKey{}) == nil {
 		writeJSON(w, http.StatusOK, []doorTicketDTO{})
 		return
 	}
 
+	_, isLink := r.Context().Value(doorLinkKey{}).(string)
+	if isLink && (len([]rune(query)) < 3 || len(query) > 128) {
+		writeError(w, http.StatusBadRequest, "use at least three characters of a name or ticket code")
+		return
+	}
 	rows, err := a.db.Query(r.Context(), `
 		select id, event_id, email, display_name, code, status, payment_status, amount_cents, currency, checked_in_at
 		from tickets
 		where event_id = $1
 		  and payment_status in ('free', 'paid')
 		  and (
-			lower(email) like '%' || $2 || '%'
-			or lower(coalesce(display_name, '')) like '%' || $2 || '%'
-			or lower(code) like '%' || $2 || '%'
+			(not $3 and lower(email) like '%' || $2 || '%')
+			or strpos(lower(coalesce(display_name, '')), $2) > 0
+			or strpos(lower(code), $2) > 0
 		  )
 		order by created_at desc
-	`, event.ID, query)
+		limit case when $3 then 20 else null end
+	`, event.ID, query, isLink)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not search tickets")
 		return
@@ -678,7 +684,7 @@ func (a *App) handleDoorTicketSearch(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not search tickets")
 		return
 	}
-	if _, ok := a.requirePermission(r, event.WorkspaceID, permDoor); !ok {
+	if _, _, ok := a.doorActor(r, event, a.db); !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
@@ -701,7 +707,7 @@ func (a *App) handleDoorCheckIn(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "could not load event")
 		return
 	}
-	actorID, ok := a.requirePermission(r, event.WorkspaceID, permDoor)
+	_, _, ok := a.doorActor(r, event, a.db)
 	if !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
@@ -743,10 +749,11 @@ func (a *App) handleDoorCheckIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if ticket.EventID != event.ID {
-		writeError(w, http.StatusConflict, "ticket belongs to a different event")
+		writeError(w, http.StatusConflict, "ticket not found for this event")
 		return
 	}
-	if actorID, ok = a.requirePermission(r, event.WorkspaceID, permDoor); !ok {
+	actorID, linkID, ok := a.doorActor(r, event, tx)
+	if !ok {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
@@ -755,6 +762,10 @@ func (a *App) handleDoorCheckIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if ticketJourneyIsCheckedIn(ticket.Status) {
+		if linkID != "" {
+			writeError(w, http.StatusConflict, "already checked in")
+			return
+		}
 		if err := tx.Commit(r.Context()); err != nil {
 			writeError(w, http.StatusInternalServerError, "could not save check-in")
 			return
@@ -768,10 +779,11 @@ func (a *App) handleDoorCheckIn(w http.ResponseWriter, r *http.Request) {
 		update tickets
 		set status = 'checked_in',
 		    checked_in_at = $2,
-		    checked_in_by_person_id = $3
+		    checked_in_by_person_id = nullif($3,'')::uuid,
+		    checked_in_by_door_link_id = nullif($4,'')::uuid
 		where id = $1
 		returning checked_in_at
-	`, ticket.ID, checkedInAt, actorID).Scan(&ticket.CheckedInAt); err != nil {
+	`, ticket.ID, checkedInAt, actorID, linkID).Scan(&ticket.CheckedInAt); err != nil {
 		writeError(w, http.StatusInternalServerError, "could not check in ticket")
 		return
 	}
@@ -782,9 +794,9 @@ func (a *App) handleDoorCheckIn(w http.ResponseWriter, r *http.Request) {
 	ticket.CheckedInAt = sql.NullTime{Time: checkedInAt, Valid: true}
 	txCtx := context.WithValue(r.Context(), txContextKey{}, tx)
 	if err := a.audit(txCtx, actorID, "ticket.checked_in", "ticket", ticket.ID, map[string]any{
-		"eventId": event.ID,
-		"code":    ticket.Code,
-		"email":   ticket.Email,
+		"eventId":    event.ID,
+		"code":       ticket.Code,
+		"doorLinkId": linkID,
 	}); err != nil {
 		writeError(w, http.StatusInternalServerError, "could not record audit")
 		return

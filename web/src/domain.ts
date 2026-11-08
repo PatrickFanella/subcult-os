@@ -599,6 +599,7 @@ export interface InvitationDTO {
 }
 
 export interface EventReportDTO {
+  doorLinks?: { label: string; count: number }[];
   id: string;
   eventId: string;
   title: string;

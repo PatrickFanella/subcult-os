@@ -153,3 +153,10 @@ alter table workspace_invitations add constraint workspace_invitations_role_chec
 
 Moving participants to `crew` grants them operator access, so prefer removing
 them unless they should become crew.
+
+Version 35 adds event-scoped volunteer door links and ticket link attribution.
+Only hashes are stored; a composite foreign key prevents cross-event actors.
+Existing person/unknown historical actors are retained. See
+[door-links.md](../../../../docs/development/door-links.md) for authority,
+retention and rollback. The older API refuses schema 35; use a backup restore
+or compatible forward fix, not a ledger downgrade.

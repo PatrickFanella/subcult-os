@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { api, postJSON } from '../api';
+import { doorLinkRequest } from '../modules/tickets/doorLink';
 import type { DoorTicketDTO } from '../domain';
 import {
   publicCardClass,
@@ -55,7 +56,7 @@ function doorStatusCardClass(status: DoorTicketDTO['status']) {
     : 'border-stroke-subtle bg-surface-inset text-fg-primary';
 }
 
-export function DoorView({ eventId }: { eventId: string }) {
+export function DoorView({ eventId, doorToken }: { eventId: string; doorToken?: string }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<DoorTicketDTO[]>([]);
   const [loading, setLoading] = useState(false);
@@ -79,9 +80,9 @@ export function DoorView({ eventId }: { eventId: string }) {
     setError(null);
     setNotice(null);
 
-    if (!trimmedQuery) {
+    if (!trimmedQuery || (doorToken && trimmedQuery.length < 3)) {
       setLoading(false);
-      setNotice({ kind: 'neutral', text: 'Type an email, name, or exact ticket code.' });
+      setNotice({ kind: 'neutral', text: doorToken ? 'Type at least three characters of a name or ticket code.' : 'Type an email, name, or exact ticket code.' });
       return;
     }
 
@@ -95,7 +96,9 @@ export function DoorView({ eventId }: { eventId: string }) {
     setLoading(true);
 
     try {
-      const loaded = await api<DoorTicketDTO[]>(`/api/events/${eventId}/door/tickets?query=${encodeURIComponent(trimmedQuery)}`);
+      const loaded = doorToken
+        ? await doorLinkRequest<DoorTicketDTO[]>(eventId, doorToken, `tickets?query=${encodeURIComponent(trimmedQuery)}`)
+        : await api<DoorTicketDTO[]>(`/api/events/${eventId}/door/tickets?query=${encodeURIComponent(trimmedQuery)}`);
       setResults(loaded);
       setNotice(loaded.length === 0 ? { kind: 'neutral', text: `No matches for “${trimmedQuery}”.` } : { kind: 'success', text: `${loaded.length} ticket${loaded.length === 1 ? '' : 's'} ready.` });
     } catch (caught) {
@@ -118,7 +121,9 @@ export function DoorView({ eventId }: { eventId: string }) {
     setNotice(null);
 
     try {
-      const updated = await postJSON<DoorTicketDTO>(`/api/events/${eventId}/door/check-ins`, { code: ticket.code });
+      const updated = doorToken
+        ? await doorLinkRequest<DoorTicketDTO>(eventId, doorToken, 'check-ins', { code: ticket.code })
+        : await postJSON<DoorTicketDTO>(`/api/events/${eventId}/door/check-ins`, { code: ticket.code });
       setResults((current) => {
         const next = current.map((currentTicket) => (currentTicket.code === updated.code ? updated : currentTicket));
         return next.some((currentTicket) => currentTicket.code === updated.code) ? next : [updated, ...next];
@@ -139,7 +144,7 @@ export function DoorView({ eventId }: { eventId: string }) {
         <header className="rounded-hero border border-stroke-subtle bg-surface-panel p-6">
           <p className={publicEyebrowClass}>Door Mode</p>
           <h1 className="mt-2 text-4xl font-bold text-fg-primary">Guest List</h1>
-          <p className={`mt-2 ${publicMutedTextClass}`}>Search by name, email or ticket code. A full code goes straight to check-in.</p>
+          <p className={`mt-2 ${publicMutedTextClass}`}>{doorToken ? 'Search by name or ticket code (at least three characters). This link admits guests for this event only.' : 'Search by name, email or ticket code.'}</p>
 
           <div className="mt-4 rounded-2xl bg-surface-inset px-4 py-3 text-sm font-medium text-fg-secondary">Event ID: {eventId || 'Missing'}</div>
         </header>
@@ -153,7 +158,7 @@ export function DoorView({ eventId }: { eventId: string }) {
               autoComplete="off"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Name, email, or ticket code"
+              placeholder={doorToken ? "Name or ticket code" : "Name, email, or ticket code"}
             />
           </label>
 
@@ -161,7 +166,7 @@ export function DoorView({ eventId }: { eventId: string }) {
             <button
               className={`door-action ${publicPrimaryButtonClass} min-h-14 text-base`}
               type="submit"
-              disabled={loading}
+              disabled={loading || checkingIn !== null}
             >
               {loading ? 'Searching…' : 'Search'}
             </button>
@@ -169,12 +174,13 @@ export function DoorView({ eventId }: { eventId: string }) {
               className={`door-action ${publicSecondaryButtonClass} min-h-14 text-base`}
               type="button"
               onClick={handleClear}
+              disabled={loading || checkingIn !== null}
             >
               Reset
             </button>
           </div>
 
-          <p className="mt-3 text-xs leading-5 text-fg-muted">A full ticket code returns one guest. A name or email may return several.</p>
+          <p className="mt-3 text-xs leading-5 text-fg-muted">{doorToken ? 'Up to 20 matches. Refine the name or use the full code. Guest details are not saved on this device.' : 'A full ticket code returns one guest. A name or email may return several.'}</p>
         </form>
 
         {error ? <p className="border border-status-danger/20 bg-status-surface-danger px-4 py-3 text-sm font-bold text-status-danger">{error}</p> : null}
@@ -227,7 +233,7 @@ export function DoorView({ eventId }: { eventId: string }) {
                 className={`door-action mt-4 w-full ${publicPrimaryButtonClass} min-h-14 text-base`}
                 type="button"
                 onClick={() => handleCheckIn(ticket)}
-                disabled={checkingIn === ticket.code || ticket.status === 'checked_in' || !ticket.admissionEligible}
+                disabled={loading || checkingIn !== null || ticket.status === 'checked_in' || !ticket.admissionEligible}
               >
                 {doorCheckInButtonLabel(checkingIn === ticket.code, ticket.status === 'checked_in')}
               </button>

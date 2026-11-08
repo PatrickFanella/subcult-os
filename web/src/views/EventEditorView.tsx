@@ -1090,6 +1090,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
 
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <span className={`border px-4 py-2 text-xs uppercase tracking-[0.2em] ${lifecycleTone}`}>{lifecycleLabel}</span>
+              {effective && currentWorkspace?.id === effective.workspaceId && currentWorkspace.role === 'owner' && <a className="btn-secondary px-4 py-2" href={`/events/${effective.id}/door-links`}>Volunteer door links</a>}
               {effective && currentWorkspace?.id === effective.workspaceId && currentWorkspace.role === 'owner' && <a className="btn-secondary px-4 py-2" href={`/events/${effective.id}/access-info`}>Access worksheet</a>}
               {effective?.publicUrl ? (
                 <a className="btn-secondary px-4" href={effective.publicUrl}>
@@ -1516,6 +1517,7 @@ export function EventEditorView({ eventId }: { eventId: string }) {
                       <p className="mt-2 text-lg font-bold text-fg-primary">{report.ticketAllocation}</p>
                     </div>
                   </div>
+                  {report.doorLinks?.length ? <div className="mt-4"><h3 className="font-bold">Check-ins by door link</h3><ul>{report.doorLinks.map((link, index) => <li key={index}>{link.label}: {link.count}</li>)}</ul></div> : null}
                   {report.settlementSummary?.currency ? (
                     <div className="mt-4 rounded-2xl border border-stroke-subtle bg-surface-inset p-4">
                       <p className="text-xs uppercase tracking-[0.2em] text-fg-muted">Settlement summary</p>
