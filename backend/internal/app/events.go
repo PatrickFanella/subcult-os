@@ -708,13 +708,6 @@ func (a *App) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-
-	if pricingChanged {
-		if actorID, ok = a.requirePermission(r, event.WorkspaceID, permFinance); !ok {
-			writeError(w, http.StatusForbidden, "forbidden")
-			return
-		}
-	}
 	if err := tx.QueryRow(r.Context(), `
 		update events
 		set title = $2,
@@ -748,6 +741,15 @@ func (a *App) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
+	// An owner demoted to organizer still coordinates, but can no longer
+	// commit a pricing change. Recheck that permission after the UPDATE.
+	if pricingChanged {
+		if actorID, ok = a.requirePermission(r, event.WorkspaceID, permFinance); !ok {
+			writeError(w, http.StatusForbidden, "forbidden")
+			return
+		}
+	}
+
 	txCtx := context.WithValue(r.Context(), txContextKey{}, tx)
 	if err := a.audit(txCtx, actorID, "event.updated", "event", event.ID, map[string]any{
 		"workspaceId":       event.WorkspaceID,
