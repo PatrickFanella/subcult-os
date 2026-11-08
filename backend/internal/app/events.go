@@ -38,6 +38,7 @@ type eventDTO struct {
 }
 
 type eventReportDTO struct {
+	DoorLinks              []doorLinkCheckIns         `json:"doorLinks,omitempty"`
 	ID                     string                     `json:"id"`
 	EventID                string                     `json:"eventId"`
 	Title                  string                     `json:"title"`
@@ -926,6 +927,11 @@ func (a *App) handleEndOfNight(w http.ResponseWriter, r *http.Request) {
 		ReservedCount:         reservedCount,
 		CheckedInCount:        checkedInCount,
 	}, generatedAt, actorEmail)
+	report.DoorLinks, err = loadDoorLinkCheckIns(r.Context(), tx, event.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not load door link counts")
+		return
+	}
 	payload, err := json.Marshal(report)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not encode report")

@@ -37,6 +37,8 @@ type privacySentinelFixture struct {
 	ticketDisplayName string
 	ticketCode        string
 
+	doorLinkLabel string
+	doorLinkToken string
 	staffingNotes string
 
 	placeID           string
@@ -60,6 +62,8 @@ func (f privacySentinelFixture) sentinels() []string {
 		f.placeStreetSecret,
 		f.placeAccessSecret,
 		f.staffingNotes,
+		f.doorLinkLabel,
+		f.doorLinkToken,
 	}
 }
 
@@ -94,6 +98,8 @@ func plantPrivacySentinels(t *testing.T, fx lifecycleFixture) privacySentinelFix
 	out.eventID = mustString(t, event, "id")
 	published := publishEvent(t, fx, out.eventID)
 	out.slug = mustString(t, published, "publicSlug")
+	out.doorLinkLabel = "SENTINEL door link " + tokenHash(fx.suffix)[:16]
+	_, out.doorLinkToken = createDoorLink(t, fx, out.eventID, out.doorLinkLabel)
 
 	out.contactEmail = "sentinel-contact+" + fx.suffix + "@example.test"
 	out.contactNotes = "SENTINEL contact notes " + fx.suffix
@@ -322,4 +328,18 @@ func TestDevEmailOutboxScopedToCaller(t *testing.T) {
 	// An anonymous caller still gets nothing at all.
 	unauth := getJSON(t, fx.app, nil, "/api/dev/email-outbox", http.StatusUnauthorized)
 	assertNoSentinelLeak(t, "anonymous outbox", unauth.Body, []string{inviteEmail})
+}
+
+func TestDoorLinkRequestsKeepCapabilitiesOutOfLogs(t *testing.T) {
+	fx := newLifecycleFixture(t)
+	eventID := mustString(t, createEvent(t, fx, "Door Log Privacy", 3), "id")
+	publishEvent(t, fx, eventID)
+	_, token := createDoorLink(t, fx, eventID, "PRIVATE-LINK-LABEL")
+	var captured bytes.Buffer
+	previous := log.Writer()
+	log.SetOutput(&captured)
+	defer log.SetOutput(previous)
+	assertLinkStatus(t, fx.app, eventID, token, "tickets?query=PRIVATE-QUERY", nil, 200)
+	assertLinkStatus(t, fx.app, eventID, token, "check-ins", map[string]string{"code": "PRIVATE-TICKET-CODE"}, 404)
+	assertNoSentinelLeak(t, "door request logs", captured.String(), []string{token, "PRIVATE-LINK-LABEL", "PRIVATE-QUERY", "PRIVATE-TICKET-CODE"})
 }

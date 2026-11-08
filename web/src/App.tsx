@@ -1,5 +1,6 @@
 import { AuthView } from './views/AuthView';
 import { DiscoverView } from './views/DiscoverView';
+import { DoorLinkView, DoorLinksView } from './views/DoorLinksView';
 import { DoorView } from './views/DoorView';
 import { EventAccessView, VenueAccessView } from './views/EventAccessView';
 import { EventEditorView } from './views/EventEditorView';
@@ -59,6 +60,8 @@ export default function App() {
     return <PublicEventView slug={getSegment(pathname, 3)} />;
   }
 
+  if (pathname.startsWith('/door-link/')) return <DoorLinkView eventId={getSegment(pathname, 2)} />;
+
   if (pathname.startsWith('/tickets/')) {
     return <TicketView code={getSegment(pathname, 2)} />;
   }
@@ -72,6 +75,7 @@ export default function App() {
   }
 
   if (pathname.startsWith('/events/')) {
+    if (pathname.endsWith('/door-links')) return <DoorLinksView eventId={getSegment(pathname, 2)} />;
     if (pathname.endsWith('/access-info')) return <EventAccessView eventId={getSegment(pathname, 2)} />;
     if (pathname.endsWith('/public-archive')) return <PublicArchiveItemsPanel eventId={getSegment(pathname, 2)} />;
     return <EventEditorView eventId={getSegment(pathname, 2)} />;
