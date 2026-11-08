@@ -36,7 +36,7 @@ function goToNext(nextPath: string) {
 }
 
 export function AuthView() {
-  const [mode, setMode] = useState<Mode>(getMode);
+  const mode = getMode();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -122,20 +122,12 @@ export function AuthView() {
               <a
                 className={`px-3 py-2 font-bold uppercase tracking-[0.05em] transition ${mode === 'login' ? 'bg-action-primary text-fg-inverse' : 'bg-surface-inset text-fg-secondary hover:border-stroke-strong'}`}
                 href={authHref('login')}
-                onClick={(event) => {
-                  event.preventDefault();
-                  setMode('login');
-                }}
               >
                 Sign in
               </a>
               <a
                 className={`px-3 py-2 font-bold uppercase tracking-[0.05em] transition ${mode === 'signup' ? 'bg-action-primary text-fg-inverse' : 'bg-surface-inset text-fg-secondary hover:border-stroke-strong'}`}
                 href={authHref('signup')}
-                onClick={(event) => {
-                  event.preventDefault();
-                  setMode('signup');
-                }}
               >
                 Create account
               </a>
