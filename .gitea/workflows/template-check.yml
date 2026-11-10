@@ -1,17 +1,20 @@
 name: subcult-os-check
 
+# Pull request verification runs on the GitHub organization mirror
+# (.github/workflows/mirror-ci.yml); the bridge reports it to Gitea as
+# "GitHub CI / Mirror CI gate". This workflow verifies and deploys main.
 on:
   push:
     branches: [main]
   workflow_dispatch:
-  pull_request:
 
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  # Deploy workflow: never cancel a main run that may be deploying.
+  cancel-in-progress: false
 
 jobs:
   verify:

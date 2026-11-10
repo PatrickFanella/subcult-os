@@ -70,11 +70,15 @@ make verify
 
 Use narrower commands only when an issue explicitly asks for a smaller check.
 
-Gitea CI provisions Node 24, pnpm 10.33.0 and Go 1.26.9 in the job rather than
-assuming the shared runner image includes them. Keep toolchain changes explicit
-and distinguish local `make verify` from the actual hosted result.
-The workflow runs the complete `make test-db` gate against its disposable
-PostgreSQL service. Never point that gate at a retained application database.
+CI provisions Node 24, pnpm 10.33.0 and Go 1.26.9 in the job rather than
+assuming the runner image includes them. Keep toolchain changes explicit, in both
+workflows, and distinguish local `make verify` from the actual hosted result.
+Pull requests are verified on the GitHub organization mirror by
+`.github/workflows/mirror-ci.yml` (`make verify`, `make test-db` and the web image
+check), reported to Gitea as `GitHub CI / Mirror CI gate`. Gitea's
+`.gitea/workflows/template-check.yml` verifies main and deploys the web image.
+Both run the complete `make test-db` gate against a disposable PostgreSQL
+service. Never point that gate at a retained application database.
 
 ## Cloned Dependency Source
 
