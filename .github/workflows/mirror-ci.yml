@@ -1,0 +1,141 @@
+name: Mirror CI
+run-name: Mirror CI ${{ github.sha }}
+
+# Pull request verification for the Gitea source. Gitea keeps main-branch
+# verification and the Kvant web deployment in .gitea/workflows.
+'on':
+  push:
+    branches-ignore: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify subcult-os baseline
+    if: github.repository == 'subculture-collective/subcult-os'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Set up pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: '10.33.0'
+          run_install: false
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: |
+            web/pnpm-lock.yaml
+            mobile/pnpm-lock.yaml
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+        with:
+          go-version: '1.26.9'
+          cache: true
+          cache-dependency-path: backend/go.sum
+      - name: Report toolchain
+        run: |
+          node --version
+          pnpm --version
+          go version
+          docker compose version
+      - name: Verify subcult-os baseline
+        run: make verify
+
+  test-db:
+    name: Verify persisted lifecycle and protocol boundaries
+    if: github.repository == 'subculture-collective/subcult-os'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: subcult_test
+          POSTGRES_PASSWORD: disposable-ci-only
+          POSTGRES_DB: subcult_test
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd "pg_isready -U subcult_test -d subcult_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+        with:
+          go-version: '1.26.9'
+          cache: true
+          cache-dependency-path: backend/go.sum
+      - name: Run the complete database suite
+        env:
+          # Hosted service containers are published on the VM loopback, and
+          # each job gets its own VM, so no other job can share this database.
+          TEST_DATABASE_URL: postgres://subcult_test:disposable-ci-only@127.0.0.1:5432/subcult_test?sslmode=disable
+          # Same bounded budget as the Gitea gate (about nine minutes on two CPUs).
+          GOFLAGS: -timeout=15m
+        run: make test-db
+
+  web-image:
+    name: Build and check the web image
+    if: github.repository == 'subculture-collective/subcult-os'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Build the web image from the pushed revision
+        shell: bash
+        env:
+          REVISION: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$REVISION"
+          image="subcult-os/web:$REVISION"
+          docker build --build-arg PUBLIC_WEB_URL=https://os.subcult.tv -f web/Dockerfile \
+            --label "org.opencontainers.image.revision=$REVISION" \
+            --label "org.opencontainers.image.source=https://git.subcult.tv/subculture-collective/subcult-os" -t "$image" web
+          bash scripts/check-web-image.sh "$image"
+
+  mirror-gate:
+    name: Mirror CI gate
+    if: always() && github.repository == 'subculture-collective/subcult-os'
+    needs:
+      - verify
+      - test-db
+      - web-image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every verification job
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          results = json.loads(os.environ["RESULTS"])
+          expected = {'verify', 'test-db', 'web-image'}
+          assert set(results) == expected, results
+          for name, result in results.items():
+              assert result["result"] == "success", name + " did not pass"
+          PY
